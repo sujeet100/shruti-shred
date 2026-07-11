@@ -180,9 +180,14 @@ thesis applied to model choice. (`gemini-3.1-flash-lite` id is unverified — co
 
 ## Build order (one agent at a time, with review between)
 
-1. Contracts — `CompositionBrief` + `Arrangement` (the chart).
-2. **Interpreter** — agent #1 (structured extraction + validation-at-the-boundary).
-3. **Pandit ⇄ Riffsmith** — the bounded composer dialogue producing the Arrangement.
-4. **Lead / Riff / Groove** — parallel generators reading the chart (+ deterministic Drone).
+1. ✅ Contracts — `CompositionBrief` + `Arrangement` (the chart).
+2. ✅ **Interpreter** — agent #1 (structured extraction + validation-at-the-boundary).
+3. ✅ **Pandit ⇄ Riffsmith** — the bounded composer dialogue producing the Arrangement.
+4. **Lead / Riff / Groove** — parallel generators reading the chart (+ deterministic Drone). ← **NEXT**
 5. **Ustad / Rasik** — the critics.
 6. **Conductor + the Flow** — arbitration, the bounded loops, end-to-end render.
+
+*Not in the original list but added along the way:* **local tracing + trace portal**
+(`crew/tracing.py`, `crew/trace_portal.py`) and an **interpreter eval harness**
+(`crew/evals.py`) — on by default so every LLM run is inspectable (see CLAUDE.md
+"Observability").

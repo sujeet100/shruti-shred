@@ -236,6 +236,13 @@ checklist.
 - Deps: `MIDIUtil` (installed). **`crewai` added in Phase 2** (`uv add crewai python-dotenv`).
 - **Secrets:** API keys in `.env` (**gitignored**; commit a `.env.example` template), loaded via
   `python-dotenv`. Never commit `.env`.
+- **Entry points (Phase 2):**
+  - Pure tests (no API — run freely): `uv run python tests/test_knowledge.py` (also
+    `test_arrangement.py`, `test_composers.py`, `test_interpreter.py`).
+  - Composer run (LLM, **traced by default**): `uv run python -m crew.composers "doom fusion in Darbari, key of D"`.
+  - Interpreter eval (**ONE case** — see Cost discipline): `uv run python -m crew.evals 0` or `uv run python -m crew.evals "<ad-hoc query>"`.
+  - Trace portal (browse runs by id): `uv run python -m crew.trace_portal` → http://127.0.0.1:8420.
+  - Connectivity check: `uv run python -m crew.connectivity`.
 
 ## Status
 
@@ -245,13 +252,25 @@ ornament support in the schema/renderer/validator), `talas.py` (6 talas), `subge
 (4, with drum vocabulary). All covered by `tests/test_knowledge.py` (`uv run python
 tests/test_knowledge.py`). Drum grooves are **generated** at the tala×subgenre
 intersection (no groove catalogue). Talk prep lives in `TALK.md`.
-Phase 2 (CrewAI Flow + agents) **in progress** — see `DESIGN.md` for the full agent flow:
-- Scaffolding done: `crew/` package, config (`crew/config.py`), the two contracts
+Phase 2 (CrewAI Flow + agents) **in progress** — see `DESIGN.md` for the full agent flow
+and build order.
+- Scaffolding done: `crew/` package, config (`crew/config.py`), contracts
   (`crew/contracts.py`), replay harness, connectivity check.
-- **Agent #1 built:** the **Interpreter** (`crew/interpreter.py`) — free-text query →
-  validated `CompositionBrief`, extract-only (invents nothing; unstated dims left OPEN for
-  the composers). Resolver tested in `tests/test_interpreter.py`.
+- **Agent #1 — Interpreter** (`crew/interpreter.py`) **done**: free-text query → validated
+  `CompositionBrief` (invents nothing; unstated dims left OPEN). Reasoning-first extraction
+  (chain-of-thought in the schema) at Flash/low-effort — faithfulness is the model's job,
+  no string-grounding. Resolver tested in `tests/test_interpreter.py`.
+- **Agent #2 — Pandit ⇄ Riffsmith composers** (`crew/composers.py`) **done**: a bounded,
+  we-own-it turn-by-turn dialogue → the `Arrangement` chart (contracts + `build_arrangement`
+  in `crew/contracts.py`; the LLM composes the music, code derives the tala accent grid and
+  guards legality). `output_pydantic=ComposerTurn` for shape + a guardrail for the one
+  domain rule (motif legal in the raga). Pure loop tests: `tests/test_arrangement.py`,
+  `tests/test_composers.py`.
+- **Observability** (`crew/tracing.py` + `crew/trace_portal.py`): every LLM run is traced by
+  default (one trace = one run id, Langfuse-style); browse by id in the local portal.
+  `crew/evals.py` is the interpreter eval harness. See the "Observability" section.
 - Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
-- **NEXT: agent #2** — the **Pandit ⇄ Riffsmith** composer dialogue producing the
-  `Arrangement` chart. Then Lead/Riff/Groove → Ustad/Rasik → Conductor + Flow. (Build order
-  in `DESIGN.md`.)
+- **NEXT: step 4 — the generators.** Lead / Riff / Groove read the `Arrangement` and emit
+  the `Composition` JSON (+ a deterministic Drone); the proven Phase-0 renderer turns that
+  into WAV — the chart → audio handoff. Then Ustad/Rasik (critics) → Conductor + the Flow.
+  (Build order in `DESIGN.md`.)

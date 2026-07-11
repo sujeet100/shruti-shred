@@ -242,6 +242,45 @@ convincing than a hypothetical.)*
   for flash — a handful of test runs exhausted it. The full crew makes many calls per
   generation, so the live demo *needs a paid tier* (or a pre-rendered fallback). Budget this.
 
+### Phase 2, agent #2 — the composers + observability — 2026-07-11
+
+- **Opposed agents, one goal — the debate IS the show.** Pandit (tradition) and Riffsmith
+  (metal) hold deliberately opposite priors. Two *neutral* agents collapse into
+  agreement-theater with nothing to watch; opposition forces a real exploration of "how
+  traditional vs. how aggressive." *Line:* "We didn't give them a goal to disagree — we gave
+  them opposite *tastes*, and let them argue toward one chart."
+- **Own the loop; don't let the framework be autonomous.** CrewAI *has* built-in
+  "collaboration" (agents delegate to each other) and levers to bound it (`max_iter`, timeouts,
+  `step_callback`). We deliberately DON'T use it. Our cap falls on a clean *turn boundary* with
+  a complete, validated artifact; delegation's caps are circuit-breakers that fire mid-thought.
+  *Line:* "A referee with a clock beats hoping agents converge — and the framework's headline
+  feature was the wrong tool for a debate you want the audience to *read*." (We do use its
+  per-turn levers as within-turn safety: `allow_delegation=False`, `max_iter`, a guardrail.)
+- **THE money design beat — the LLM composes, code guarantees.** First cut had *code* copy the
+  raga's first pakad as the motif. Sujit caught it: then every Malkauns piece opens with the
+  same four notes — mechanical. Fix: the LLM composes the motif (and the form, tempo, tala);
+  code only *validates* it's legal in the raga and *derives* verified facts (the tala's accent
+  grid). *Line:* "Creativity is the model's; legality and the raga's facts are code's. Give the
+  machine the pen, keep the rulebook."
+- **Emergent fusion under constraint (the jaw-drop).** Given the raga/tala facts and a nudge to
+  design the *seams*, Riffsmith independently proposed a **tihai** (a phrase thrice, landing on
+  the sam) doubling as the metal **breakdown**, with the double-kick locked to the tabla's bols.
+  Nobody coded "tihai." *Line:* "We handed it constraints from two traditions and it found a
+  genuine bridge between them — that's the whole thesis in one breakdown."
+- **Chain-of-thought in the schema beats parsing the output.** The Interpreter's hallucination
+  wasn't fixed by more effort or by post-hoc string-grounding (a workaround) — it was fixed by
+  adding a `reasoning` field *first* in the structured output, so the model justifies each field
+  before committing. Same trick sharpened the composers' debate. *Rule:* make the model reason
+  in the schema; don't parse your way out of a model problem.
+- **`output_pydantic` crashes on any validator that can fail.** Structured-output parsing treats
+  a raising validator as a parse crash (it bit us on an empty `registers: {}`). The pattern:
+  the schema validates *shape*, a **guardrail** validates *domain* (motif legal in raga → bounded
+  retry), and junk gets *normalized* at the boundary. Clean separation, no crashes.
+- **Local tracing = the black box opened.** Every run is a trace (unique id, Langfuse-style) of
+  spans — each agent's actual prompt, response, tokens, and guardrail retries — browsable in a
+  dependency-free local portal. *Talk use:* show the real prompts and a live guardrail retry;
+  "this is what 'the agents argued' actually looks like under the hood."
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —
