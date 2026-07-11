@@ -1,10 +1,12 @@
 """
 Tests for the intake RESOLVER — the deterministic half of the Interpreter.
 
-`resolve_brief` is pure (no LLM, no network), so it's fully testable here: known
-ragas resolve, unknown ones fail loudly, keys map to Sa, subgenres fall back to
-the raga's affinity, and out-of-range BPMs clamp. The LLM extraction half is
-exercised live via `uv run python -m crew.intake`, not in this suite.
+`resolve_brief` is pure (no LLM), so it's fully testable here. Its contract:
+extract & validate ONLY what the user stated, invent nothing, always succeed.
+NOTHING is required (mood-only is fine). A stated raga/subgenre is kept only if
+supported (else noted, left open); a stated key -> Sa; bpm/instruments/mood pass
+through; everything unstated stays None = "open for the composers." The LLM
+extraction half is exercised live via `uv run python -m crew.intake`, not here.
 
 Runs as a script (`uv run python tests/test_intake.py`) or under pytest.
 """
@@ -17,54 +19,64 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 
 from crew.contracts import RawIntent, resolve_brief  # noqa: E402
-from subgenres import SUBGENRES  # noqa: E402 (available via crew package path bootstrap)
 
 
-def test_full_query_resolves():
-    brief, problems = resolve_brief(RawIntent(raga="Malkauns", key="D", subgenre="doom", bpm=72))
-    assert problems == []
+def test_stated_fields_are_kept_verbatim():
+    brief = resolve_brief(RawIntent(raga="Malkauns", key="D", subgenre="doom", bpm=72))
     assert brief.raga == "malkauns"
-    assert brief.sa == 62            # D
+    assert brief.key == "D" and brief.sa == 62
     assert brief.subgenre == "doom"
-    assert brief.bpm == 72           # in doom's range, honored
-    assert brief.instruments        # defaulted, non-empty
+    assert brief.bpm == 72
 
 
-def test_unknown_raga_is_a_problem():
-    brief, problems = resolve_brief(RawIntent(raga="Shred Major"))
-    assert brief is None
-    assert problems and "not one of" in problems[0]
+def test_mood_only_query_resolves_everything_open():
+    # "a romantic metal fusion" -> nothing but a mood; the composers pick it all.
+    brief = resolve_brief(RawIntent(mood="romantic"))
+    assert brief.mood == "romantic"
+    assert brief.raga is None and brief.subgenre is None and brief.bpm is None
+
+
+def test_unstated_dimensions_stay_open():
+    brief = resolve_brief(RawIntent(raga="malkauns"))
+    assert brief.subgenre is None
+    assert brief.bpm is None
+    assert brief.instruments is None
+    assert brief.sa is None
+
+
+def test_unsupported_raga_left_open_with_note():
+    # Raga is optional now: an unsupported one is noted and left open, not blocked.
+    brief = resolve_brief(RawIntent(raga="Yaman"))
+    assert brief.raga is None
+    assert any("not supported" in n for n in brief.notes)
 
 
 def test_display_name_matches_key():
-    brief, _ = resolve_brief(RawIntent(raga="Darbari Kanada"))
+    brief = resolve_brief(RawIntent(raga="Darbari Kanada"))
     assert brief.raga == "darbari"
 
 
-def test_subgenre_defaults_from_affinity():
-    # No subgenre given -> pick one whose affinity lists this raga; record assumption.
-    brief, _ = resolve_brief(RawIntent(raga="malkauns"))
-    assert brief.subgenre in {sg for sg, p in SUBGENRES.items() if "malkauns" in p["raga_affinity"]}
-    assert any("subgenre" in a for a in brief.assumptions)
+def test_unsupported_subgenre_left_open_with_note():
+    brief = resolve_brief(RawIntent(raga="bhairav", subgenre="black metal"))
+    assert brief.subgenre is None
+    assert any("not supported" in n for n in brief.notes)
 
 
-def test_key_defaults_to_D_when_absent():
-    brief, _ = resolve_brief(RawIntent(raga="bhairav"))
-    assert brief.sa == 62
-    assert any("key" in a for a in brief.assumptions)
+def test_stated_bpm_is_not_clamped():
+    brief = resolve_brief(RawIntent(raga="malkauns", subgenre="doom", bpm=180))
+    assert brief.bpm == 180
 
 
-def test_bpm_clamped_to_subgenre_range():
-    lo, hi = SUBGENRES["doom"]["bpm"]
-    brief, _ = resolve_brief(RawIntent(raga="malkauns", subgenre="doom", bpm=999))
-    assert brief.bpm == hi
-    assert any("clamped" in a for a in brief.assumptions)
+def test_mood_does_not_pick_a_subgenre():
+    brief = resolve_brief(RawIntent(raga="darbari", mood="heavy"))
+    assert brief.mood == "heavy"
+    assert brief.subgenre is None
 
 
-def test_bpm_defaults_to_range_midpoint():
-    lo, hi = SUBGENRES["thrash"]["bpm"]
-    brief, _ = resolve_brief(RawIntent(raga="bhairavi", subgenre="thrash"))
-    assert brief.bpm == (lo + hi) // 2
+def test_unrecognized_key_left_open_with_note():
+    brief = resolve_brief(RawIntent(raga="bhairav", key="H"))
+    assert brief.key is None and brief.sa is None
+    assert any("key" in n for n in brief.notes)
 
 
 if __name__ == "__main__":

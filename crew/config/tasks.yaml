@@ -7,15 +7,27 @@ interpret_query:
 
         "{query}"
 
-    Capture the raga name, the key, the metal subgenre or mood, the BPM, and any
-    named instruments — but ONLY if the user actually stated them.
+    Your ONLY job is to capture values the user EXPLICITLY stated. You never choose,
+    estimate, or infer — all creative decisions are made downstream by other agents.
 
-    Critical: leave a field null when the user did not mention it. Do NOT estimate,
-    infer, or fill defaults. In particular:
-      - if the user gives no explicit tempo number, bpm MUST be null (never guess);
-      - if the user names no instruments, instruments MUST be null (never guess);
-      - use real JSON null, not the string "null" or a placeholder like -1.
-    Defaults and normalization are handled downstream by deterministic code, not you.
+    Rules:
+      - Set a field only if the user explicitly stated it; otherwise leave it null.
+      - Nothing is mandatory. A request may convey only a mood ("a romantic fusion")
+        — then set `mood` and leave everything else null.
+      - Emotional / vibe words (angry, romantic, dark, epic) go in `mood`, NEVER in
+        `subgenre`. `subgenre` is only an explicit metal genre named by the user
+        (thrash, doom, death, progressive).
+      - A field holds ONE specific value the user gave. NEVER put the whole request,
+        or a phrase from it, into any field.
+      - Use real JSON null — not the string "null", not a placeholder like -1 or [].
+
+    The examples below show the MAPPING only; never reuse their specific values.
+      request: "create a romantic metal fusion"
+        -> mood="romantic"; raga, key, subgenre, bpm, instruments all null
+      request: "thrash in Bhairav, key of E, 190 bpm"
+        -> raga="Bhairav", key="E", subgenre="thrash", bpm=190; mood, instruments null
+      request: "a dark, heavy piece in Malkauns with tabla"
+        -> raga="Malkauns", mood="dark, heavy", instruments=["tabla"]; key, subgenre, bpm null
   expected_output: >
     A RawIntent object with fields raga, key, subgenre, mood, bpm, instruments —
     each set only if the user specified it, otherwise null.

@@ -26,7 +26,7 @@ debate too noisy to follow.
 "metal fusion in Malkauns, key of D"
     │
     ▼
- Interpreter ─────────────▶  CompositionBrief {raga, sa, subgenre, bpm, instruments}
+ Interpreter ─────────────▶  CompositionBrief {only what the user STATED; rest = OPEN}
     │
     ▼
  Pandit  ⇄  Riffsmith  ───▶  Arrangement (the shared "chart")
@@ -59,7 +59,7 @@ result (arbitrated with a clock). That contrast is a core teaching beat.
 
 | Agent | One responsibility | In → Out | Tier |
 |---|---|---|---|
-| **Interpreter** | Free-text query → validated brief; map mood→subgenre, key→Sa; fill grounded defaults; never block | text → `CompositionBrief` | Flash |
+| **Interpreter** | Extract & validate ONLY what the user stated (raga/subgenre kept if supported, key→Sa, mood passthrough). Invents nothing; **nothing is required** (mood-only OK); unstated dimensions stay OPEN for the composers | text → `CompositionBrief` | Flash |
 | **Pandit** (composer, tradition-leaning) | Argue for raga depth: space, ornament, alaap/development, idiom | dialogue turns → `Arrangement` | Flash |
 | **Riffsmith** (composer, metal-leaning) | Argue for metal impact: heaviness, riff hooks, aggression, tightness | dialogue turns → `Arrangement` | Flash |
 | **Lead** (RagaGrammar) | Melodic lines per section (alaap/taan/lead/solo), seeded by pakad/chalan, kan/meend | (section, chart) → lead layer | Flash |
@@ -141,7 +141,7 @@ plan-as-contract, guardrail/critique loop.)
 
 | Contract | Producer | Carries |
 |---|---|---|
-| **`CompositionBrief`** | Interpreter | raga, Sa/key, subgenre, bpm, instruments, length target — validated against the data libraries (unknown raga fails at the boundary) |
+| **`CompositionBrief`** | Interpreter | ALL fields optional — only what the user stated (raga/subgenre validated against the libraries and kept only if supported; key→Sa; mood passthrough). Unstated = None = "OPEN, composers decide." |
 | **`Arrangement`** (the "chart") | Composers | ordered sections (type, bars, active layers), **tala accent grid**, **register per voice**, **shared motif** (from pakad), dynamics/foreground — rich enough that parallel generators reading it interlock |
 | **`Composition`** | Generators (assembled) | the swara-JSON the renderer consumes (already defined) |
 | **`DebateEvent` stream** | every step | `{type, agent, role, text, verdict?, scores?}` — same shape live or replay |
@@ -151,8 +151,10 @@ plan-as-contract, guardrail/critique loop.)
 ## Operating rules (settled)
 
 - Prompts live as **CrewAI classic YAML** (`crew/config/agents.yaml` + `tasks.yaml`, `@CrewBase`).
-- **Interpreter never blocks** — fills grounded defaults (subgenre from `raga_affinity`, bpm
-  from the subgenre range, Sa from key or default D) and emits the assumption as an event.
+- **Interpreter extracts only, never invents** — captures just what the user stated, leaves
+  the rest OPEN; the composers make the creative calls (including the raga, from the mood).
+  It never blocks. Prompt rules + examples carry the "leave it null" faithfulness — do NOT
+  raise reasoning effort to paper over a weak prompt (prompt first).
 - Composers converge in **~2–3 turns** or the Conductor decides; `MAX_ROUNDS = 2` for revise.
 - Revise is **surgical** — only the flagged layer regenerates; the Arrangement stays fixed.
 - Generators **parallel**; the composer dialogue and the critic debate are the two bounded

@@ -63,10 +63,14 @@ def has_api_key() -> bool:
     return bool(os.getenv("GEMINI_API_KEY"))
 
 
-def build_llm(model: str, temperature: float):
-    """Construct a CrewAI LLM (lazy import: no crewai cost until called)."""
+def build_llm(model: str, temperature: float, effort: str | None = None):
+    """Construct a CrewAI LLM (lazy import: no crewai cost until called).
+
+    `effort` overrides the global reasoning effort for this one agent — used where
+    a task needs more budget than the default (e.g. faithful extraction).
+    """
     from crewai import LLM
-    return LLM(model=model, temperature=temperature, reasoning_effort=reasoning_effort())
+    return LLM(model=model, temperature=temperature, reasoning_effort=effort or reasoning_effort())
 
 
 def generator_llm():
@@ -80,9 +84,11 @@ def critic_llm():
 
 
 def extractor_llm():
-    """Low-temperature Flash for extraction/narration (Interpreter now; Ustad later).
+    """Low-temperature Flash for extraction (Interpreter).
 
-    Extraction wants determinism, not variety, so it runs cool (CRITIC_TEMPERATURE).
-    A downgrade candidate for flash-lite once the loop works (see DESIGN.md tiering).
+    Runs cool (determinism over variety) at the default (low) effort. Faithful
+    extraction is driven by the PROMPT's rules + examples, not by burning reasoning
+    effort — prompt first, effort only if a solid prompt still fails (see DESIGN.md).
+    The `effort` param on build_llm exists for that escalation, deliberately unused here.
     """
     return build_llm(flash_model(), CRITIC_TEMPERATURE)

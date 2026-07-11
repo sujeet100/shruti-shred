@@ -34,20 +34,20 @@ from subgenres import SUBGENRES
 # Contract 0: Intake (free-text query -> validated brief)                     #
 #                                                                             #
 # Split on purpose: the LLM does FUZZY extraction (RawIntent — what the user  #
-# said), and deterministic CODE does AUTHORITATIVE resolution (resolve_brief  #
-# — validate against the data libraries, fill grounded defaults). The model   #
-# can't silently invent a bpm or an illegal raga; that's the guardrail idea   #
-# applied to intake. resolve_brief is pure and unit-tested without any LLM.   #
+# said), and deterministic CODE does AUTHORITATIVE validation (resolve_brief).#
+# It invents NOTHING. The one hard check is that the raga is supported (we    #
+# only have five) — that's boundary validation, not a creative choice. Every  #
+# UNSTATED dimension (subgenre, tempo, instruments, key/register) is left     #
+# OPEN for the composers to decide; the Interpreter must not preempt them.    #
+# resolve_brief is pure and unit-tested without any LLM.                      #
 # --------------------------------------------------------------------------- #
 
-# Note name -> MIDI pitch (octave 4; C4 = 60). Used to resolve "in the key of D".
+# Note name -> MIDI pitch (octave 4; C4 = 60). Used to transcribe "in the key of D".
 KEY_TO_MIDI: dict[str, int] = {
     "C": 60, "C#": 61, "DB": 61, "D": 62, "D#": 63, "EB": 63, "E": 64, "F": 65,
     "F#": 66, "GB": 66, "G": 67, "G#": 68, "AB": 68, "A": 69, "A#": 70, "BB": 70, "B": 71,
 }
-DEFAULT_SA: int = KEY_TO_MIDI["D"]  # D — a comfortable low root for metal
-DEFAULT_INSTRUMENTS: list[str] = ["sitar", "distortion guitar", "drums", "tanpura"]
-DEFAULT_LENGTH_SECONDS: int = 45
+DEFAULT_SA: int = KEY_TO_MIDI["D"]  # render-time fallback ONLY if key is never set; NOT an intake default
 
 
 _NULLISH = {"", "null", "none", "n/a", "na", "unspecified", "unknown", "any"}
@@ -95,31 +95,35 @@ class RawIntent(BaseModel):
 
 
 class CompositionBrief(BaseModel):
-    """The authoritative, validated brief the crew composes from.
+    """What the user asked for — extracted and validated, nothing invented.
 
-    Produced by `resolve_brief` (not the LLM directly). `assumptions` records every
-    grounded default the resolver filled, so the Interpreter can surface them as
-    events ("subgenre not specified -> chose doom") instead of blocking.
+    EVERYTHING is optional. The user might name a raga and key, or say nothing but a
+    mood ("a romantic metal fusion"). Each field is what the user EXPLICITLY stated,
+    or None = "open — the composers decide." The Interpreter makes no creative
+    choices; the composers pick whatever was left open — including the RAGA itself,
+    guided by the mood. `notes` records extraction observations (e.g. an unsupported
+    raga/subgenre was requested and left open).
     """
-    raga: str
-    sa: int = DEFAULT_SA
-    subgenre: str
-    bpm: int
-    instruments: list[str] = Field(default_factory=lambda: list(DEFAULT_INSTRUMENTS))
-    length_seconds: int = DEFAULT_LENGTH_SECONDS
-    assumptions: list[str] = Field(default_factory=list)
+    raga: Optional[str] = None         # kept only if the user named a SUPPORTED raga
+    key: Optional[str] = None          # transcribed if stated (e.g. "D")
+    sa: Optional[int] = None           # MIDI root, from key if stated; else open
+    subgenre: Optional[str] = None     # kept only if the user named a SUPPORTED one
+    bpm: Optional[int] = None          # only if the user gave a number
+    instruments: Optional[list[str]] = None  # only if the user named some
+    mood: Optional[str] = None         # emotional vibe (e.g. angry, romantic) — a hint for the composers
+    notes: list[str] = Field(default_factory=list)
 
     @field_validator("raga")
     @classmethod
-    def _known_raga(cls, v: str) -> str:
-        if v not in RAGAS:
+    def _known_raga(cls, v):
+        if v is not None and v not in RAGAS:
             raise ValueError(f"unknown raga '{v}' (expected one of {sorted(RAGAS)})")
         return v
 
     @field_validator("subgenre")
     @classmethod
-    def _known_subgenre(cls, v: str) -> str:
-        if v not in SUBGENRES:
+    def _known_subgenre(cls, v):
+        if v is not None and v not in SUBGENRES:
             raise ValueError(f"unknown subgenre '{v}' (expected one of {sorted(SUBGENRES)})")
         return v
 
@@ -138,63 +142,47 @@ def _match_raga(text: Optional[str]) -> Optional[str]:
     return None
 
 
-def _subgenre_for(raga_key: str, said: Optional[str]) -> tuple[str, Optional[str]]:
-    """Resolve subgenre: honor a valid one, else pick by the raga's affinity.
+def resolve_brief(intent: RawIntent) -> CompositionBrief:
+    """Extract & validate ONLY what the user stated; invent nothing. Always succeeds.
 
-    Returns (subgenre, assumption_or_None).
+    Pure and deterministic — no LLM, no network. NOTHING is required: the user may
+    give only a mood. A stated raga or subgenre is kept only if we support it (else
+    noted and left open); a stated key is transcribed to Sa; bpm/instruments/mood
+    pass through as stated. Every unstated dimension stays None = "open for the
+    composers" — who will pick the raga (from the mood), subgenre, tempo, and rest.
     """
-    if said and said.strip().lower() in SUBGENRES:
-        return said.strip().lower(), None
-    affine = [sg for sg, prof in SUBGENRES.items() if raga_key in prof["raga_affinity"]]
-    chosen = affine[0] if affine else "doom"
-    return chosen, (f"subgenre not specified -> chose '{chosen}' "
-                    f"(suits {RAGAS[raga_key]['display']})")
+    notes: list[str] = []
 
+    raga: Optional[str] = None
+    if intent.raga:
+        matched = _match_raga(intent.raga)
+        if matched:
+            raga = matched
+        else:
+            notes.append(f"raga {intent.raga!r} not supported {sorted(RAGAS)} "
+                         f"— left open for the composers")
 
-def resolve_brief(intent: RawIntent) -> tuple[Optional[CompositionBrief], list[str]]:
-    """Turn a loose RawIntent into a validated CompositionBrief with grounded defaults.
+    key: Optional[str] = None
+    sa: Optional[int] = None
+    if intent.key:
+        candidate = intent.key.strip().upper()
+        if candidate in KEY_TO_MIDI:
+            key, sa = candidate, KEY_TO_MIDI[candidate]
+        else:
+            notes.append(f"key {intent.key!r} not recognized — left open")
 
-    Pure and deterministic — no LLM, no network. Returns (brief, []) on success or
-    (None, [problems]). The only thing that can't be defaulted is the raga itself:
-    an unknown/missing raga is a real problem, not something to invent.
-    """
-    raga_key = _match_raga(intent.raga)
-    if not raga_key:
-        return None, [f"raga '{intent.raga}' is not one of {sorted(RAGAS)}"]
+    subgenre: Optional[str] = None
+    if intent.subgenre:
+        candidate = intent.subgenre.strip().lower()
+        if candidate in SUBGENRES:
+            subgenre = candidate
+        else:
+            notes.append(f"subgenre {intent.subgenre!r} not supported "
+                         f"{sorted(SUBGENRES)} — left open for the composers")
 
-    assumptions: list[str] = []
-
-    subgenre, note = _subgenre_for(raga_key, intent.subgenre or intent.mood)
-    if note:
-        assumptions.append(note)
-
-    if intent.key and intent.key.strip().upper() in KEY_TO_MIDI:
-        sa = KEY_TO_MIDI[intent.key.strip().upper()]
-    else:
-        sa = DEFAULT_SA
-        assumptions.append(
-            f"key {intent.key!r} unrecognized -> default D" if intent.key
-            else "key not specified -> default D")
-
-    lo, hi = SUBGENRES[subgenre]["bpm"]
-    if intent.bpm and lo <= intent.bpm <= hi:
-        bpm = intent.bpm
-    elif intent.bpm:
-        bpm = min(max(intent.bpm, lo), hi)
-        assumptions.append(f"bpm {intent.bpm} outside {subgenre} range -> clamped to {bpm}")
-    else:
-        bpm = (lo + hi) // 2
-        assumptions.append(f"bpm not specified -> {bpm} (mid of {subgenre} range)")
-
-    if intent.instruments:
-        instruments = intent.instruments
-    else:
-        instruments = list(DEFAULT_INSTRUMENTS)
-        assumptions.append("instruments not specified -> default fusion set")
-
-    brief = CompositionBrief(raga=raga_key, sa=sa, subgenre=subgenre, bpm=bpm,
-                             instruments=instruments, assumptions=assumptions)
-    return brief, []
+    return CompositionBrief(raga=raga, key=key, sa=sa, subgenre=subgenre,
+                            bpm=intent.bpm, instruments=intent.instruments,
+                            mood=intent.mood, notes=notes)
 
 
 # --------------------------------------------------------------------------- #
