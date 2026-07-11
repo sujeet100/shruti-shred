@@ -263,3 +263,53 @@ assess_legality:
     A single UstadNarration as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
     {output_schema}
+
+# Rasik's task: judge TASTE on a fixed rubric, grounded in encoded raga facts and a
+# code-computed pakad hint. Unlike Ustad, the LLM owns the verdict here (taste is not
+# checkable) — so the discipline is in the rubric and the required per-criterion
+# justification, not in code overriding the result. No literal braces; the JSON shape
+# arrives via {output_schema}.
+assess_taste:
+  description: |
+    You are Rasik, judging the AESTHETIC quality of this finished composition in raga
+    {raga} — its rasa, its idiom, its coherence. Unlike legality (a fact), taste is
+    YOUR judgment; but judge against CRITERIA, not vibes — score each rubric item on a
+    fixed 1-5 scale and justify it from the raga's encoded character and the actual
+    music below. A high score must be earned by evidence in the notes.
+
+    METHOD — fill `reasoning` FIRST: go criterion by criterion (pakad, idiom, mood,
+    coherence) and, for EACH, cite the evidence that justifies the score you will give
+    — quote the lead phrase, name the chalan movement or the ornament, point to the
+    voices and their registers. THEN commit `scores` and write `notes`.
+
+    THE RUBRIC (score each an integer 1-5; 1 = absent/wrong, 3 = acceptable, 5 = exemplary):
+      pakad     — is the raga's signature phrase PRESENT (quoted literally or clearly evoked)?
+      idiom     — does the line MOVE like the raga — its chalan, its ornaments, the vadi
+                  emphasized — rather than merely staying in-scale?
+      mood      — does the music serve the raga's rasa (its emotional essence and samay)?
+      coherence — do the voices cohere as an ENSEMBLE — interlocking, in distinct
+                  registers, with space (not every voice at full throughout)?
+
+    THE RAGA — its encoded character, the single source of truth you judge against:
+    {raga_facts}
+
+    GROUNDING — a FACT computed for you, so your pakad score is anchored, not guessed
+    (a phrase can still be EVOKED without a literal quote — judge that with your ear):
+    {pakad_hint}
+
+    THE LEAD LINE — the melodic voice, in order (octave in parentheses when not 0):
+    {lead_line}
+
+    THE ENSEMBLE — the voices present and their octave range, for the coherence score:
+    {ensemble}
+
+    HARD RULES:
+      - Every score is an integer 1-5, justified in `reasoning` BEFORE you commit it.
+      - Judge against the encoded raga facts and the actual music above — never a
+        generic notion of "good." Do not inflate a score you cannot defend from the notes.
+      - `notes` is a SHORT (2-3 sentence) critique a musician can act on.
+      - Return only the fields asked for, as JSON — no prose outside them.
+  expected_output: |
+    A single RasikVerdict as JSON and nothing else — no prose, no code fences.
+    Use exactly this shape:
+    {output_schema}

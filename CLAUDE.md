@@ -291,12 +291,20 @@ and build order.
   guardrail on generator output, and a **tool Ustad calls mid-reasoning** (a visible ReAct
   step in the trace) so it can *explain* a violation. Tool caching is OFF (zero-arg call ⇒ a
   cache would return a prior piece's stale result). Pure tests: `tests/test_ustad.py`.
+- **Agent #5 — Rasik, the taste critic** (`crew/rasik.py`) **done**: the deliberate OPPOSITE
+  of Ustad — legality is a fact (code owns it), but **taste is not checkable, so the LLM
+  genuinely judges** (LLM-as-judge). The bias (verbosity/gestalt/self-preference) is countered
+  by DISCIPLINE, not by taking the pen: a fixed **1-5 rubric** over four named criteria
+  (`RasikScores`: pakad, idiom, mood, coherence), scores **grounded in the encoded
+  pakad/chalan/rasa facts** plus a **code-computed pakad hint** (`pakad_presence` — does the
+  signature phrase appear literally in the lead?), and a per-criterion justification required
+  (reasoning first). No tool (taste isn't a lookup). Pure tests: `tests/test_rasik.py`.
 - **Observability** (`crew/tracing.py` + `crew/trace_portal.py`): every LLM run is traced by
   default (one trace = one run id, Langfuse-style); browse by id in the local portal.
   `crew/evals.py` is the interpreter eval harness. See the "Observability" section.
 - Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
-- **NEXT: Rasik (the taste critic — LLM-as-judge on a rubric grounded in pakad/chalan) to
-  finish step 5; then step 6 — Conductor + the Flow** (the bounded debate = the talk's money
-  moment), which also wires the **foreground leader/follower LLM-seeding** (lead ⇄ riff)
+- **NEXT: step 6 — Conductor + the Flow** (the bounded debate = the talk's money moment): on
+  an Ustad↔Rasik conflict run the bounded debate and rule accept / surgical-revise (capped at
+  `MAX_ROUNDS`); also wires the **foreground leader/follower LLM-seeding** (lead ⇄ riff)
   deferred from step 4. Build order + the settled generator design (deterministic
   drums/bass/tabla, lead voicing, "who leads a section") are in `DESIGN.md`.

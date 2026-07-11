@@ -764,6 +764,32 @@ class UstadVerdict(BaseModel):
     reasoning: str = ""
 
 
+class RasikScores(BaseModel):
+    """Rasik's rubric — four aesthetic criteria on a FIXED 1-5 scale.
+
+    The fixed, named, bounded scale is deliberate: it is the countermeasure to
+    LLM-as-judge bias (verbosity, a gestalt "vibe" number). The model must commit a
+    separate integer per named criterion, each justified against the encoded raga
+    facts — criteria, not vibes.
+    """
+    pakad: int = Field(ge=1, le=5)      # is the raga's signature phrase present (literally or evoked)?
+    idiom: int = Field(ge=1, le=5)      # does the line MOVE like the raga (chalan, ornaments, vadi)?
+    mood: int = Field(ge=1, le=5)       # does the music serve the raga's rasa / samay?
+    coherence: int = Field(ge=1, le=5)  # do the voices cohere as an ensemble (interlock, register, space)?
+
+
+class RasikVerdict(BaseModel):
+    """The taste critic's verdict — LLM-OWNED, the deliberate opposite of Ustad's
+    code-owned legality verdict. Taste is not checkable, so here the model DOES judge;
+    we discipline it (not replace it) with a fixed rubric and encoded-fact grounding.
+    `reasoning` (filled FIRST) justifies each score from the evidence before it is
+    committed; `scores` is the rubric; `notes` is the short actionable critique.
+    """
+    reasoning: str = ""
+    scores: RasikScores
+    notes: str = ""
+
+
 # --------------------------------------------------------------------------- #
 # Contract 2: Debate event stream                                             #
 # --------------------------------------------------------------------------- #

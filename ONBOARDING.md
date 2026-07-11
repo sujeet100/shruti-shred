@@ -31,9 +31,14 @@ the renderer bends pitch to voice *meend* (glides).
   - **Agent #4 Ustad (legality critic)** — done. `Composition` → `UstadVerdict` (legal/illegal
     + violations). Code owns the verdict via `validate_composition`; the LLM only narrates it
     (`crew/ustad.py`). Same validator is the generator guardrail AND Ustad's explain-tool.
+  - **Agent #5 Rasik (taste critic)** — done. `Composition` → `RasikVerdict` (a fixed 1-5
+    rubric: pakad/idiom/mood/coherence + notes). The OPPOSITE of Ustad — taste is not
+    checkable, so the LLM owns the verdict; it's disciplined by the rubric + encoded-fact
+    grounding + a code-computed pakad hint (`crew/rasik.py`).
   - **Local tracing + portal + eval harness** — done (on by default).
-- **NEXT → Rasik (the taste critic) to finish step 5**, then **step 6 (Conductor + the Flow**,
-  which also wires the deferred foreground leader/follower seeding). See "The next task" below.
+- **NEXT → step 6 (Conductor + the Flow)**: on an Ustad↔Rasik conflict, run the bounded debate
+  and rule accept / surgical-revise; also wires the deferred foreground leader/follower
+  seeding. See "The next task" below.
 
 ## Quickstart
 
@@ -70,7 +75,7 @@ FluidSynth (`brew install fluid-synth`) + the soundfont (see `soundfonts/README.
     `config/agents.yaml` + `config/tasks.yaml`, never inline.
   - `tracing.py` / `trace_portal.py` — local observability. `evals.py` — eval harness.
 - **`tests/`** — pure tests only (no API): knowledge, arrangement, composers, interpreter,
-  generators, lead, riff, groove, band, ustad (133 tests, all free).
+  generators, lead, riff, groove, band, ustad, rasik (142 tests, all free).
 
 ## The rules that bite (read `CLAUDE.md` for the full set)
 
@@ -83,22 +88,23 @@ FluidSynth (`brew install fluid-synth`) + the soundfont (see `soundfonts/README.
 - **Own the loop** (bounded, streamable), don't use CrewAI's autonomous delegation.
   Validate at boundaries; schema checks shape, guardrails check domain, normalize junk.
 
-## The next task — Rasik (finish step 5), then the Conductor
+## The next task — step 6: Conductor + the Flow (the money moment)
 
-The generators are done (chart → `out/full_band.wav`) and **Ustad** (legality) is done. What
-remains of the **judgment** half of the pipeline — and the talk's money moment:
+The generators AND both critics are done. Ustad (`critique_legality(comp)`) and Rasik
+(`critique_taste(comp)`) each judge a `Composition`; what remains is to WIRE them into the
+bounded debate — the talk's money moment:
 
-- **Ustad** — legality/theory — **done** (`crew/ustad.py`). Code owns the verdict via
-  `validate_composition`; the LLM only narrates. Same validator is the generator guardrail AND
-  Ustad's explain-tool.
-- **Rasik** (next) — aesthetic/rasa on an explicit rubric grounded in the encoded pakad/chalan:
-  is the pakad present, is it idiomatic, does it serve the mood, do the parts cohere as an
-  ensemble. The OPPOSITE pattern to Ustad — LLM-as-judge, so it needs the bias countermeasures
-  (explicit fixed-scale rubric, ground the scores in encoded facts, not vibes).
-- Then **step 6 — Conductor + the Flow**: on an Ustad↔Rasik conflict, run the **bounded debate**
-  and rule accept / surgical-revise (capped at `MAX_ROUNDS`); this is also where the deferred
+- **Ustad** — legality — **done** (`crew/ustad.py`). Code owns the verdict; the LLM narrates.
+- **Rasik** — taste — **done** (`crew/rasik.py`). LLM owns the verdict; a fixed rubric +
+  encoded-fact grounding + a code-computed pakad hint keep it honest.
+- **Conductor + the Flow** (next) — a CrewAI **Flow** running propose → critique → (debate +
+  arbitrate on conflict) → revise, capped by `MAX_ROUNDS`. On an Ustad↔Rasik conflict (legal
+  but lifeless, or loved but illegal) the Conductor is a `@router` that runs the **bounded
+  debate** and rules accept / surgical-revise (regenerate only the flagged layer). It ALWAYS
+  terminates on the round cap — never organic consensus. This is also where the deferred
   **foreground leader/follower LLM-seeding** (lead ⇄ riff) lands.
 
-Everything the critics judge already exists: `compose_band(arr)` yields the `Composition`, and
-`compose_from_query(query)` runs the whole pipeline. Read `DESIGN.md` (roster, the critics +
-Conductor section, "who leads a section") and the `CLAUDE.md` CrewAI rules before building.
+Everything the Conductor arbitrates already exists: `compose_band(arr)` yields the
+`Composition`, `compose_from_query(query)` runs the whole pipeline, and the two critics return
+`(verdict, events)`. Read `DESIGN.md` (roster, the critics + Conductor section, "who leads a
+section") and the `CLAUDE.md` CrewAI/Flow rules before building.

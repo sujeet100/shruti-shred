@@ -262,11 +262,16 @@ thesis applied to model choice. (`gemini-3.1-flash-lite` id is unverified — co
    Lead (+ sitar/guitar voicing), Riff, Bass, Groove/Drums, Tabla theka, and the full-band
    assembly (`crew/band.py`, chart -> every voice -> Composition -> WAV). Remaining: the
    foreground leader/follower LLM-seeding (lead ⇄ riff), which lands with the Flow (step 6).*
-5. **Ustad / Rasik** — the critics. *DONE: Ustad (`crew/ustad.py`) — the legality critic.
-   Code owns the verdict (deterministic `validate_composition`), the LLM only narrates: the
-   type split (`UstadNarration` has no verdict field → code assembles `UstadVerdict`) makes
-   "code decides the checkable" structural. The validator is BOTH the generator guardrail and
-   a tool Ustad calls to explain a violation. Remaining: Rasik — the taste critic.*
+5. ✅ **Ustad / Rasik** — the critics, the two OPPOSITE judgment patterns.
+   - **Ustad** (`crew/ustad.py`) — the legality critic. Code owns the verdict (deterministic
+     `validate_composition`), the LLM only narrates: the type split (`UstadNarration` has no
+     verdict field → code assembles `UstadVerdict`) makes "code decides the checkable"
+     structural. The validator is BOTH the generator guardrail and a tool Ustad calls to
+     explain a violation.
+   - **Rasik** (`crew/rasik.py`) — the taste critic, LLM-as-judge. Taste is not checkable, so
+     the LLM owns the verdict; the bias is countered by a fixed 1-5 rubric (`RasikScores`:
+     pakad/idiom/mood/coherence), scores grounded in encoded pakad/chalan/rasa facts + a
+     code-computed pakad hint (`pakad_presence`), and a per-criterion justification.
 6. **Conductor + the Flow** — arbitration, the bounded loops, the foreground leader/follower
    ordering, end-to-end render. *(not started)*
 

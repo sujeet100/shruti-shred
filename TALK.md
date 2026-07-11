@@ -342,6 +342,35 @@ convincing than a hypothetical.)*
   the tool (prompt grows as the violations are injected), *then* answers. That two-step is the
   "visible tools, not autonomous magic" principle made literally watchable in the trace portal.
 
+### Phase 2, agent #5 — Rasik, the taste critic — 2026-07-11
+
+- **The clean contrast: Ustad and Rasik are OPPOSITE by construction.** Ustad's verdict is
+  code's (legality is a fact); Rasik's verdict is the model's (taste isn't). *Line:* "Same
+  interface — judge a composition — opposite answer to 'who decides?'. That single question,
+  asked per criterion, is the whole 'guardrail vs. judgment' thesis." Put the two side by side
+  on one slide: `Ustad → verdict from code` | `Rasik → verdict from the LLM`.
+- **You don't fix LLM-judge bias by taking the pen — you DISCIPLINE the judgment.** LLM judges
+  drift (verbosity = "longer looks better", a gestalt vibe number, self-preference). The fixes
+  we actually used: a FIXED 1-5 scale over four NAMED criteria (bounded beats vibes), scores
+  grounded in the encoded pakad/chalan/rasa facts, a code-computed pakad hint handed to the
+  judge, and reasoning-FIRST so each number is justified before it's committed. *Line:* "We
+  didn't tell it 'be objective' — we gave it a rubric, a fact to anchor on, and made it show
+  its work per criterion."
+- **Ground the judge in a FACT: the code-computed pakad hint.** Whether the raga's signature
+  phrase appears *literally* in the lead is checkable, so code computes it and hands it to
+  Rasik — who then judges whether it's present *in spirit* when not literal. *Line:* "We don't
+  ask the judge 'is the pakad there?' cold. We tell it 'the phrase d-n-P-m appears literally at
+  beat 8' and ask it to judge whether that's used with soul." Code supplies the fact, the LLM
+  supplies the taste — the project thesis, inside a single agent.
+- **The discipline is visible when the score is HONEST, not flattering.** In the live check the
+  demo was only drone + lead (no rhythm section), and Rasik scored coherence 3, not 5 — and its
+  note said exactly why (add a mid-register rhythm section; let the lead linger with andolan on
+  komal ga/dha). *Talk beat:* a critic that dings its own demo is the proof the rubric bites —
+  and it sets up the money moment: a piece Ustad passes as legal, Rasik still marks as lifeless.
+- **Rasik scores ONE piece, so the position-swap countermeasure doesn't apply here.** Worth
+  saying out loud: swap-the-order is for A/B *comparisons* (it belongs to the Conductor's later
+  tie-breaks), not single-item scoring. Naming which bias fix applies where is itself the lesson.
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —
