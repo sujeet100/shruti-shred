@@ -198,6 +198,22 @@ convincing than a hypothetical.)*
 
 ---
 
+### Phase 2 (agentic flow design) — 2026-07-11
+
+- **Agents map to DECISIONS, not instruments (the design money-lesson).** The naive
+  instinct is one agent per track — sitar agent, drums agent, tabla agent, solo agent,
+  harmonizer agent — and it balloons to ~15 agents. Wrong axis. Instruments are *data*
+  (`layers` in the JSON), rendered deterministically; "taan" and "solo" are *sections* a
+  generator emits, not agents. The right axis is **responsibility**: understand-intent,
+  arrange-form, generate-content (×3 by function), judge-legality, judge-taste, arbitrate.
+  ~7 agents, not 15. *Line:* "If you're drawing one agent per *noun* in the output, you're
+  organizing by type — the same mistake as a `utils.py`. Draw one agent per *decision*."
+  *Why it matters on stage:* every agent is an LLM call, so the wrong axis = 15× latency,
+  15× failure surface, and a debate too noisy to follow. Fewer, sharper agents = a legible show.
+- **Two roles the domain forced out:** an **Interpreter** (free text → validated brief) and an
+  **Arranger** (who decides song *form* and length) — distinct decisions that earned their own
+  agent, vs. the instrument-agents that didn't. Good illustration of the judgment call.
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —
