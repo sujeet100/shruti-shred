@@ -14,3 +14,8 @@ dependencies = [
 # This repo is a set of scripts, not an installable library — don't try to build
 # it, just manage the environment. (src/ uses a flat, sys.path-based layout.)
 package = false
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.21",
+]
