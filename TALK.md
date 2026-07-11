@@ -1,4 +1,4 @@
-# Talk prep — Raga × Metal: teaching agentic patterns
+# Talk prep — Shruti Shred: teaching agentic patterns
 
 *Living document. Built up as we build the project, so the talk-gold (surprises,
 analogies, "why it matters" lines) is captured while it's fresh — not

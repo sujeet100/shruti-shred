@@ -1,4 +1,4 @@
-# Raga × Metal — Agentic Composer
+# Shruti Shred — a Raga × Metal agentic composer
 
 A conference-talk demo: a multi-agent system that composes **Hindustani-classical ×
 metal** fusion, used to **teach agentic-AI patterns**. The audience picks a raga +

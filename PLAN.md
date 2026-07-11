@@ -1,4 +1,4 @@
-# Raga × Metal — Agentic Composer: Build Plan
+# Shruti Shred — Build Plan
 
 *A conference-talk demo that teaches agentic-AI **patterns** through a live, multi-agent
 Hindustani-classical × metal fusion composer.*

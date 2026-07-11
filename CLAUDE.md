@@ -1,4 +1,4 @@
-# Raga × Metal — Agentic Composer
+# Shruti Shred — a Raga × Metal agentic composer
 
 A conference-talk demo: a multi-agent system that composes **Hindustani-classical × metal**
 fusion, used to **teach agentic-AI patterns**. Audience picks a raga + metal subgenre; the
@@ -81,9 +81,28 @@ Every LLM/crew call costs real money now. Keep spend minimal and deliberate:
   just to re-confirm a result already in hand; reuse the last output.
 - **No live calls in tight dev loops.** Iterate on prompts/logic against pure tests and
   reasoning first; do a single live confirmation at the end.
+- **Evals: run ONE case, not the whole suite (IMPORTANT).** To test a change, run a SINGLE
+  eval case — `uv run python -m crew.evals <index>` or `uv run python -m crew.evals "<ad-hoc
+  query>"` — never the full golden set on a whim. Run ALL cases only for a deliberate
+  regression pass, and **ask Sujit before running the entire eval suite.**
 - **Levers:** cached input (repeated data/prompts ~10% cost), bounded dialogue turns
   (`MAX_ROUNDS`), flash-lite for the cheap agents, small structured outputs. Watch
   `flow.usage_metrics`.
+
+## Observability — trace every LLM run (IMPORTANT)
+
+**Tracing is ON by default for any LLM test, smoke, or eval** — never guess what an
+agent did; read its trace. `crew/tracing.py` subscribes to CrewAI's event bus and
+captures each crew/agent/LLM/guardrail step (full prompt, response, token usage,
+timing, and guardrail retries). `crew/evals.py` and `crew/composers.py` enable it
+automatically via `tracing_enabled()`; **opt out only with `RMA_TRACE=0`**. Each run
+writes `traces/<name>.jsonl` (+ a standalone HTML) and streams a readable tree to the
+console. Browse all runs in the local portal:
+`uv run python -m crew.trace_portal` → http://127.0.0.1:8420 (dependency-free stdlib
+server; `traces/` is gitignored). When diagnosing a misbehaving agent, open its trace
+and read the actual prompt + reasoning + output *before* changing anything — pair this
+with the reasoning-first extraction rule. (CrewAI event paths verified for 1.15.2;
+re-check on upgrade.)
 
 ## CrewAI & agentic implementation rules (Phase 2)
 
