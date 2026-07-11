@@ -14,6 +14,8 @@ exercise the contract with no LLM and no key. It is illustrative, not generated.
 Run headless:  uv run python -m crew.replay
 """
 
+from __future__ import annotations
+
 from typing import Optional
 
 from crew.contracts import DebateEvent, EventStream, Sink

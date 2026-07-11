@@ -132,6 +132,57 @@ effort, and temperatures are env-overridable in `crew/config.py`.
   lint/format. Raga/tala data remains the single immutable source of truth for both validator and
   agents; pass Flow state explicitly, no hidden globals.
 
+## Code organization & maintainability (IMPORTANT)
+
+*Researched 2026-07-11 (CrewAI 1.15.2). Sources: docs.crewai.com; Cosmic Python (*Architecture
+Patterns with Python*); Refactoring Guru; PEP 544; Pydantic / ruff docs.*
+
+**Hard rules (non-negotiable):**
+- **Type hints on everything** — params, returns, attributes. Put `from __future__ import annotations`
+  at the top of every module.
+- **No god classes, no god methods.** **Single responsibility:** one unit, one job.
+- Optimize for **long-run maintainability** over cleverness.
+
+**Structure — by responsibility, pure core vs. shell:**
+- Organize by **domain/responsibility, NOT by type**. No `utils.py` / `helpers.py` / `models.py` grab-bags.
+- **Functional core, imperative shell.** The deterministic core (`src/`: raga, talas, subgenres, render,
+  validator) imports **no crewai/LLM/network** and never depends on the agent layer. The `crew/` shell
+  depends on the core, never the reverse. (Already true — keep it true.)
+- Split a module the moment it grows a **second reason to change**.
+
+**SRP heuristics — how to know a unit is too big:**
+- You can't name it without "and"; it has >1 reason to change; a method runs past **~10 lines**; or you
+  feel the urge to add an explanatory comment mid-method → **extract that block into a named method**.
+  A god class is Refactoring Guru's "Large Class" smell → **Extract Class**.
+
+**CrewAI layout (adopt as agents land):**
+- Keep flow **orchestration** (`@start`/`@listen`/`@router`, state, the bounded loop) in its own module,
+  **separate** from agent/task definitions.
+- Prompts live as **external config** (CrewAI's classic `config/agents.yaml` + `config/tasks.yaml`, or our
+  `prompts/*.md`) — never inline prose. **One task = one objective = one output.**
+- Tools are **thin adapters** over the pure core: the validator tool is a ~3-line wrapper; the real logic
+  and its tests live in `src/raga.py`.
+- Flow state is a **Pydantic model**, not a dict. One agent = **one narrow role** (no god-agent).
+
+**Types & data:**
+- `Protocol` for interfaces (e.g. an injectable LLM client) — structural, no ABC. `Literal`/`Enum` for
+  closed sets (swara, subgenre, role); `TypedDict` only for raw JSON dict shapes.
+- **Pydantic v2 at boundaries** (LLM/tool output, config, JSON contracts), validate **once at ingress**;
+  plain **dataclasses** for internal data; `frozen=True` for value objects that must not mutate.
+- Enforce with **ruff** (lint+format) and **mypy/pyright** (cross-file types); start mypy loose, tighten.
+
+**Dependencies & side effects:**
+- Pass deps **explicitly** (LLM client, config, clock) — no global singletons. Small **factory functions**
+  wire real adapters at the entry point (composition root).
+- **No import-time side effects:** no network, no client construction, no `load_dotenv()` at module top —
+  do those inside the functions the shell calls.
+- Functions **return data, not prints**; side effects (audio write, API calls, logging) stay at the shell
+  edge. Docstrings state the **contract** (inputs/outputs/invariants), not a paraphrase of the code.
+
+**YAGNI:** don't add layers/registries/interfaces this small project doesn't need; introduce an
+abstraction only when a second implementation or a real test seam demands it. SRP serves clarity, not a
+checklist.
+
 ## Menu (locked)
 
 - **Ragas (by metal-friendly mode):** Bhairavi (Phrygian), Bhimpalasi (Dorian),

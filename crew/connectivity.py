@@ -8,19 +8,22 @@ instead of surfacing as a confusing failure deep in the Flow on stage.
 Run:  uv run python -m crew.connectivity
 """
 
+from __future__ import annotations
+
 import sys
 
-from crew.config import FLASH_MODEL, generator_llm, has_api_key
+from crew.config import flash_model, generator_llm, has_api_key, load_env
 
 
 def main() -> int:
+    load_env()  # entry point: pull .env into the environment (side effect lives here)
     if not has_api_key():
         print("✗ GEMINI_API_KEY not set.")
         print("  Copy .env.example to .env and add your key, then re-run:")
         print("    uv run python -m crew.connectivity")
         return 1
 
-    print(f"→ Calling {FLASH_MODEL} ...")
+    print(f"→ Calling {flash_model()} ...")
     try:
         reply = generator_llm().call("Reply with exactly the word: pong")
     except Exception as e:  # noqa: BLE001 — we want the raw failure surfaced here

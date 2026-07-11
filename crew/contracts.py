@@ -19,6 +19,8 @@ A composition can be structurally perfect and still illegal; the guardrail is
 the second gate, never the first.
 """
 
+from __future__ import annotations
+
 from enum import Enum
 from typing import Any, Callable, Optional, Union
 

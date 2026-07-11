@@ -3,38 +3,59 @@ Crew configuration — model tiers, temperatures, and the debate clock.
 
 One place for every knob so the agents stay model-agnostic (CLAUDE.md: "model =
 one config value"). Model IDs are overridable via env so they can be swapped
-without touching code — important because the exact Gemini IDs must be
-re-verified the moment the key lands (see CLAUDE.md; `-latest` aliases are the
-safe default for a live stage endpoint).
+without touching code.
 
-Importing this module does NOT hit the network or construct an LLM — the LLM
-factories are lazy and only run when an agent is actually built.
+No import-time side effects (CLAUDE.md): this module does NOT call `load_dotenv`,
+touch the network, or construct an LLM at import. An entry point calls `load_env()`
+once, then reads config via the getters; the LLM factories build clients lazily.
 """
+
+from __future__ import annotations
 
 import os
 
-from dotenv import load_dotenv
-
-load_dotenv()  # load .env if present; a no-op when it's absent
-
-# --- Model tiers (see CLAUDE.md "CrewAI & agentic implementation rules") --------
-# Flash = fast/cheap for generators; Pro = stronger reasoning for critics/Conductor.
-# STARTING SIMPLE: Flash 3.5 at low reasoning effort for the WHOLE crew (critics
-# included) — cheap/fast to get the loop working; promote critics/Conductor to a
-# Pro model later by setting RMA_PRO_MODEL. All overridable via env.
-FLASH_MODEL = os.getenv("RMA_FLASH_MODEL", "gemini/gemini-3.5-flash")
-PRO_MODEL = os.getenv("RMA_PRO_MODEL", FLASH_MODEL)  # begin with Flash for critics too
-
-# Low reasoning effort to begin with (cheap/fast). LiteLLM maps this to Gemini's
-# thinking budget; bump to "medium"/"high" for critics once the loop works.
-REASONING_EFFORT = os.getenv("RMA_REASONING_EFFORT", "low")
-
-GENERATOR_TEMPERATURE = 0.9  # variety: we want the generators to explore
-CRITIC_TEMPERATURE = 0.2     # consistency: critics/Conductor should be steady
+# --- Pure constants (no env, safe at import) ------------------------------------
+# Gemini has no "reasoning effort" knob in the Claude-Code sense — we steer with
+# temperature. Generators explore; critics/Conductor stay steady.
+GENERATOR_TEMPERATURE: float = 0.9
+CRITIC_TEMPERATURE: float = 0.2
 
 # The debate/revise cap — the Conductor's "clock". Research puts the useful range
 # at 2-3 rounds (gains plateau fast); small is also live-safe.
-MAX_ROUNDS = 2
+MAX_ROUNDS: int = 2
+
+# Defaults; override via the env vars named below.
+_DEFAULT_FLASH: str = "gemini/gemini-3.5-flash"
+_DEFAULT_REASONING: str = "low"
+
+
+def load_env() -> None:
+    """Load `.env` into the process environment. Call once at an entry point.
+
+    Kept out of import time so importing `crew.config` has no side effects.
+    Idempotent — `python-dotenv` will not clobber vars already set.
+    """
+    from dotenv import load_dotenv
+    load_dotenv()
+
+
+def flash_model() -> str:
+    """Flash-tier model id (fast/cheap); env `RMA_FLASH_MODEL` overrides."""
+    return os.getenv("RMA_FLASH_MODEL", _DEFAULT_FLASH)
+
+
+def pro_model() -> str:
+    """Pro-tier model id for critics/Conductor; `RMA_PRO_MODEL` overrides.
+
+    Starts equal to the Flash model — begin the whole crew on Flash, promote the
+    critics later by setting `RMA_PRO_MODEL`.
+    """
+    return os.getenv("RMA_PRO_MODEL", flash_model())
+
+
+def reasoning_effort() -> str:
+    """Gemini reasoning effort; `RMA_REASONING_EFFORT` overrides (default low)."""
+    return os.getenv("RMA_REASONING_EFFORT", _DEFAULT_REASONING)
 
 
 def has_api_key() -> bool:
@@ -45,12 +66,12 @@ def has_api_key() -> bool:
 def generator_llm():
     """Flash-tier LLM for the generators (lazy import: no crewai cost until used)."""
     from crewai import LLM
-    return LLM(model=FLASH_MODEL, temperature=GENERATOR_TEMPERATURE,
-               reasoning_effort=REASONING_EFFORT)
+    return LLM(model=flash_model(), temperature=GENERATOR_TEMPERATURE,
+               reasoning_effort=reasoning_effort())
 
 
 def critic_llm():
     """Critic/Conductor LLM (Flash for now; promote via RMA_PRO_MODEL later)."""
     from crewai import LLM
-    return LLM(model=PRO_MODEL, temperature=CRITIC_TEMPERATURE,
-               reasoning_effort=REASONING_EFFORT)
+    return LLM(model=pro_model(), temperature=CRITIC_TEMPERATURE,
+               reasoning_effort=reasoning_effort())
