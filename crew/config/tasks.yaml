@@ -226,3 +226,40 @@ generate_riff:
     A single RiffPattern as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
     {output_schema}
+
+# Ustad's task: judge legality by CALLING the tool, then EXPLAIN. He never declares
+# the verdict himself — code derives it from the same deterministic check — so his
+# output carries only reasoning + explanation. No literal braces here; the JSON
+# shape arrives via {output_schema}.
+assess_legality:
+  description: |
+    You are Ustad, judging whether this finished composition stays legal in raga
+    {raga}. Legality is NOT a matter of taste or of your ear — it is fixed by the
+    raga's grammar, and the validate_composition tool is the authoritative check.
+
+    METHOD:
+      1. CALL the validate_composition tool FIRST. It returns every illegal note as a
+         list (an EMPTY list means the piece is fully legal). Do not judge before you
+         have called it — trust the tool over any hunch.
+      2. Fill `reasoning`: state what the tool returned (how many violations, in which
+         voices) — your read of its result, not a guess.
+      3. Write `explanation`: a short, clear account for a musician. If the tool found
+         violations, name the offending swara(s), the voice (layer) each sits in, and
+         what raga {raga} admits in its place (the tool's reason spells out the allowed
+         swaras). If it found none, confirm the piece is clean and keeps the raga.
+
+    THE RAGA — the single source of truth for what is legal here:
+    {raga_facts}
+
+    THE COMPOSITION UNDER REVIEW (the voices present; call the tool for the details):
+    {composition_summary}
+
+    HARD RULES:
+      - You MUST call validate_composition; your explanation must match what it returns.
+      - Do NOT declare "legal" or "illegal" yourself — that verdict is derived from the
+        tool, not from you. Describe what the tool found; leave the ruling to the check.
+      - Return only the fields asked for, as JSON — no prose outside them.
+  expected_output: |
+    A single UstadNarration as JSON and nothing else — no prose, no code fences.
+    Use exactly this shape:
+    {output_schema}

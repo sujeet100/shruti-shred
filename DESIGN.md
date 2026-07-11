@@ -262,7 +262,11 @@ thesis applied to model choice. (`gemini-3.1-flash-lite` id is unverified — co
    Lead (+ sitar/guitar voicing), Riff, Bass, Groove/Drums, Tabla theka, and the full-band
    assembly (`crew/band.py`, chart -> every voice -> Composition -> WAV). Remaining: the
    foreground leader/follower LLM-seeding (lead ⇄ riff), which lands with the Flow (step 6).*
-5. **Ustad / Rasik** — the critics. *(not started)*
+5. **Ustad / Rasik** — the critics. *DONE: Ustad (`crew/ustad.py`) — the legality critic.
+   Code owns the verdict (deterministic `validate_composition`), the LLM only narrates: the
+   type split (`UstadNarration` has no verdict field → code assembles `UstadVerdict`) makes
+   "code decides the checkable" structural. The validator is BOTH the generator guardrail and
+   a tool Ustad calls to explain a violation. Remaining: Rasik — the taste critic.*
 6. **Conductor + the Flow** — arbitration, the bounded loops, the foreground leader/follower
    ordering, end-to-end render. *(not started)*
 

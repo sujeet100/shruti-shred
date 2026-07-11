@@ -314,6 +314,34 @@ convincing than a hypothetical.)*
   "will the riff loop cleanly?" — became a hard guarantee: code fills any short cycle so there's
   no gap at the downbeat where the loop repeats.)
 
+### Phase 2, agent #4 — Ustad, the legality critic — 2026-07-11
+
+- **"Code decides the checkable" made STRUCTURAL, not a promise.** The obvious way to build a
+  legality critic is to ask the LLM "is this legal?" — and then you're trusting a model to not
+  hallucinate a fact. We did the opposite: the deterministic `validate_composition` owns the
+  verdict, and Ustad's LLM output type (`UstadNarration`) has **no verdict field it could
+  fill** — only an explanation. Code assembles the final `UstadVerdict`. *The demo test:* a
+  fake Ustad that LIES ("perfectly legal") still yields verdict `illegal`, because the model
+  was never given the pen. *Line:* "We didn't tell the model not to decide legality — we built
+  a type where it literally can't." The guardrail thesis, pushed into the type system.
+- **One validator, two jobs — guardrail AND tool.** The same `validate_composition` is the hard
+  guardrail that gates generator output AND the tool Ustad *calls* to see the violations so he
+  can EXPLAIN them. *Line:* "The gate that stops a bad note is the same instrument the critic
+  uses to teach why it's bad." Flag vs. explain, from one deterministic function.
+- **The agent adds language, not facts — which is why it's the CHEAP tier.** Ustad's whole
+  contribution is turning `{layer: lead, swara: R, beat: 1.0}` into "you played shuddha Rishabh
+  in the lead; Bhairav wants komal Rishabh there." No judgment, no facts invented — so it runs
+  at the low tier. *Lesson:* narration of a deterministic result is a real, useful agent job,
+  and it's the one you spend the least on.
+- **A subtle tool bug caught by design: no caching on a zero-arg tool.** The tool takes no
+  arguments (the piece is bound to it), so CrewAI's default result-cache would key every
+  composition to the *same* empty key and hand back the FIRST piece's verdict forever. Caching
+  off. *Line:* "A cache is an assumption that same-input means same-answer — a zero-arg tool
+  breaks that assumption silently." A nice cautionary aside on tool wiring.
+- **Visible tool-call = the ReAct loop on stage.** The trace shows two LLM turns: Ustad calls
+  the tool (prompt grows as the violations are injected), *then* answers. That two-step is the
+  "visible tools, not autonomous magic" principle made literally watchable in the trace portal.
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —

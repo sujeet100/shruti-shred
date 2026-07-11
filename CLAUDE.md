@@ -282,11 +282,21 @@ and build order.
   - **Assembly:** `crew/band.py` (`band_layers` pure; `compose_band` / `compose_from_query`).
     Backbone in `crew/generators.py` (section timeline, VOICES, drone, bass, assemble, render).
   - Pure tests (free): `test_generators`, `test_lead`, `test_riff`, `test_groove`, `test_band`.
+- **Agent #4 — Ustad, the legality critic** (`crew/ustad.py`) **done**: judges whether a
+  finished `Composition` stays inside its raga's grammar. The pattern — **code decides the
+  checkable, the LLM narrates it** — is made STRUCTURAL: the deterministic
+  `validate_composition` owns the `verdict`/`violations`, and Ustad's LLM output
+  (`UstadNarration`) has no verdict field it could fill; the shell assembles the
+  `UstadVerdict`. `validate_composition` is used the two prescribed ways — the hard
+  guardrail on generator output, and a **tool Ustad calls mid-reasoning** (a visible ReAct
+  step in the trace) so it can *explain* a violation. Tool caching is OFF (zero-arg call ⇒ a
+  cache would return a prior piece's stale result). Pure tests: `tests/test_ustad.py`.
 - **Observability** (`crew/tracing.py` + `crew/trace_portal.py`): every LLM run is traced by
   default (one trace = one run id, Langfuse-style); browse by id in the local portal.
   `crew/evals.py` is the interpreter eval harness. See the "Observability" section.
 - Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
-- **NEXT: step 5 — the critics (Ustad, Rasik), then step 6 — Conductor + the Flow** (the
-  bounded debate = the talk's money moment), which also wires the **foreground leader/follower
-  LLM-seeding** (lead ⇄ riff) deferred from step 4. Build order + the settled generator design
-  (deterministic drums/bass/tabla, lead voicing, "who leads a section") are in `DESIGN.md`.
+- **NEXT: Rasik (the taste critic — LLM-as-judge on a rubric grounded in pakad/chalan) to
+  finish step 5; then step 6 — Conductor + the Flow** (the bounded debate = the talk's money
+  moment), which also wires the **foreground leader/follower LLM-seeding** (lead ⇄ riff)
+  deferred from step 4. Build order + the settled generator design (deterministic
+  drums/bass/tabla, lead voicing, "who leads a section") are in `DESIGN.md`.

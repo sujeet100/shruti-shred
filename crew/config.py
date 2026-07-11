@@ -53,6 +53,12 @@ GENERATOR_MAX_ITER: int = 3
 # backstop against a runaway ReAct loop, not a working budget.
 COMPOSER_MAX_ITER: int = 3
 
+# The critics' within-call cap. Unlike a composer turn, Ustad makes ONE tool
+# round-trip (call validate_composition -> read the violations -> answer), so it
+# needs a couple more iterations than a pure emission — still a live-safety
+# backstop against a runaway ReAct loop, not a working budget.
+CRITIC_MAX_ITER: int = 4
+
 # Defaults; override via the env vars named below.
 _DEFAULT_FLASH: str = "gemini/gemini-3.5-flash"
 _DEFAULT_REASONING: str = "low"

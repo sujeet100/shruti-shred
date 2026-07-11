@@ -716,6 +716,55 @@ class RiffPattern(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Contract 1.75: Critic verdicts                                              #
+#                                                                             #
+# Ustad (legality) judges a finished Composition. The lesson lives in the type #
+# split: legality is CHECKABLE, so CODE owns it — the deterministic            #
+# validate_composition decides `verdict`/`violations`, and the LLM's output    #
+# (UstadNarration) can only EXPLAIN, never DECLARE. The shell assembles the    #
+# two into an UstadVerdict, so the headline can never be an LLM hallucination. #
+# (Rasik's taste verdict, LLM-owned on a rubric, lands as the next step.)      #
+# --------------------------------------------------------------------------- #
+
+class Violation(BaseModel):
+    """One illegal note the validator found — the structured shape of a
+    `raga.validate_composition` entry (an out-of-raga swara in some voice)."""
+    layer: str                                   # the voice the note is in
+    swara: str                                   # the offending swara
+    start_beat: float                            # where it sounds, in beats
+    kind: str                                    # "note" | "grace" | "meend-target"
+    reason: str                                  # why it is illegal (names the allowed swaras)
+
+
+class UstadNarration(BaseModel):
+    """Ustad's LLM output — the human EXPLANATION, and nothing that decides legality.
+
+    There is deliberately NO verdict field here: Ustad cannot DECLARE a piece legal
+    or illegal, because that is the deterministic validator's call, not the model's.
+    `reasoning` (filled FIRST) notes what the validate_composition tool returned;
+    `explanation` turns that into a musician's account. Code pairs this with the
+    tool's authoritative result to build the UstadVerdict below.
+    """
+    reasoning: str = ""
+    explanation: str = ""
+
+
+class UstadVerdict(BaseModel):
+    """The legality critic's verdict, ASSEMBLED by code (see `crew/ustad.py`).
+
+    `verdict` and `violations` come straight from the deterministic
+    `raga.validate_composition` — never from the LLM — so "code decides the
+    checkable" holds even for the critic's headline. `explanation` is Ustad's
+    narration. This flows to the Conductor (a legality conflict is what the debate
+    arbitrates) and onto the event stream.
+    """
+    verdict: Literal["legal", "illegal"]
+    violations: list[Violation] = Field(default_factory=list)
+    explanation: str = ""
+    reasoning: str = ""
+
+
+# --------------------------------------------------------------------------- #
 # Contract 2: Debate event stream                                             #
 # --------------------------------------------------------------------------- #
 

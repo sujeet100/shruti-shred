@@ -28,9 +28,12 @@ the renderer bends pitch to voice *meend* (glides).
   - **Agent #3 generators + full-band assembly** — done. Chart → every voice → `Composition`
     → WAV (`out/full_band.wav`). Only **Lead** (sitar/lead-guitar voicing) and **Riff** are
     LLM; **Drone, Bass, Drums, Tabla** are deterministic. `crew/band.py` assembles.
+  - **Agent #4 Ustad (legality critic)** — done. `Composition` → `UstadVerdict` (legal/illegal
+    + violations). Code owns the verdict via `validate_composition`; the LLM only narrates it
+    (`crew/ustad.py`). Same validator is the generator guardrail AND Ustad's explain-tool.
   - **Local tracing + portal + eval harness** — done (on by default).
-- **NEXT → step 5: the critics (Ustad, Rasik)**, then **step 6 (Conductor + the Flow**, which
-  also wires the deferred foreground leader/follower seeding). See "The next task" below.
+- **NEXT → Rasik (the taste critic) to finish step 5**, then **step 6 (Conductor + the Flow**,
+  which also wires the deferred foreground leader/follower seeding). See "The next task" below.
 
 ## Quickstart
 
@@ -67,7 +70,7 @@ FluidSynth (`brew install fluid-synth`) + the soundfont (see `soundfonts/README.
     `config/agents.yaml` + `config/tasks.yaml`, never inline.
   - `tracing.py` / `trace_portal.py` — local observability. `evals.py` — eval harness.
 - **`tests/`** — pure tests only (no API): knowledge, arrangement, composers, interpreter,
-  generators, lead, riff, groove, band (115 tests, all free).
+  generators, lead, riff, groove, band, ustad (133 tests, all free).
 
 ## The rules that bite (read `CLAUDE.md` for the full set)
 
@@ -80,15 +83,18 @@ FluidSynth (`brew install fluid-synth`) + the soundfont (see `soundfonts/README.
 - **Own the loop** (bounded, streamable), don't use CrewAI's autonomous delegation.
   Validate at boundaries; schema checks shape, guardrails check domain, normalize junk.
 
-## The next task — step 5: the critics (Ustad, Rasik)
+## The next task — Rasik (finish step 5), then the Conductor
 
-The generators are done (chart → `out/full_band.wav`). Next is the **judgment** half of the
-pipeline — and the talk's money moment:
+The generators are done (chart → `out/full_band.wav`) and **Ustad** (legality) is done. What
+remains of the **judgment** half of the pipeline — and the talk's money moment:
 
-- **Ustad** — legality/theory. Calls `validate_composition` (as a Task **guardrail** AND as a
-  **tool** so it can *explain* a violation). Verdict: legal / illegal + the violations.
-- **Rasik** — aesthetic/rasa on an explicit rubric grounded in the encoded pakad/chalan: is the
-  pakad present, is it idiomatic, does it serve the mood, do the parts cohere as an ensemble.
+- **Ustad** — legality/theory — **done** (`crew/ustad.py`). Code owns the verdict via
+  `validate_composition`; the LLM only narrates. Same validator is the generator guardrail AND
+  Ustad's explain-tool.
+- **Rasik** (next) — aesthetic/rasa on an explicit rubric grounded in the encoded pakad/chalan:
+  is the pakad present, is it idiomatic, does it serve the mood, do the parts cohere as an
+  ensemble. The OPPOSITE pattern to Ustad — LLM-as-judge, so it needs the bias countermeasures
+  (explicit fixed-scale rubric, ground the scores in encoded facts, not vibes).
 - Then **step 6 — Conductor + the Flow**: on an Ustad↔Rasik conflict, run the **bounded debate**
   and rule accept / surgical-revise (capped at `MAX_ROUNDS`); this is also where the deferred
   **foreground leader/follower LLM-seeding** (lead ⇄ riff) lands.
