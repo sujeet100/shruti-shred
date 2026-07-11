@@ -8,7 +8,7 @@ the raga must be supported (boundary check), and everything the user didn't stat
 is left OPEN for the composers to decide. The Interpreter deliberately makes no
 creative choices (subgenre, tempo, instrumentation) — that's the composers' job.
 
-Entry point:  uv run python -m crew.intake "metal fusion in Malkauns, key of D"
+Entry point:  uv run python -m crew.interpreter "metal fusion in Malkauns, key of D"
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from crew.contracts import (
 
 
 @CrewBase
-class IntakeCrew:
+class InterpreterCrew:
     """A one-agent crew that extracts a RawIntent from the user's query."""
 
     agents_config = "config/agents.yaml"
@@ -52,7 +52,7 @@ class IntakeCrew:
 
 def _extract_intent(query: str) -> RawIntent:
     """Run the LLM crew and coerce its output to a RawIntent (defensively)."""
-    result = IntakeCrew().crew().kickoff(inputs={"query": query})
+    result = InterpreterCrew().crew().kickoff(inputs={"query": query})
     if getattr(result, "pydantic", None) is not None:
         return result.pydantic
     return RawIntent.model_validate_json(result.raw)

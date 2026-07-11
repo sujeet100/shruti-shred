@@ -1,14 +1,14 @@
 """
-Tests for the intake RESOLVER — the deterministic half of the Interpreter.
+Tests for the Interpreter's RESOLVER — its deterministic half.
 
 `resolve_brief` is pure (no LLM), so it's fully testable here. Its contract:
 extract & validate ONLY what the user stated, invent nothing, always succeed.
 NOTHING is required (mood-only is fine). A stated raga/subgenre is kept only if
 supported (else noted, left open); a stated key -> Sa; bpm/instruments/mood pass
 through; everything unstated stays None = "open for the composers." The LLM
-extraction half is exercised live via `uv run python -m crew.intake`, not here.
+extraction half is exercised live via `uv run python -m crew.interpreter`, not here.
 
-Runs as a script (`uv run python tests/test_intake.py`) or under pytest.
+Runs as a script (`uv run python tests/test_interpreter.py`) or under pytest.
 """
 
 from __future__ import annotations
