@@ -16,13 +16,34 @@ import os
 
 # --- Pure constants (no env, safe at import) ------------------------------------
 # Gemini has no "reasoning effort" knob in the Claude-Code sense — we steer with
-# temperature. Generators explore; critics/Conductor stay steady.
+# temperature. Generators explore; critics/Conductor stay steady. Composers sit
+# in between: creative enough to vary, disciplined enough to emit valid structure.
 GENERATOR_TEMPERATURE: float = 0.9
+COMPOSER_TEMPERATURE: float = 0.7
 CRITIC_TEMPERATURE: float = 0.2
+# Faithful extraction wants reproducibility, not variety — run it stone cold.
+EXTRACTOR_TEMPERATURE: float = 0.0
 
 # The debate/revise cap — the Conductor's "clock". Research puts the useful range
 # at 2-3 rounds (gains plateau fast); small is also live-safe.
 MAX_ROUNDS: int = 2
+
+# The composer dialogue's clock: how many turn-by-turn exchanges Pandit and
+# Riffsmith get before we stop (they may stop earlier by agreeing). The bounded
+# loop — not organic consensus — is what guarantees termination on stage.
+COMPOSER_TURNS: int = 3
+
+# One bounded retry per turn (CLAUDE.md: "one bounded retry, not a loop"). If a
+# composer's draft is illegal, the guardrail hands back the precise error and the
+# turn is re-run this many times before we give up. Billing is live — keep it low.
+COMPOSER_RETRIES: int = 1
+
+# Per-turn circuit-breaker on an agent's internal reasoning/tool loop (CLAUDE.md:
+# "modest max_iter for live safety"). Our own turn cap (COMPOSER_TURNS) bounds the
+# ACROSS-turn debate; this bounds the WITHIN-turn work. A composer turn is a single
+# structured emission with no tools, so it needs very few iterations — this is a
+# backstop against a runaway ReAct loop, not a working budget.
+COMPOSER_MAX_ITER: int = 3
 
 # Defaults; override via the env vars named below.
 _DEFAULT_FLASH: str = "gemini/gemini-3.5-flash"
@@ -78,6 +99,17 @@ def generator_llm():
     return build_llm(flash_model(), GENERATOR_TEMPERATURE)
 
 
+def composer_llm():
+    """Pandit/Riffsmith — Flash, mid-high temperature: the composers CREATE.
+
+    High cognitive load per DESIGN.md, but kept on Flash for now (promote to Pro
+    later via RMA_PRO_MODEL once the loop works end-to-end). The temperature buys
+    variety so the same request doesn't yield the same chart twice, without
+    tipping into malformed structured output.
+    """
+    return build_llm(flash_model(), COMPOSER_TEMPERATURE)
+
+
 def critic_llm():
     """Critic/Conductor — Pro (or Flash for now via RMA_PRO_MODEL), low temperature."""
     return build_llm(pro_model(), CRITIC_TEMPERATURE)
@@ -86,9 +118,10 @@ def critic_llm():
 def extractor_llm():
     """Low-temperature Flash for extraction (Interpreter).
 
-    Runs cool (determinism over variety) at the default (low) effort. Faithful
-    extraction is driven by the PROMPT's rules + examples, not by burning reasoning
-    effort — prompt first, effort only if a solid prompt still fails (see DESIGN.md).
-    The `effort` param on build_llm exists for that escalation, deliberately unused here.
+    Runs stone cold (temperature 0 — extraction needs reproducibility, not variety)
+    at the default (low) effort. Faithful extraction is driven by the PROMPT's rules
+    + examples, not by burning reasoning effort — prompt first, effort only if a
+    solid prompt still fails (see DESIGN.md). The `effort` param on build_llm exists
+    for that escalation, deliberately unused here.
     """
-    return build_llm(flash_model(), CRITIC_TEMPERATURE)
+    return build_llm(flash_model(), EXTRACTOR_TEMPERATURE)

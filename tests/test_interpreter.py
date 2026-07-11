@@ -2,11 +2,12 @@
 Tests for the Interpreter's RESOLVER — its deterministic half.
 
 `resolve_brief` is pure (no LLM), so it's fully testable here. Its contract:
-extract & validate ONLY what the user stated, invent nothing, always succeed.
-NOTHING is required (mood-only is fine). A stated raga/subgenre is kept only if
-supported (else noted, left open); a stated key -> Sa; bpm/instruments/mood pass
-through; everything unstated stays None = "open for the composers." The LLM
-extraction half is exercised live via `uv run python -m crew.interpreter`, not here.
+map ONLY what the user stated onto the supported library, invent nothing, always
+succeed. NOTHING is required (mood-only is fine). A stated raga/subgenre is kept
+only if supported (else noted, left open); a stated key -> Sa; bpm/instruments/mood
+pass through as extracted. Faithfulness (not inventing/echoing) is the EXTRACTOR's
+job now — carried by its reasoning-first prompt and exercised live via the eval
+harness (`uv run python -m crew.evals`), not here.
 
 Runs as a script (`uv run python tests/test_interpreter.py`) or under pytest.
 """
@@ -30,7 +31,6 @@ def test_stated_fields_are_kept_verbatim():
 
 
 def test_mood_only_query_resolves_everything_open():
-    # "a romantic metal fusion" -> nothing but a mood; the composers pick it all.
     brief = resolve_brief(RawIntent(mood="romantic"))
     assert brief.mood == "romantic"
     assert brief.raga is None and brief.subgenre is None and brief.bpm is None
@@ -45,7 +45,6 @@ def test_unstated_dimensions_stay_open():
 
 
 def test_unsupported_raga_left_open_with_note():
-    # Raga is optional now: an unsupported one is noted and left open, not blocked.
     brief = resolve_brief(RawIntent(raga="Yaman"))
     assert brief.raga is None
     assert any("not supported" in n for n in brief.notes)
@@ -77,6 +76,14 @@ def test_unrecognized_key_left_open_with_note():
     brief = resolve_brief(RawIntent(raga="bhairav", key="H"))
     assert brief.key is None and brief.sa is None
     assert any("key" in n for n in brief.notes)
+
+
+def test_reasoning_phrase_leaked_into_a_field_is_normalized_to_none():
+    # The reasoning-first extractor sometimes writes "not stated" into the value
+    # field itself; normalize that junk to None at the boundary.
+    intent = RawIntent(reasoning="mood: not stated -> null", mood="not stated", key="not stated")
+    assert intent.mood is None
+    assert intent.key is None
 
 
 if __name__ == "__main__":

@@ -3,31 +3,117 @@
 
 interpret_query:
   description: >
-    Extract the musical intent from this request, exactly as expressed:
+    You extract ONLY the musical values a user EXPLICITLY wrote in their request, as
+    structured data. This is extraction, not composition: you never choose, infer,
+    complete, or echo — every creative decision is made downstream.
+
+    METHOD — fill `reasoning` FIRST, then the value fields. In `reasoning`, go field
+    by field (raga, key, subgenre, mood, bpm, instruments) and for EACH state either
+    the exact words from the request that give it, or "not stated". Then set each
+    field to that value, or null wherever you wrote "not stated". A field the request
+    does not explicitly mention is ALWAYS null. It is normal and correct for most
+    fields to be null — a bare "a heavy metal fusion" fills only mood.
+
+    FIELD DEFINITIONS — fill each ONLY from the request, else null:
+      raga        a Hindustani raga the user names. Else null.
+      key         a musical key/note the user names, e.g. "D", "E flat". Else null.
+      subgenre    a metal genre the user NAMES: thrash, doom, death, or progressive.
+                  A vibe word is NOT a subgenre. Else null.
+      mood        an emotional / vibe word or two the user uses (dark, angry,
+                  romantic, epic, crushing). One or two words — never the whole
+                  request, never a genre name. Else null.
+      bpm         a tempo number the user gives. Else null. NEVER invent one.
+      instruments specific instruments the user names (tabla, drums, sitar, ...).
+                  A vibe word or a phrase from the request is NOT an instrument. Else null.
+
+    HARD PROHIBITIONS:
+      - Do NOT invent a raga, key, subgenre, tempo, or instrument the request omits.
+      - Do NOT put the whole request, or a long phrase from it, into any field.
+      - Use real JSON null — not the string "null", not -1, not [].
+
+    Request to extract from:
 
         "{query}"
-
-    Your ONLY job is to capture values the user EXPLICITLY stated. You never choose,
-    estimate, or infer — all creative decisions are made downstream by other agents.
-
-    Rules:
-      - Set a field only if the user explicitly stated it; otherwise leave it null.
-      - Nothing is mandatory. A request may convey only a mood ("a romantic fusion")
-        — then set `mood` and leave everything else null.
-      - Emotional / vibe words (angry, romantic, dark, epic) go in `mood`, NEVER in
-        `subgenre`. `subgenre` is only an explicit metal genre named by the user
-        (thrash, doom, death, progressive).
-      - A field holds ONE specific value the user gave. NEVER put the whole request,
-        or a phrase from it, into any field.
-      - Use real JSON null — not the string "null", not a placeholder like -1 or [].
-
-    The examples below show the MAPPING only; never reuse their specific values.
-      request: "create a romantic metal fusion"
-        -> mood="romantic"; raga, key, subgenre, bpm, instruments all null
-      request: "thrash in Bhairav, key of E, 190 bpm"
-        -> raga="Bhairav", key="E", subgenre="thrash", bpm=190; mood, instruments null
-      request: "a dark, heavy piece in Malkauns with tabla"
-        -> raga="Malkauns", mood="dark, heavy", instruments=["tabla"]; key, subgenre, bpm null
   expected_output: >
-    A RawIntent object with fields raga, key, subgenre, mood, bpm, instruments —
-    each set only if the user specified it, otherwise null.
+    A RawIntent JSON with `reasoning` FIRST (your per-field grounding: the exact
+    words that set each field, or "not stated"), then raga, key, subgenre, mood,
+    bpm, instruments — each set only if THIS request states it, otherwise null.
+
+# The composers share ONE task template (their differing bias lives in the agent
+# backstories, not here). {placeholders} are filled per turn from the evolving Flow
+# state in crew/composers.py. Note: no literal braces in this template — the JSON
+# shape is injected via {output_schema} so CrewAI's interpolation never sees a
+# stray brace.
+compose_turn:
+  description: |
+    You are {composer}, one of two composers shaping a Hindustani-raga x metal
+    fusion together. This is turn {turn_no} of at most {max_turns}. You and your
+    counterpart hold OPPOSITE priorities but share one goal: a great fusion. Make
+    your case — and converge: concede a point when the other's argument is strong.
+
+    METHOD — fill `reasoning` FIRST (your private monologue), then the draft and note:
+      In `reasoning`, analyze your counterpart's last turn — name ONE musical element
+      you respect and ONE you must push back on — and let that shape your revision.
+      (On the opening turn, reason about how to serve BOTH tradition and metal at once.)
+
+    PACING — weigh turn {turn_no} against {max_turns}:
+      - First half of the debate: boldly push your genre's priorities.
+      - Second half: prioritize SYNTHESIS — merge your counterpart's ideas with yours
+        (e.g. play the metal riff USING the raga's meend/slides, or set a tihai as the
+        breakdown).
+      - On the FINAL turn (turn_no == max_turns): output a fully compromised, working
+        draft and set agree to true.
+
+    THE REQUEST (honor what is FIXED exactly; decide only what is OPEN):
+    {brief_context}
+
+    THE FACTS YOU CHOOSE FROM (the single source of truth — do not contradict these):
+    Ragas:
+    {raga_context}
+    Talas:
+    {tala_context}
+    Subgenres:
+    {subgenre_context}
+    Section kinds you may use:
+    {section_kinds}
+    Layers (voices) you may activate per section — tabla and the metal drums CAN
+    play together (tabla holding the theka under the metal groove is a core fusion
+    sound); honor any instruments the user named in the request above:
+    {layer_roles}
+    Pakad seeds — idiomatic phrases to inspire your motif (quote them, vary them, or
+    depart from them, but the motif must stay inside the raga's allowed swaras):
+    {seed_context}
+
+    THE CONVERSATION SO FAR:
+    {transcript}
+
+    THE CURRENT DRAFT:
+    {current_draft}
+
+    YOUR TASK THIS TURN:
+      - If there is no draft yet, PROPOSE a complete arrangement from your point of view;
+        otherwise REVISE the current draft — change what matters to you, keep what works.
+      - Write `note` as a SHORT (1-2 sentence) argument to your counterpart, IN CHARACTER
+        (Pandit argues rasa, swara purity, phrasing, meend; Riffsmith argues groove,
+        sonic weight, tension and drive).
+      - DESIGN THE SEAMS, not just the blocks: for each section set `transition` to say
+        HOW it hands off to the next (a 3-beat silence, "tabla fades as feedback swells",
+        a shared tihai/unison landing on the sam) — fusion fails at the handoffs.
+      - For a climactic section (taan/breakdown), negotiate a RHYTHMIC UNISON — a tihai
+        (a phrase thrice, resolving on the sam) doubling as the metal breakdown, or the
+        double-kick locked to the tabla's bols. Shape an ENERGY CURVE: don't run every
+        layer at full throughout; let the lead rise into the higher octave to pierce a
+        heavy riff, and leave space.
+      - Set agree to true when the draft already serves BOTH tradition and metal well.
+
+    HARD RULES (a draft that breaks these is rejected and you will be asked to redo it):
+      - Honor every FIXED value in the request exactly.
+      - Choose raga, subgenre and tala only from the supported lists above.
+      - The motif is your melodic seed: use ONLY the chosen raga's allowed swaras.
+        Sargam is S r R g G m M P d D n N (lowercase = komal/flat, M = tivra Ma).
+      - Every section's foreground must be one of that section's own layers.
+      - Keep bpm within the chosen subgenre's range.
+  expected_output: |
+    A single ComposerTurn as JSON and nothing else — no prose, no code fences.
+    Use exactly this shape:
+    {output_schema}

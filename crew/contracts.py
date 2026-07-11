@@ -22,12 +22,13 @@ the second gate, never the first.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from raga import RAGAS, SWARAS  # single source of truth for ragas + legal sargam symbols
 from subgenres import SUBGENRES
+from talas import TALAS
 
 
 # --------------------------------------------------------------------------- #
@@ -50,7 +51,10 @@ KEY_TO_MIDI: dict[str, int] = {
 DEFAULT_SA: int = KEY_TO_MIDI["D"]  # render-time fallback ONLY if key is never set; NOT an intake default
 
 
-_NULLISH = {"", "null", "none", "n/a", "na", "unspecified", "unknown", "any"}
+# Junk an LLM emits when it means "nothing here". Includes the reasoning phrases
+# a chain-of-thought extractor can bleed into a value field ("not stated").
+_NULLISH = {"", "null", "none", "n/a", "na", "unspecified", "unknown", "any",
+            "not stated", "not specified", "none stated", "not applicable", "unstated"}
 
 
 class RawIntent(BaseModel):
@@ -61,10 +65,14 @@ class RawIntent(BaseModel):
 
     LLMs are unreliable at "leave it null" — they emit the string "null", or a
     sentinel like bpm -1, or an empty list. These validators normalize that junk
-    back to real None at the boundary, so the resolver sees clean data. (They
-    can't undo a *plausible* hallucination like an invented bpm of 120 — that's
-    dampened prompt-side; see tasks.yaml.)
+    back to real None at the boundary, so the resolver sees clean data.
+
+    `reasoning` is declared FIRST on purpose: the model fills it before the value
+    fields, so it must justify each field ("raga: not stated -> null") BEFORE
+    committing — chain-of-thought in the structured output, which both disciplines
+    the extraction and lets us SEE why it decided what it did.
     """
+    reasoning: str = ""
     raga: Optional[str] = None
     key: Optional[str] = None
     subgenre: Optional[str] = None
@@ -148,8 +156,14 @@ def resolve_brief(intent: RawIntent) -> CompositionBrief:
     Pure and deterministic — no LLM, no network. NOTHING is required: the user may
     give only a mood. A stated raga or subgenre is kept only if we support it (else
     noted and left open); a stated key is transcribed to Sa; bpm/instruments/mood
-    pass through as stated. Every unstated dimension stays None = "open for the
-    composers" — who will pick the raga (from the mood), subgenre, tempo, and rest.
+    pass through as extracted. Every unstated dimension stays None = "open for the
+    composers" — who pick the raga (from the mood), subgenre, tempo, and rest.
+
+    Faithfulness — not inventing or echoing values — is the EXTRACTOR's job, carried
+    by its reasoning-first prompt (the model justifies each field before committing;
+    see tasks.yaml). This resolver only maps names onto the supported library and
+    normalizes boundary junk (RawIntent's validators); it does not second-guess the
+    model's extraction.
     """
     notes: list[str] = []
 
@@ -183,6 +197,336 @@ def resolve_brief(intent: RawIntent) -> CompositionBrief:
     return CompositionBrief(raga=raga, key=key, sa=sa, subgenre=subgenre,
                             bpm=intent.bpm, instruments=intent.instruments,
                             mood=intent.mood, notes=notes)
+
+
+# --------------------------------------------------------------------------- #
+# Contract 0.5: Arrangement — the shared "chart" the composers agree on        #
+#                                                                             #
+# Pandit (tradition) and Riffsmith (metal) negotiate a plan; the structured    #
+# output each turn is an ArrangementDraft — a SMALL set of DECISIONS (raga,     #
+# subgenre, tala, tempo, section form). Deterministic code then EXPANDS a final #
+# draft into the full Arrangement, DERIVING the mechanical detail the parallel  #
+# generators need to interlock: the tala's accent grid, a shared motif from the #
+# raga's pakad, and a register per voice. This is "code does the checkable, the #
+# LLM does the rest" applied to the chart — the composers make the CREATIVE     #
+# calls; code supplies the FACTS, so the plan is idiomatic AND collision-free   #
+# by construction, not by hoping the LLM did the arithmetic right.             #
+# --------------------------------------------------------------------------- #
+
+# The layer roles a composition can carry (see render.py / Layer.role). `drums` is
+# the metal kit; `tabla` is Hindustani percussion — the two are distinct voices and
+# may play TOGETHER (tabla laying the theka under a metal groove is a core fusion
+# sound). Rendering tabla is wired in step 4 (the Groove generator + render).
+ROLES: frozenset[str] = frozenset({"drone", "lead", "rhythm", "drums", "tabla"})
+
+
+class SectionKind(str, Enum):
+    """The generators' section vocabulary — each maps to a generation MODE.
+
+    A section's kind tells the (step-4) generators HOW to fill it: an `alaap` is a
+    slow, drum-less raga exposition; a `taan` is a fast melodic climax; a
+    `breakdown` is a sparse rhythmic crush. The composers choose the SEQUENCE of
+    sections (the form); the kind fixes each block's character.
+    """
+    ALAAP = "alaap"          # slow, unmetered raga exposition (lead-led, no drums)
+    RIFF = "riff"            # the main metal riff statement (rhythm-led)
+    MELODY = "melody"        # the motif sung as a theme over the groove
+    TAAN = "taan"            # fast, virtuosic melodic run — the climax
+    SOLO = "solo"            # lead improvisation over the riff
+    BREAKDOWN = "breakdown"  # heavy, sparse, rhythm + drums crush
+    OUTRO = "outro"          # cadential resolution
+
+
+class Section(BaseModel):
+    """One block of the form: what kind, how long, who plays, who leads.
+
+    `intent` is the composer's free-text creative direction for this block ("brood
+    on the vadi", "half-time crush", "double-time taan to the climax"). `transition`
+    describes the SEAM out of this block into the next ("tabla fades as feedback
+    swells", "a tihai landing on sam") — fusion fails at the handoffs, so the
+    composers design them explicitly. Both are optional shaping hints the step-4
+    generators read; the section's `kind` alone is enough to render it.
+    """
+    kind: SectionKind
+    bars: int = Field(ge=1)          # length in tala cycles
+    layers: list[str]                # active roles this section (subset of ROLES)
+    foreground: str                  # the role in the spotlight (must be active here)
+    intent: str = ""                 # optional creative hint the composer writes
+    transition: str = ""             # optional: how this section hands off to the next
+
+    @field_validator("layers")
+    @classmethod
+    def _known_roles(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError("a section must have at least one active layer")
+        bad = [r for r in v if r not in ROLES]
+        if bad:
+            raise ValueError(f"unknown layer role(s) {bad} (expected {sorted(ROLES)})")
+        return v
+
+    @model_validator(mode="after")
+    def _foreground_is_active(self) -> "Section":
+        if self.foreground not in self.layers:
+            raise ValueError(
+                f"foreground {self.foreground!r} is not among the active layers {self.layers}")
+        return self
+
+
+class ArrangementDraft(BaseModel):
+    """What a composer EMITS each turn — the composition, not the facts.
+
+    The LLM is the composer: it makes the creative calls — raga/subgenre/tala/tempo,
+    the section form, and the `motif` (the piece's melodic seed) — plus optional
+    `registers` when it wants to voice the parts itself. Code never invents the
+    music; it only DERIVES verified facts later (the tala's accent grid) and
+    GUARDS the hard lines HERE at the boundary: the raga/subgenre/tala must be
+    supported, and the motif must be LEGAL in the raga (its swaras in the raga's
+    allowed set). A bad pick or an out-of-raga motif fails here and hands the
+    guardrail a precise error to retry against. What CODE never lets the LLM
+    decide is legality and the raga/tala facts — everything else is the composer's.
+    """
+    raga: str
+    subgenre: str
+    tala: str
+    bpm: int = Field(gt=0)
+    motif: list[str] = Field(min_length=1)   # the composer's melodic seed (legal in the raga)
+    sections: list[Section] = Field(min_length=1)
+    registers: Optional[dict[str, int]] = None   # optional: composer voices the parts itself
+
+    @field_validator("raga")
+    @classmethod
+    def _known_raga(cls, v: str) -> str:
+        if v not in RAGAS:
+            raise ValueError(f"unknown raga '{v}' (expected one of {sorted(RAGAS)})")
+        return v
+
+    @field_validator("subgenre")
+    @classmethod
+    def _known_subgenre(cls, v: str) -> str:
+        if v not in SUBGENRES:
+            raise ValueError(f"unknown subgenre '{v}' (expected one of {sorted(SUBGENRES)})")
+        return v
+
+    @field_validator("tala")
+    @classmethod
+    def _known_tala(cls, v: str) -> str:
+        if v not in TALAS:
+            raise ValueError(f"unknown tala '{v}' (expected one of {sorted(TALAS)})")
+        return v
+
+    @field_validator("registers", mode="before")
+    @classmethod
+    def _blank_registers_to_none(cls, v):
+        # The model often fills the optional field with an empty dict rather than
+        # omitting it; treat that (any falsy value) as "not specified" so it doesn't
+        # trip the register check during output_pydantic parsing.
+        return v or None
+
+    @model_validator(mode="after")
+    def _shape_checks(self) -> "ArrangementDraft":
+        # SHAPE + vocabulary only. Motif LEGALITY (in-raga) is a DOMAIN rule enforced
+        # by the composer's guardrail (composers.py) and the final Arrangement — NOT
+        # here — so output_pydantic can always parse a structurally-valid draft.
+        _check_motif_symbols(self.motif)
+        if self.registers is not None:
+            _check_registers(self.registers)
+        return self
+
+
+class ComposerTurn(BaseModel):
+    """One turn in the Pandit<->Riffsmith dialogue.
+
+    `reasoning` is the composer's INTERNAL MONOLOGUE, filled FIRST (like the
+    Interpreter's): it analyzes the counterpart's last turn — one element to respect,
+    one to push back on — before drafting, which sharpens the revision and shows in
+    the trace. `draft` is the evolving chart; `note` is the short public argument the
+    transcript streams as a DEBATE event; `agree` lets the bounded loop exit early.
+    The loop NEVER relies on `agree`: a turn cap always terminates it, and the
+    Conductor arbitrates an un-agreed draft in step 6. `agree` is the shortcut; the
+    cap is the guarantee.
+    """
+    reasoning: str = ""
+    draft: ArrangementDraft
+    note: str = ""
+    agree: bool = False
+
+
+class Accent(BaseModel):
+    """One matra of the tala's accent skeleton — derived, never LLM-supplied."""
+    matra: int                                      # 1-indexed beat in the cycle
+    beat: float                                     # 0-indexed quarter-note beat position
+    kind: Literal["sam", "tali", "khali", "beat"]   # stress role of this matra
+    bol: str                                        # the theka syllable here
+
+
+class Arrangement(BaseModel):
+    """The full shared chart the parallel generators read.
+
+    The composers' DECISIONS (raga/subgenre/tala/tempo/sections) plus the DERIVED
+    facts that let independent generators interlock with no handoff: the tala
+    `accent_grid` (so riff and kick land together), a `motif` seeded from the
+    raga's pakad (shared melodic DNA), and a `register` per voice (so lead, riff
+    and drone sit in different octaves and can't clash).
+    """
+    raga: str
+    subgenre: str
+    tala: str
+    sa: int
+    bpm: int = Field(gt=0)
+    beats_per_bar: float                            # one tala cycle, in quarter-note beats
+    sections: list[Section] = Field(min_length=1)
+    accent_grid: list[Accent] = Field(min_length=1)
+    motif: list[str] = Field(min_length=1)          # swaras drawn from the raga's pakad
+    registers: dict[str, int]                       # base octave per voice
+    notes: list[str] = Field(default_factory=list)
+
+    @field_validator("raga")
+    @classmethod
+    def _known_raga(cls, v: str) -> str:
+        if v not in RAGAS:
+            raise ValueError(f"unknown raga '{v}' (expected one of {sorted(RAGAS)})")
+        return v
+
+    @field_validator("subgenre")
+    @classmethod
+    def _known_subgenre(cls, v: str) -> str:
+        if v not in SUBGENRES:
+            raise ValueError(f"unknown subgenre '{v}' (expected one of {sorted(SUBGENRES)})")
+        return v
+
+    @field_validator("tala")
+    @classmethod
+    def _known_tala(cls, v: str) -> str:
+        if v not in TALAS:
+            raise ValueError(f"unknown tala '{v}' (expected one of {sorted(TALAS)})")
+        return v
+
+    @model_validator(mode="after")
+    def _cross_checks(self) -> "Arrangement":
+        # the accent grid must cover exactly one full cycle of the chosen tala
+        matras = TALAS[self.tala]["matras"]
+        if len(self.accent_grid) != matras:
+            raise ValueError(
+                f"accent_grid has {len(self.accent_grid)} matras, but {self.tala} has {matras}")
+        # the composer's motif MUST be legal in the raga, and the voices must not clash
+        _check_motif_symbols(self.motif)
+        illegal = motif_illegal_in_raga(self.motif, self.raga)
+        if illegal:
+            raise ValueError(f"motif swaras {illegal} are illegal in raga {self.raga} "
+                             f"(allowed: {' '.join(RAGAS[self.raga]['allowed'])})")
+        _check_registers(self.registers)
+        return self
+
+
+def _check_motif_symbols(motif: list[str]) -> None:
+    """SHAPE: every motif entry is a known sargam symbol. Cheap, always-true for a
+    well-formed draft — safe to run inside the Pydantic schema."""
+    unknown = [sw for sw in motif if sw not in SWARAS]
+    if unknown:
+        raise ValueError(f"motif has unknown swara(s) {unknown}")
+
+
+def motif_illegal_in_raga(motif: list[str], raga: str) -> list[str]:
+    """DOMAIN: return the motif swaras that are NOT legal in the raga (empty == legal).
+
+    Public because the composer's guardrail enforces this AFTER structured parsing.
+    Legality is kept OUT of the Pydantic schema on purpose: `output_pydantic` must be
+    able to parse a structurally-valid draft so the guardrail can turn an out-of-raga
+    motif into a clean, retryable error instead of a parse-time crash. The final
+    Arrangement re-checks it (see `Arrangement._cross_checks`).
+    """
+    allowed = set(RAGAS[raga]["allowed"])
+    return [sw for sw in motif if sw not in allowed]
+
+
+def _check_registers(reg: dict[str, int]) -> None:
+    """Guardrail: every voice present, and lead >= rhythm >= drone so they don't clash."""
+    missing = {"lead", "rhythm", "drone"} - set(reg)
+    if missing:
+        raise ValueError(f"registers missing voice(s) {sorted(missing)}")
+    if not (reg["lead"] >= reg["rhythm"] >= reg["drone"]):
+        raise ValueError(f"registers must keep lead >= rhythm >= drone (got {reg})")
+
+
+def accent_grid(tala: str) -> list[Accent]:
+    """Derive the tala's accent skeleton — one Accent per matra of one cycle.
+
+    Pure: reads the encoded tala facts (talas.py) and marks each matra as the
+    `sam` (the resolving downbeat, matra 1), a `tali` (clap), a `khali` (wave), or
+    a plain `beat`. This is the grid riff and kick lock onto — knowledge as data,
+    never an LLM guess.
+    """
+    t = TALAS[tala]
+    tali, khali = set(t["tali"]), set(t["khali"])
+    grid: list[Accent] = []
+    for matra in range(1, t["matras"] + 1):
+        if matra == t["sam"]:
+            kind: Literal["sam", "tali", "khali", "beat"] = "sam"
+        elif matra in tali:
+            kind = "tali"
+        elif matra in khali:
+            kind = "khali"
+        else:
+            kind = "beat"
+        grid.append(Accent(matra=matra, beat=float(matra - 1), kind=kind,
+                            bol=t["theka"][matra - 1]))
+    return grid
+
+
+def motif_from_pakad(raga: str) -> list[str]:
+    """A pakad SEED to hand the composer as inspiration — the raga's first pakad phrase.
+
+    This is NOT the motif the chart uses; the composer writes that (and may quote,
+    vary, or depart from this seed, as long as it stays legal). Step 3b feeds this
+    into the composer's prompt so its motif is rooted in real raga idiom rather
+    than invented from nothing.
+    """
+    return list(RAGAS[raga]["pakad"][0])
+
+
+# How far above the riff's floor the lead sits, in octaves — enough that the
+# melody clears the downtuned rhythm and they don't fight for the same register.
+_LEAD_OCTAVES_ABOVE_RIFF: int = 2
+
+
+def voice_registers(subgenre: str) -> dict[str, int]:
+    """The DEFAULT base octave per voice when the composer doesn't voice the parts.
+
+    Derived from the subgenre so voices can't clash: the riff sits at the
+    subgenre's low (downtuned) octave, the lead sings a couple of octaves above,
+    and the drone anchors the low end with the riff — lead >= rhythm >= drone. The
+    composer may override this in its draft; this is the sane fallback.
+    """
+    riff_floor, _ = SUBGENRES[subgenre]["register"]
+    lead = max(0, riff_floor + _LEAD_OCTAVES_ABOVE_RIFF)
+    return {"lead": lead, "rhythm": riff_floor, "drone": riff_floor}
+
+
+def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arrangement:
+    """Expand a final composer draft into the full chart. Pure, no LLM.
+
+    The composer's music carries through untouched — its motif, section form, and
+    (if given) registers ARE the chart. Code does exactly two things: it honors
+    what the USER fixed (a stated raga/subgenre/bpm overrides the draft; the key
+    the Interpreter transcribed sets Sa, else the render-time default), and it
+    DERIVES the one verified fact the LLM must not invent — the tala's accent
+    grid. Registers fall back to a subgenre default only when the composer left
+    them open. The motif's legality was already guarded on the draft and is
+    re-checked on the Arrangement.
+    """
+    raga = brief.raga or draft.raga
+    subgenre = brief.subgenre or draft.subgenre
+    bpm = brief.bpm or draft.bpm
+    sa = brief.sa if brief.sa is not None else DEFAULT_SA
+    matras = TALAS[draft.tala]["matras"]
+    return Arrangement(
+        raga=raga, subgenre=subgenre, tala=draft.tala, sa=sa, bpm=bpm,
+        beats_per_bar=float(matras),
+        sections=draft.sections,
+        accent_grid=accent_grid(draft.tala),
+        motif=draft.motif,
+        registers=draft.registers or voice_registers(subgenre),
+    )
 
 
 # --------------------------------------------------------------------------- #
