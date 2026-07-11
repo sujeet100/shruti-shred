@@ -105,10 +105,12 @@ so our 3.13 pin is correct). Sources: docs.crewai.com; Anthropic "Building Effec
   **`allow_delegation=False`** (scripted Flow, not delegation), modest `max_iter` for live safety.
   Prompts live as external markdown/yaml config, never inline strings.
 
-**Model IDs (verify when the key lands):** `from crewai import LLM; LLM(model="gemini/...", temperature=...)`.
-Research found current IDs `gemini-3.5-flash` (Flash) and `gemini-3.1-pro` (Pro, *Preview*) — but
-**prefer the `gemini-flash-latest` / `gemini-pro-latest` aliases and re-verify the exact IDs the moment
-`GEMINI_API_KEY` is added**, since a live stage demo needs a stable endpoint.
+**Model IDs (VERIFIED 2026-07-11):** `from crewai import LLM; LLM(model="gemini/...", temperature=..., reasoning_effort=...)`.
+`gemini/gemini-3.5-flash` is confirmed working on CrewAI 1.15.2 with `reasoning_effort="low"`. **Requires the
+`crewai[google-genai]` extra** (native Google provider) — `uv add "crewai[google-genai]"`, else you get
+`ImportError: Google Gen AI native provider not available`. **Starting simple:** Flash 3.5 at low effort for the
+WHOLE crew (critics included); promote critics/Conductor to a Pro tier later via `RMA_PRO_MODEL`. All model IDs,
+effort, and temperatures are env-overridable in `crew/config.py`.
 
 **Agentic design (the talk's patterns, as engineering rules):**
 - **Validate at every boundary; one bounded retry, not a loop.** If a step routinely needs 2+ retries,

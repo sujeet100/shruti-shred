@@ -19,11 +19,16 @@ load_dotenv()  # load .env if present; a no-op when it's absent
 
 # --- Model tiers (see CLAUDE.md "CrewAI & agentic implementation rules") --------
 # Flash = fast/cheap for generators; Pro = stronger reasoning for critics/Conductor.
-# Prefer the `-latest` aliases for a stable live endpoint; override via env to pin.
-FLASH_MODEL = os.getenv("RMA_FLASH_MODEL", "gemini/gemini-flash-latest")
-PRO_MODEL = os.getenv("RMA_PRO_MODEL", "gemini/gemini-pro-latest")
+# STARTING SIMPLE: Flash 3.5 at low reasoning effort for the WHOLE crew (critics
+# included) — cheap/fast to get the loop working; promote critics/Conductor to a
+# Pro model later by setting RMA_PRO_MODEL. All overridable via env.
+FLASH_MODEL = os.getenv("RMA_FLASH_MODEL", "gemini/gemini-3.5-flash")
+PRO_MODEL = os.getenv("RMA_PRO_MODEL", FLASH_MODEL)  # begin with Flash for critics too
 
-# Gemini has no "reasoning effort" knob — steer with temperature.
+# Low reasoning effort to begin with (cheap/fast). LiteLLM maps this to Gemini's
+# thinking budget; bump to "medium"/"high" for critics once the loop works.
+REASONING_EFFORT = os.getenv("RMA_REASONING_EFFORT", "low")
+
 GENERATOR_TEMPERATURE = 0.9  # variety: we want the generators to explore
 CRITIC_TEMPERATURE = 0.2     # consistency: critics/Conductor should be steady
 
@@ -40,10 +45,12 @@ def has_api_key() -> bool:
 def generator_llm():
     """Flash-tier LLM for the generators (lazy import: no crewai cost until used)."""
     from crewai import LLM
-    return LLM(model=FLASH_MODEL, temperature=GENERATOR_TEMPERATURE)
+    return LLM(model=FLASH_MODEL, temperature=GENERATOR_TEMPERATURE,
+               reasoning_effort=REASONING_EFFORT)
 
 
 def critic_llm():
-    """Pro-tier LLM for the critics and the Conductor."""
+    """Critic/Conductor LLM (Flash for now; promote via RMA_PRO_MODEL later)."""
     from crewai import LLM
-    return LLM(model=PRO_MODEL, temperature=CRITIC_TEMPERATURE)
+    return LLM(model=PRO_MODEL, temperature=CRITIC_TEMPERATURE,
+               reasoning_effort=REASONING_EFFORT)
