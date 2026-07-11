@@ -81,6 +81,10 @@ If a weekend proves tight, Core still gives a complete, jaw-dropping talk. Stret
 
 ---
 
+> **Phase 2 detail:** the full agent roster and flow — the opposed composer dialogue
+> (Pandit ⇄ Riffsmith), parallel generators coordinated by the Arrangement "chart", and the
+> critic debate — are specified in **`DESIGN.md`**. Read it before building any agent.
+
 ## 4. Agentic patterns catalog (the learning spine → `PATTERNS.md`)
 
 | # | Pattern | Where it lives | Talk beat |
