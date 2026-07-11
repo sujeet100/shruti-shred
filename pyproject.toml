@@ -1,0 +1,16 @@
+[project]
+name = "raga-metal-agents"
+version = "0.1.0"
+description = "Agentic Hindustani-classical x metal fusion composer — a conference-talk demo teaching agentic AI patterns"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "crewai>=1.15.2",
+    "midiutil>=1.2.1",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.2",
+]
+
+[tool.uv]
+# This repo is a set of scripts, not an installable library — don't try to build
+# it, just manage the environment. (src/ uses a flat, sys.path-based layout.)
+package = false

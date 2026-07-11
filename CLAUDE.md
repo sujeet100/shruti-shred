@@ -64,11 +64,71 @@ agents compose, critique, and revise live; the result renders to audio.
 
 ## Models
 
-- **Crew: Gemini (decided).** Flash for generators, Pro for critics/Conductor.
-  Effort: `xhigh` for critics (Ustad/Rasik/Conductor), `high` for generators. GPT-5 = fallback only.
+- **Crew: Gemini (decided).** Flash for generators, Pro for critics/Conductor. GPT-5 = fallback only.
+- Gemini has **no "reasoning effort" knob** — steer with **temperature** instead: generators
+  ~0.8–0.9 (variety), critics/Conductor ~0.2 (consistency). See the CrewAI section below.
 - Key via `.env` as **`GEMINI_API_KEY`** (what LiteLLM reads for the `gemini/` provider). Sujit
   provides it at Phase 2; Phase 1 data needs no key.
 - Everything is model-agnostic via CrewAI/LiteLLM (model = one config value).
+
+## CrewAI & agentic implementation rules (Phase 2)
+
+*Researched 2026-07-11 against **CrewAI 1.15.2** (released 2026-07-08; supports Python 3.10–3.13,
+so our 3.13 pin is correct). Sources: docs.crewai.com; Anthropic "Building Effective Agents" &
+"Multi-agent research system"; Du et al. (multi-agent debate); Zheng et al. (MT-Bench / LLM-as-judge).*
+
+**Flows (we use Flows, not autonomous Crews — the loop must stay visible):**
+- Import from `crewai.flow.flow`: `Flow, start, listen, router, or_, and_`.
+- `@start()` = entry (multiple run in parallel). `@listen(trigger)` fires on the trigger and
+  receives its return value — **prefer writing to `self.state` over passing args**. `@router(trigger)`
+  returns a **string label** matched by `@listen("label")` — the branching primitive. `or_/and_` = any/all join.
+- **Structured state:** `class S(BaseModel): ...` then `class ComposeFlow(Flow[S])` → typed
+  `self.state` (an `id` field is auto-added). `@persist` = SQLite save/restore.
+- **The bounded loop IS our terminator.** Flows have **no built-in loop cap** (infinite-loop is a
+  documented footgun). The Conductor is a `@router` that reads `state.round` and **always returns
+  `"done"` once `round >= max_rounds`** — the referee and the clock, in code. Never wait on organic consensus.
+- `kickoff(inputs=...)` / `kickoff_async`. Stream steps to the UI via the event bus: `BaseEventListener`
+  from `crewai.events`, and the event classes from **`crewai.events.event_types`** (verified in 1.15.2:
+  `MethodExecutionStartedEvent`, `MethodExecutionFinishedEvent`, `FlowStartedEvent`, `FlowFinishedEvent`).
+  These paths move between releases — re-smoke-test on upgrade. `flow.plot()` renders the graph (a talk visual).
+
+**Agents / Tasks / Tools:**
+- Tools import from **`crewai.tools`** (NOT `crewai_tools`, the separate toolkit). Subclass `BaseTool`
+  with a Pydantic `args_schema` for the deterministic validator tool; deterministic tools = no cache, return dict/Pydantic.
+- **Use `validate_composition` two ways (do both):** (1) as a Task **`guardrail`** — runs *after* the
+  agent's output, returns `(ok, value_or_error)`, feeds errors back for a bounded retry
+  (`guardrail_max_retries`, default 3); the mandatory hard stop the agent can't skip. (2) as a **Tool**
+  Ustad calls mid-reasoning so it can *explain* the violation. (`TaskGuardrail` is now `LLMGuardrail`.)
+- **Structured output** via Task `output_pydantic=Model` is good but **not guaranteed** — always back
+  it with a guardrail. Agents return DATA, never prose.
+- Agent hygiene: tight role/goal/backstory, explicit `llm=` per tier, `tools=[...]`,
+  **`allow_delegation=False`** (scripted Flow, not delegation), modest `max_iter` for live safety.
+  Prompts live as external markdown/yaml config, never inline strings.
+
+**Model IDs (verify when the key lands):** `from crewai import LLM; LLM(model="gemini/...", temperature=...)`.
+Research found current IDs `gemini-3.5-flash` (Flash) and `gemini-3.1-pro` (Pro, *Preview*) — but
+**prefer the `gemini-flash-latest` / `gemini-pro-latest` aliases and re-verify the exact IDs the moment
+`GEMINI_API_KEY` is added**, since a live stage demo needs a stable endpoint.
+
+**Agentic design (the talk's patterns, as engineering rules):**
+- **Validate at every boundary; one bounded retry, not a loop.** If a step routinely needs 2+ retries,
+  fix the prompt/schema — not the retry count.
+- **Code decides the checkable; the LLM decides the rest.** Legality is code; taste is LLM. The
+  guardrail runs before we accept generator output and gates the final render.
+- **LLM-as-judge is biased** (position, verbosity, self-preference). Counter with explicit rubrics on a
+  fixed scale, ground Rasik in the encoded pakad/chalan facts (criteria, not vibes), and swap option order when comparing.
+- **Debate: 2–3 rounds max.** Gains plateau fast (Du et al.; Self-Refine) — most benefit is rounds 1–2.
+- **Live cost/latency:** tier models, prewarm the crew + preload raga/tala data before the pick,
+  retries with exponential backoff + jitter + a fallback path. Multi-agent burns ~15× single-agent
+  tokens — stream the debate so the wait is the show.
+
+**Python:**
+- Full type hints. **Pydantic v2** for the two cross-boundary contracts (composition JSON, debate event
+  stream); plain **dataclasses** for internal already-validated data on the render hot path (validate at
+  the edge, pass dataclasses inside).
+- `src/` stays importable with **no LLM/network** (the deterministic core). uv lockfile; ruff for
+  lint/format. Raga/tala data remains the single immutable source of truth for both validator and
+  agents; pass Flow state explicitly, no hidden globals.
 
 ## Menu (locked)
 
