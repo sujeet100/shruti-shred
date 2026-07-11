@@ -17,3 +17,6 @@ out/*.mid
 # Soundfont — 38MB binary asset, downloaded separately (see soundfonts/README.md)
 soundfonts/*.sf3
 soundfonts/*.sf2
+
+# Local agent traces (crew/tracing.py) — generated per run, viewed via the portal
+traces/
