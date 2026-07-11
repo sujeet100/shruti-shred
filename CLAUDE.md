@@ -266,11 +266,27 @@ and build order.
   guards legality). `output_pydantic=ComposerTurn` for shape + a guardrail for the one
   domain rule (motif legal in the raga). Pure loop tests: `tests/test_arrangement.py`,
   `tests/test_composers.py`.
+- **Agent #3 — the generators + full-band assembly** **done** — chart → every voice →
+  `Composition` → WAV (`out/full_band.wav`). Only TWO voices are LLM; the rest is code:
+  - **Lead** (`crew/lead.py`, LLM) — melodic line per section (kan/meend, cross-octave
+    incl. cross-octave meend), voiced as **sitar and/or lead guitar** per section kind:
+    solo / unison / octave / raga-diatonic **third** (harmony via `raga.scale_step_up`,
+    legal by construction). Distinct lead-guitar tone from the rhythm guitar.
+  - **Riff** (`crew/riff.py`, LLM) — one tala-cycle riff, looped seamlessly (code fills the
+    cycle) and matra-locked; accents punched on the sam/tali.
+  - **Deterministic voices (no agent):** **Drone** (raga-aware Sa+companion, `raga.drone_swaras`),
+    **Bass** (`generators.bass_layer` — follows the riff's on-beat roots, need not play every
+    note), **Drums/Groove** (`crew/groove.py` — locked to the riff, feel per section kind,
+    rule fills at transitions), **Tabla** (`groove.tabla_layer` — the tala theka on conga
+    stand-ins, may play under the kit).
+  - **Assembly:** `crew/band.py` (`band_layers` pure; `compose_band` / `compose_from_query`).
+    Backbone in `crew/generators.py` (section timeline, VOICES, drone, bass, assemble, render).
+  - Pure tests (free): `test_generators`, `test_lead`, `test_riff`, `test_groove`, `test_band`.
 - **Observability** (`crew/tracing.py` + `crew/trace_portal.py`): every LLM run is traced by
   default (one trace = one run id, Langfuse-style); browse by id in the local portal.
   `crew/evals.py` is the interpreter eval harness. See the "Observability" section.
 - Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
-- **NEXT: step 4 — the generators.** Lead / Riff / Groove read the `Arrangement` and emit
-  the `Composition` JSON (+ a deterministic Drone); the proven Phase-0 renderer turns that
-  into WAV — the chart → audio handoff. Then Ustad/Rasik (critics) → Conductor + the Flow.
-  (Build order in `DESIGN.md`.)
+- **NEXT: step 5 — the critics (Ustad, Rasik), then step 6 — Conductor + the Flow** (the
+  bounded debate = the talk's money moment), which also wires the **foreground leader/follower
+  LLM-seeding** (lead ⇄ riff) deferred from step 4. Build order + the settled generator design
+  (deterministic drums/bass/tabla, lead voicing, "who leads a section") are in `DESIGN.md`.

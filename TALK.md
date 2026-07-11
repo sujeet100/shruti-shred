@@ -99,7 +99,7 @@ streamed debate fills the wait — the wait IS the show.)*
 |---|---|---|---|
 | 1 | Structured output as a contract | "Agents don't return prose, they return data you can check." | built (schema) |
 | 2 | Deterministic tool = hard guardrail | "The one thing you never trust the LLM to do." | built (`validate_composition`) |
-| 3 | Separation of concerns / roles | "Small specialists beat one god-prompt." | Phase 2 |
+| 3 | Separation of concerns / roles | "Small specialists beat one god-prompt." | built (interpreter, composers, generators) |
 | 4 | Reflection loop | "Propose → critique → revise, on stage." | Phase 2 |
 | 5 | LLM-as-judge | "How do you grade taste?" | Phase 2 |
 | 6 | Multi-judge disagreement | "Legal vs lifeless — two judges, one conflict." | Phase 2 |
@@ -280,6 +280,39 @@ convincing than a hypothetical.)*
   spans — each agent's actual prompt, response, tokens, and guardrail retries — browsable in a
   dependency-free local portal. *Talk use:* show the real prompts and a live guardrail retry;
   "this is what 'the agents argued' actually looks like under the hood."
+
+### Phase 2, agent #3 — the generators + the full band — 2026-07-11
+
+- **The roster stays lean: only the CREATIVE voices are agents (the payoff of "decisions, not
+  instruments").** Of seven voices in the full band, only TWO are LLM — the raga Lead and the
+  metal Riff. The Drone, Bass, Drums, and Tabla are all DERIVABLE, so they're deterministic
+  code. *Line:* "There's no bass agent and no drum agent, because in metal the bass and the kick
+  FOLLOW the riff — that's derivable, not a decision. An agent is for a decision (intent,
+  arrangement, legality, taste), never for an instrument." The "why so few agents" answer, made
+  audible — and cheaper and more stage-reliable (fewer live calls).
+- **Harmony computed INSIDE the raga — legal by construction.** A harmonized taan (sitar + lead
+  guitar a "third" apart) takes the third by stepping up the RAGA's own swara ladder, not a
+  fixed +4 semitones — so every harmony note is legal automatically, and the validator finds
+  zero violations across all seven layers. *Line:* "We don't harmonize in Western thirds and
+  then check; we harmonize in the raga, so it's legal before we check." (Honest caveat: a
+  pentatonic like Malkauns has no clean third, so octave/unison are the safe voicings there.)
+- **The drone is domain knowledge too — and it caught a bug.** Naive tanpura = Sa+Pa. But
+  Malkauns has NO Pa; a Sa+Pa drone would be illegal in its own raga. `drone_swaras` derives the
+  companion from the raga's allowed set (Sa–ma for Malkauns), so the drone is legal by
+  construction. *Lesson:* even the "trivial" background pad is a fact, not a constant.
+- **Deterministic ≠ canned — the drums READ the riff.** The worry with a rule-based groove is
+  that it sounds robotic. The fix: the kick locks to the riff's on-beats (same rule as the
+  bass), the feel changes per section kind (half-time breakdown, double-time taan), and a rule
+  drops a tom fill at each transition. The groove is derived from the actual music, not a fixed
+  pattern. *Line:* "Deterministic doesn't mean dumb — it means the rule reads the same chart the
+  players do." (If the rule-fills ever sound plain, that's the one spot an LLM could earn a place
+  — added only if listening proves it needed.)
+- **LLM aims, code enforces (timing).** Generators emit swaras + DURATIONS, never absolute beat
+  positions — LLMs are unreliable at cross-section arithmetic. Code lays the phrase on the grid,
+  seats it in the right register, loops the riff to fill the cycle seamlessly, and truncates to
+  the window. *Line:* "The model supplies the music; code supplies the clock." (A user question —
+  "will the riff loop cleanly?" — became a hard guarantee: code fills any short cycle so there's
+  no gap at the downbeat where the loop repeats.)
 
 ## Anticipated Q&A
 

@@ -20,3 +20,6 @@ soundfonts/*.sf2
 
 # Local agent traces (crew/tracing.py) — generated per run, viewed via the portal
 traces/
+
+# macOS
+.DS_Store

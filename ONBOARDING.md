@@ -25,8 +25,12 @@ the renderer bends pitch to voice *meend* (glides).
   - **Agent #1 Interpreter** — done. Query → validated `CompositionBrief`.
   - **Agent #2 Pandit ⇄ Riffsmith composers** — done. Brief → `Arrangement` chart via a
     bounded turn-by-turn debate.
+  - **Agent #3 generators + full-band assembly** — done. Chart → every voice → `Composition`
+    → WAV (`out/full_band.wav`). Only **Lead** (sitar/lead-guitar voicing) and **Riff** are
+    LLM; **Drone, Bass, Drums, Tabla** are deterministic. `crew/band.py` assembles.
   - **Local tracing + portal + eval harness** — done (on by default).
-- **NEXT → step 4: the generators** (Lead / Riff / Groove). See "The next task" below.
+- **NEXT → step 5: the critics (Ustad, Rasik)**, then **step 6 (Conductor + the Flow**, which
+  also wires the deferred foreground leader/follower seeding). See "The next task" below.
 
 ## Quickstart
 
@@ -55,10 +59,15 @@ FluidSynth (`brew install fluid-synth`) + the soundfont (see `soundfonts/README.
     `Arrangement`/`ArrangementDraft`/`ComposerTurn`, `Composition`, the `DebateEvent`
     stream, `resolve_brief`, `build_arrangement`.
   - `interpreter.py` — agent #1. `composers.py` — agent #2 (the bounded dialogue).
+  - `generators.py` — the deterministic backbone (section timeline, `VOICES`, Drone, Bass,
+    assembly, render shell). `lead.py` / `riff.py` — the two LLM generators. `groove.py` —
+    the deterministic Drums + Tabla. `band.py` — full-band assembly (`compose_band`,
+    `compose_from_query`).
   - `config.py` — every model/temperature/loop knob (env-overridable). Prompts live in
     `config/agents.yaml` + `config/tasks.yaml`, never inline.
   - `tracing.py` / `trace_portal.py` — local observability. `evals.py` — eval harness.
-- **`tests/`** — pure tests only (no API): knowledge, arrangement, composers, interpreter.
+- **`tests/`** — pure tests only (no API): knowledge, arrangement, composers, interpreter,
+  generators, lead, riff, groove, band (115 tests, all free).
 
 ## The rules that bite (read `CLAUDE.md` for the full set)
 
@@ -71,19 +80,19 @@ FluidSynth (`brew install fluid-synth`) + the soundfont (see `soundfonts/README.
 - **Own the loop** (bounded, streamable), don't use CrewAI's autonomous delegation.
   Validate at boundaries; schema checks shape, guardrails check domain, normalize junk.
 
-## The next task — step 4: the generators
+## The next task — step 5: the critics (Ustad, Rasik)
 
-Turn the agreed `Arrangement` into playable audio. Three parallel generators read the
-same chart and each emit one `Layer` of the `Composition` JSON (already defined in
-`crew/contracts.py`; the Phase-0 renderer consumes it):
+The generators are done (chart → `out/full_band.wav`). Next is the **judgment** half of the
+pipeline — and the talk's money moment:
 
-- **Lead** (RagaGrammar) — melodic lines per section (alaap/taan/lead/solo), seeded by the
-  raga's pakad/chalan, using kan/meend; must pass `validate_composition`.
-- **Riff** (MetalRiff) — rhythm-guitar riff, in-raga, locked to the tala accent grid.
-- **Groove** (Tala) — drums (± tabla) from the tala × subgenre accent skeleton.
-- **Drone** (tanpura) — Sa+Pa pad, **deterministic, no agent**.
+- **Ustad** — legality/theory. Calls `validate_composition` (as a Task **guardrail** AND as a
+  **tool** so it can *explain* a violation). Verdict: legal / illegal + the violations.
+- **Rasik** — aesthetic/rasa on an explicit rubric grounded in the encoded pakad/chalan: is the
+  pakad present, is it idiomatic, does it serve the mood, do the parts cohere as an ensemble.
+- Then **step 6 — Conductor + the Flow**: on an Ustad↔Rasik conflict, run the **bounded debate**
+  and rule accept / surgical-revise (capped at `MAX_ROUNDS`); this is also where the deferred
+  **foreground leader/follower LLM-seeding** (lead ⇄ riff) lands.
 
-Coherence comes from the shared chart (`Arrangement.accent_grid`, `registers`, `motif`,
-`sections` with `intent`/`transition`). Run them in parallel, assemble the `Composition`,
-render to WAV. Then step 5 (Ustad/Rasik critics) and step 6 (Conductor + the Flow). Full
-detail in `DESIGN.md`.
+Everything the critics judge already exists: `compose_band(arr)` yields the `Composition`, and
+`compose_from_query(query)` runs the whole pipeline. Read `DESIGN.md` (roster, the critics +
+Conductor section, "who leads a section") and the `CLAUDE.md` CrewAI rules before building.
