@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Secrets — never commit real keys (commit .env.example instead)
+.env
+
+# Generated audio — reproducible via `uv run python src/demo.py`
+out/*.wav
+out/*.mid
+
+# Soundfont — 38MB binary asset, downloaded separately (see soundfonts/README.md)
+soundfonts/*.sf3
+soundfonts/*.sf2
