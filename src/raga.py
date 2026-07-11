@@ -257,6 +257,46 @@ def semitone(swara: str) -> int:
     return SWARAS[swara]
 
 
+# Tanpura tuning, in preference order: the companion string is Pa; for a raga
+# WITHOUT Pa it is Ma (madhyam) — e.g. Malkauns, tuned Sa-ma; failing both, the
+# nishad. This is a performance-practice CONVENTION, not a per-raga fact from the
+# raga sources — kept here as data so the (deterministic) drone stays legal in the
+# grammar by construction. FLAG: confirm the convention before the talk.
+_DRONE_COMPANIONS: tuple[str, ...] = ("P", "m", "M", "N", "n")
+
+
+def drone_swaras(raga: str) -> list[str]:
+    """The tanpura's drone tones for a raga — Sa plus one companion.
+
+    The companion is chosen from `_DRONE_COMPANIONS` (Pa, else Ma, else Ni), but
+    ONLY if it is in this raga's allowed set, so the drone can never sound a swara
+    the raga forbids — the drone is legal by construction and the validator never
+    flags it. Returns just ["S"] if no companion is legal. Pure: reads only the
+    encoded raga facts, invents nothing.
+    """
+    allowed = set(RAGAS[raga]["allowed"])
+    for companion in _DRONE_COMPANIONS:
+        if companion in allowed:
+            return ["S", companion]
+    return ["S"]
+
+
+def scale_step_up(swara: str, raga: str, steps: int = 1) -> tuple[str, int]:
+    """The swara `steps` scale-degrees above `swara` in the raga's ascending ladder,
+    with the octave delta (0, +1, ...) when it wraps past Sa.
+
+    Used to harmonize a melodic line INSIDE the raga (a 'third' is steps=2): the
+    result is drawn from the raga's own allowed swaras (which are stored in ascending
+    semitone order), so a harmony built on it is legal and idiomatic BY CONSTRUCTION.
+    The interval is the raga's own scale-third, so it varies — minor or major in a
+    seven-note raga, wider in a pentatonic like Malkauns — which is correct diatonic
+    behaviour, not a bug. `swara` must be a legal swara of the raga.
+    """
+    allowed = RAGAS[raga]["allowed"]
+    idx = allowed.index(swara) + steps
+    return allowed[idx % len(allowed)], idx // len(allowed)
+
+
 def validate_composition(comp: dict) -> list[dict]:
     """Return a list of grammar violations (empty == clean).
 
@@ -267,7 +307,7 @@ def validate_composition(comp: dict) -> list[dict]:
     allowed = set(raga["allowed"])
     violations = []
     for layer in comp["layers"]:
-        if layer.get("role") == "drums":
+        if layer.get("role") in ("drums", "tabla"):   # percussion carries no pitch
             continue
         for n in layer.get("notes", []):
             # Every pitch that actually sounds faces the grammar — the main

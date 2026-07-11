@@ -43,8 +43,11 @@ import subprocess
 from midiutil import MIDIFile
 from raga import SWARAS
 
-# GM percussion voices (channel 9). This is the metal kit the drum-generator
-# agent draws from; a subgenre's drum vocabulary may only name keys in here.
+# GM percussion voices (channel 9). The metal kit the groove engine draws from (a
+# subgenre's drum vocabulary may only name kit keys), plus two conga voices that
+# stand in for the tabla — GM has no tabla, so Low/Open-Hi Conga approximate the
+# bayan (bass, left hand) and dayan (treble, right hand). Both the metal kit and the
+# tabla share channel 9 (they are all GM percussion) and simply mix.
 DRUMS = {
     "kick": 36,     # Bass Drum 1
     "snare": 38,    # Acoustic Snare
@@ -56,6 +59,8 @@ DRUMS = {
     "tom_hi": 50,   # High Tom
     "tom_mid": 47,  # Low-Mid Tom
     "tom_lo": 45,   # Low Tom
+    "tabla_lo": 64,  # Low Conga     — bayan (tabla bass) stand-in
+    "tabla_hi": 63,  # Open Hi Conga — dayan (tabla treble) stand-in
 }
 GRACE_LEN = 0.15         # beats: total window a note's kan ornament occupies before it
 MEEND_RANGE = 12         # semitones of pitch-bend range we arm the channel with (±octave)
@@ -98,7 +103,9 @@ def build_midi(comp: dict, path: str) -> None:
         mf.addTempo(i, 0, comp["bpm"])
     sa = comp["sa"]
     for i, layer in enumerate(layers):
-        if layer.get("role") == "drums":
+        # Percussion layers (the metal kit and the tabla) carry hits, not pitched
+        # notes, and both live on GM channel 9.
+        if layer.get("role") in ("drums", "tabla"):
             for h in layer["hits"]:
                 mf.addNote(i, 9, DRUMS[h["drum"]], h["start"], h.get("dur", 0.2), h.get("vel", 100))
             continue

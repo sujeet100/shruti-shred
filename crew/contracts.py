@@ -611,6 +611,111 @@ def parse_composition(comp: dict) -> tuple[Optional[Composition], list[str]]:
 
 
 # --------------------------------------------------------------------------- #
+# Contract 1.5: Generator section outputs                                     #
+#                                                                             #
+# What a melodic generator (Lead, and later Riff) EMITS for ONE section: a    #
+# phrase of notes carrying DURATIONS, not absolute start times. The LLM is bad #
+# at cross-section beat arithmetic and must not own it — so the model supplies #
+# the musical content (which swaras, how long, which ornaments) and CODE lays  #
+# the phrase onto the section's window (`generators.place_phrase`), adding the  #
+# voice's register and truncating at the window edge. "LLM aims, code enforces."#
+# `oct` is LOCAL to the voice's register (0 = home; +1 to climb for a climax). #
+# --------------------------------------------------------------------------- #
+
+class LeadNote(BaseModel):
+    """One note in a Lead phrase — a swara with a duration, no absolute start.
+
+    Same ornament vocabulary as `Note` (kan via `grace`, portamento via `meend`),
+    validated identically so an out-of-symbol ornament fails at the boundary; but
+    the timing is a `dur` the code sequences, and every octave here is LOCAL to the
+    lead's register (`generators.place_phrase` adds the register base). `meend` is a
+    bare swara (glide within the note's octave) OR `{"swara","oct"}` to glide ACROSS
+    octaves — that `oct` is local, in the same frame as the note's `oct`, and is
+    register-shifted at placement. Cross-octave glides (mandra<->taar) are core raga
+    idiom, so the lead needs them.
+    """
+    swara: str
+    oct: int = 0
+    dur: float = Field(gt=0)
+    vel: int = Field(default=90, ge=1, le=127)
+    grace: Optional[list[str]] = None
+    meend: Optional[Union[str, dict]] = None
+
+    @field_validator("swara")
+    @classmethod
+    def _known_swara(cls, v: str) -> str:
+        if v not in SWARAS:
+            raise ValueError(f"unknown swara '{v}' (expected one of {' '.join(SWARAS)})")
+        return v
+
+    @field_validator("grace")
+    @classmethod
+    def _known_grace(cls, v):
+        bad = [g for g in (v or []) if g not in SWARAS]
+        if bad:
+            raise ValueError(f"unknown grace swara(s) {bad}")
+        return v
+
+    @field_validator("meend")
+    @classmethod
+    def _known_meend(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, dict):
+            sw = v.get("swara")
+            if sw is None:
+                raise ValueError("meend dict must include a 'swara'")
+        else:
+            sw = v
+        if sw not in SWARAS:
+            raise ValueError(f"unknown meend target '{sw}'")
+        return v
+
+
+class LeadPhrase(BaseModel):
+    """The Lead generator's structured output for ONE section.
+
+    `reasoning` is filled FIRST (chain-of-thought, like every other agent here):
+    which pakad/chalan idiom the phrase builds on and how it is shaped to the
+    section's role — disciplining the melody and showing in the trace. Legality
+    (every swara in the raga) is NOT enforced here; it is the generator's guardrail
+    (a bounded retry) so `output_pydantic` can always parse a well-formed phrase.
+    """
+    reasoning: str = ""
+    notes: list[LeadNote] = Field(min_length=1)
+
+
+class RiffNote(BaseModel):
+    """One note of a metal riff — a swara with a duration, no ornaments (a riff
+    chugs, it doesn't kan/meend). `oct` is LOCAL to the rhythm register; `vel`
+    defaults loud. Timing is a `dur` the code lays on the tala grid."""
+    swara: str
+    oct: int = 0
+    dur: float = Field(gt=0)
+    vel: int = Field(default=110, ge=1, le=127)
+
+    @field_validator("swara")
+    @classmethod
+    def _known_swara(cls, v: str) -> str:
+        if v not in SWARAS:
+            raise ValueError(f"unknown swara '{v}' (expected one of {' '.join(SWARAS)})")
+        return v
+
+
+class RiffPattern(BaseModel):
+    """The Riff generator's output for ONE section — ONE tala cycle of riff.
+
+    The code repeats this cycle across the section's bars so every bar re-lands on
+    the sam, and punches the notes that fall on accented matras so the riff locks to
+    the kick. `reasoning` is filled FIRST (which swaras/motif the riff builds on, how
+    it lands the accents). Legality is the generator's guardrail, not enforced here,
+    so `output_pydantic` can always parse a well-formed pattern.
+    """
+    reasoning: str = ""
+    notes: list[RiffNote] = Field(min_length=1)
+
+
+# --------------------------------------------------------------------------- #
 # Contract 2: Debate event stream                                             #
 # --------------------------------------------------------------------------- #
 

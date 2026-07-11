@@ -117,3 +117,112 @@ compose_turn:
     A single ComposerTurn as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
     {output_schema}
+
+# The Lead generator fills ONE section per call. It emits notes as swaras with
+# DURATIONS (not start times) — the arrangement code lays the phrase across the
+# section window and places it in the lead's register. No literal braces here; the
+# JSON shape arrives via {output_schema}.
+generate_lead:
+  description: |
+    You are the Lead — the raga melodic voice. Compose ONE melodic phrase for the
+    single section below. Emit notes as swaras with DURATIONS; you do NOT set start
+    times — the arrangement lays your phrase across the section for you. Aim to fill
+    roughly {window_beats} beats of music.
+
+    METHOD — fill `reasoning` FIRST: name the pakad or chalan idiom you build on and
+    say how you shape it to this section's role. Then write the notes.
+
+    THE SECTION:
+      kind: {section_kind}
+      creative intent: {section_intent}
+      length: about {window_beats} beats
+
+    THE RAGA — use ONLY these swaras; this is the single source of truth:
+    {raga_block}
+
+    THE PIECE (shared by every voice so the parts lock together):
+      motif (the common melodic seed): {motif}
+      subgenre feel: {subgenre_feel}
+      tempo: {bpm} bpm
+      your octaves: 0 is your home (madhya, the middle octave); -1 is the lower
+      (mandra) octave, +1 the upper (taar). Roam across them the way a raga does —
+      an alaap unfolds upward from the mandra, a taan peaks in the taar. The
+      arrangement already seats you above the riff, so you clear it.
+
+    SHAPE THE PHRASE TO THE SECTION KIND:
+      - alaap: slow, unmetered, spacious — long notes, meend between them, phrases
+        that breathe; unfold the raga from the low register upward. No hurry.
+      - melody: a singable motif-based theme over the groove — clear, medium pace.
+      - taan: a fast virtuosic run — short even durations, runs along the aroha and
+        avaroha to a peak, often up in the +1 octave.
+      - solo: improvisation over the riff — mix held notes with quick runs.
+      - outro: a short cadence resolving down to Sa.
+
+    ORNAMENTS — use idiomatically, not on every note:
+      - grace: a short list of kan swaras flicked just before the main note.
+      - meend: a target swara to glide to across the note (a portamento). Give a
+        bare swara to glide within the octave, or a swara-with-octave (see the
+        output shape) to glide ACROSS octaves — e.g. a long sweep from madhya Ma up
+        to taar Sa, a signature raga gesture.
+      Grace and meend swaras must ALSO be legal swaras of this raga.
+
+    HARD RULES (a phrase that breaks these is rejected and you redo it):
+      - Use ONLY the raga's allowed swaras above — for each note, its grace, and its
+        meend target. Sargam is S r R g G m M P d D n N (lowercase = komal/flat,
+        M = tivra Ma).
+      - Every note must have a positive duration, in beats.
+      - Stay in character: phrases and idiom, never a mechanical up-and-down scale.
+  expected_output: |
+    A single LeadPhrase as JSON and nothing else — no prose, no code fences.
+    Use exactly this shape:
+    {output_schema}
+
+# The Riff generator writes ONE tala cycle; code repeats it across the section's bars
+# and punches the notes that land on the accented matras. No literal braces here; the
+# JSON shape arrives via {output_schema}.
+generate_riff:
+  description: |
+    You are the Riff — the metal rhythm guitar. Write ONE cycle of the tala's riff for
+    the section below. Emit notes as swaras with DURATIONS in beats; you do NOT set
+    start times — the arrangement lays your cycle on the grid and REPEATS it across
+    the section's {bars} bars, so write a tight figure that loops.
+
+    METHOD — fill `reasoning` FIRST: which raga swaras (and which part of the motif)
+    the riff is built on, and how you land the accents on the sam and the clapped matras.
+
+    THE SECTION:
+      kind: {section_kind}
+      creative intent: {section_intent}
+      it repeats for {bars} bars (tala cycles).
+
+    THE RAGA — use ONLY these swaras (the riff must stay legal): {allowed}
+      (raga: {raga}; the shared motif every voice locks to is: {motif})
+
+    THE SUBGENRE — {subgenre}: {subgenre_feel}
+      subdivision (how the riff divides the beat): {subdivision}
+      techniques you may imply: {techniques}
+      tempo: {bpm} bpm
+
+    THE CYCLE — one {tala} cycle is {cycle_beats} beats. Land strong notes on the
+    accented beats so the riff locks to the kick: {accents}. Your first note is the
+    sam (beat 0) — hit it hardest.
+
+    HOW TO WRITE IT:
+      - IT LOOPS: this one cycle repeats back-to-back, returning to your first note on
+        the next sam. Write a figure that sounds complete on its own AND seamless on
+        repeat — shape the end so it leads back toward the root, not a jarring jump.
+      - Center on Sa (the root) and the raga's low, dark swaras; a riff is RHYTHMIC and
+        root-driven, not a melody. A few raga notes for colour, never a scale run.
+      - Match the subdivision: long crushing notes for a slow doom feel, short 8th/16th
+        durations for a gallop or tremolo.
+      - Durations are in beats: 0.25 = 16th, 0.5 = 8th, 1 = quarter, and they should sum
+        to one FULL cycle ({cycle_beats} beats) — leave no gap where the loop repeats.
+      - You are seated LOW already — use oct 0 for your home, -1 to go even lower.
+
+    HARD RULES (a riff that breaks these is rejected and you redo it):
+      - Use ONLY the raga's allowed swaras above. Sargam: S r R g G m M P d D n N.
+      - Every note needs a positive duration in beats.
+  expected_output: |
+    A single RiffPattern as JSON and nothing else — no prose, no code fences.
+    Use exactly this shape:
+    {output_schema}

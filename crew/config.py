@@ -38,6 +38,14 @@ COMPOSER_TURNS: int = 3
 # turn is re-run this many times before we give up. Billing is live — keep it low.
 COMPOSER_RETRIES: int = 1
 
+# Generators (Lead/Riff/Groove) emit ONE structured phrase per section. Same
+# discipline as the composers: one bounded retry when the legality guardrail
+# bounces an out-of-raga note, and a modest within-call iteration cap for live
+# safety. The generators have no across-call loop of their own (they fan out over
+# a fixed section list), so these are the only clocks they need.
+GENERATOR_RETRIES: int = 1
+GENERATOR_MAX_ITER: int = 3
+
 # Per-turn circuit-breaker on an agent's internal reasoning/tool loop (CLAUDE.md:
 # "modest max_iter for live safety"). Our own turn cap (COMPOSER_TURNS) bounds the
 # ACROSS-turn debate; this bounds the WITHIN-turn work. A composer turn is a single

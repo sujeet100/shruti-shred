@@ -33,7 +33,8 @@ debate too noisy to follow.
  (tradition) (metal)         bounded dialogue; Conductor breaks ties
     │
     ▼
- Lead ∥ Riff ∥ Groove  (PARALLEL, read the same chart)  +  Drone (deterministic)
+ Lead ∥ Riff  (PARALLEL LLM generators, read the same chart)
+        + Drone (from the chart)  + Bass + Drums (deterministic, from the riff + tala grid)
     │
     ▼
  assemble Composition JSON
@@ -62,10 +63,11 @@ result (arbitrated with a clock). That contrast is a core teaching beat.
 | **Interpreter** | Extract & validate ONLY what the user stated (raga/subgenre kept if supported, key→Sa, mood passthrough). Invents nothing; **nothing is required** (mood-only OK); unstated dimensions stay OPEN for the composers | text → `CompositionBrief` | Flash |
 | **Pandit** (composer, tradition-leaning) | Argue for raga depth: space, ornament, alaap/development, idiom | dialogue turns → `Arrangement` | Flash |
 | **Riffsmith** (composer, metal-leaning) | Argue for metal impact: heaviness, riff hooks, aggression, tightness | dialogue turns → `Arrangement` | Flash |
-| **Lead** (RagaGrammar) | Melodic lines per section (alaap/taan/lead/solo), seeded by pakad/chalan, kan/meend | (section, chart) → lead layer | Flash |
+| **Lead** (RagaGrammar) | Melodic lines per section (alaap/taan/lead/solo), seeded by pakad/chalan, kan/meend; voiced as **sitar and/or lead guitar** — solo, unison, octave, or a raga-diatonic third (harmony derived in code) | (section, chart) → lead layer(s) | Flash |
 | **Riff** (MetalRiff) | Rhythm-guitar riff, in-raga, subgenre feel/register | (section, chart) → rhythm layer | Flash |
-| **Groove** (Tala) | Drums (± tabla) from the tala×subgenre accent skeleton | (section, chart) → drums layer | Flash |
-| *Drone (tanpura)* | Sa+Pa pad — **deterministic, no agent** | — | — |
+| **Groove / Drums** (Tala) | Kit from the tala×subgenre accent skeleton, **locked to the riff** (kick/crash follow it), feel per section-kind + fills at transitions — **deterministic, no agent** | riff + chart → drums layer | — |
+| *Drone (tanpura)* | Sa + companion pad (Pa, or Ma for a Pa-less raga like Malkauns) — **deterministic, no agent** | chart → drone layer | — |
+| *Bass* | Doubles the riff's roots in the low register — **deterministic, no agent, locked to the riff** | riff layer → bass layer | — |
 | **Ustad** | Legality/theory — calls `validate_composition` (the hard guardrail) | composition → verdict + violations | Flash→Pro |
 | **Rasik** | Aesthetic/rasa: pakad present, idiom, mood-fit, **ensemble coherence** | composition → scores + notes | Flash→Pro |
 | **Conductor** | Arbiter: composer tiebreak; on Ustad↔Rasik conflict run the bounded debate, rule accept/revise, cap rounds | verdicts → decision | Pro |
@@ -95,8 +97,10 @@ also what fills the live wait: the streamed conversation is the show.
 
 ## The generators: PARALLEL, coordinated by the chart
 
-The three generators run **in parallel** (better on stage, and the audience will ask). They
-still lock together without a sequential handoff because coherence comes from three places:
+The two creative generators (Lead and Riff) run **in parallel** (better on stage, and the
+audience will ask); the derivable voices — Drone from the chart, Bass and Drums from the
+riff — fall out deterministically around them. Lead and Riff still lock together without a
+sequential handoff because coherence comes from three places:
 
 1. **Free shared constraints** — same raga (legal notes), key/Sa, tala grid, bpm, sections.
    This alone prevents the train-wreck failures.
@@ -121,6 +125,76 @@ like session players, not blind. And if two parts still clash, that's what the c
 for: Rasik flags it and we regenerate just that layer. Parallel speed, coherence from the
 shared plan plus the review loop." (Showcases three patterns at once: parallel fan-out,
 plan-as-contract, guardrail/critique loop.)
+
+---
+
+## Who leads a section: the composers decide (`foreground`)
+
+Real composition has no fixed order — sometimes the bassline comes first, sometimes
+the riff, sometimes the melody — and the voice that leads shapes the rest. We model
+this WITHOUT a new mechanism: each `Section` already carries a `foreground` (the
+voice in the spotlight), and that IS the section's leader. The composers choose it
+per section (a creative call, so it lives with them), and different sections can lead
+with different voices — a lead-led alaap, a riff-led groove, a drum-led breakdown —
+giving any combination.
+
+Orchestration (step 6) gives `foreground` teeth: the leader generates FIRST from the
+shared motif, and the supporting voices are seeded with the leader's REALIZED line
+("answer this", "lock to this"), not just the abstract motif — so a riff-led section
+is genuinely built around that riff, a lead-led section around that melody. This is a
+per-section leader→follower dependency layered on top of the parallel default, and
+the bass is its standing example (bass always follows the rhythm guitar's roots). It
+also dramatizes the composers' opposition: Pandit argues for lead-led sections,
+Riffsmith for riff/bass-led ones.
+
+(A genuinely melodic, INDEPENDENT bass lead — bass-first in the strong sense — would
+need an LLM bass generator; the deterministic bass gives the locked low-end
+foundation now, and a "lead bass" can be added later if a section calls for it.)
+
+---
+
+## The derivable voices: Drone, Bass, and Drums (deterministic)
+
+Three voices are pure FACT or derivation, not creative decisions, so they are CODE
+— no agent, no LLM call. This is "agents map to decisions, not instruments" applied
+to the whole rhythm section and the drone, and it is why the roster stays lean: only
+the two genuinely CREATIVE voices (the Lead melody and the Riff) are LLM generators.
+
+- **Drone (tanpura)** — Sa plus one companion tone, derived from the raga's own
+  allowed swaras (`raga.drone_swaras`): Pa where the raga has it, Ma for a Pa-less
+  raga like Malkauns (tuned Sa–ma), so the drone is legal in the grammar BY
+  CONSTRUCTION and the guardrail can never flag it. Reads the chart; spans the whole
+  piece at the lowest register.
+- **Bass** — the metal low-end anchor, and the fix for a mix that otherwise sounds
+  flat (a distorted guitar is harmonically rich but thin on fundamentals; the bass
+  supplies the body and locks the riff to the kick). It is NOT a separate agent: in
+  metal the bass follows the rhythm guitar's roots, so it is DERIVED from the riff
+  layer — doubling the riff's root notes (or holding them on the accent-grid
+  downbeats) in the *rhythm register* (same octave as the downtuned guitar, so it
+  never goes subsonic), on a bass patch. It runs right after the Riff generator as a
+  deterministic shadow of it, and needs no composer decision and no new contract:
+  bass is present wherever the rhythm guitar is, and its notes are already
+  raga-legal because they are the riff's. (A melodic/independent "lead bass" for prog
+  could become an LLM generator later; the default foundation bass stays code.)
+- **Drums** — the kit is GENERATED at the tala×subgenre intersection: the tala's
+  accent grid is the rhythmic skeleton (kick on the sam and strong matras, snare on
+  the subgenre's backbeat, hats/ride filling the subdivision), the subgenre profile
+  supplies the technique (density, double-kick, blast beats), and — like the bass —
+  the kit READS the riff so the kick and crashes LOCK to it rather than to a canned
+  pattern. Feel changes per section kind (a breakdown crushes half-time, a taan
+  doubles up, an alaap drops the kit for tabla), and a rule drops a fill into each
+  transition. If those rule-based fills ever sound canned, a small LLM pass over just
+  the transition bars (reading the composers' `transition` text) is the one place an
+  agent might later earn its keep — added only if listening proves the rule short.
+
+**Audience Q&A answer (why is there no bass or drum agent?):** "The bass and the drum
+groove both FOLLOW the riff — they're derivable, not creative decisions — so they're
+deterministic code, not LLM calls. That's the rule that keeps the roster lean: an
+agent is a DECISION (intent, arrangement, legality, taste), never an instrument. The
+drone, the bass, and the groove are all facts or derivations the code can supply, so
+they cost nothing and can't hallucinate — leaving the model budget for the two voices
+that are genuinely creative, the raga lead and the metal riff." (Reinforces "code
+does the derivable, the LLM does the creative" at the level of the roster itself.)
 
 ---
 
@@ -183,9 +257,14 @@ thesis applied to model choice. (`gemini-3.1-flash-lite` id is unverified — co
 1. ✅ Contracts — `CompositionBrief` + `Arrangement` (the chart).
 2. ✅ **Interpreter** — agent #1 (structured extraction + validation-at-the-boundary).
 3. ✅ **Pandit ⇄ Riffsmith** — the bounded composer dialogue producing the Arrangement.
-4. **Lead / Riff / Groove** — parallel generators reading the chart (+ deterministic Drone). ← **NEXT**
-5. **Ustad / Rasik** — the critics.
-6. **Conductor + the Flow** — arbitration, the bounded loops, end-to-end render.
+4. **Generators** — the two creative LLM voices (**Lead**, **Riff**) plus the derivable
+   voices (**Drone** from the chart; **Bass** and **Drums** from the riff). *DONE: Drone,
+   Lead (+ sitar/guitar voicing), Riff, Bass, Groove/Drums, Tabla theka, and the full-band
+   assembly (`crew/band.py`, chart -> every voice -> Composition -> WAV). Remaining: the
+   foreground leader/follower LLM-seeding (lead ⇄ riff), which lands with the Flow (step 6).*
+5. **Ustad / Rasik** — the critics. *(not started)*
+6. **Conductor + the Flow** — arbitration, the bounded loops, the foreground leader/follower
+   ordering, end-to-end render. *(not started)*
 
 *Not in the original list but added along the way:* **local tracing + trace portal**
 (`crew/tracing.py`, `crew/trace_portal.py`) and an **interpreter eval harness**
