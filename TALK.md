@@ -214,6 +214,28 @@ convincing than a hypothetical.)*
   **Arranger** (who decides song *form* and length) — distinct decisions that earned their own
   agent, vs. the instrument-agents that didn't. Good illustration of the judgment call.
 
+### Phase 2, agent #1 — the Interpreter — 2026-07-11
+
+- **The LLM extracts fuzzy; code resolves authoritative.** The Interpreter is split in
+  two: an LLM turns free text into a loose `RawIntent` (what the user *said*), and a pure
+  Python `resolve_brief` validates it against the raga/subgenre libraries and fills grounded
+  defaults into a `CompositionBrief`. *Line:* "The model is allowed to be wrong about what
+  you said; it is never allowed to decide what's legal." Same guardrail thesis, now at the
+  *front door*.
+- **Watch the cheap model fail, and the system not care (the demo-able moment).** On
+  Flash-low, the extractor sometimes invents a tempo the user never gave, or dumps the word
+  "subgenre" into the *key* field. And yet every single run ends in either a valid grounded
+  brief or a clean "cannot proceed: raga X isn't one of [...]" — nothing crashes, nothing
+  illegal slips through. *That robustness is the deterministic resolver doing its job.* Great
+  live bit: show the junky `heard: {...}` line next to the clean `brief: ...` line.
+- **"Never block" in practice.** Unspecified subgenre/tempo/key don't stop the show — the
+  resolver fills them from data (subgenre from the raga's affinity, bpm from the subgenre's
+  range, Sa from the key or default D) and *surfaces each assumption as an event* ("bpm not
+  specified -> 75, mid of doom range"). The audience sees the machine reason about defaults.
+- **Tuning insight:** structured *extraction* wants at least medium reasoning effort even on
+  a cheap model — low-effort Flash mislabels fields. A concrete example of "tier by the task,
+  not by a guess."
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —

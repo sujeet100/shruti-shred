@@ -160,6 +160,22 @@ plan-as-contract, guardrail/critique loop.)
 
 ---
 
+## Model tiering (tune after a working baseline)
+
+Tier by cognitive load, but only *after* the loop works end-to-end on uniform **Flash-low**
+— you can't judge a "cheaper here costs quality" tradeoff before you can hear the output.
+Per-role model/effort are env-overridable in `crew/config.py`, so tiering is a cheap change.
+
+| Load | Agents | Plan |
+|---|---|---|
+| low | **Interpreter**, **Ustad** (narrates a *deterministic* result), *Groove* (rule-driven) | → flash-lite / minimal effort later |
+| medium | **Lead**, **Riff** | keep Flash |
+| high | **Pandit**, **Riffsmith**, **Rasik**, **Conductor** | keep Flash now, → **Pro** later |
+
+The story: spend model budget where *judgment and creativity* live; go cheap where the work
+is *extraction* or *deterministic narration* — the "code does the checkable, LLM does the rest"
+thesis applied to model choice. (`gemini-3.1-flash-lite` id is unverified — confirm before use.)
+
 ## Build order (one agent at a time, with review between)
 
 1. Contracts — `CompositionBrief` + `Arrangement` (the chart).

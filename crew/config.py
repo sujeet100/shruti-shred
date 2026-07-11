@@ -63,15 +63,26 @@ def has_api_key() -> bool:
     return bool(os.getenv("GEMINI_API_KEY"))
 
 
-def generator_llm():
-    """Flash-tier LLM for the generators (lazy import: no crewai cost until used)."""
+def build_llm(model: str, temperature: float):
+    """Construct a CrewAI LLM (lazy import: no crewai cost until called)."""
     from crewai import LLM
-    return LLM(model=flash_model(), temperature=GENERATOR_TEMPERATURE,
-               reasoning_effort=reasoning_effort())
+    return LLM(model=model, temperature=temperature, reasoning_effort=reasoning_effort())
+
+
+def generator_llm():
+    """Flash-tier, high temperature — generators explore."""
+    return build_llm(flash_model(), GENERATOR_TEMPERATURE)
 
 
 def critic_llm():
-    """Critic/Conductor LLM (Flash for now; promote via RMA_PRO_MODEL later)."""
-    from crewai import LLM
-    return LLM(model=pro_model(), temperature=CRITIC_TEMPERATURE,
-               reasoning_effort=reasoning_effort())
+    """Critic/Conductor — Pro (or Flash for now via RMA_PRO_MODEL), low temperature."""
+    return build_llm(pro_model(), CRITIC_TEMPERATURE)
+
+
+def extractor_llm():
+    """Low-temperature Flash for extraction/narration (Interpreter now; Ustad later).
+
+    Extraction wants determinism, not variety, so it runs cool (CRITIC_TEMPERATURE).
+    A downgrade candidate for flash-lite once the loop works (see DESIGN.md tiering).
+    """
+    return build_llm(flash_model(), CRITIC_TEMPERATURE)

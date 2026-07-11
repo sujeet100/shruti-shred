@@ -1,0 +1,21 @@
+# Task definitions (description/expected_output) — one objective per task.
+# {placeholders} filled from kickoff inputs. output_pydantic is set in Python.
+
+interpret_query:
+  description: >
+    Extract the musical intent from this request, exactly as expressed:
+
+        "{query}"
+
+    Capture the raga name, the key, the metal subgenre or mood, the BPM, and any
+    named instruments — but ONLY if the user actually stated them.
+
+    Critical: leave a field null when the user did not mention it. Do NOT estimate,
+    infer, or fill defaults. In particular:
+      - if the user gives no explicit tempo number, bpm MUST be null (never guess);
+      - if the user names no instruments, instruments MUST be null (never guess);
+      - use real JSON null, not the string "null" or a placeholder like -1.
+    Defaults and normalization are handled downstream by deterministic code, not you.
+  expected_output: >
+    A RawIntent object with fields raga, key, subgenre, mood, bpm, instruments —
+    each set only if the user specified it, otherwise null.
