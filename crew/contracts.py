@@ -533,6 +533,24 @@ def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arran
 # Contract 1: Composition                                                     #
 # --------------------------------------------------------------------------- #
 
+def _clean_meend(v):
+    """Normalize an LLM `meend` value to a valid target (swara or {swara, oct}) or None.
+
+    LLMs express "no glide" inconsistently — JSON null, an empty dict, or the STRING
+    'null'/'none' — and CrewAI's Gemini provider hard-raises on an output_pydantic
+    validation failure BEFORE any guardrail can retry, so a stray nullish meend would
+    kill a whole generation. We normalize the junk at the boundary (as the intake does
+    with `_NULLISH`); a genuinely unknown target swara still raises."""
+    if v is None:
+        return None
+    sw = v.get("swara") if isinstance(v, dict) else v
+    if sw is None or (isinstance(sw, str) and sw.strip().lower() in _NULLISH):
+        return None
+    if sw not in SWARAS:
+        raise ValueError(f"unknown meend target '{sw}'")
+    return v
+
+
 class Note(BaseModel):
     swara: str
     oct: int = 0
@@ -560,10 +578,7 @@ class Note(BaseModel):
     @field_validator("meend")
     @classmethod
     def _known_meend(cls, v):
-        sw = v["swara"] if isinstance(v, dict) else v
-        if sw is not None and sw not in SWARAS:
-            raise ValueError(f"unknown meend target '{sw}'")
-        return v
+        return _clean_meend(v)
 
 
 class DrumHit(BaseModel):
@@ -659,17 +674,7 @@ class LeadNote(BaseModel):
     @field_validator("meend")
     @classmethod
     def _known_meend(cls, v):
-        if v is None:
-            return v
-        if isinstance(v, dict):
-            sw = v.get("swara")
-            if sw is None:
-                raise ValueError("meend dict must include a 'swara'")
-        else:
-            sw = v
-        if sw not in SWARAS:
-            raise ValueError(f"unknown meend target '{sw}'")
-        return v
+        return _clean_meend(v)
 
 
 class LeadPhrase(BaseModel):

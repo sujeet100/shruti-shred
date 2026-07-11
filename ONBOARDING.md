@@ -39,11 +39,14 @@ the renderer bends pitch to voice *meend* (glides).
     `conduct(ustad, rasik, comp)` → `ConductorRuling` (accept | surgical revise). Pure CODE
     triage (illegal ⇒ forced revise; legal+satisfied ⇒ accept; legal+weak ⇒ debate), a
     bounded Ustad↔Rasik debate capped by `MAX_ROUNDS`, always ruling at the cap (`crew/conductor.py`).
+  - **The Flow** — done (step 6's orchestration half). `compose_flow(query)` runs the WHOLE
+    pipeline as one bounded CrewAI `Flow`: interpret → composers → generate → critics →
+    Conductor → (surgical revise)* → render, with the `@router` on `state.round` as the
+    terminator (`crew/flow.py`). Live-confirmed end-to-end → `out/flow_demo.wav`.
   - **Local tracing + portal + eval harness** — done (on by default).
-- **NEXT → finish step 6: the Flow** — string the pipeline into a CrewAI `Flow`, EXECUTE the
-  Conductor's surgical revise (regenerate the flagged layer → re-critique, capped), render, and
-  wire the deferred foreground leader/follower seeding + the composer tie-break. See "The next
-  task" below.
+- **Phase 2 is COMPLETE end-to-end** (`compose_flow(query)` → WAV). NEXT is really Phase 3 (the
+  live UI / SSE over the `DebateEvent` stream the Flow already emits); optional deferred
+  refinements are the foreground leader/follower seeding + the composer tie-break. See below.
 
 ## Quickstart
 
@@ -54,6 +57,8 @@ uv run python tests/test_arrangement.py    # (also test_composers.py, test_inter
 # LLM runs (need GEMINI_API_KEY in .env; billing is LIVE — be sparing):
 uv run python -m crew.connectivity                              # one-call key/model check
 uv run python -m crew.composers "doom fusion in Darbari, key of D"   # traced by default
+uv run python -m crew.conductor                                # money-moment debate (planted conflict)
+uv run python -m crew.flow                                     # WHOLE pipeline → WAV (bounded demo chart)
 uv run python -m crew.evals 0                                  # ONE interpreter eval case
 uv run python -m crew.trace_portal                             # browse traces → :8420
 ```
@@ -76,11 +81,14 @@ FluidSynth (`brew install fluid-synth`) + the soundfont (see `soundfonts/README.
     assembly, render shell). `lead.py` / `riff.py` — the two LLM generators. `groove.py` —
     the deterministic Drums + Tabla. `band.py` — full-band assembly (`compose_band`,
     `compose_from_query`).
+  - `ustad.py` / `rasik.py` — the two critics (legality / taste). `conductor.py` — the
+    arbiter (triage + bounded debate + ruling). `flow.py` — the whole pipeline as ONE
+    bounded CrewAI `Flow` (`compose_flow(query)` → `ComposeState`), the orchestration root.
   - `config.py` — every model/temperature/loop knob (env-overridable). Prompts live in
     `config/agents.yaml` + `config/tasks.yaml`, never inline.
   - `tracing.py` / `trace_portal.py` — local observability. `evals.py` — eval harness.
 - **`tests/`** — pure tests only (no API): knowledge, arrangement, composers, interpreter,
-  generators, lead, riff, groove, band, ustad, rasik, conductor (152 tests, all free).
+  generators, lead, riff, groove, band, ustad, rasik, conductor, flow (159 tests, all free).
 
 ## The rules that bite (read `CLAUDE.md` for the full set)
 
@@ -93,23 +101,24 @@ FluidSynth (`brew install fluid-synth`) + the soundfont (see `soundfonts/README.
 - **Own the loop** (bounded, streamable), don't use CrewAI's autonomous delegation.
   Validate at boundaries; schema checks shape, guardrails check domain, normalize junk.
 
-## The next task — finish step 6: the Flow
+## The next task — Phase 3 (the live UI), or the optional refinements
 
-The generators, both critics, AND the Conductor are done. What remains is the ORCHESTRATION
-that acts on the Conductor's decision:
+Phase 2 is complete: `compose_flow("a dark doom fusion in Malkauns")` runs the whole crew end
+to end and returns a `ComposeState` with the `Composition`, the full `DebateEvent` stream, the
+Conductor's ruling, and the rendered WAV path. Everything downstream already exists.
 
-- **Ustad** / **Rasik** / **Conductor** — done. `conduct(ustad, rasik, comp)` triages and, on a
-  real conflict, runs the bounded debate and returns a `ConductorRuling` (accept | surgical
-  revise naming one `layer`). It decides; nothing yet ACTS on the decision.
-- **The Flow** (next) — a CrewAI **Flow** stringing interpret → composers → generators →
-  critics → Conductor, with the Conductor as a `@router` on `state.round`. On a `revise`
-  ruling, EXECUTE the surgical revise: regenerate ONLY the flagged layer (the others stand),
-  re-assemble, re-critique, and loop — capped at `MAX_ROUNDS`, always terminating. Then render
-  the WAV. This is also where the deferred **foreground leader/follower LLM-seeding** (lead ⇄
-  riff) and the Conductor's **composer tie-break** land.
+- **Phase 3 — the live show (the real next step).** A UI that streams the `DebateEvent` stream
+  the Flow already emits (over SSE): the audience picks a raga + subgenre, and the propose →
+  critique → debate → revise loop plays out live, ending in audio. The event contract
+  (`crew/contracts.py`, `EventStream`) and the replay harness (`crew/replay.py`) were built for
+  exactly this — the events look identical live or replayed. See `PLAN.md` for Phase 3.
+- **Optional deferred refinements** (nice-to-have, not blocking):
+  - **Foreground leader/follower LLM-seeding** (lead ⇄ riff): a section's `foreground` voice
+    generates FIRST and its realized line seeds the followers ("answer this"), so a riff-led
+    section is genuinely built around that riff. Today the two creative voices generate in
+    parallel against the shared chart.
+  - **Composer tie-break**: have the Conductor arbitrate an un-agreed composer dialogue instead
+    of letting the last draft stand (`run_dialogue` already leaves the hook).
 
-The pieces the Flow wires already exist: `compose_from_query(query)` runs interpret → composers
-→ band; `critique_legality(comp)` / `critique_taste(comp)` judge; `conduct(...)` arbitrates.
-Read `DESIGN.md` (the flow diagram, the critics + Conductor section, "who leads a section") and
-the `CLAUDE.md` CrewAI/Flow rules (`@start`/`@listen`/`@router`, the bounded loop as the
-terminator, Flow state as a Pydantic model) before building.
+Read `PLAN.md` (Phase 3), `DESIGN.md` (the flow diagram + "who leads a section"), and the
+`CLAUDE.md` CrewAI/Flow rules before building.

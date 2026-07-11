@@ -402,6 +402,38 @@ convincing than a hypothetical.)*
   (opposed verdicts, a referee, ends by cap-and-ruling). Same "bounded loop we own", but the
   critic loop adds the new element — a decision-maker. Two debate patterns, one framework.
 
+### Phase 2, the Flow — the whole pipeline, one bounded loop — 2026-07-12
+
+- **The loop lives in CODE, not in the model's goodwill.** CrewAI Flows have NO built-in loop
+  cap — a documented footgun; a flow CAN spin forever. Our `@router` reads `state.round` and
+  returns "done" the moment the cap is hit, so propose→critique→revise can revise at most
+  `MAX_ROUNDS` times and then renders whatever it has. *Line:* "The framework will happily loop
+  forever. The terminator is one line of your code, not a hope that the agents settle." This is
+  THE live-safety slide — on stage you can't afford a loop that won't stop.
+- **Surgical revise: regenerate ONE voice, not the whole piece.** On a `revise` ruling we
+  rebuild only the flagged layer, and we thread the Conductor's directive into that voice's
+  section `intent` so the re-run actually addresses the critique — then the deterministic voices
+  (bass/drums/tabla/drone) re-derive around it for free. *Line:* "A revise isn't 'do it all
+  again' — it's 'redo the lead, keep everything else', and the critic's note becomes the new
+  brief for that one voice." Cheap, fast, and legible.
+- **A real CrewAI gotcha, worth 30 seconds on stage: cyclic re-entry needs a ROUTER LABEL.** A
+  plain `@listen(or_(begin, revise))` fires exactly ONCE — the second time round the revise
+  step completes, the listener does NOT re-fire, so the loop silently dies after one pass. The
+  fix: the loop-back must be re-emitted by a `@router` as a LABEL (`revise_layer` returns
+  "recritique"), because CrewAI only re-arms an `or_()` listener for a repeat when a router
+  re-emits a label it listens to. *Lesson:* in a framework, "it ran once" is not "it loops" —
+  test the SECOND iteration, and read the runtime source when the docs are silent (they are).
+- **The Flow is fully tested with NO LLM — because the pipeline steps are INJECTED.** Every
+  stage (interpret, compose, generate, critique, arbitrate, regenerate, render) arrives as a
+  `Stages` bundle; production wires the real agents, tests wire fakes. So the orchestration —
+  routing, the round cap, "does an accept skip the revise", "does always-revise stop at the
+  cap" — is verified free and fast, and only the end-to-end wiring needs a (single) live run.
+  *Line:* "Separate the ORCHESTRATION from the WORK and you can unit-test a multi-agent flow
+  with zero API calls." The dependency-injection payoff, made concrete.
+- **It actually runs end to end.** One fixed chart → 6 LLM calls (lead, riff, Ustad, Rasik,
+  Conductor) → a rendered WAV, with the whole debate streamed as events. `compose_flow(query)`
+  is the one call that turns a sentence into Hindustani-metal audio through the entire crew.
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —

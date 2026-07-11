@@ -272,15 +272,22 @@ thesis applied to model choice. (`gemini-3.1-flash-lite` id is unverified — co
      the LLM owns the verdict; the bias is countered by a fixed 1-5 rubric (`RasikScores`:
      pakad/idiom/mood/coherence), scores grounded in encoded pakad/chalan/rasa facts + a
      code-computed pakad hint (`pakad_presence`), and a per-criterion justification.
-6. **Conductor + the Flow** — arbitration, the bounded loops, the foreground leader/follower
-   ordering, end-to-end render. *IN PROGRESS: the **Conductor** (`crew/conductor.py`) is done
-   — the arbitration half (the money moment). `detect_conflict` is pure CODE triage (illegal ⇒
-   forced revise no debate; legal+satisfied ⇒ accept; legal+weak ⇒ the aesthetic conflict),
-   the Ustad↔Rasik debate is a we-own-it bounded loop capped by `MAX_ROUNDS`, and the Conductor
-   always rules at the cap with a surgical `ConductorRuling` (one layer, one reason). Remaining:
-   the **CrewAI Flow** wiring the whole pipeline, EXECUTING the surgical revise (regenerate the
-   flagged layer → re-critique, capped), the end-to-end render, the composer tie-break, and the
-   deferred **foreground leader/follower LLM-seeding** (lead ⇄ riff).*
+6. ✅ **Conductor + the Flow** — arbitration + the bounded loops + end-to-end render.
+   - **Conductor** (`crew/conductor.py`) — the arbitration half (the money moment).
+     `detect_conflict` is pure CODE triage (illegal ⇒ forced revise no debate; legal+satisfied
+     ⇒ accept; legal+weak ⇒ the aesthetic conflict); the Ustad↔Rasik debate is a we-own-it
+     bounded loop capped by `MAX_ROUNDS`; the Conductor always rules at the cap with a surgical
+     `ConductorRuling` (one layer, one reason).
+   - **The Flow** (`crew/flow.py`) — the whole pipeline as one bounded CrewAI `Flow`
+     (`compose_flow(query)`): interpret → composers → generate → critics → Conductor →
+     (surgical revise)* → render. The `@router` on `state.round` is the terminator; the revise
+     regenerates ONLY the flagged voice (directive threaded via `revise_arrangement`) and
+     re-derives the rest. Steps injected as a `Stages` bundle → fully tested with no LLM.
+     *CrewAI gotcha: the loop-back must be a router LABEL (`revise_layer` is a `@router`
+     re-emitting "recritique") — a plain method-completion `or_()` fires once; only router-label
+     `or_()` listeners re-arm for a cycle.*
+   - **Deferred (optional refinements):** the **foreground leader/follower LLM-seeding** (lead ⇄
+     riff) and the Conductor's **composer tie-break** (today the last composer draft stands).
 
 *Not in the original list but added along the way:* **local tracing + trace portal**
 (`crew/tracing.py`, `crew/trace_portal.py`) and an **interpreter eval harness**

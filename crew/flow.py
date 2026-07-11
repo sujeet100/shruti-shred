@@ -1,0 +1,363 @@
+"""
+The Flow (finishing step 6) — the whole pipeline as ONE visible, bounded CrewAI Flow.
+
+This is the orchestration the talk is really about: interpret -> composers -> generate
+-> critics -> Conductor -> (surgical revise)* -> render, wired with CrewAI Flow
+primitives so the propose->critique->revise loop is VISIBLE (and `flow.plot()`-able),
+not autonomous magic. Two properties matter:
+
+  * THE LOOP HAS A TERMINATOR IN CODE. Flows have no built-in loop cap (a documented
+    footgun). Our `@router` reads `state.round` and ALWAYS returns "done" once the cap
+    is hit — the referee and the clock. Never organic consensus.
+  * THE REVISE IS SURGICAL. On a `revise` ruling we regenerate ONLY the flagged voice
+    (lead or rhythm), thread the Conductor's directive through that section's `intent`,
+    then re-derive the deterministic voices and re-assemble. The other voices stand.
+
+Layering (pure core / imperative shell, and CLAUDE.md's "flow orchestration in its own
+module"): this module holds ONLY orchestration. The agents/tasks live in their own
+modules; the pipeline steps arrive as an injected `Stages` bundle (the composition
+root), so the whole Flow — routing, the bounded loop, the surgical-revise wiring — is
+tested with NO LLM and NO audio. `production_stages()` wires the real adapters.
+
+Entry point (a bounded live run: fixed small chart, real generate/critique/conduct/render):
+  uv run python -m crew.flow
+"""
+
+from __future__ import annotations
+
+import sys
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Final, Optional
+
+from crewai.flow.flow import Flow, listen, or_, router, start
+from pydantic import BaseModel, Field
+
+from crew.config import MAX_ROUNDS, load_env
+from crew.contracts import (
+    Arrangement,
+    Composition,
+    CompositionBrief,
+    ConductorRuling,
+    DebateEvent,
+    EventType,
+    Layer,
+    RasikVerdict,
+    UstadVerdict,
+)
+
+_ROOT: Final[Path] = Path(__file__).resolve().parents[1]
+_SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "MuseScore_General.sf3"
+_OUT_DIR: Final[Path] = _ROOT / "out"
+
+
+# --------------------------------------------------------------------------- #
+# Pure helpers: the SURGICAL revise. Thread the Conductor's directive into the #
+# flagged voice's section intents (the existing generator hook) so a re-run    #
+# actually addresses the critique — no generator change needed.                #
+# --------------------------------------------------------------------------- #
+
+def revise_arrangement(arr: Arrangement, ruling: ConductorRuling) -> Arrangement:
+    """A COPY of the chart with the Conductor's directive appended to the intent of
+    every section where the flagged voice plays — so re-running that generator reads
+    the directive as creative intent. Pure; the original chart is untouched."""
+    revised = arr.model_copy(deep=True)
+    note = f" [REVISE — {ruling.reason}]" if ruling.reason else " [REVISE]"
+    for section in revised.sections:
+        if ruling.layer and ruling.layer in section.layers:
+            section.intent = (section.intent or "") + note
+    return revised
+
+
+# --------------------------------------------------------------------------- #
+# The injected pipeline. Each stage is a thin wrapper over an existing module;  #
+# bundling them lets the Flow be tested with fakes (no LLM, no audio).          #
+# --------------------------------------------------------------------------- #
+
+type Interpret = Callable[[str], tuple[CompositionBrief, list[DebateEvent]]]
+type Compose = Callable[[CompositionBrief], tuple[Arrangement, list[DebateEvent]]]
+type Generate = Callable[[Arrangement], tuple[list[Layer], Optional[Layer], list[DebateEvent]]]
+type Assemble = Callable[[Arrangement, list[Layer], Optional[Layer]], Composition]
+type Critique = Callable[[Composition], tuple[UstadVerdict, RasikVerdict, list[DebateEvent]]]
+type Arbitrate = Callable[[UstadVerdict, RasikVerdict, Composition], tuple[ConductorRuling, list[DebateEvent]]]
+type Regenerate = Callable[
+    [Arrangement, list[Layer], Optional[Layer], ConductorRuling],
+    tuple[list[Layer], Optional[Layer], list[DebateEvent]]]
+type Render = Callable[[Composition], Optional[str]]
+
+
+@dataclass(frozen=True)
+class Stages:
+    """The pipeline steps the Flow orchestrates — injected so the loop is testable."""
+    interpret: Interpret
+    compose: Compose
+    generate: Generate
+    assemble: Assemble
+    critique: Critique
+    arbitrate: Arbitrate
+    regenerate: Regenerate
+    render: Render
+
+
+# The real adapters (lazy imports keep crewai off the light path until a stage runs).
+
+def _interpret(query: str) -> tuple[CompositionBrief, list[DebateEvent]]:
+    from crew.interpreter import interpret
+    return interpret(query)
+
+
+def _compose(brief: CompositionBrief) -> tuple[Arrangement, list[DebateEvent]]:
+    from crew.composers import compose
+    return compose(brief)
+
+
+def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[DebateEvent]]:
+    from crew.lead import compose_lead
+    from crew.riff import compose_riff
+    lead_layers, e1 = compose_lead(arr)
+    rhythm, e2 = compose_riff(arr)
+    return lead_layers, rhythm, [*e1, *e2]
+
+
+def _assemble(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer]) -> Composition:
+    from crew.band import band_layers
+    from crew.generators import assemble_composition
+    return assemble_composition(arr, band_layers(arr, lead_layers, rhythm))
+
+
+def _critique(comp: Composition) -> tuple[UstadVerdict, RasikVerdict, list[DebateEvent]]:
+    from crew.rasik import critique_taste
+    from crew.ustad import critique_legality
+    ustad, e1 = critique_legality(comp)
+    rasik, e2 = critique_taste(comp)
+    return ustad, rasik, [*e1, *e2]
+
+
+def _arbitrate(ustad: UstadVerdict, rasik: RasikVerdict,
+               comp: Composition) -> tuple[ConductorRuling, list[DebateEvent]]:
+    from crew.conductor import conduct
+    return conduct(ustad, rasik, comp)
+
+
+def _regenerate(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer],
+                ruling: ConductorRuling) -> tuple[list[Layer], Optional[Layer], list[DebateEvent]]:
+    """Regenerate ONLY the flagged creative voice, steered by the directive. The
+    derivable voices (drone/bass/drums/tabla) re-derive at reassembly, so they stay
+    consistent. A ruling targeting a non-creative voice has nothing to regenerate."""
+    from crew.lead import compose_lead
+    from crew.riff import compose_riff
+    revised = revise_arrangement(arr, ruling)
+    if ruling.layer == "rhythm":
+        new_rhythm, events = compose_riff(revised)
+        return lead_layers, new_rhythm, events
+    if ruling.layer == "lead":
+        new_lead, events = compose_lead(revised)
+        return new_lead, rhythm, events
+    return lead_layers, rhythm, []
+
+
+def _render(comp: Composition, *, soundfont: Path, out_dir: Path, name: str) -> Optional[str]:
+    import shutil
+    from crew.generators import render_composition
+    if not (shutil.which("fluidsynth") and soundfont.exists()):
+        return None
+    return str(render_composition(comp, out_dir=out_dir, name=name, soundfont=soundfont))
+
+
+def production_stages(*, soundfont: Path = _SOUNDFONT, out_dir: Path = _OUT_DIR,
+                      name: str = "fusion") -> Stages:
+    """Wire the real adapters (the composition root)."""
+    return Stages(
+        interpret=_interpret, compose=_compose, generate=_generate, assemble=_assemble,
+        critique=_critique, arbitrate=_arbitrate, regenerate=_regenerate,
+        render=lambda comp: _render(comp, soundfont=soundfont, out_dir=out_dir, name=name))
+
+
+# --------------------------------------------------------------------------- #
+# Flow state (a Pydantic model, per CLAUDE.md) + the events.                   #
+# --------------------------------------------------------------------------- #
+
+class ComposeState(BaseModel):
+    """The Flow's typed state (an `id` field is auto-added by CrewAI)."""
+    query: str = ""
+    round: int = 0                                    # revise rounds so far — the router's clock
+    arrangement: Optional[Arrangement] = None
+    lead_layers: list[Layer] = Field(default_factory=list)
+    rhythm: Optional[Layer] = None
+    composition: Optional[Composition] = None
+    ustad: Optional[UstadVerdict] = None
+    rasik: Optional[RasikVerdict] = None
+    ruling: Optional[ConductorRuling] = None
+    events: list[DebateEvent] = Field(default_factory=list)
+    wav_path: Optional[str] = None
+
+
+def _flow_event(text: str) -> DebateEvent:
+    return DebateEvent(type=EventType.INFO, agent="Flow", role="system", text=text)
+
+
+# --------------------------------------------------------------------------- #
+# The Flow. The bounded loop is driven by ROUTER LABELS, not method completions:  #
+# CrewAI re-arms an or_() listener for a repeat only when a ROUTER re-emits a      #
+# label the listener references (a plain method-completion or_ fires just once).   #
+# So `revise_layer` is a @router that re-emits "recritique", and `critique`        #
+# listens to or_(begin, "recritique") to re-enter each round. Method order still   #
+# matters for the method refs: `begin` precedes `critique`; the string labels      #
+# ("revise"/"recritique"/"done") need no forward reference.                        #
+# --------------------------------------------------------------------------- #
+
+class ComposeFlow(Flow[ComposeState]):
+    """propose -> critique -> arbitrate -> (surgical revise -> critique)* -> render.
+
+    The `@router` is the guaranteed terminator: it returns "done" on an accept OR once
+    `state.round` hits the cap, so the revise loop can never run away. The revise step
+    feeds back into `critique` via `or_(begin, revise)` — the visible bounded loop.
+    """
+
+    def __init__(self, stages: Stages, *, max_rounds: int = MAX_ROUNDS) -> None:
+        super().__init__()
+        self._stages = stages
+        self._max_rounds = max_rounds
+
+    @start()
+    def begin(self) -> None:
+        """interpret the query, arrange the chart, generate the creative voices, assemble."""
+        st = self.state
+        brief, e1 = self._stages.interpret(st.query)
+        arr, e2 = self._stages.compose(brief)
+        lead_layers, rhythm, e3 = self._stages.generate(arr)
+        st.arrangement = arr
+        st.lead_layers = lead_layers
+        st.rhythm = rhythm
+        st.composition = self._stages.assemble(arr, lead_layers, rhythm)
+        st.events.extend([*e1, *e2, *e3])
+
+    @router("revise")
+    def revise_layer(self) -> str:
+        """Surgical revise: regenerate ONLY the flagged voice, re-derive + re-assemble,
+        then re-emit "recritique" to send the new composition back through the critics.
+
+        This is a @router (not a plain @listen) on purpose: the loop only re-fires
+        `critique` when a ROUTER re-emits a label it listens to, so the re-entry label
+        must come from here. Named distinctly from the "revise" LABEL it consumes — a
+        method named `revise` listening to "revise" reads to CrewAI as a self-reference.
+        """
+        st = self.state
+        assert st.arrangement is not None and st.ruling is not None
+        lead_layers, rhythm, events = self._stages.regenerate(
+            st.arrangement, st.lead_layers, st.rhythm, st.ruling)
+        st.lead_layers = lead_layers
+        st.rhythm = rhythm
+        st.composition = self._stages.assemble(st.arrangement, lead_layers, rhythm)
+        st.events.extend(events)
+        return "recritique"
+
+    @listen(or_(begin, "recritique"))
+    def critique(self) -> None:
+        """Ustad (legality) + Rasik (taste) judge the current composition."""
+        st = self.state
+        assert st.composition is not None
+        ustad, rasik, events = self._stages.critique(st.composition)
+        st.ustad = ustad
+        st.rasik = rasik
+        st.events.extend(events)
+
+    @listen(critique)
+    def arbitrate(self) -> None:
+        """The Conductor triages, debates on a conflict, and rules accept | revise."""
+        st = self.state
+        assert st.ustad is not None and st.rasik is not None and st.composition is not None
+        ruling, events = self._stages.arbitrate(st.ustad, st.rasik, st.composition)
+        st.ruling = ruling
+        st.events.extend(events)
+
+    @router(arbitrate)
+    def route(self) -> str:
+        """The terminator: accept, or revise until the round cap — then done, always."""
+        st = self.state
+        assert st.ruling is not None
+        if st.ruling.directive == "accept":
+            return "done"
+        if st.round >= self._max_rounds:
+            st.events.append(_flow_event(
+                f"Revise cap ({self._max_rounds}) reached — accepting the last version."))
+            return "done"
+        st.round += 1
+        st.events.append(_flow_event(
+            f"Revise round {st.round}: regenerating '{st.ruling.layer}' per the Conductor."))
+        return "revise"
+
+    @listen("done")
+    def finish(self) -> None:
+        """Render the accepted composition to a WAV (skipped if fluidsynth is absent)."""
+        st = self.state
+        assert st.composition is not None
+        st.wav_path = self._stages.render(st.composition)
+
+
+def compose_flow(query: str, *, stages: Optional[Stages] = None,
+                 max_rounds: int = MAX_ROUNDS) -> ComposeState:
+    """Run the full pipeline as a Flow and return its final state (composition, the
+    event stream, the ruling, the rendered WAV path). `stages` is injectable — defaults
+    to the real adapters."""
+    flow = ComposeFlow(stages or production_stages(), max_rounds=max_rounds)
+    flow.kickoff(inputs={"query": query})
+    return flow.state
+
+
+# --------------------------------------------------------------------------- #
+# Entry point — a BOUNDED live run: a fixed small chart (so interpret/composers  #
+# aren't re-billed — already confirmed), real generate/critique/conduct/render.  #
+# This exercises the NEW integration end-to-end for a handful of LLM calls.      #
+# --------------------------------------------------------------------------- #
+
+def _demo_arrangement() -> Arrangement:
+    from crew.contracts import ArrangementDraft, Section, SectionKind, build_arrangement
+    draft = ArrangementDraft(
+        raga="darbari", subgenre="progressive", tala="teentaal", bpm=120,
+        motif=["S", "R", "g", "R", "g", "m", "P"],
+        sections=[
+            Section(kind=SectionKind.RIFF, bars=1, layers=["rhythm", "drums", "drone"],
+                    foreground="rhythm", intent="the main riff", transition="lift into the taan"),
+            Section(kind=SectionKind.TAAN, bars=1, layers=["lead", "rhythm", "drums", "drone"],
+                    foreground="lead", intent="a harmonized taan to the climax"),
+        ])
+    return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def _demo_stages() -> Stages:
+    """Real downstream, but interpret/compose are stubbed to a fixed chart so the live
+    run doesn't re-bill the already-confirmed intake + composer dialogue."""
+    from dataclasses import replace
+    arr = _demo_arrangement()
+    return replace(production_stages(name="flow_demo"),
+                   interpret=lambda query: (CompositionBrief(mood="dark"), []),
+                   compose=lambda brief: (arr, []))
+
+
+def _run() -> None:
+    from crew.contracts import EventStream
+    stream = EventStream()
+    state = compose_flow("a dark progressive fusion in Darbari", stages=_demo_stages())
+    for event in state.events:
+        stream.emit(event)
+    ruling = state.ruling
+    print(f"\nfinal ruling: {ruling.directive if ruling else '?'} "
+          f"(after {state.round} revise round(s))")
+    print(f"rendered: {state.wav_path or '(render skipped — no fluidsynth/soundfont)'}")
+
+
+def main(argv: list[str]) -> int:
+    load_env()  # entry point loads .env
+    from contextlib import nullcontext
+
+    from crew.tracing import traced, tracing_enabled
+    ctx = traced("flow-demo") if tracing_enabled() else nullcontext()
+    with ctx:
+        _run()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

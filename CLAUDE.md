@@ -309,13 +309,24 @@ and build order.
   clock, not consensus, terminates it) with a **surgical** `ConductorRuling` (one `layer`, one
   `reason`). Both critics share ONE `debate_turn` task (bias in the backstories), as the
   composers share `compose_turn`. Pure tests: `tests/test_conductor.py`.
+- **The Flow** (`crew/flow.py`) **done** — step 6's orchestration half: the WHOLE pipeline as
+  ONE bounded CrewAI `Flow` (`ComposeFlow`/`compose_flow(query)`): interpret → composers →
+  generate → critics → Conductor → (surgical revise)* → render. The propose→critique→revise
+  loop is VISIBLE (not autonomous). Two properties: (1) the `@router` reads `state.round` and
+  ALWAYS returns "done" at the cap — the terminator is in code, never organic consensus; (2)
+  the revise is **surgical** — regenerate ONLY the flagged voice (the Conductor's directive is
+  threaded through that section's `intent` via `revise_arrangement`), then re-derive + re-assemble.
+  The pipeline steps arrive as an injected `Stages` bundle (the composition root), so the Flow
+  is fully tested with no LLM (`tests/test_flow.py`). CrewAI-Flow gotcha learned: the loop-back
+  must be a **router label** (`revise_layer` is a `@router` re-emitting "recritique"), because a
+  plain method-completion `or_()` fires once — only router-label `or_()` listeners get re-armed
+  for a cycle. Live-confirmed end-to-end: fixed chart → 6 LLM calls → `out/flow_demo.wav`.
 - **Observability** (`crew/tracing.py` + `crew/trace_portal.py`): every LLM run is traced by
   default (one trace = one run id, Langfuse-style); browse by id in the local portal.
   `crew/evals.py` is the interpreter eval harness. See the "Observability" section.
 - Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
-- **NEXT: finish step 6 — the Flow** that strings the whole pipeline into a CrewAI `Flow`
-  (interpret → composers → generators → critics → Conductor), EXECUTES the Conductor's
-  surgical revise (regenerate only the flagged `layer`, re-critique, capped at `MAX_ROUNDS`),
-  renders the WAV, and wires the deferred **foreground leader/follower LLM-seeding** (lead ⇄
-  riff) plus the Conductor's **composer tie-break**. The Conductor's DECISION exists
-  (`conduct(ustad, rasik, comp)`); what remains is the orchestration that ACTS on it.
+- **Phase 2's agentic pipeline is COMPLETE end-to-end** (`compose_flow(query)` → WAV). Remaining
+  refinements (deferred, optional): the **foreground leader/follower LLM-seeding** (lead ⇄ riff
+  — a section's leader generates first and seeds the followers) and the Conductor's **composer
+  tie-break** (today the composer dialogue's last draft stands). **NEXT is really Phase 3** —
+  the live UI / SSE that streams the `DebateEvent` stream `compose_flow` already produces.

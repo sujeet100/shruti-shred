@@ -269,6 +269,20 @@ def test_leadnote_rejects_unknown_swara():
         assert "unknown swara" in str(e).lower()
 
 
+def test_leadnote_coerces_nullish_meend_to_none():
+    # LLMs express "no glide" as null, {}, or the STRING 'null'/'none'; all -> None,
+    # so a stray nullish meend can't hard-fail a whole generation (see _clean_meend).
+    for junk in ({}, "null", "none", "", {"oct": 1}):
+        assert LeadNote(swara="S", dur=1.0, meend=junk).meend is None
+    # a real target still parses, and a genuinely unknown one still raises
+    assert LeadNote(swara="S", dur=1.0, meend="P").meend == "P"
+    try:
+        LeadNote(swara="S", dur=1.0, meend="Z")
+        assert False, "expected ValueError"
+    except Exception as e:  # noqa: BLE001
+        assert "unknown meend target" in str(e).lower()
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

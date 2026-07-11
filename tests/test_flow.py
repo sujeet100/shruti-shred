@@ -1,0 +1,175 @@
+"""
+Tests for the Flow — the orchestration and the BOUNDED REVISE LOOP, no LLM (free).
+
+`ComposeFlow` takes an injected `Stages` bundle, so the whole propose->critique->
+arbitrate->(revise)->render loop is kicked off here with fakes: does an ACCEPT ruling
+skip revise and render once; does a revise-then-accept run exactly one revise; and — the
+live-safety property — does an always-revise Conductor get capped at MAX_ROUNDS and
+still terminate (rendering the last version)? Plus the pure surgical-revise helper. The
+real end-to-end run is exercised live via `uv run python -m crew.flow`, not here.
+
+Runs as a script (`uv run python tests/test_flow.py`) or under pytest.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+
+from crew.contracts import (  # noqa: E402
+    ArrangementDraft,
+    Composition,
+    CompositionBrief,
+    ConductorRuling,
+    DebateEvent,
+    EventType,
+    Layer,
+    Note,
+    RasikScores,
+    RasikVerdict,
+    Section,
+    SectionKind,
+    UstadVerdict,
+    build_arrangement,
+)
+from crew.flow import Stages, compose_flow, revise_arrangement  # noqa: E402
+
+
+def _arr():
+    draft = ArrangementDraft(
+        raga="darbari", subgenre="progressive", tala="teentaal", bpm=120,
+        motif=["S", "R", "g"],
+        sections=[
+            Section(kind=SectionKind.RIFF, bars=1, layers=["rhythm", "drums", "drone"],
+                    foreground="rhythm", intent="main riff"),
+            Section(kind=SectionKind.TAAN, bars=1, layers=["lead", "rhythm", "drums", "drone"],
+                    foreground="lead", intent="the taan")])
+    return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def _comp():
+    return Composition(raga="darbari", sa=62, bpm=120, tala={"name": "teentaal", "beats_per_bar": 16.0},
+                       layers=[Layer(role="lead", notes=[Note(swara="S", oct=0, start=0.0, dur=1.0)])])
+
+
+def _ev(name: str) -> DebateEvent:
+    return DebateEvent(type=EventType.INFO, agent=name, role="system", text=name)
+
+
+def _fake_stages(rulings: list[ConductorRuling], *, counts: dict):
+    """Fake Stages that ignore inputs and replay a scripted sequence of rulings; the
+    `counts` dict records how many times each looping stage ran."""
+    arr, comp = _arr(), _comp()
+    ruling_iter = iter(rulings)
+
+    def interpret(query):
+        counts["query"] = query
+        return CompositionBrief(mood="dark"), [_ev("interpret")]
+
+    def critique(_comp):
+        counts["critique"] = counts.get("critique", 0) + 1
+        return (UstadVerdict(verdict="legal", explanation="clean"),
+                RasikVerdict(scores=RasikScores(pakad=3, idiom=3, mood=3, coherence=3)),
+                [_ev("critique")])
+
+    def arbitrate(_u, _r, _c):
+        counts["arbitrate"] = counts.get("arbitrate", 0) + 1
+        return next(ruling_iter), [_ev("arbitrate")]
+
+    def regenerate(_arr, lead, rhythm, ruling):
+        counts["regenerate"] = counts.get("regenerate", 0) + 1
+        counts.setdefault("revise_layers", []).append(ruling.layer)
+        return lead, rhythm, [_ev("regenerate")]
+
+    def render(_comp):
+        counts["render"] = counts.get("render", 0) + 1
+        return "out/fake.wav"
+
+    return Stages(
+        interpret=interpret,
+        compose=lambda brief: (arr, [_ev("compose")]),
+        generate=lambda arr: ([Layer(role="lead")], Layer(role="rhythm"), [_ev("generate")]),
+        assemble=lambda arr, lead, rhythm: comp,
+        critique=critique, arbitrate=arbitrate, regenerate=regenerate, render=render)
+
+
+def _accept():
+    return ConductorRuling(directive="accept", reason="good enough")
+
+
+def _revise(layer="lead"):
+    return ConductorRuling(directive="revise", layer=layer, reason=f"redo the {layer}")
+
+
+# --- the surgical-revise helper (pure) --------------------------------------
+
+def test_revise_arrangement_threads_directive_into_flagged_sections_only():
+    arr = _arr()
+    revised = revise_arrangement(arr, _revise("lead"))
+    by_kind = {s.kind: s for s in revised.sections}
+    assert "REVISE" in by_kind[SectionKind.TAAN].intent          # taan has the lead -> annotated
+    assert "REVISE" not in by_kind[SectionKind.RIFF].intent      # riff has no lead -> untouched
+    # the original chart is not mutated
+    assert all("REVISE" not in (s.intent or "") for s in arr.sections)
+
+
+# --- the loop --------------------------------------------------------------
+
+def test_accept_skips_revise_and_renders_once():
+    counts: dict = {}
+    state = compose_flow("q", stages=_fake_stages([_accept()], counts=counts), max_rounds=2)
+    assert counts.get("regenerate", 0) == 0                      # no revise
+    assert counts["critique"] == 1 and counts["arbitrate"] == 1
+    assert counts["render"] == 1 and state.wav_path == "out/fake.wav"
+    assert state.round == 0
+
+
+def test_revise_then_accept_runs_exactly_one_revise():
+    counts: dict = {}
+    state = compose_flow("q", stages=_fake_stages([_revise("lead"), _accept()], counts=counts),
+                         max_rounds=2)
+    assert counts["regenerate"] == 1
+    assert counts["critique"] == 2 and counts["arbitrate"] == 2  # re-critiqued after the revise
+    assert counts["revise_layers"] == ["lead"]
+    assert state.round == 1 and counts["render"] == 1
+
+
+def test_always_revise_is_capped_and_still_terminates():
+    counts: dict = {}
+    # the Conductor would revise forever; the router cap must stop it and still render
+    state = compose_flow("q", stages=_fake_stages([_revise()] * 9, counts=counts), max_rounds=2)
+    assert counts["regenerate"] == 2                             # capped at max_rounds revises
+    assert counts["critique"] == 3                               # initial + one per revise
+    assert state.round == 2 and counts["render"] == 1            # terminated, rendered the last
+
+
+def test_query_is_seeded_into_state():
+    counts: dict = {}
+    state = compose_flow("doom in Malkauns", stages=_fake_stages([_accept()], counts=counts))
+    assert counts["query"] == "doom in Malkauns"                 # kickoff seeded state.query
+    assert state.query == "doom in Malkauns"
+
+
+def test_events_accumulate_across_the_pipeline():
+    counts: dict = {}
+    state = compose_flow("q", stages=_fake_stages([_revise("lead"), _accept()], counts=counts))
+    agents = [e.agent for e in state.events]
+    # the opening pass, the revise, and the second pass all left events
+    assert "interpret" in agents and "compose" in agents and "generate" in agents
+    assert agents.count("critique") == 2 and agents.count("regenerate") == 1
+
+
+if __name__ == "__main__":
+    tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    failed = 0
+    for t in tests:
+        try:
+            t()
+            print(f"PASS  {t.__name__}")
+        except Exception as e:  # noqa: BLE001
+            failed += 1
+            print(f"FAIL  {t.__name__}: {e}")
+    print(f"\n{len(tests) - failed}/{len(tests)} passed")
+    sys.exit(1 if failed else 0)
