@@ -226,4 +226,13 @@ ornament support in the schema/renderer/validator), `talas.py` (6 talas), `subge
 (4, with drum vocabulary). All covered by `tests/test_knowledge.py` (`uv run python
 tests/test_knowledge.py`). Drum grooves are **generated** at the tala×subgenre
 intersection (no groove catalogue). Talk prep lives in `TALK.md`.
-Phase 2 (CrewAI Flow + agents) is next and needs `GEMINI_API_KEY`. See `PLAN.md`.
+Phase 2 (CrewAI Flow + agents) **in progress** — see `DESIGN.md` for the full agent flow:
+- Scaffolding done: `crew/` package, config (`crew/config.py`), the two contracts
+  (`crew/contracts.py`), replay harness, connectivity check.
+- **Agent #1 built:** the **Interpreter** (`crew/interpreter.py`) — free-text query →
+  validated `CompositionBrief`, extract-only (invents nothing; unstated dims left OPEN for
+  the composers). Resolver tested in `tests/test_interpreter.py`.
+- Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
+- **NEXT: agent #2** — the **Pandit ⇄ Riffsmith** composer dialogue producing the
+  `Arrangement` chart. Then Lead/Riff/Groove → Ustad/Rasik → Conductor + Flow. (Build order
+  in `DESIGN.md`.)
