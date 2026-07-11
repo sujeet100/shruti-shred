@@ -25,8 +25,15 @@ CRITIC_TEMPERATURE: float = 0.2
 EXTRACTOR_TEMPERATURE: float = 0.0
 
 # The debate/revise cap — the Conductor's "clock". Research puts the useful range
-# at 2-3 rounds (gains plateau fast); small is also live-safe.
+# at 2-3 rounds (gains plateau fast); small is also live-safe. Reused as the number
+# of turns in the Ustad<->Rasik arbitration debate — the guaranteed terminator.
 MAX_ROUNDS: int = 2
+
+# A Rasik rubric criterion at or below this fixed 1-5 score flags an AESTHETIC
+# conflict for the Conductor (3 = "acceptable"; below it, Rasik is objecting). Only
+# a conflict opens the debate — legal + all-acceptable is accepted by code with no
+# LLM spend, illegal forces a revise by code (legality is non-negotiable).
+RASIK_PASS_SCORE: int = 3
 
 # The composer dialogue's clock: how many turn-by-turn exchanges Pandit and
 # Riffsmith get before we stop (they may stop earlier by agreeing). The bounded
@@ -126,6 +133,13 @@ def composer_llm():
 
 def critic_llm():
     """Critic/Conductor — Pro (or Flash for now via RMA_PRO_MODEL), low temperature."""
+    return build_llm(pro_model(), CRITIC_TEMPERATURE)
+
+
+def conductor_llm():
+    """The arbiter — same tier as the critics (Pro, low temperature). Named separately
+    so the Conductor's tier can diverge later without touching call sites; identical to
+    `critic_llm` today (a referee wants consistency, not variety — hence low temp)."""
     return build_llm(pro_model(), CRITIC_TEMPERATURE)
 
 

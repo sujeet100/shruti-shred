@@ -273,7 +273,14 @@ thesis applied to model choice. (`gemini-3.1-flash-lite` id is unverified — co
      pakad/idiom/mood/coherence), scores grounded in encoded pakad/chalan/rasa facts + a
      code-computed pakad hint (`pakad_presence`), and a per-criterion justification.
 6. **Conductor + the Flow** — arbitration, the bounded loops, the foreground leader/follower
-   ordering, end-to-end render. *(not started)*
+   ordering, end-to-end render. *IN PROGRESS: the **Conductor** (`crew/conductor.py`) is done
+   — the arbitration half (the money moment). `detect_conflict` is pure CODE triage (illegal ⇒
+   forced revise no debate; legal+satisfied ⇒ accept; legal+weak ⇒ the aesthetic conflict),
+   the Ustad↔Rasik debate is a we-own-it bounded loop capped by `MAX_ROUNDS`, and the Conductor
+   always rules at the cap with a surgical `ConductorRuling` (one layer, one reason). Remaining:
+   the **CrewAI Flow** wiring the whole pipeline, EXECUTING the surgical revise (regenerate the
+   flagged layer → re-critique, capped), the end-to-end render, the composer tie-break, and the
+   deferred **foreground leader/follower LLM-seeding** (lead ⇄ riff).*
 
 *Not in the original list but added along the way:* **local tracing + trace portal**
 (`crew/tracing.py`, `crew/trace_portal.py`) and an **interpreter eval harness**

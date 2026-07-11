@@ -313,3 +313,80 @@ assess_taste:
     A single RasikVerdict as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
     {output_schema}
+
+# The two critics SHARE one debate-turn template (their differing bias lives in the
+# agent backstories, not here — exactly as the composers share compose_turn). Filled
+# per turn from the Flow-owned debate state in crew/conductor.py. No literal braces;
+# the JSON shape arrives via {output_schema}.
+debate_turn:
+  description: |
+    You are {critic}, one of two critics in a BOUNDED debate refereed by the Conductor.
+    The composition has already been judged; now you argue whether it should be
+    ACCEPTED as-is or REVISED for another pass. This is turn {turn_no} of at most
+    {max_turns} — the Conductor rules when the clock runs out, so make your case count.
+
+    Your side: Ustad argues from LEGALITY and theory — a legal, sound piece can ship,
+    and a needless revise risks breaking what already works. Rasik argues from SOUL — a
+    legal piece can still be lifeless and deserve another pass. Hold your ground, but be
+    honest: concede a genuinely strong point rather than argue for its own sake.
+
+    METHOD — fill `reasoning` FIRST (your read of the other side and the evidence), then
+    `argument` (your point), `stance`, and `target_layer`.
+
+    THE VERDICTS THAT OPENED THE DEBATE:
+      Ustad (legality): {ustad_summary}
+      Rasik (taste): {rasik_summary}
+      Rasik flagged as weak: {weak_criteria}
+
+    THE COMPOSITION:
+      raga: {raga}
+      voices present: {voices}
+      the lead line: {lead_line}
+
+    THE DEBATE SO FAR:
+    {transcript}
+
+    YOUR TASK THIS TURN:
+      - Make your argument in ONE or two sentences, in character (Ustad: legality,
+        theory, swara soundness; Rasik: rasa, pakad, idiom, ensemble soul).
+      - Set `stance` to "accept" or "revise".
+      - If your stance is "revise", set `target_layer` to the ONE voice to regenerate
+        (e.g. "lead", "rhythm") — the most impactful fix, not a list.
+  expected_output: |
+    A single DebateTurn as JSON and nothing else — no prose, no code fences.
+    Use exactly this shape:
+    {output_schema}
+
+# The Conductor's ruling — the referee's final call. It MUST rule now (the clock has
+# run out); legality is already enforced by code, so this is an aesthetic judgment.
+# No literal braces; the JSON shape arrives via {output_schema}.
+arbitrate:
+  description: |
+    You are the Conductor — the referee with a clock. Ustad and Rasik have debated
+    whether this composition should be accepted or revised, and now YOU make the final
+    call. You MUST rule now: the debate is over. Do not defer and do not ask for more.
+
+    Legality is non-negotiable and has ALREADY been enforced by code, so your call is
+    an AESTHETIC one: is Rasik's objection strong enough to justify regenerating a
+    voice, or is the piece good enough to accept? A revise costs another pass — spend it
+    only when it will clearly make the music better; otherwise accept and move on.
+
+    METHOD — fill `reasoning` FIRST (weigh both sides against the evidence), then rule.
+
+    THE VERDICTS:
+      Ustad (legality): {ustad_summary}
+      Rasik (taste): {rasik_summary}  (flagged weak: {weak_criteria})
+
+    THE DEBATE:
+    {transcript}
+
+    YOUR RULING:
+      - `directive`: "accept" or "revise".
+      - If "revise": `layer` = the ONE voice to regenerate, and `reason` = a SHORT
+        surgical directive the generator can act on (WHAT to fix, e.g. "regenerate the
+        lead to state the raga's pakad and lean on the vadi") — never a vague "improve it".
+      - If "accept": `reason` = one line on why the piece is good enough to ship.
+  expected_output: |
+    A single ConductorRuling as JSON and nothing else — no prose, no code fences.
+    Use exactly this shape:
+    {output_schema}

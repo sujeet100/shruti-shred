@@ -299,12 +299,23 @@ and build order.
   pakad/chalan/rasa facts** plus a **code-computed pakad hint** (`pakad_presence` — does the
   signature phrase appear literally in the lead?), and a per-criterion justification required
   (reasoning first). No tool (taste isn't a lookup). Pure tests: `tests/test_rasik.py`.
+- **Agent #6 — the Conductor** (`crew/conductor.py`) **done** (the arbitration half of step 6,
+  the talk's money moment): DISAGREEMENT → BOUNDED DEBATE → a REFEREE's verdict. `detect_conflict`
+  is pure CODE triage — **illegal ⇒ forced revise, no debate** (legality is non-negotiable);
+  **legal + Rasik satisfied ⇒ accept, no debate**; **legal + a Rasik criterion below
+  `RASIK_PASS_SCORE` ⇒ the aesthetic conflict** worth an LLM debate — so model budget is spent
+  ONLY on the genuine judgment call. The Ustad↔Rasik debate is a we-own-it bounded loop (Rasik
+  opens, alternate) capped by `MAX_ROUNDS`; the Conductor **always rules at the cap** (the
+  clock, not consensus, terminates it) with a **surgical** `ConductorRuling` (one `layer`, one
+  `reason`). Both critics share ONE `debate_turn` task (bias in the backstories), as the
+  composers share `compose_turn`. Pure tests: `tests/test_conductor.py`.
 - **Observability** (`crew/tracing.py` + `crew/trace_portal.py`): every LLM run is traced by
   default (one trace = one run id, Langfuse-style); browse by id in the local portal.
   `crew/evals.py` is the interpreter eval harness. See the "Observability" section.
 - Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
-- **NEXT: step 6 — Conductor + the Flow** (the bounded debate = the talk's money moment): on
-  an Ustad↔Rasik conflict run the bounded debate and rule accept / surgical-revise (capped at
-  `MAX_ROUNDS`); also wires the **foreground leader/follower LLM-seeding** (lead ⇄ riff)
-  deferred from step 4. Build order + the settled generator design (deterministic
-  drums/bass/tabla, lead voicing, "who leads a section") are in `DESIGN.md`.
+- **NEXT: finish step 6 — the Flow** that strings the whole pipeline into a CrewAI `Flow`
+  (interpret → composers → generators → critics → Conductor), EXECUTES the Conductor's
+  surgical revise (regenerate only the flagged `layer`, re-critique, capped at `MAX_ROUNDS`),
+  renders the WAV, and wires the deferred **foreground leader/follower LLM-seeding** (lead ⇄
+  riff) plus the Conductor's **composer tie-break**. The Conductor's DECISION exists
+  (`conduct(ustad, rasik, comp)`); what remains is the orchestration that ACTS on it.

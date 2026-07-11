@@ -371,6 +371,37 @@ convincing than a hypothetical.)*
   saying out loud: swap-the-order is for A/B *comparisons* (it belongs to the Conductor's later
   tie-breaks), not single-item scoring. Naming which bias fix applies where is itself the lesson.
 
+### Phase 2, agent #6 — the Conductor (the money moment) — 2026-07-11
+
+- **The debate only fires when code CAN'T decide — that's the whole point.** Triage first, in
+  plain code: illegal ⇒ forced revise (no debate — legality is non-negotiable); legal + Rasik
+  happy ⇒ accept (no debate); legal + Rasik flags a weakness ⇒ THIS is the one genuine
+  judgment call, so THIS is the only case that spends an LLM debate. *Line:* "We don't debate
+  what code already knows. The model argues exactly one question — the one with no right
+  answer: is this legal-but-imperfect piece good enough, or worth another pass?" (Also the cost
+  story: the expensive multi-agent debate is gated behind a free deterministic check.)
+- **A debate needs a referee AND a clock — never organic consensus.** The Ustad↔Rasik exchange
+  is a we-own-it bounded loop (Rasik opens, they alternate), capped at `MAX_ROUNDS`, and the
+  Conductor ALWAYS rules at the cap. *Line:* "Two adversarial agents will never agree — they're
+  designed not to. So you don't wait for agreement; you put a referee on a clock." This is the
+  live-safety property made into a teaching beat: the terminator is in code, not in the model's
+  goodwill.
+- **The live debate was genuinely good theatre — and in-character.** On a legal Darbari piece
+  Rasik marked weak on idiom: Rasik argued "it lacks the oscillating andolan on komal ga and
+  dha… it's merely a flat minor scale"; Ustad argued "grammatically flawless, it executes the
+  vakra phrases d-n-P and g-m-R-S with precision — a revision risks breaking that." The
+  Conductor ruled REVISE the lead, with a surgical directive: "dwell on komal ga and dha,
+  emphasize the andolan." Both critics cited REAL encoded Darbari facts — the grounding from
+  the critics step paid off in the debate. *Demo beat:* this is the slide to land on.
+- **The ruling is SURGICAL by contract — one layer, one reason.** The Conductor can't say
+  "make it better"; `ConductorRuling` carries a single `layer` and an actionable `reason`, so
+  the revise (step 6b) regenerates just that voice and leaves the rest. *Line:* "A good critic
+  doesn't send you back to the drawing board — it points at one thing." The contract enforces it.
+- **Symmetry worth drawing on one slide:** composers COLLABORATE-debate to CREATE (opposed
+  emphases, shared goal, ends by agreement-or-cap); critics ADVERSARIALLY-debate to JUDGE
+  (opposed verdicts, a referee, ends by cap-and-ruling). Same "bounded loop we own", but the
+  critic loop adds the new element — a decision-maker. Two debate patterns, one framework.
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —

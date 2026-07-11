@@ -791,6 +791,45 @@ class RasikVerdict(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Contract 1.9: The arbitration (Conductor)                                   #
+#                                                                             #
+# When the critics disagree over whether a finished piece should ship, the    #
+# Conductor is the referee WITH A CLOCK. Legality is non-negotiable (code      #
+# forces a revise on an illegal piece, no debate); the genuine judgment is the #
+# AESTHETIC one — is Rasik's objection worth a revise, or is the piece good     #
+# enough? A bounded Ustad<->Rasik debate feeds the Conductor's final ruling.   #
+# The ruling drives the Flow's surgical revise (step 6b), which is why it names #
+# ONE layer.                                                                   #
+# --------------------------------------------------------------------------- #
+
+class DebateTurn(BaseModel):
+    """One critic's turn in the bounded Ustad<->Rasik arbitration debate.
+
+    `reasoning` (filled FIRST) reads the other side; `argument` is the short in-character
+    point the transcript streams as a DEBATE event; `stance` is what this critic wants;
+    `target_layer` names the ONE voice to regenerate when the stance is revise.
+    """
+    reasoning: str = ""
+    argument: str = ""
+    stance: Literal["accept", "revise"]
+    target_layer: Optional[str] = None
+
+
+class ConductorRuling(BaseModel):
+    """The Conductor's FINAL call on a critiqued composition — the referee's verdict.
+
+    Always terminating by design (the round cap is the guarantee, not organic
+    consensus). `directive` is accept or revise; on a revise, `layer` is the single
+    voice to regenerate and `reason` is the SURGICAL directive a generator can act on
+    (what to fix, not a vague complaint). `reasoning` weighs the two sides first.
+    """
+    reasoning: str = ""
+    directive: Literal["accept", "revise"]
+    layer: Optional[str] = None
+    reason: str = ""
+
+
+# --------------------------------------------------------------------------- #
 # Contract 2: Debate event stream                                             #
 # --------------------------------------------------------------------------- #
 
