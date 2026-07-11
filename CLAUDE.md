@@ -71,6 +71,20 @@ agents compose, critique, and revise live; the result renders to audio.
   provides it at Phase 2; Phase 1 data needs no key.
 - Everything is model-agnostic via CrewAI/LiteLLM (model = one config value).
 
+## Cost discipline — Gemini billing is LIVE (IMPORTANT)
+
+Every LLM/crew call costs real money now. Keep spend minimal and deliberate:
+- **Prefer PURE tests** (no API) — resolver, knowledge, `check_*_consistency`, structural
+  contract checks. These are free; run them freely and rely on them as the first line.
+- **Run LIVE calls sparingly** — only to verify something a pure test genuinely can't, and
+  **batch** several checks into ONE run rather than many one-offs. Never re-run a live check
+  just to re-confirm a result already in hand; reuse the last output.
+- **No live calls in tight dev loops.** Iterate on prompts/logic against pure tests and
+  reasoning first; do a single live confirmation at the end.
+- **Levers:** cached input (repeated data/prompts ~10% cost), bounded dialogue turns
+  (`MAX_ROUNDS`), flash-lite for the cheap agents, small structured outputs. Watch
+  `flow.usage_metrics`.
+
 ## CrewAI & agentic implementation rules (Phase 2)
 
 *Researched 2026-07-11 against **CrewAI 1.15.2** (released 2026-07-08; supports Python 3.10–3.13,
