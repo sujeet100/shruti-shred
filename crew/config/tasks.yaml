@@ -371,8 +371,17 @@ assess_composition:
     THE ENSEMBLE — every voice's weight and octave range (for balance and independence):
     {ensemble}
 
+    MEASURED FACTS — code computed these numbers for you; you JUDGE what they MEAN, you do
+    NOT recompute them. (A high motif_share is not automatically bad — too high means the
+    lead never develops the motif, too low means it abandoned it; you decide.)
+    {metrics}
+
     HARD RULES:
       - Every score is an integer 1-5, justified in `reasoning` BEFORE you commit it.
+      - Ground your scores in the MEASURED FACTS where they apply (dynamics/climax in the
+        energy curve, motif in motif_share, independence in the lead/riff overlap, balance
+        in the register overlaps and everyone-playing fraction) — do not contradict a number
+        without saying why.
       - Judge the SONG, not the raga — never dock a score for a raga choice; that is Rasik's
         lane. Do not inflate a score you cannot defend from the score above.
       - `notes` is a SHORT (2-3 sentence) critique a musician can act on.

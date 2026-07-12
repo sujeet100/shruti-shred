@@ -19,6 +19,12 @@ NOT just the lead. (Chunk B will add code-computed metrics — motif similarity,
 voices per section, register overlap, the dynamics curve — as grounding facts the
 Producer reasons over. "Code measures, the LLM evaluates.")
 
+The judgment is GROUNDED in code-computed metrics (`crew/metrics.py`) — the dynamics
+curve, the motif share, the lead/riff overlap, register collisions, arrangement density —
+handed to the Producer as facts it reasons over, the way `pakad_presence` grounds Rasik.
+"Code measures, the LLM evaluates": the model spends its judgment on what the numbers
+MEAN, not on deriving them.
+
 Unlike Rasik (which judges a `Composition`), the Producer needs the `Arrangement` too —
 the chart is the score a musical director reads: which sections, in what order, with the
 motif and the subgenre's intended feel. So `critique_composition(comp, arr)`.
@@ -50,6 +56,7 @@ from crew.contracts import (
     EventType,
     ProducerVerdict,
 )
+from crew.metrics import composition_metrics, render_metrics
 from subgenres import SUBGENRES
 
 _ROLE_CRITIC: Final = "critic"
@@ -186,6 +193,7 @@ class _ProducerCrew:
             "riff_line": _render_riff_line(comp, arr),
             "lead_line": _render_lead_line(comp),
             "ensemble": _render_ensemble(comp),
+            "metrics": render_metrics(composition_metrics(comp, arr)),
             "output_schema": _RUBRIC_SCHEMA,
         })
         verdict = _verdict_from_output(result)
@@ -267,9 +275,12 @@ def _demo_case() -> tuple[Composition, Arrangement]:
                     foreground="lead", intent="an expressive lead to the peak"),
         ])
     arr = build_arrangement(draft, CompositionBrief(mood="dark"))
-    riff = [Note(swara="S", oct=-2, start=0.0, dur=1.0, chord=["S"], technique="palm_mute"),
-            Note(swara="g", oct=-2, start=1.0, dur=1.0, technique="palm_mute")]
-    lead = [Note(swara=sw, oct=0, start=float(i), dur=1.0)
+    # riff drives the first cycle (beats 0..16); the lead sings over the taan (beats 16..32),
+    # so the two sections read as distinct in the dynamics curve.
+    riff = [Note(swara=sw, oct=-2, start=float(i), dur=1.0,
+                 chord=["S"] if sw == "S" else None, technique="palm_mute")
+            for i, sw in enumerate(["S", "g", "S", "m"])]
+    lead = [Note(swara=sw, oct=0, start=16.0 + i, dur=1.0)
             for i, sw in enumerate(["S", "R", "g", "m", "P", "m", "g", "R"])]
     comp = Composition(
         raga="darbari", sa=62, bpm=72, tala={"name": "teentaal", "beats_per_bar": 16.0},

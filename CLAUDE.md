@@ -309,9 +309,11 @@ and build order.
   AGNOSTIC songwriting/arrangement judgment on a fixed **1-5 rubric** over eight criteria
   (`ProducerScores`: structure, dynamics, climax, motif, hook, balance, independence, mood_fit),
   grounded in the whole symbolic SCORE (section timeline, motif, riff line with chords/techniques,
-  lead, ensemble — it reads the Arrangement, not just the Composition). LLM-as-judge like Rasik.
-  (Chunk B will add code-computed metrics as grounding — "code measures, LLM evaluates".) Pure
-  tests: `tests/test_producer.py`.
+  lead, ensemble — it reads the Arrangement, not just the Composition) AND in code-computed
+  metrics (`crew/metrics.py`, pure): the per-section dynamics/energy curve, peak/resolution/flat
+  arc, `motif_share`, `lead_riff_overlap` (independence), register overlaps + everyone-playing
+  fraction (balance) — "code measures, LLM evaluates". LLM-as-judge like Rasik. Pure tests:
+  `tests/test_producer.py`, `tests/test_metrics.py`.
 - **Agent #6 — the Conductor** (`crew/conductor.py`) **done** (the arbitration half of step 6,
   the talk's money moment): DISAGREEMENT → BOUNDED DEBATE → a REFEREE's verdict. `detect_conflict`
   is pure CODE triage — **illegal ⇒ forced revise, no debate** (legality is non-negotiable);
@@ -358,12 +360,16 @@ and build order.
     split Rasik's two jobs — **Rasik → raga authenticity** (narrowed to pakad/idiom/rasa),
     **new Producer → composition quality** (8-criterion rubric over the whole symbolic score).
     Ustad EXITS the debate; the debate is now **Rasik ↔ Producer**, hybrid triage over both.
-    Flow runs THREE critiques. All pure-tested (191 green). **Chunk B (was step 5)** adds the
-    Producer's code-computed metrics ("code measures, LLM evaluates"). See DESIGN.md "The
-    Producer — a THIRD critic dimension".
-  - **NEXT (steps 4–8):** composition memory; the Producer's computed metrics + a consistency
-    check (chunk B); structured-output robustness (parse+retry) + fuzzy pakad; prompt hygiene;
-    live-hardening (fast mode, failsafe chart, concurrent Lead∥Riff).
+    Flow runs THREE critiques. See DESIGN.md "The Producer — a THIRD critic dimension".
+  - **(chunk B / step 5) Producer's computed metrics — ✅ DONE**: `crew/metrics.py` (pure)
+    computes the dynamics/energy curve, arc peak/resolution/flatness, `motif_share`,
+    `lead_riff_overlap`, register overlaps + everyone-playing fraction; `render_metrics` grounds
+    the Producer prompt ("code measures, LLM evaluates"). Pure tests: `tests/test_metrics.py`.
+    (202 pure tests green.)
+  - **NEXT (steps 4, 6–8):** composition memory (generators see realized previous sections);
+    structured-output robustness (parse+retry) + fuzzy pakad; prompt hygiene; live-hardening
+    (fast mode, failsafe chart, concurrent Lead∥Riff). A computed consistency check can fold
+    into `metrics.py`.
   - **RUN NO LLM/live calls until ALL changes are done** (Sujit's instruction) — pure tests
     only, then ONE batched live render + one live Flow run at the very end.
 - **`REVIEW.md`** is the external design/prompt review request; GPT + Gemini feedback is triaged

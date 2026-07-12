@@ -830,7 +830,7 @@ class ProducerScores(BaseModel):
     The third critic dimension (Ustad=legality, Rasik=raga authenticity, Producer=does it
     WORK as a song). These are the songwriting/arrangement questions no one checked while
     Rasik was overloaded — each an integer the model must justify from the piece's actual
-    structure, motif, riff and ensemble (in chunk B, from code-computed metrics too).
+    structure, motif, riff and ensemble, grounded in code-computed metrics (`crew/metrics.py`).
     """
     structure: int = Field(ge=1, le=5)      # do the sections lead naturally into each other?
     dynamics: int = Field(ge=1, le=5)       # does the energy actually build (not flat all through)?

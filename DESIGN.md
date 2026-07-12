@@ -455,11 +455,13 @@ So we split them, one dimension per critic:
   composition it is shown (section timeline, motif, riff line, lead line, ensemble,
   subgenre) — no computed metrics yet. Narrow Rasik. Debate becomes Rasik↔Producer. Flow
   runs THREE critiques. Hybrid triage over BOTH aesthetic critics. All pure-testable.
-- **CHUNK B (next, absorbs old step 5):** "code measures, LLM evaluates" — a pure
-  `metrics` module computes motif-similarity %, active-voice count per section, register
-  overlap, the dynamics/density curve, and voice-duplication ratios, handed to the Producer
-  as grounding FACTS it reasons over (as `pakad_presence` grounds Rasik). Producer JUDGES
-  the numbers; it does not measure.
+- **CHUNK B (✅ DONE — absorbs old step 5):** "code measures, LLM evaluates" — `crew/metrics.py`
+  (pure) computes the per-section dynamics/energy curve (active voices, note density, mean
+  velocity), the peak/resolution/flatness of the arc, `motif_share` (lead notes drawn from the
+  motif → developed vs abandoned vs never-varied), `lead_riff_overlap` (independence), register
+  overlaps + the everyone-playing fraction (balance). `render_metrics` hands them to the Producer
+  as a grounding block (as `pakad_presence` grounds Rasik). The Producer JUDGES the numbers; it
+  does not measure. Pure tests: `tests/test_metrics.py`.
 
 **Hybrid triage (both aesthetic critics):** illegal ⇒ forced revise (Ustad). Else the
 debate opens if EITHER Rasik OR Producer is dissatisfied — a CRITICAL criterion below the
@@ -475,8 +477,8 @@ Producer as a 3rd critic). Progress:**
    EXITS the debate; Rasik narrows to authenticity; new Producer (composition quality) debates
    Rasik; hybrid triage over both.
 4. **Composition memory** — generators see the realized previous sections.
-5. **Producer's computed metrics** (chunk B above — "code measures, LLM evaluates") +
-   a computed consistency check.
+5. ✅ **Producer's computed metrics** (chunk B above — "code measures, LLM evaluates"), DONE.
+   A computed cross-section consistency check remains open (can fold into `metrics.py`).
 6. **Structured-output robustness** (parse+retry ourselves vs provider strict JSON; kill
    nullable fields) + **fuzzy `pakad_presence`**.
 7. **Prompt hygiene** — compress; system/user split; constraints-vs-style; anti-sycophancy
