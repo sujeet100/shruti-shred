@@ -799,17 +799,17 @@ class UstadVerdict(BaseModel):
 
 
 class RasikScores(BaseModel):
-    """Rasik's rubric — four aesthetic criteria on a FIXED 1-5 scale.
+    """Rasik's rubric — the RAGA-AUTHENTICITY criteria on a FIXED 1-5 scale.
 
-    The fixed, named, bounded scale is deliberate: it is the countermeasure to
-    LLM-as-judge bias (verbosity, a gestalt "vibe" number). The model must commit a
-    separate integer per named criterion, each justified against the encoded raga
-    facts — criteria, not vibes.
+    Rasik owns exactly ONE dimension: does it sound like the raga? (Songwriting quality
+    is the Producer's job; legality is Ustad's.) So the rubric is the uniquely Hindustani
+    questions only. The fixed, named, bounded scale is the countermeasure to LLM-as-judge
+    bias (verbosity, a gestalt "vibe" number): the model commits a separate integer per
+    named criterion, each justified against the encoded raga facts — criteria, not vibes.
     """
     pakad: int = Field(ge=1, le=5)      # is the raga's signature phrase present (literally or evoked)?
-    idiom: int = Field(ge=1, le=5)      # does the line MOVE like the raga (chalan, ornaments, vadi)?
-    mood: int = Field(ge=1, le=5)       # does the music serve the raga's rasa / samay?
-    coherence: int = Field(ge=1, le=5)  # do the voices cohere as an ensemble (interlock, register, space)?
+    idiom: int = Field(ge=1, le=5)      # does the line MOVE like the raga (chalan, ornaments, vadi, expressive not scalar)?
+    rasa: int = Field(ge=1, le=5)       # does the music serve the raga's emotional essence / samay?
 
 
 class RasikVerdict(BaseModel):
@@ -824,20 +824,49 @@ class RasikVerdict(BaseModel):
     notes: str = ""
 
 
+class ProducerScores(BaseModel):
+    """The Producer's rubric — COMPOSITION QUALITY on a FIXED 1-5 scale, raga-agnostic.
+
+    The third critic dimension (Ustad=legality, Rasik=raga authenticity, Producer=does it
+    WORK as a song). These are the songwriting/arrangement questions no one checked while
+    Rasik was overloaded — each an integer the model must justify from the piece's actual
+    structure, motif, riff and ensemble (in chunk B, from code-computed metrics too).
+    """
+    structure: int = Field(ge=1, le=5)      # do the sections lead naturally into each other?
+    dynamics: int = Field(ge=1, le=5)       # does the energy actually build (not flat all through)?
+    climax: int = Field(ge=1, le=5)         # is there an earned peak and a resolution (an arc)?
+    motif: int = Field(ge=1, le=5)          # is the motif developed — introduced, repeated, varied, resolved?
+    hook: int = Field(ge=1, le=5)           # is the riff memorable, loopable, with a strong downbeat?
+    balance: int = Field(ge=1, le=5)        # arrangement space — not every voice at full throughout?
+    independence: int = Field(ge=1, le=5)   # does each voice contribute (lead != riff, bass != riff, drums != tabla)?
+    mood_fit: int = Field(ge=1, le=5)       # does the whole piece hold the requested SUBGENRE mood?
+
+
+class ProducerVerdict(BaseModel):
+    """The composition-quality critic's verdict — LLM-OWNED, like Rasik's (songwriting
+    craft is judgment, not a checkable fact). `reasoning` (filled FIRST) justifies each
+    score from the piece's structure/motif/riff/ensemble before it is committed; `scores`
+    is the rubric; `notes` is the short actionable critique.
+    """
+    reasoning: str = ""
+    scores: ProducerScores
+    notes: str = ""
+
+
 # --------------------------------------------------------------------------- #
 # Contract 1.9: The arbitration (Conductor)                                   #
 #                                                                             #
 # When the critics disagree over whether a finished piece should ship, the    #
 # Conductor is the referee WITH A CLOCK. Legality is non-negotiable (code      #
 # forces a revise on an illegal piece, no debate); the genuine judgment is the #
-# AESTHETIC one — is Rasik's objection worth a revise, or is the piece good     #
-# enough? A bounded Ustad<->Rasik debate feeds the Conductor's final ruling.   #
-# The ruling drives the Flow's surgical revise (step 6b), which is why it names #
-# ONE layer.                                                                   #
+# AESTHETIC one — SOUL (Rasik) vs WORKS-AS-MUSIC (Producer): is either worth a  #
+# revise, or is the piece good enough? A bounded Rasik<->Producer debate feeds  #
+# the Conductor's final ruling. The ruling drives the Flow's surgical revise    #
+# (step 6b), which is why it names ONE layer.                                  #
 # --------------------------------------------------------------------------- #
 
 class DebateTurn(BaseModel):
-    """One critic's turn in the bounded Ustad<->Rasik arbitration debate.
+    """One critic's turn in the bounded Rasik<->Producer arbitration debate.
 
     `reasoning` (filled FIRST) reads the other side; `argument` is the short in-character
     point the transcript streams as a DEBATE event; `stance` is what this critic wants;

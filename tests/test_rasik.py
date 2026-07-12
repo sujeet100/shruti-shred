@@ -27,7 +27,6 @@ from crew.contracts import (  # noqa: E402
 )
 from crew.rasik import (  # noqa: E402
     _lead_swaras,
-    _render_ensemble,
     _render_pakad_hint,
     assess,
     pakad_presence,
@@ -39,17 +38,13 @@ _PAKAD = RAGAS[_RAGA]["pakad"][0]                 # a signature phrase, e.g. S R
 _SA = RAGAS[_RAGA]["allowed"][0]
 
 
-def _comp(lead_swaras: list[str], *, with_drums: bool = False) -> Composition:
-    layers = [
-        Layer(role="drone", notes=[Note(swara=_SA, oct=-2, start=0.0, dur=16.0)]),
-        Layer(role="lead", notes=[
-            Note(swara=sw, oct=0, start=float(i), dur=1.0) for i, sw in enumerate(lead_swaras)]),
-    ]
-    if with_drums:
-        from crew.contracts import DrumHit
-        layers.append(Layer(role="drums", hits=[DrumHit(drum="kick", start=0.0)]))
+def _comp(lead_swaras: list[str]) -> Composition:
     return Composition(
-        raga=_RAGA, sa=62, bpm=90, tala={"name": "teentaal", "beats_per_bar": 16.0}, layers=layers)
+        raga=_RAGA, sa=62, bpm=90, tala={"name": "teentaal", "beats_per_bar": 16.0},
+        layers=[
+            Layer(role="drone", notes=[Note(swara=_SA, oct=-2, start=0.0, dur=16.0)]),
+            Layer(role="lead", notes=[
+                Note(swara=sw, oct=0, start=float(i), dur=1.0) for i, sw in enumerate(lead_swaras)])])
 
 
 def _fake_judge(scores: RasikScores, notes: str = "", reasoning: str = ""):
@@ -98,24 +93,18 @@ def test_pakad_hint_marks_literal_vs_evoked():
     assert "not found literally" in absent
 
 
-def test_ensemble_reports_voices_and_percussion():
-    text = _render_ensemble(_comp(list(_PAKAD), with_drums=True))
-    assert "lead:" in text and "drone:" in text
-    assert "drums:" in text and "percussion" in text      # hits, not notes
-
-
 def test_assess_streams_the_rubric_as_event_scores():
-    scores = RasikScores(pakad=5, idiom=4, mood=4, coherence=3)
+    scores = RasikScores(pakad=5, idiom=4, rasa=4)
     verdict, events = assess(_comp(list(_PAKAD)), judge_fn=_fake_judge(scores, notes="has soul")[0])
     critique = [e for e in events if e.type == EventType.CRITIQUE]
     assert len(critique) == 1
     assert critique[0].agent == "Rasik"
     assert critique[0].text == "has soul"
-    assert critique[0].scores == {"pakad": 5.0, "idiom": 4.0, "mood": 4.0, "coherence": 3.0}
+    assert critique[0].scores == {"pakad": 5.0, "idiom": 4.0, "rasa": 4.0}
 
 
 def test_assess_passes_the_composition_to_the_judge():
-    fn, calls = _fake_judge(RasikScores(pakad=3, idiom=3, mood=3, coherence=3))
+    fn, calls = _fake_judge(RasikScores(pakad=3, idiom=3, rasa=3))
     assess(_comp(list(_PAKAD)), judge_fn=fn)
     assert len(calls) == 1 and calls[0].raga == _RAGA
 
@@ -123,7 +112,7 @@ def test_assess_passes_the_composition_to_the_judge():
 def test_scores_are_bounded_1_to_5():
     # the rubric contract itself enforces the fixed scale (a bias countermeasure)
     try:
-        RasikScores(pakad=6, idiom=3, mood=3, coherence=3)
+        RasikScores(pakad=6, idiom=3, rasa=3)
         assert False, "expected a validation error for a score above 5"
     except Exception:
         pass

@@ -35,6 +35,14 @@ MAX_ROUNDS: int = 2
 # LLM spend, illegal forces a revise by code (legality is non-negotiable).
 RASIK_PASS_SCORE: int = 3
 
+# HYBRID triage: the debate opens when a CRITICAL criterion (pakad/idiom — the raga's
+# soul) is below the pass line, OR the OVERALL mean of the four scores falls below this
+# floor. The mean prong catches broad mediocrity (several middling criteria) while the
+# critical prong protects the soul, so a LONE weak mood/coherence — with everything else
+# strong — does NOT burn a debate on the stage. (Reviewers, 2026-07-12: "don't let a
+# lone mediocre criterion trigger it.")
+RASIK_OVERALL_FLOOR: float = 3.0
+
 # The composer dialogue's clock: how many turn-by-turn exchanges Pandit and
 # Riffsmith get before we stop (they may stop earlier by agreeing). The bounded
 # loop — not organic consensus — is what guarantees termination on stage.

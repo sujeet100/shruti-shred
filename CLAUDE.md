@@ -38,12 +38,17 @@ agents compose, critique, and revise live; the result renders to audio.
 ## Architecture
 
 - **Generators:** RagaGrammar, MetalRiff, Tala.
-- **Critics:** **Ustad** (legality + theory; uses the deterministic `validate_composition`
-  as a tool — the hard guardrail) and **Rasik** (aesthetic taste; rubric; checks the pakad is
-  present).
-- **Conductor (arbiter):** on an Ustad↔Rasik conflict, runs a **bounded** debate between them
-  and makes the final call (accept, or issue the revise directive). **Always terminates** —
-  debate needs a referee and a clock. This disagreement→debate→verdict is the money moment.
+- **Critics — three ORTHOGONAL dimensions, one each** (the three questions about a piece of
+  music): **Ustad** = *is it legal?* (uses the deterministic `validate_composition` as a tool —
+  the hard guardrail); **Rasik** = *does it sound like the raga?* (raga authenticity — pakad,
+  idiom, rasa); **Producer** = *does it work as a song?* (composition quality — structure,
+  dynamics, climax, motif, hook, balance, independence, mood_fit; raga-agnostic).
+- **Conductor (arbiter):** Ustad's legality drives a pure triage (illegal ⇒ forced revise, no
+  debate). On a legal-but-flagged piece it runs a **bounded** debate between the two AESTHETIC
+  critics — **Rasik (soul) ↔ Producer (works-as-music)** — Ustad EXITS the debate (its legality
+  job ended at triage; a legal piece gives it no aesthetic stake), and makes the final call
+  (accept, or the revise directive). **Always terminates** — debate needs a referee and a clock.
+  This disagreement→debate→verdict is the money moment.
 - **Orchestration:** CrewAI **Flow** — propose → critique → (debate + arbitrate on conflict)
   → revise, capped by `max_rounds`. Every debate/revise loop is bounded with a guaranteed
   terminator; never rely on agents converging on their own (live-safety).
@@ -291,24 +296,34 @@ and build order.
   guardrail on generator output, and a **tool Ustad calls mid-reasoning** (a visible ReAct
   step in the trace) so it can *explain* a violation. Tool caching is OFF (zero-arg call ⇒ a
   cache would return a prior piece's stale result). Pure tests: `tests/test_ustad.py`.
-- **Agent #5 — Rasik, the taste critic** (`crew/rasik.py`) **done**: the deliberate OPPOSITE
-  of Ustad — legality is a fact (code owns it), but **taste is not checkable, so the LLM
-  genuinely judges** (LLM-as-judge). The bias (verbosity/gestalt/self-preference) is countered
-  by DISCIPLINE, not by taking the pen: a fixed **1-5 rubric** over four named criteria
-  (`RasikScores`: pakad, idiom, mood, coherence), scores **grounded in the encoded
-  pakad/chalan/rasa facts** plus a **code-computed pakad hint** (`pakad_presence` — does the
-  signature phrase appear literally in the lead?), and a per-criterion justification required
-  (reasoning first). No tool (taste isn't a lookup). Pure tests: `tests/test_rasik.py`.
+- **Agent #5 — Rasik, the RAGA-AUTHENTICITY critic** (`crew/rasik.py`) **done**: the deliberate
+  OPPOSITE of Ustad — legality is a fact (code owns it), but **authenticity is not checkable, so
+  the LLM genuinely judges** (LLM-as-judge). The bias (verbosity/gestalt/self-preference) is
+  countered by DISCIPLINE, not by taking the pen: a fixed **1-5 rubric** over three named
+  authenticity criteria (`RasikScores`: **pakad, idiom, rasa** — narrowed 2026-07-12 from the
+  old four; songwriting moved to the Producer), scores **grounded in the encoded
+  pakad/chalan/rasa facts** plus a **code-computed pakad hint** (`pakad_presence`), and a
+  per-criterion justification required (reasoning first). No tool. Pure tests: `tests/test_rasik.py`.
+- **Agent #7 — the Producer, the COMPOSITION-QUALITY critic** (`crew/producer.py`) **done**
+  (2026-07-12): the THIRD critic dimension (Sujit's insight — Rasik was doing two jobs). Raga-
+  AGNOSTIC songwriting/arrangement judgment on a fixed **1-5 rubric** over eight criteria
+  (`ProducerScores`: structure, dynamics, climax, motif, hook, balance, independence, mood_fit),
+  grounded in the whole symbolic SCORE (section timeline, motif, riff line with chords/techniques,
+  lead, ensemble — it reads the Arrangement, not just the Composition). LLM-as-judge like Rasik.
+  (Chunk B will add code-computed metrics as grounding — "code measures, LLM evaluates".) Pure
+  tests: `tests/test_producer.py`.
 - **Agent #6 — the Conductor** (`crew/conductor.py`) **done** (the arbitration half of step 6,
   the talk's money moment): DISAGREEMENT → BOUNDED DEBATE → a REFEREE's verdict. `detect_conflict`
   is pure CODE triage — **illegal ⇒ forced revise, no debate** (legality is non-negotiable);
-  **legal + Rasik satisfied ⇒ accept, no debate**; **legal + a Rasik criterion below
-  `RASIK_PASS_SCORE` ⇒ the aesthetic conflict** worth an LLM debate — so model budget is spent
-  ONLY on the genuine judgment call. The Ustad↔Rasik debate is a we-own-it bounded loop (Rasik
-  opens, alternate) capped by `MAX_ROUNDS`; the Conductor **always rules at the cap** (the
-  clock, not consensus, terminates it) with a **surgical** `ConductorRuling` (one `layer`, one
-  `reason`). Both critics share ONE `debate_turn` task (bias in the backstories), as the
-  composers share `compose_turn`. Pure tests: `tests/test_conductor.py`.
+  **legal + both aesthetic critics satisfied ⇒ accept, no debate**; else the **aesthetic conflict**
+  worth an LLM debate. Triage is now **HYBRID over BOTH** aesthetic critics: a CRITICAL criterion
+  below `RASIK_PASS_SCORE` (Rasik: pakad/idiom; Producer: structure/motif) OR that critic's mean
+  below `RASIK_OVERALL_FLOOR` — so a lone weak non-critical criterion doesn't burn a debate. The
+  debate is **Rasik ↔ Producer** (Ustad EXITS — its legality is a quoted FACT, not a chair), a
+  we-own-it bounded loop (Rasik opens, alternate) capped by `MAX_ROUNDS`; the Conductor **always
+  rules at the cap** with a **surgical** `ConductorRuling` (one `layer`, one `reason`). Both
+  aesthetic critics share ONE `debate_turn` task (bias in the backstories). Pure tests:
+  `tests/test_conductor.py`.
 - **The Flow** (`crew/flow.py`) **done** — step 6's orchestration half: the WHOLE pipeline as
   ONE bounded CrewAI `Flow` (`ComposeFlow`/`compose_flow(query)`): interpret → composers →
   generate → critics → Conductor → (surgical revise)* → render. The propose→critique→revise
@@ -339,10 +354,16 @@ and build order.
     `validate_composition` kind `"chord"` and the riff guardrail); palm_mute chug + legato +
     slide/bend pitch-wheel gestures in `src/render.py`; prompt teaches it. New `tests/test_render.py`
     + riff/knowledge tests (179 pure tests green). Not yet heard (batched).
-  - **NEXT (steps 3–8):** reframe the debate (**Ustad exits; a new Producer/impact critic debates
-    Rasik**; hybrid triage); composition memory; computed metrics → Rasik + a consistency check;
-    structured-output robustness (parse+retry) + fuzzy pakad; prompt hygiene; live-hardening (fast
-    mode, failsafe chart, concurrent Lead∥Riff).
+  - **(3) Producer as the 3rd critic + reframe the debate — ✅ DONE (chunk A)**: Sujit's notes
+    split Rasik's two jobs — **Rasik → raga authenticity** (narrowed to pakad/idiom/rasa),
+    **new Producer → composition quality** (8-criterion rubric over the whole symbolic score).
+    Ustad EXITS the debate; the debate is now **Rasik ↔ Producer**, hybrid triage over both.
+    Flow runs THREE critiques. All pure-tested (191 green). **Chunk B (was step 5)** adds the
+    Producer's code-computed metrics ("code measures, LLM evaluates"). See DESIGN.md "The
+    Producer — a THIRD critic dimension".
+  - **NEXT (steps 4–8):** composition memory; the Producer's computed metrics + a consistency
+    check (chunk B); structured-output robustness (parse+retry) + fuzzy pakad; prompt hygiene;
+    live-hardening (fast mode, failsafe chart, concurrent Lead∥Riff).
   - **RUN NO LLM/live calls until ALL changes are done** (Sujit's instruction) — pure tests
     only, then ONE batched live render + one live Flow run at the very end.
 - **`REVIEW.md`** is the external design/prompt review request; GPT + Gemini feedback is triaged

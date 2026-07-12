@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
 from crew.conductor import (  # noqa: E402
     Conflict,
     Critic,
-    _weak_criteria,
+    _flagged,
     arbitrate,
     detect_conflict,
 )
@@ -32,6 +32,8 @@ from crew.contracts import (  # noqa: E402
     EventType,
     Layer,
     Note,
+    ProducerScores,
+    ProducerVerdict,
     RasikScores,
     RasikVerdict,
     UstadVerdict,
@@ -57,9 +59,17 @@ def _illegal() -> UstadVerdict:
                                               kind="note", reason="R is illegal in Darbari")])
 
 
-def _rasik(pakad=4, idiom=4, mood=4, coherence=4, notes="") -> RasikVerdict:
-    return RasikVerdict(scores=RasikScores(pakad=pakad, idiom=idiom, mood=mood, coherence=coherence),
-                        notes=notes)
+def _rasik(pakad=4, idiom=4, rasa=4, notes="") -> RasikVerdict:
+    return RasikVerdict(scores=RasikScores(pakad=pakad, idiom=idiom, rasa=rasa), notes=notes)
+
+
+def _producer(structure=4, dynamics=4, climax=4, motif=4, hook=4, balance=4,
+              independence=4, mood_fit=4, notes="") -> ProducerVerdict:
+    """A satisfied Producer by default; override a criterion to plant a conflict."""
+    return ProducerVerdict(
+        scores=ProducerScores(structure=structure, dynamics=dynamics, climax=climax, motif=motif,
+                              hook=hook, balance=balance, independence=independence, mood_fit=mood_fit),
+        notes=notes)
 
 
 def _fake_debate(*turns: DebateTurn):
@@ -92,29 +102,53 @@ _NEVER = _fake_debate()[0]          # a debate_fn that must never be called
 _NEVER_RULE = _fake_rule(ConductorRuling(directive="accept"))[0]
 
 
-# --- triage (pure, no fns) ---------------------------------------------------
-
-def test_weak_criteria_flags_below_the_pass_line():
-    assert _weak_criteria(RasikScores(pakad=2, idiom=3, mood=5, coherence=1)) == ["pakad", "coherence"]
-    assert _weak_criteria(RasikScores(pakad=3, idiom=3, mood=3, coherence=3)) == []  # 3 passes
-
+# --- triage (pure, no fns): HYBRID over BOTH aesthetic critics --------------
 
 def test_detect_conflict_illegal_is_forced_revise():
-    assert detect_conflict(_illegal(), _rasik(pakad=5, idiom=5, mood=5, coherence=5)) is Conflict.FORCED_REVISE
+    # illegal wins even when both aesthetic critics are perfectly happy
+    assert detect_conflict(_illegal(), _rasik(5, 5, 5), _producer()) is Conflict.FORCED_REVISE
 
 
-def test_detect_conflict_legal_and_strong_is_none():
-    assert detect_conflict(_legal(), _rasik()) is Conflict.NONE
+def test_detect_conflict_all_satisfied_is_none():
+    assert detect_conflict(_legal(), _rasik(), _producer()) is Conflict.NONE
 
 
-def test_detect_conflict_legal_but_weak_is_aesthetic():
-    assert detect_conflict(_legal(), _rasik(idiom=2)) is Conflict.AESTHETIC
+def test_rasik_critical_criterion_low_opens_debate():
+    # idiom is a CRITICAL Rasik criterion -> a lone weak one is enough
+    assert detect_conflict(_legal(), _rasik(idiom=2), _producer()) is Conflict.AESTHETIC
+
+
+def test_rasik_lone_weak_noncritical_does_not_open_debate():
+    # rasa is NON-critical; with pakad/idiom strong the mean stays >= floor -> accept
+    assert detect_conflict(_legal(), _rasik(rasa=2), _producer()) is Conflict.NONE
+
+
+def test_producer_critical_criterion_low_opens_debate():
+    # motif is a CRITICAL Producer criterion (the biggest songwriting omission)
+    assert detect_conflict(_legal(), _rasik(), _producer(motif=2)) is Conflict.AESTHETIC
+
+
+def test_producer_lone_weak_noncritical_does_not_open_debate():
+    # a lone weak hook, everything else strong -> mean >= floor -> accept
+    assert detect_conflict(_legal(), _rasik(), _producer(hook=2)) is Conflict.NONE
+
+
+def test_producer_broad_mediocrity_opens_debate_via_the_mean():
+    # no CRITICAL criterion below the line, but many middling ones drag the mean under
+    prod = _producer(structure=3, motif=3, dynamics=2, climax=2, hook=2,
+                     balance=2, independence=2, mood_fit=2)
+    assert detect_conflict(_legal(), _rasik(), prod) is Conflict.AESTHETIC
+
+
+def test_flagged_labels_each_critic():
+    text = _flagged(_rasik(idiom=2), _producer(motif=2, hook=1))
+    assert "Rasik: idiom" in text and "Producer:" in text and "motif" in text
 
 
 # --- arbitrate: the two no-debate branches ----------------------------------
 
 def test_illegal_forces_revise_without_debate():
-    ruling, events = arbitrate(_illegal(), _rasik(), _comp(),
+    ruling, events = arbitrate(_illegal(), _rasik(), _producer(), _comp(),
                                debate_fn=_NEVER, rule_fn=_NEVER_RULE)
     assert ruling.directive == "revise"
     assert ruling.layer == "lead"                       # targets the violating voice
@@ -123,7 +157,7 @@ def test_illegal_forces_revise_without_debate():
 
 
 def test_legal_and_sound_is_accepted_without_debate():
-    ruling, events = arbitrate(_legal(), _rasik(), _comp(),
+    ruling, events = arbitrate(_legal(), _rasik(), _producer(), _comp(),
                                debate_fn=_NEVER, rule_fn=_NEVER_RULE)
     assert ruling.directive == "accept"
     assert not any(e.type == EventType.DEBATE for e in events)
@@ -135,28 +169,38 @@ def test_aesthetic_conflict_runs_the_bounded_debate_then_rules():
     debate, calls = _fake_debate(_turn(stance="revise"), _turn(stance="accept"))
     rule, rule_calls = _fake_rule(ConductorRuling(directive="revise", layer="lead",
                                                   reason="regenerate the lead idiomatically"))
-    ruling, events = arbitrate(_legal(), _rasik(idiom=2), _comp(),
+    ruling, events = arbitrate(_legal(), _rasik(idiom=2), _producer(), _comp(),
                                debate_fn=debate, rule_fn=rule, max_rounds=2)
-    assert calls == [Critic.RASIK, Critic.USTAD]         # Rasik opens, then alternate
+    assert calls == [Critic.RASIK, Critic.PRODUCER]      # Rasik opens, then the Producer
     assert len(rule_calls) == 1                          # the Conductor ruled exactly once
     assert ruling.directive == "revise" and ruling.layer == "lead"
     debate_events = [e for e in events if e.type == EventType.DEBATE]
-    assert [e.agent for e in debate_events] == ["Rasik", "Ustad"]
+    assert [e.agent for e in debate_events] == ["Rasik", "Producer"]
     assert debate_events[0].verdict == "revise"          # the turn's stance rides the event
+
+
+def test_producer_alone_can_open_the_debate():
+    # Rasik is content; the Producer's craft objection still triggers the debate
+    debate, calls = _fake_debate(_turn(stance="revise"), _turn(stance="accept"))
+    rule, _ = _fake_rule(ConductorRuling(directive="revise", layer="rhythm", reason="catchier riff"))
+    ruling, _ = arbitrate(_legal(), _rasik(), _producer(motif=2), _comp(),
+                          debate_fn=debate, rule_fn=rule, max_rounds=2)
+    assert calls == [Critic.RASIK, Critic.PRODUCER] and ruling.layer == "rhythm"
 
 
 def test_debate_turn_count_follows_max_rounds():
     debate, calls = _fake_debate(_turn(), _turn(), _turn())
     rule, _ = _fake_rule(ConductorRuling(directive="accept", reason="good enough"))
-    arbitrate(_legal(), _rasik(idiom=1), _comp(), debate_fn=debate, rule_fn=rule, max_rounds=3)
-    assert calls == [Critic.RASIK, Critic.USTAD, Critic.RASIK]   # capped at 3, Rasik-first
+    arbitrate(_legal(), _rasik(idiom=1), _producer(), _comp(),
+              debate_fn=debate, rule_fn=rule, max_rounds=3)
+    assert calls == [Critic.RASIK, Critic.PRODUCER, Critic.RASIK]   # capped at 3, Rasik-first
 
 
 def test_conductor_always_rules_even_if_critics_never_concede():
     # both debate turns insist "revise"; the referee still terminates with one ruling
     debate, _ = _fake_debate(_turn(stance="revise"), _turn(stance="revise"))
     rule, rule_calls = _fake_rule(ConductorRuling(directive="accept", reason="not worth a pass"))
-    ruling, _ = arbitrate(_legal(), _rasik(idiom=2), _comp(),
+    ruling, _ = arbitrate(_legal(), _rasik(idiom=2), _producer(), _comp(),
                           debate_fn=debate, rule_fn=rule, max_rounds=2)
     assert ruling.directive == "accept"                  # the clock, not consensus, ended it
     assert len(rule_calls) == 1
@@ -164,7 +208,7 @@ def test_conductor_always_rules_even_if_critics_never_concede():
 
 def test_max_rounds_must_be_positive():
     try:
-        arbitrate(_legal(), _rasik(idiom=2), _comp(),
+        arbitrate(_legal(), _rasik(idiom=2), _producer(), _comp(),
                   debate_fn=_NEVER, rule_fn=_NEVER_RULE, max_rounds=0)
         assert False, "expected ValueError"
     except ValueError:

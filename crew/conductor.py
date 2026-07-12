@@ -1,19 +1,24 @@
 """
 The Conductor (agent #6, step 6) — the ARBITER with a clock. The talk's money moment.
 
-The pattern on show: DISAGREEMENT -> BOUNDED DEBATE -> A REFEREE'S VERDICT. Two
-critics judged the finished piece and can pull apart — Ustad clears it as legal,
-Rasik marks it lifeless. Someone has to decide, on a clock, or the session runs
-forever. The Conductor is that someone.
+The pattern on show: DISAGREEMENT -> BOUNDED DEBATE -> A REFEREE'S VERDICT. But the
+debate is only a real contest if the two sides have a real stake. By the time a debate
+opens the piece is already LEGAL (triage forces a revise on anything illegal), so the
+legality critic Ustad has NOTHING aesthetic to argue — "it lacks soul" vs "but it's
+legal" is a non-contest. So Ustad EXITS here (its job ended at triage) and the genuine
+argument is SOUL vs IMPACT: Rasik (tradition -> revise) against a Producer (momentum ->
+ship, a revise risks the drive). Someone still has to decide, on a clock. That someone
+is the Conductor.
 
 Two things make this safe and legible rather than "autonomous magic":
 
   1. CODE settles what code can. Legality is non-negotiable, so an ILLEGAL piece is
-     revised with NO debate (the guardrail wins); a legal piece Rasik is happy with is
+     revised with NO debate (the guardrail wins); a legal piece with sound aesthetics is
      accepted with NO debate. The LLM debate fires ONLY on the genuine judgment call —
-     legal, but Rasik flags a weakness — so we never spend model budget on a decision
-     code already owns. `detect_conflict` is that pure triage.
-  2. WE own the loop. The Ustad<->Rasik debate is stepped turn-by-turn in explicit
+     legal, but Rasik flags a real aesthetic weakness — so we never spend model budget on
+     a decision code already owns. `detect_conflict` is that pure (HYBRID) triage: a
+     critical criterion (pakad/idiom) low, OR the overall mean low.
+  2. WE own the loop. The Rasik<->Producer debate is stepped turn-by-turn in explicit
      state (exactly like the composer dialogue), bounded by `MAX_ROUNDS`, and the
      Conductor ALWAYS rules at the cap. The round cap — not organic consensus — is the
      guaranteed terminator. The referee and the clock, in code.
@@ -48,6 +53,7 @@ from pydantic import BaseModel, ValidationError
 from crew.config import (
     CRITIC_MAX_ITER,
     MAX_ROUNDS,
+    RASIK_OVERALL_FLOOR,
     RASIK_PASS_SCORE,
     conductor_llm,
     critic_llm,
@@ -59,17 +65,20 @@ from crew.contracts import (
     DebateEvent,
     DebateTurn,
     EventType,
-    RasikScores,
+    ProducerVerdict,
     RasikVerdict,
     UstadVerdict,
 )
 
 
 class Critic(Enum):
-    """A debating critic. The value is the display name; `config_key` indexes the
-    agent's entry in agents.yaml (both critics reuse the shared debate_turn task)."""
-    USTAD = "Ustad"
+    """A DEBATING critic. Ustad is NOT here — its legality job ends at triage, so it does
+    not debate (an already-legal piece gives it no aesthetic stake). The two aesthetic
+    critics debate: Rasik (raga soul) vs the Producer (does it work as a song). The value
+    is the display name; `config_key` indexes the agent in agents.yaml (both reuse the
+    shared debate_turn task, their bias living in their backstories)."""
     RASIK = "Rasik"
+    PRODUCER = "Producer"
 
     @property
     def config_key(self) -> str:
@@ -83,8 +92,8 @@ class Conflict(Enum):
     AESTHETIC = "aesthetic"           # legal but Rasik flags a weakness — DEBATE
 
 
-# Rasik opens the debate (it is the one objecting); then they alternate.
-_DEBATE_ORDER: Final[tuple[Critic, ...]] = (Critic.RASIK, Critic.USTAD)
+# Rasik opens the debate (soul first); then they alternate with the Producer.
+_DEBATE_ORDER: Final[tuple[Critic, ...]] = (Critic.RASIK, Critic.PRODUCER)
 
 _ROLE_CRITIC: Final = "critic"
 _ROLE_CONDUCTOR: Final = "conductor"
@@ -109,27 +118,67 @@ _RULING_SCHEMA: Final = """{
 
 # --------------------------------------------------------------------------- #
 # Pure triage: which situation are we in? CODE settles what code can; the LLM  #
-# debate fires only on the genuine aesthetic judgment call.                    #
+# debate fires only on the genuine aesthetic judgment call — HYBRID, over BOTH  #
+# aesthetic critics (Rasik authenticity + Producer craft).                     #
 # --------------------------------------------------------------------------- #
 
-_CRITERIA: Final = ("pakad", "idiom", "mood", "coherence")
+# Each aesthetic critic's rubric, and the CRITICAL sub-set whose weakness alone opens a
+# debate (the raga's soul for Rasik; the two biggest songwriting omissions for Producer).
+_RASIK_CRITERIA: Final = ("pakad", "idiom", "rasa")
+_RASIK_CRITICAL: Final = ("pakad", "idiom")
+_PRODUCER_CRITERIA: Final = ("structure", "dynamics", "climax", "motif",
+                             "hook", "balance", "independence", "mood_fit")
+_PRODUCER_CRITICAL: Final = ("structure", "motif")
 
 
-def _weak_criteria(scores: RasikScores, *, pass_score: int = RASIK_PASS_SCORE) -> list[str]:
-    """The rubric criteria Rasik scored BELOW the passing line (empty == all acceptable)."""
-    return [name for name in _CRITERIA if getattr(scores, name) < pass_score]
+def _below(scores: Any, criteria: tuple[str, ...], pass_score: int) -> list[str]:
+    """The rubric criteria scored BELOW the passing line (empty == all acceptable)."""
+    return [name for name in criteria if getattr(scores, name) < pass_score]
 
 
-def detect_conflict(ustad: UstadVerdict, rasik: RasikVerdict, *,
-                    pass_score: int = RASIK_PASS_SCORE) -> Conflict:
-    """Triage the two verdicts. Illegality forces a revise (code owns legality); a
-    legal piece with a weak Rasik criterion is the aesthetic conflict worth debating;
-    otherwise there is nothing to arbitrate and the piece is accepted."""
+def _mean(scores: Any, criteria: tuple[str, ...]) -> float:
+    return sum(getattr(scores, name) for name in criteria) / len(criteria)
+
+
+def _dissatisfied(scores: Any, criteria: tuple[str, ...], critical: tuple[str, ...], *,
+                  pass_score: int, floor: float) -> bool:
+    """HYBRID rule for one aesthetic critic: it objects if a CRITICAL criterion is below
+    the pass line OR its OVERALL mean is below the floor. The critical prong protects the
+    essentials; the mean prong catches broad mediocrity — so a lone weak NON-critical
+    criterion, with everything else strong, does not on its own open a debate."""
+    return bool(_below(scores, critical, pass_score)) or _mean(scores, criteria) < floor
+
+
+def detect_conflict(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict, *,
+                    pass_score: int = RASIK_PASS_SCORE,
+                    floor: float = RASIK_OVERALL_FLOOR) -> Conflict:
+    """Triage the three verdicts. Illegality forces a revise (code owns legality). A legal
+    piece opens the AESTHETIC debate if EITHER aesthetic critic is dissatisfied (the hybrid
+    rule above) — Rasik on the raga's soul, or the Producer on the song's craft. Otherwise
+    both are content and the piece is accepted with no LLM spend."""
     if ustad.verdict == "illegal":
         return Conflict.FORCED_REVISE
-    if _weak_criteria(rasik.scores, pass_score=pass_score):
+    rasik_bad = _dissatisfied(rasik.scores, _RASIK_CRITERIA, _RASIK_CRITICAL,
+                              pass_score=pass_score, floor=floor)
+    producer_bad = _dissatisfied(producer.scores, _PRODUCER_CRITERIA, _PRODUCER_CRITICAL,
+                                 pass_score=pass_score, floor=floor)
+    if rasik_bad or producer_bad:
         return Conflict.AESTHETIC
     return Conflict.NONE
+
+
+def _flagged(rasik: RasikVerdict, producer: ProducerVerdict, *,
+             pass_score: int = RASIK_PASS_SCORE) -> str:
+    """A human summary of what each critic scored below the pass line — for the debate
+    opening and the prompt context (empty prongs are omitted)."""
+    parts = []
+    r = _below(rasik.scores, _RASIK_CRITERIA, pass_score)
+    p = _below(producer.scores, _PRODUCER_CRITERIA, pass_score)
+    if r:
+        parts.append("Rasik: " + ", ".join(r))
+    if p:
+        parts.append("Producer: " + ", ".join(p))
+    return "; ".join(parts) or "broad mediocrity (low overall)"
 
 
 # --------------------------------------------------------------------------- #
@@ -139,7 +188,13 @@ def detect_conflict(ustad: UstadVerdict, rasik: RasikVerdict, *,
 
 def _scores_str(rasik: RasikVerdict) -> str:
     s = rasik.scores
-    return f"pakad={s.pakad} idiom={s.idiom} mood={s.mood} coherence={s.coherence}"
+    return f"pakad={s.pakad} idiom={s.idiom} rasa={s.rasa}"
+
+
+def _producer_scores_str(producer: ProducerVerdict) -> str:
+    s = producer.scores
+    return (f"structure={s.structure} dynamics={s.dynamics} climax={s.climax} motif={s.motif} "
+            f"hook={s.hook} balance={s.balance} independence={s.independence} mood_fit={s.mood_fit}")
 
 
 def _render_ustad_summary(ustad: UstadVerdict) -> str:
@@ -150,6 +205,10 @@ def _render_ustad_summary(ustad: UstadVerdict) -> str:
 
 def _render_rasik_summary(rasik: RasikVerdict) -> str:
     return f"{_scores_str(rasik)} (1-5). {rasik.notes}".strip()
+
+
+def _render_producer_summary(producer: ProducerVerdict) -> str:
+    return f"{_producer_scores_str(producer)} (1-5). {producer.notes}".strip()
 
 
 def _render_voices(comp: Composition) -> str:
@@ -215,27 +274,28 @@ def _forced_revise_ruling(ustad: UstadVerdict) -> ConductorRuling:
 def _accept_ruling() -> ConductorRuling:
     return ConductorRuling(
         directive="accept",
-        reason="Legal, and Rasik finds it aesthetically sound — nothing to arbitrate.",
-        reasoning="Both critics are satisfied; there is no conflict to debate.")
+        reason="Legal, and both Rasik and the Producer find it sound — nothing to arbitrate.",
+        reasoning="Both aesthetic critics are satisfied; there is no conflict to debate.")
 
 
-def arbitrate(ustad: UstadVerdict, rasik: RasikVerdict, comp: Composition, *,
-              debate_fn: DebateFn, rule_fn: RuleFn,
+def arbitrate(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict,
+              comp: Composition, *, debate_fn: DebateFn, rule_fn: RuleFn,
               max_rounds: int = MAX_ROUNDS) -> tuple[ConductorRuling, list[DebateEvent]]:
     """Rule accept | revise on a critiqued composition, running the bounded debate only
     on a genuine (aesthetic) conflict.
 
     Always-terminating and bounded: the illegal and no-conflict branches return with no
     LLM call; the aesthetic branch steps the critics turn-by-turn for `max_rounds` turns
-    (Rasik opens, then alternate) and the Conductor ALWAYS rules at the cap. `debate_fn`
-    and `rule_fn` are injected so the whole flow is tested with no LLM.
+    (Rasik opens, Producer answers, alternate) and the Conductor ALWAYS rules at the cap.
+    `debate_fn` and `rule_fn` are injected so the whole flow is tested with no LLM.
     """
     if max_rounds < 1:
         raise ValueError("max_rounds must be at least 1")
 
     events = [_system_event(
-        f"Conductor reviews the verdicts — Ustad: {ustad.verdict}; Rasik: {_scores_str(rasik)}.")]
-    conflict = detect_conflict(ustad, rasik)
+        f"Conductor reviews the verdicts — Ustad: {ustad.verdict}; "
+        f"Rasik: {_scores_str(rasik)}; Producer: {_producer_scores_str(producer)}.")]
+    conflict = detect_conflict(ustad, rasik, producer)
 
     if conflict is Conflict.FORCED_REVISE:
         events.append(_system_event(
@@ -250,11 +310,11 @@ def arbitrate(ustad: UstadVerdict, rasik: RasikVerdict, comp: Composition, *,
         return ruling, events
 
     # AESTHETIC conflict -> the bounded debate (the money moment).
-    weak = ", ".join(_weak_criteria(rasik.scores))
     events.append(_system_event(
-        f"Legal, but Rasik flags {weak} — opening a bounded debate ({max_rounds} turns)."))
+        f"Legal, but flagged ({_flagged(rasik, producer)}) — opening a bounded "
+        f"Rasik vs Producer debate ({max_rounds} turns)."))
     transcript: list[tuple[str, str]] = []
-    speakers = itertools.cycle(_DEBATE_ORDER)  # Rasik opens, then alternate
+    speakers = itertools.cycle(_DEBATE_ORDER)  # Rasik opens, then alternate with the Producer
     for round_no in range(1, max_rounds + 1):
         critic = next(speakers)
         turn = debate_fn(critic, list(transcript))
@@ -283,16 +343,19 @@ def _parse(output: Any, model: type[BaseModel]) -> Any:
 
 
 class _DebateContext:
-    """The debate's constant inputs (the verdicts, the flagged weakness, the voices),
-    rendered ONCE; only the speaker, turn number and transcript change per turn. Pure."""
+    """The debate's constant inputs (the three verdicts, the flagged weaknesses, the
+    voices), rendered ONCE; only the speaker, turn number and transcript change per turn.
+    Ustad's legality is shown as a settled FACT both debaters can cite — it does not
+    debate. Pure."""
 
-    def __init__(self, ustad: UstadVerdict, rasik: RasikVerdict, comp: Composition, *,
-                 max_turns: int) -> None:
+    def __init__(self, ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict,
+                 comp: Composition, *, max_turns: int) -> None:
         self._static: dict[str, Any] = {
             "max_turns": max_turns,
             "ustad_summary": _render_ustad_summary(ustad),
             "rasik_summary": _render_rasik_summary(rasik),
-            "weak_criteria": ", ".join(_weak_criteria(rasik.scores)) or "none",
+            "producer_summary": _render_producer_summary(producer),
+            "flagged": _flagged(rasik, producer),
             "raga": comp.raga,
             "voices": _render_voices(comp),
             "lead_line": _render_lead_line(comp),
@@ -345,10 +408,10 @@ class _LLMArbiter:
     """The real debate_fn/rule_fn pair — one crew and one precomputed context, shared
     across the debate turns and the final ruling."""
 
-    def __init__(self, ustad: UstadVerdict, rasik: RasikVerdict, comp: Composition, *,
-                 max_turns: int) -> None:
+    def __init__(self, ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict,
+                 comp: Composition, *, max_turns: int) -> None:
         self._crew = _ConductorCrew()
-        self._context = _DebateContext(ustad, rasik, comp, max_turns=max_turns)
+        self._context = _DebateContext(ustad, rasik, producer, comp, max_turns=max_turns)
 
     def debate(self, critic: Critic, transcript: list[tuple[str, str]]) -> DebateTurn:
         turn_no = len(transcript) + 1
@@ -358,39 +421,46 @@ class _LLMArbiter:
         return self._crew.rule(self._context.rule_inputs(transcript))
 
 
-def conduct(ustad: UstadVerdict, rasik: RasikVerdict, comp: Composition, *,
+def conduct(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict,
+            comp: Composition, *,
             max_rounds: int = MAX_ROUNDS) -> tuple[ConductorRuling, list[DebateEvent]]:
-    """Run the real (LLM-backed) arbitration: triage, the bounded debate on a conflict,
-    and the Conductor's final ruling."""
-    arbiter = _LLMArbiter(ustad, rasik, comp, max_turns=max_rounds)
-    return arbitrate(ustad, rasik, comp, debate_fn=arbiter.debate, rule_fn=arbiter.rule,
-                     max_rounds=max_rounds)
+    """Run the real (LLM-backed) arbitration: triage, the bounded Rasik vs Producer debate
+    on a conflict, and the Conductor's final ruling."""
+    arbiter = _LLMArbiter(ustad, rasik, producer, comp, max_turns=max_rounds)
+    return arbitrate(ustad, rasik, producer, comp, debate_fn=arbiter.debate,
+                     rule_fn=arbiter.rule, max_rounds=max_rounds)
 
 
 # --------------------------------------------------------------------------- #
 # Entry point — a single cheap live run on a PLANTED conflict: a legal piece    #
-# whose lead Rasik marks weak on idiom, so the debate fires (Rasik: revise the  #
-# lead; Ustad: it's legal, accept) and the Conductor rules. Verdicts are        #
-# constructed directly, so the only live cost is the debate + the ruling.       #
+# Rasik marks weak on idiom (revise the lead) but the Producer finds it works   #
+# as a song (ship it) — a genuine SOUL-vs-WORKS contest, so the debate fires and #
+# the Conductor rules. Verdicts are constructed directly, so the only live cost  #
+# is the debate + the ruling.                                                    #
 # --------------------------------------------------------------------------- #
 
-def _demo_case() -> tuple[UstadVerdict, RasikVerdict, Composition]:
+def _demo_case() -> tuple[UstadVerdict, RasikVerdict, ProducerVerdict, Composition]:
+    from crew.contracts import ProducerScores, RasikScores
     from crew.rasik import _demo_composition
     comp = _demo_composition("darbari")           # legal drone + pakad-quoting lead
     ustad = UstadVerdict(verdict="legal", violations=[],
                          explanation="Every swara is legal in Darbari.")
     rasik = RasikVerdict(
-        scores=RasikScores(pakad=4, idiom=2, mood=3, coherence=3),   # idiom is weak (< 3)
+        scores=RasikScores(pakad=4, idiom=2, rasa=3),   # idiom is weak (< 3) — a critical criterion
         notes=("The pakad is present, but the lead stays merely in-scale — it never leans "
                "into Darbari's andolan on komal ga and dha, so the raga's soul is thin."))
-    return ustad, rasik, comp
+    producer = ProducerVerdict(
+        scores=ProducerScores(structure=4, dynamics=4, climax=4, motif=4,
+                              hook=4, balance=4, independence=4, mood_fit=4),
+        notes="As a song it moves — the riff hooks, the arc builds; a lead revise risks the drive.")
+    return ustad, rasik, producer, comp
 
 
 def _run() -> None:
     from crew.contracts import EventStream
-    ustad, rasik, comp = _demo_case()
+    ustad, rasik, producer, comp = _demo_case()
     stream = EventStream()
-    ruling, events = conduct(ustad, rasik, comp)
+    ruling, events = conduct(ustad, rasik, producer, comp)
     for event in events:
         stream.emit(event)
     layer = f" layer={ruling.layer}" if ruling.layer else ""

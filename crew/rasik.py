@@ -4,11 +4,14 @@ Rasik (agent #5, finishing step 5) — the TASTE critic.
 The pattern on show: LLM-AS-JUDGE, and the discipline it needs. This is the
 deliberate OPPOSITE of Ustad. Legality is a fact, so code owns Ustad's verdict; but
 taste — is the raga's soul present, does the line move idiomatically, does it serve
-the rasa, do the voices cohere — is NOT checkable, so here the model genuinely
-judges. LLM judges are biased (verbosity, gestalt "vibe" scoring, self-preference),
-and the fix is not to take the pen away but to DISCIPLINE the judgment:
+the rasa — is NOT checkable, so here the model genuinely judges. Rasik owns exactly
+ONE dimension: RAGA AUTHENTICITY (the uniquely Hindustani questions). Whether the
+piece works AS A SONG — structure, motif, dynamics, arrangement — is the Producer's
+job, deliberately kept out of Rasik so each critic owns a sharp responsibility.
+LLM judges are biased (verbosity, gestalt "vibe" scoring, self-preference), and the
+fix is not to take the pen away but to DISCIPLINE the judgment:
 
-  * a FIXED 1-5 rubric with four named criteria (a bounded scale beats a vibe number);
+  * a FIXED 1-5 rubric with three named authenticity criteria (a bounded scale beats a vibe number);
   * scores GROUNDED in the encoded pakad/chalan/rasa facts — criteria, not vibes;
   * a code-computed pakad hint handed to the judge so its pakad score is anchored;
   * a justification required per criterion (reasoning FIRST, then the numbers).
@@ -52,8 +55,8 @@ _ROLE_CRITIC: Final = "critic"
 # The exact JSON shape we want back, injected as an input so CrewAI's {placeholder}
 # interpolation never has to parse these literal braces.
 _RUBRIC_SCHEMA: Final = """{
-  "reasoning": "criterion by criterion (pakad, idiom, mood, coherence): the evidence in the notes that justifies each score",
-  "scores": {"pakad": 4, "idiom": 3, "mood": 4, "coherence": 3},
+  "reasoning": "criterion by criterion (pakad, idiom, rasa): the evidence in the notes that justifies each score",
+  "scores": {"pakad": 4, "idiom": 3, "rasa": 4},
   "notes": "a short 2-3 sentence critique a musician can act on"
 }"""
 
@@ -93,10 +96,11 @@ def pakad_presence(lead: list[str], raga: str) -> list[tuple[list[str], bool]]:
 
 # --------------------------------------------------------------------------- #
 # Pure renderers: FACTS -> prompt text. Rasik needs the raga's full character   #
-# (to judge idiom/mood) plus the actual lead line and ensemble (to judge pakad/ #
-# coherence). The single source of truth stays in raga.py; the prompt quotes it.#
-# (The composers render a similar raga block; a shared facts->prompt module is   #
-# the natural refactor once step 6 settles — deferred to avoid churn now.)      #
+# (to judge idiom/rasa) plus the actual lead line (to judge pakad). The ensemble #
+# view belongs to the PRODUCER now (balance/independence), not here. The single  #
+# source of truth stays in raga.py; the prompt quotes it. (The composers render  #
+# a similar raga block; a shared facts->prompt module is the natural refactor     #
+# once step 6 settles — deferred to avoid churn now.)                            #
 # --------------------------------------------------------------------------- #
 
 def _render_raga_facts(raga: str) -> str:
@@ -135,17 +139,6 @@ def _render_lead_line(comp: Composition) -> str:
             ordered = sorted(layer.notes, key=lambda note: note.start)
             return "  " + " ".join(_swara_with_oct(n.swara, n.oct) for n in ordered)
     return "  (no lead voice in this piece)"
-
-
-def _render_ensemble(comp: Composition) -> str:
-    lines = []
-    for layer in comp.layers:
-        if layer.notes:
-            octs = [n.oct for n in layer.notes]
-            lines.append(f"  - {layer.role}: {len(layer.notes)} notes, octaves {min(octs)}..{max(octs)}")
-        elif layer.hits:
-            lines.append(f"  - {layer.role}: {len(layer.hits)} hits (percussion, no pitch)")
-    return "\n".join(lines)
 
 
 # --------------------------------------------------------------------------- #
@@ -188,7 +181,6 @@ class _RasikCrew:
             "raga_facts": _render_raga_facts(comp.raga),
             "pakad_hint": _render_pakad_hint(comp),
             "lead_line": _render_lead_line(comp),
-            "ensemble": _render_ensemble(comp),
             "output_schema": _RUBRIC_SCHEMA,
         })
         verdict = _verdict_from_output(result)
@@ -223,8 +215,7 @@ def _verdict_event(verdict: RasikVerdict) -> DebateEvent:
     return DebateEvent(
         type=EventType.CRITIQUE, agent="Rasik", role=_ROLE_CRITIC,
         text=verdict.notes,
-        scores={"pakad": float(s.pakad), "idiom": float(s.idiom),
-                "mood": float(s.mood), "coherence": float(s.coherence)},
+        scores={"pakad": float(s.pakad), "idiom": float(s.idiom), "rasa": float(s.rasa)},
         data={"reasoning": verdict.reasoning})
 
 
@@ -270,7 +261,7 @@ def _run() -> None:
     for event in events:
         stream.emit(event)
     s = verdict.scores
-    print(f"\nRasik scores: pakad={s.pakad} idiom={s.idiom} mood={s.mood} coherence={s.coherence}")
+    print(f"\nRasik scores: pakad={s.pakad} idiom={s.idiom} rasa={s.rasa}")
     print(f"  notes: {verdict.notes}")
 
 

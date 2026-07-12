@@ -27,6 +27,8 @@ from crew.contracts import (  # noqa: E402
     EventType,
     Layer,
     Note,
+    ProducerScores,
+    ProducerVerdict,
     RasikScores,
     RasikVerdict,
     Section,
@@ -68,13 +70,16 @@ def _fake_stages(rulings: list[ConductorRuling], *, counts: dict):
         counts["query"] = query
         return CompositionBrief(mood="dark"), [_ev("interpret")]
 
-    def critique(_comp):
+    def critique(_comp, _arr):
         counts["critique"] = counts.get("critique", 0) + 1
         return (UstadVerdict(verdict="legal", explanation="clean"),
-                RasikVerdict(scores=RasikScores(pakad=3, idiom=3, mood=3, coherence=3)),
+                RasikVerdict(scores=RasikScores(pakad=3, idiom=3, rasa=3)),
+                ProducerVerdict(scores=ProducerScores(
+                    structure=3, dynamics=3, climax=3, motif=3,
+                    hook=3, balance=3, independence=3, mood_fit=3)),
                 [_ev("critique")])
 
-    def arbitrate(_u, _r, _c):
+    def arbitrate(_u, _r, _p, _c):
         counts["arbitrate"] = counts.get("arbitrate", 0) + 1
         return next(ruling_iter), [_ev("arbitrate")]
 

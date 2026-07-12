@@ -425,15 +425,58 @@ debate as the weakest link.** Where they converge = highest confidence.
   already cheap, and "agent #1 = the front door / validate-at-boundary" is a teaching beat.
 - **Keep Ustad's name** — but it now EXITS the debate (its legality job ends at triage).
 
+### The Producer — a THIRD critic dimension (Sujit's notes, 2026-07-12; reshapes steps 3+5)
+
+Sujit's review sharpened the Producer well past DESIGN.md's original "impact/momentum
+debater": today **Rasik does two different jobs** — classical connoisseurship AND
+songwriting critique — and they pull apart. There are three distinct questions about a
+piece of music: (1) is it LEGAL? (Ustad), (2) does it sound like the RAGA? (Rasik), (3)
+does it WORK AS A PIECE OF MUSIC? (Producer). Rasik was answering (2) and (3) at once.
+So we split them, one dimension per critic:
+
+- **Ustad → legality** (code decides, LLM narrates). Unchanged. EXITS the debate.
+- **Rasik → raga authenticity** — NARROWS to the uniquely Hindustani questions: pakad
+  present, chalan movement, idiomatic ornaments, rasa, an expressive-not-scalar lead.
+  `RasikScores` drops `coherence` and renames `mood`→`rasa` → **{pakad, idiom, rasa}**.
+- **Producer → composition quality** (NEW critic, raga-AGNOSTIC — doesn't care if it's
+  Malkauns or Yaman, only whether the song works). Owns the 8 things nobody checks today,
+  as an 8-criterion 1-5 rubric (Sujit chose the finer split): **structure** (sections lead
+  onward), **dynamics** (energy actually builds), **climax** (earned peak + resolution),
+  **motif** (introduced→repeated→varied→resolved — "the biggest omission today"), **hook**
+  (riff memorable/loopable/strong downbeat), **balance** (arrangement space — not everyone
+  playing always), **independence** (lead≠riff, bass≠riff, drums≠tabla), **mood_fit**
+  (holds the requested SUBGENRE mood — no bright power-metal solo in a doom piece).
+- **Conductor → arbitration.** Unchanged role; now refereeing **Rasik (soul) vs Producer
+  (works-as-music)** — two GENUINE aesthetic stakes, a far better contest than "soul vs
+  legality" (a non-contest once the piece is already legal).
+
+**Staging (Sujit chose "LLM first, metrics next"):**
+- **CHUNK A (this step):** the LLM Producer reasons over the SYMBOLIC arrangement +
+  composition it is shown (section timeline, motif, riff line, lead line, ensemble,
+  subgenre) — no computed metrics yet. Narrow Rasik. Debate becomes Rasik↔Producer. Flow
+  runs THREE critiques. Hybrid triage over BOTH aesthetic critics. All pure-testable.
+- **CHUNK B (next, absorbs old step 5):** "code measures, LLM evaluates" — a pure
+  `metrics` module computes motif-similarity %, active-voice count per section, register
+  overlap, the dynamics/density curve, and voice-duplication ratios, handed to the Producer
+  as grounding FACTS it reasons over (as `pakad_presence` grounds Rasik). Producer JUDGES
+  the numbers; it does not measure.
+
+**Hybrid triage (both aesthetic critics):** illegal ⇒ forced revise (Ustad). Else the
+debate opens if EITHER Rasik OR Producer is dissatisfied — a CRITICAL criterion below the
+pass line (Rasik: pakad/idiom; Producer: motif/structure) OR that critic's overall mean
+below `RASIK_OVERALL_FLOOR` — so a lone weak non-critical criterion doesn't burn a debate.
+Else accept. The Conductor then decides whether either concern is worth the single revise.
+
 **Roadmap — Sujit chose "do all together" (one campaign, committed in tested chunks;
-Producer for the debate). Progress:**
+Producer as a 3rd critic). Progress:**
 1. ✅ **Mix pass** (deterministic) — DONE, commit `40048f6`.
-2. ✅ **Riff extended-chords + techniques** — DONE (design above; contract + render + guardrail
-   + prompt + pure tests).
-3. ⏳ **Reframe the debate** — NEXT. Ustad EXITS; new **Producer** (impact/momentum) agent debates
-   Rasik; hybrid triage (weighted overall OR a critical criterion low). *(chosen: Producer.)*
+2. ✅ **Riff extended-chords + techniques** — DONE (contract + render + guardrail + prompt + tests).
+3. ⏳ **Producer as the 3rd critic + reframe the debate** — IN PROGRESS (chunk A above). Ustad
+   EXITS the debate; Rasik narrows to authenticity; new Producer (composition quality) debates
+   Rasik; hybrid triage over both.
 4. **Composition memory** — generators see the realized previous sections.
-5. **Computed metrics → Rasik + a computed consistency check.**
+5. **Producer's computed metrics** (chunk B above — "code measures, LLM evaluates") +
+   a computed consistency check.
 6. **Structured-output robustness** (parse+retry ourselves vs provider strict JSON; kill
    nullable fields) + **fuzzy `pakad_presence`**.
 7. **Prompt hygiene** — compress; system/user split; constraints-vs-style; anti-sycophancy

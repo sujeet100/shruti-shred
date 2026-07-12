@@ -43,6 +43,7 @@ from crew.contracts import (
     DebateEvent,
     EventType,
     Layer,
+    ProducerVerdict,
     RasikVerdict,
     UstadVerdict,
 )
@@ -79,8 +80,12 @@ type Interpret = Callable[[str], tuple[CompositionBrief, list[DebateEvent]]]
 type Compose = Callable[[CompositionBrief], tuple[Arrangement, list[DebateEvent]]]
 type Generate = Callable[[Arrangement], tuple[list[Layer], Optional[Layer], list[DebateEvent]]]
 type Assemble = Callable[[Arrangement, list[Layer], Optional[Layer]], Composition]
-type Critique = Callable[[Composition], tuple[UstadVerdict, RasikVerdict, list[DebateEvent]]]
-type Arbitrate = Callable[[UstadVerdict, RasikVerdict, Composition], tuple[ConductorRuling, list[DebateEvent]]]
+type Critique = Callable[
+    [Composition, Arrangement],
+    tuple[UstadVerdict, RasikVerdict, ProducerVerdict, list[DebateEvent]]]
+type Arbitrate = Callable[
+    [UstadVerdict, RasikVerdict, ProducerVerdict, Composition],
+    tuple[ConductorRuling, list[DebateEvent]]]
 type Regenerate = Callable[
     [Arrangement, list[Layer], Optional[Layer], ConductorRuling],
     tuple[list[Layer], Optional[Layer], list[DebateEvent]]]
@@ -126,18 +131,24 @@ def _assemble(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer
     return assemble_composition(arr, band_layers(arr, lead_layers, rhythm))
 
 
-def _critique(comp: Composition) -> tuple[UstadVerdict, RasikVerdict, list[DebateEvent]]:
+def _critique(comp: Composition,
+              arr: Arrangement) -> tuple[UstadVerdict, RasikVerdict, ProducerVerdict, list[DebateEvent]]:
+    """Three critics, three dimensions: Ustad (legality) and Rasik (raga authenticity)
+    judge the Composition; the Producer (composition quality) also reads the Arrangement —
+    the chart is the score a musical director needs."""
+    from crew.producer import critique_composition
     from crew.rasik import critique_taste
     from crew.ustad import critique_legality
     ustad, e1 = critique_legality(comp)
     rasik, e2 = critique_taste(comp)
-    return ustad, rasik, [*e1, *e2]
+    producer, e3 = critique_composition(comp, arr)
+    return ustad, rasik, producer, [*e1, *e2, *e3]
 
 
-def _arbitrate(ustad: UstadVerdict, rasik: RasikVerdict,
+def _arbitrate(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict,
                comp: Composition) -> tuple[ConductorRuling, list[DebateEvent]]:
     from crew.conductor import conduct
-    return conduct(ustad, rasik, comp)
+    return conduct(ustad, rasik, producer, comp)
 
 
 def _regenerate(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer],
@@ -188,6 +199,7 @@ class ComposeState(BaseModel):
     composition: Optional[Composition] = None
     ustad: Optional[UstadVerdict] = None
     rasik: Optional[RasikVerdict] = None
+    producer: Optional[ProducerVerdict] = None
     ruling: Optional[ConductorRuling] = None
     events: list[DebateEvent] = Field(default_factory=list)
     wav_path: Optional[str] = None
@@ -255,20 +267,24 @@ class ComposeFlow(Flow[ComposeState]):
 
     @listen(or_(begin, "recritique"))
     def critique(self) -> None:
-        """Ustad (legality) + Rasik (taste) judge the current composition."""
+        """Three critics judge the current composition: Ustad (legality), Rasik (raga
+        authenticity), Producer (composition quality — reads the chart too)."""
         st = self.state
-        assert st.composition is not None
-        ustad, rasik, events = self._stages.critique(st.composition)
+        assert st.composition is not None and st.arrangement is not None
+        ustad, rasik, producer, events = self._stages.critique(st.composition, st.arrangement)
         st.ustad = ustad
         st.rasik = rasik
+        st.producer = producer
         st.events.extend(events)
 
     @listen(critique)
     def arbitrate(self) -> None:
-        """The Conductor triages, debates on a conflict, and rules accept | revise."""
+        """The Conductor triages, runs the Rasik vs Producer debate on a conflict, and
+        rules accept | revise."""
         st = self.state
-        assert st.ustad is not None and st.rasik is not None and st.composition is not None
-        ruling, events = self._stages.arbitrate(st.ustad, st.rasik, st.composition)
+        assert (st.ustad is not None and st.rasik is not None
+                and st.producer is not None and st.composition is not None)
+        ruling, events = self._stages.arbitrate(st.ustad, st.rasik, st.producer, st.composition)
         st.ruling = ruling
         st.events.extend(events)
 
