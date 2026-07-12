@@ -569,3 +569,61 @@ Replicating a sitar meend in a MIDI + SoundFont(FluidSynth) pipeline (subagent r
   feature we still can't produce).
 - **Triage bite** — make a weak Rasik idiom score actually FORCE a revise (worthwhile now that the
   generator can produce idiomatic phrasing, so a revise has something better to become).
+- **★ NEW HEADLINE FEATURE — bounded cooperative collaboration** (decided 2026-07-12; BUILD IN A NEW
+  SESSION). See the dedicated design section below. This is the talk's second named pattern.
+
+## Next headline feature — bounded cooperative collaboration ("the band composes on a canvas")
+
+*Decided 2026-07-12 (Sujit's idea; Claude + GPT independently converged). To be BUILT IN A NEW SESSION.*
+
+**Why.** The talk needs a SECOND named multi-agent pattern beside the critique loop, and real
+collaboration is rarely showcased (most demos are plain workflows — Sujit's differentiator). Musically,
+voices are generated in ISOLATION today (why the Producer even scores independence/balance); cross-voice
+response yields cohesion. Decision: build **L2/L3 bounded, orchestrated, blackboard collaboration** at the
+GENERATION stage — NOT autonomous L4 (agents choosing turn order / termination), which would break the
+project's visible-and-terminating thesis and be unsafe live.
+
+**Shape — a "studio session" on a shared canvas:**
+- **Blackboard:** a `SectionCanvas` in the Flow state, one per section, holding each voice's current line
+  + the leader's seed. Every creative pass reads it and writes back.
+- **Agents = the two creative voices ONLY** (Lead ⇄ Riff). Drone/Bass/Drums/Tabla stay DETERMINISTIC and
+  arrange themselves around the finished canvas — honors "only 2 LLM voices" and bounds cost to 2 agents ×
+  passes.
+- **Pass loop (code-terminated, bounded by `CANVAS_PASSES`):** (1) leader proposes → canvas; (2) follower
+  responds to the canvas; (3) optional — leader refines given the ensemble. Legality guardrail on each LLM
+  contribution. Fast-mode = 1 pass (= L1 seeding) for live safety.
+- **Stream the canvas as events** (like the debate stream) so the audience WATCHES the score fill in.
+  Gives the talk TWO money moments: the band COOPERATES (build), then the critics DEBATE (argue) —
+  cooperate-then-critique, same guarantees, different social dynamic.
+
+**Sequencing (Sujit's question — this IS the design): code decides the order, never the agents** (the
+"bandleader + clock").
+- **Leader (who goes first) is derived from the SECTION KIND**, by a code rule — not chosen at runtime.
+  The composers set the sections + kinds upstream (the chart); code maps kind → leader. Draft rotation:
+
+  | section kind | leader | follower's move |
+  |---|---|---|
+  | riff / breakdown | Riff | Lead answers sparsely (call/response) |
+  | melody | Lead | Riff supports the theme |
+  | alaap | Lead (sitar) | Riff lays out (silence is a valid contribution) |
+  | taan / solo | Lead | Riff drives the bed underneath |
+  | outro | Lead | Riff winds down / resolves |
+  | climax | unison (a tihai) | both converge on one figure |
+
+- **Who goes next = the fixed pass loop** (leader → follower → optional refine), code-driven.
+- **Same every time?** DETERMINISTIC per section kind (repeatable = stage-safe); the leader ROTATES across
+  sections, so the piece varies while each kind's session is fixed. Not random — by design. (Real
+  collaboration is emergent/anyone-starts; we make the "who leads" convention EXPLICIT in code, trading
+  spontaneity for determinism while keeping the collaborative FEEL — the cool the audience hears is the
+  cross-voice RESPONSE, not a random opener. A tiny leader-router agent could add emergence later, but
+  keep it deterministic — it buys realism you can't hear and costs the guarantee.)
+
+**Locked decisions (Sujit):** 3 passes with fast-mode 1; rotating leader by section kind; Bass/Drums stay
+deterministic.
+
+**Open for the build session:** the exact leader/follower rules per section kind (the table is a DRAFT —
+nail the music); the `SectionCanvas` contract shape; whether pass 3 is always on or auto-skipped for short
+sections; cost/latency tuning + a fast-mode path. **Touchpoints:** `crew/contracts.py` (SectionCanvas),
+`crew/generators.py`, `crew/lead.py`, `crew/riff.py`, `crew/band.py`, and `_generate` in `crew/flow.py`.
+Precedent already in the codebase: the composers' bounded dialogue over a shared transcript — this brings
+the same pattern DOWN to the note-generation, but COOPERATIVE (build) rather than ADVERSARIAL (debate).

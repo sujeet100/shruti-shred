@@ -406,12 +406,19 @@ and build order.
     but our critics run 0.2 / extractor 0.0; and the "no reasoning knob" / "temperature is the
     main knob" premises here are STALE (code already passes `reasoning_effort`, Gemini 3 has
     `thinking_level`). Resolve EMPIRICALLY via traces — do NOT silently flip. See DESIGN.md.
-  - **NEXT:** **step 8 live-hardening** (fast mode, failsafe pre-rendered chart, concurrent Lead∥Riff)
-    + the **temperature A/B** (the OPEN TENSION — resolve empirically, do NOT silently flip); **one
-    full-band live render** (taan + clean meend in context — the isolated meend is confirmed good);
-    deferred **meend polish** (CC74 brightness roll-off on ascents + light chorus; a first-class
-    **andolan** ornament — the one Darbari feature we still can't produce, and Rasik's standing ask);
-    and **triage bite** (a weak Rasik idiom score should FORCE a revise now the generator can act on it).
+  - **NEXT — ★ HEADLINE (build in a NEW session, decided 2026-07-12):** **bounded cooperative
+    collaboration** — the talk's SECOND named pattern beside the critique loop (collaboration is rarely
+    showcased; most demos are plain workflows). A "studio session" on a shared `SectionCanvas`: the two
+    creative agents (Lead ⇄ Riff) propose→respond→refine over bounded passes; Drone/Bass/Drums/Tabla stay
+    deterministic and follow. CODE decides the order (bandleader + clock) — the LEADER rotates by section
+    kind (riff leads a groove, lead leads an alaap, climax = unison); NOT autonomous L4. Locked: 3 passes
+    / fast-mode 1, rotating leader, bass/drums deterministic. Stream the canvas so the audience watches
+    the band build it → two money moments (cooperate → debate). Full design + the sequencing answer +
+    open items in DESIGN.md ("Next headline feature — bounded cooperative collaboration").
+  - **Also queued:** step 8 live-hardening (fast mode, failsafe chart, concurrent Lead∥Riff) + the
+    **temperature A/B** (OPEN TENSION — resolve empirically); **one full-band live render** (taan + clean
+    meend in context); deferred **meend polish** (CC74 roll-off + chorus; a first-class **andolan**
+    ornament — Rasik's standing ask); **triage bite** (a weak idiom score should FORCE a revise).
     (225 pure tests green; steps 6/7/9/10 committed: `5c3cfa3`, `1a0fefb`, `6b6f897`, `c3c5346`.)
 - **`REVIEW.md`** is the external design/prompt review request; GPT + Gemini feedback is triaged
   in DESIGN.md ("External review triage").
