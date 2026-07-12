@@ -335,3 +335,83 @@ voicing + technique, render support, and a prompt update to `generate_riff`.
 **Sequencing:** mix pass now (audible fix, no prompt risk); the riff chords/techniques
 land after the external design/prompt review comes back — see `REVIEW.md` (a self-contained
 review request for Gemini/ChatGPT; questions 11–13 cover exactly this modeling choice).
+
+---
+
+## External review triage (GPT **and** Gemini on `REVIEW.md`, 2026-07-12)
+
+Two independent expert reviews. Both rate the ARCHITECTURE stronger than the prompts,
+both bless the core theses (decisions-not-instruments; code-owns-facts/LLM-owns-judgment;
+bounded loops), and — the strongest signal — **both independently name the Ustad↔Rasik
+debate as the weakest link.** Where they converge = highest confidence.
+
+**BOTH FLAGGED (act on these first):**
+- **The critic debate is theater — and the real fix is to CHANGE THE COUNTERPART.** By the
+  time the debate triggers the piece is already legal, so Ustad has NO aesthetic stake —
+  "it lacks soul" vs "but it passes the rules" is a non-contest. Fix (Gemini's, sharper
+  than GPT's cross-examination): Ustad EXITS the debate (its job ends at triage); reframe
+  it as a genuine AESTHETIC argument — **Rasik (soul/tradition → revise) vs a Producer /
+  impact voice (momentum/energy → ship, a revise risks the drive)** — refereed by the
+  Conductor, kept to one sharp exchange. This mirrors the Pandit⇄Riffsmith tension at the
+  JUDGE stage. *Decision for Sujit: add a "Producer" critic or repurpose Riffsmith.*
+- **`compose_turn` is overloaded** (read state + argue + draft + design seams + negotiate a
+  tihai, all in one turn). Decompose: move the structural asks (seams/unison) into HARD
+  RULES or subgenre-driven sub-tasks; compress; move INVARIANT text (sargam legend,
+  ornament tutorial, octave map) to the agent backstory / system side.
+- **Structured-output robustness — stop relying on provider-native strict JSON.** It
+  hard-fails on `{}`/`null`/`"null"` BEFORE our guardrail can retry (the `_clean_meend`
+  bug). Gemini's fix: request a text/markdown JSON block, `json.loads` it in our shell,
+  and on failure feed the error back as a bounded retry. Also minimize optional+nullable
+  fields (LLMs love emitting nullish). *(Investigate whether CrewAI lets us opt out of
+  native structured output and parse manually.)*
+- **`pakad_presence` literal match is too brittle** — one valid grace note inside the
+  phrase breaks it. Make it a FUZZY subsequence match (pakad notes in order within a
+  window, ignoring intervening grace/duration).
+- **Live latency is the top stage risk.** Our answer: the **streamed debate IS the filler**
+  (the wait is the show). Harden with (a) a **fast mode** (skip both dialogues unless the
+  audience asks to see the agents argue), (b) a **failsafe pre-rendered chart** per
+  raga×subgenre if the renderer throws (audience hears music, never silence), and (c) run
+  **Lead ∥ Riff truly concurrently** (today `compose_band` runs them sequentially).
+
+**DIVERGENCE (resolved by our judgment):**
+- **Reasoning-first:** GPT says drop it from Lead/Riff (weak ROI); Gemini says keep it
+  EVERYWHERE (best defense against schema hallucination). Given we JUST hit schema
+  fragility, **keep it** — but allow a SHORT reasoning in the generators. Gemini's
+  robustness argument outweighs GPT's token cost here.
+
+**ADOPT (GPT, thesis-aligned):**
+- **Precompute measurable facts for Rasik to JUDGE, not measure** — vadi-emphasis
+  (weighted duration on the vadi), pakad-coverage %, phrase-ending / resting-note
+  distribution, register overlap. Hand Rasik numbers; it judges. *(Best single idea.)*
+- **A computed CONSISTENCY analysis** over the whole piece (motif similarity, density
+  curve, repetition ratio, register overlap, rhythmic entropy), LLM explains — a
+  cross-section dimension distinct from legality and taste. Biggest MISSING check.
+- **Composition MEMORY** — generators see the realized previous sections (motifs,
+  cadences, call/response), not just the abstract chart, so the music DEVELOPS. Biggest
+  architectural gap; subsumes the deferred foreground-seeding.
+- **Hybrid conflict triage** — weighted overall OR a critical criterion (pakad/idiom) low;
+  don't let a lone mediocre `mood` trigger the debate.
+
+**ADOPT (both, easy hygiene):**
+- **Anti-sycophancy pacing** — the composers' "concede gracefully" risks folding on turn 1;
+  add "do NOT concede your core priorities on turn 1; defend fiercely; compromise only
+  later." (GPT's asymmetric-emphasis is a deeper fix for the same convergence problem.)
+- **Split HARD CONSTRAINTS (enforced) from SOFT STYLE (guidance);** reframe negative rules
+  as positive ("Only extract a raga if explicitly written" > "Do NOT invent a raga").
+- **Flag agreed-upon points in `{current_draft}`** so a late composer turn can't regress a
+  prior concession.
+
+**KEEP AS-IS (pushed back):**
+- **Do NOT merge Lead & Riff** (GPT) — same abstract shape, different musical DECISIONS and
+  diverging contracts (riff gains chords/techniques; lead has ornaments/cross-octave).
+- **Keep the Interpreter as an agent** (Gemini would demote it to a zero-shot call) — it's
+  already cheap, and "agent #1 = the front door / validate-at-boundary" is a teaching beat.
+- **Keep Ustad's name** — but it now EXITS the debate (its legality job ends at triage).
+
+**Proposed roadmap (integrating the audio work; order to confirm with Sujit):**
+1. Mix pass (deterministic).  2. Riff extended-chords + techniques.  3. Reframe the debate
+(Rasik vs a Producer/impact voice) + hybrid triage — the top review finding.  4. Composition
+memory.  5. Computed metrics → Rasik + the computed consistency check.  6. Structured-output
+robustness (manual parse + retry; kill nullable fields) + fuzzy pakad.  7. Prompt compression
+/ system-user split / constraints-vs-style / anti-sycophancy pacing.  8. Fast mode + failsafe
+chart + concurrent Lead∥Riff for the live talk.

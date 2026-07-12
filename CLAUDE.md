@@ -336,5 +336,11 @@ and build order.
   voicings — NOT fixed power-chord fifths), plus slides/bends/hammer-ons/palm-mutes between
   legal swaras — needs a `RiffNote` contract change. **`REVIEW.md`** is a self-contained
   design/prompt review request (for Gemini/ChatGPT; 17 questions) — out for external feedback.
+- **External reviews are IN** (GPT + Gemini, on `REVIEW.md`) — triaged in DESIGN.md
+  ("External review triage"). Both independently flag the **Ustad↔Rasik debate as the
+  weakest link** (by triage the piece is already legal, so Ustad has no aesthetic stake):
+  top finding is to **reframe the debate as Rasik (soul) vs a Producer/impact voice**, and
+  to stop relying on provider-native strict JSON (parse+retry ourselves). Full roadmap +
+  adopt/adapt/reject verdicts live in DESIGN.md.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break. **Then Phase 3** — the live UI/SSE over the `DebateEvent` stream.
