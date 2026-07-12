@@ -293,3 +293,45 @@ thesis applied to model choice. (`gemini-3.1-flash-lite` id is unverified — co
 (`crew/tracing.py`, `crew/trace_portal.py`) and an **interpreter eval harness**
 (`crew/evals.py`) — on by default so every LLM run is inspectable (see CLAUDE.md
 "Observability").
+
+---
+
+## Next: audio production & riff voicing (decided 2026-07-12, not yet built)
+
+Phase 2's pipeline is complete end-to-end, but a listen (`out/flow_demo.wav`) exposed
+**mix/production** gaps that the agents cannot catch — because the whole loop is
+symbolic and **no agent ever hears audio**. This is a genuine design insight worth its
+own talk beat: *a critic can only critique what it can perceive, and ours perceive
+symbols, not sound.* Concretely, nothing complained about a bass-like rhythm guitar or
+a sitar indistinguishable from the lead guitar because (1) timbre/register/pan live only
+in the rendered WAV, which no agent sees; (2) the `RiffNote` contract can't even express
+a power chord / palm-mute / bend, so the absence is unrepresentable; and (3) the critics
+aren't shown the riff — Ustad checks only note-legality (the riff *was* legal), and Rasik
+judges the **lead** line plus an abstract ensemble summary, never the riff's notes. So
+mix/timbre fixes belong in **deterministic code**; making a critic *able* to complain
+would mean feeding Rasik the riff + a "metal idiom" lens.
+
+**Mix pass (deterministic, prompt-independent — do first).** In `src/render.py` +
+`crew/generators.py`/`crew/riff.py`:
+- **Bass an octave BELOW the rhythm guitar** (today `bass_layer` copies the riff note's
+  octave, so bass and guitar are the SAME pitch → "sounds like bass"). And keep the
+  guitar out of sub-bass (doom/death sit at oct −3 = D1 ≈ 37 Hz; lift so the distortion
+  reads as a guitar, not a rumble).
+- **Per-channel pan** (MIDI CC 10) added to the renderer + a `pan` on the voice/layer.
+- **Pan sitar vs. lead-guitar to opposite sides** so the harmonized lead separates.
+- **Double-track the rhythm guitar hard L/R** — but two IDENTICAL MIDI tracks panned
+  L/R sum to mono/center, so give the second track a small deterministic timing/velocity
+  offset for real width.
+
+**Riff voicing + technique (prompt + contract + render — do after the external review).**
+Decision (Sujit, 2026-07-12): **legal-only, realized as EXTENDED CHORDS built from the
+raga's own allowed swaras** — the prog-metal move (add-9/7th/sus/quartal stacks, root+
+octave for weight), NOT fixed power-chord +7 fifths. Any subset of `RAGAS[raga]["allowed"]`
+is legal BY CONSTRUCTION (Ustad still passes), and `raga.scale_step_up` already walks the
+raga ladder for diatonic intervals. Techniques (slides/bends/hammer-ons/pull-offs between
+LEGAL swaras; palm-mute as a feel) need the `RiffNote`/`RiffPattern` contract to carry a
+voicing + technique, render support, and a prompt update to `generate_riff`.
+
+**Sequencing:** mix pass now (audible fix, no prompt risk); the riff chords/techniques
+land after the external design/prompt review comes back — see `REVIEW.md` (a self-contained
+review request for Gemini/ChatGPT; questions 11–13 cover exactly this modeling choice).

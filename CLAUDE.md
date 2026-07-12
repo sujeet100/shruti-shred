@@ -325,8 +325,16 @@ and build order.
   default (one trace = one run id, Langfuse-style); browse by id in the local portal.
   `crew/evals.py` is the interpreter eval harness. See the "Observability" section.
 - Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
-- **Phase 2's agentic pipeline is COMPLETE end-to-end** (`compose_flow(query)` → WAV). Remaining
-  refinements (deferred, optional): the **foreground leader/follower LLM-seeding** (lead ⇄ riff
-  — a section's leader generates first and seeds the followers) and the Conductor's **composer
-  tie-break** (today the composer dialogue's last draft stands). **NEXT is really Phase 3** —
-  the live UI / SSE that streams the `DebateEvent` stream `compose_flow` already produces.
+- **Phase 2's agentic pipeline is COMPLETE end-to-end** (`compose_flow(query)` → WAV).
+- **NEXT (decided 2026-07-12) — audio production polish** (see DESIGN.md "Audio production &
+  riff voicing"): a listen exposed mix gaps the agents can't catch (the loop is symbolic — **no
+  agent hears audio**; the critics judge notes, not sound). (1) **Deterministic mix pass** (do
+  first, prompt-independent): bass an octave BELOW the rhythm guitar (today it doubles the
+  guitar's octave → "sounds like bass"), per-channel pan in the renderer, sitar/lead panned
+  opposite, rhythm double-tracked hard L/R. (2) **Riff chords + techniques** (after the external
+  review): **legal-only, as EXTENDED CHORDS stacked from the raga's own swaras** (prog-metal
+  voicings — NOT fixed power-chord fifths), plus slides/bends/hammer-ons/palm-mutes between
+  legal swaras — needs a `RiffNote` contract change. **`REVIEW.md`** is a self-contained
+  design/prompt review request (for Gemini/ChatGPT; 17 questions) — out for external feedback.
+- **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
+  Conductor's composer tie-break. **Then Phase 3** — the live UI/SSE over the `DebateEvent` stream.
