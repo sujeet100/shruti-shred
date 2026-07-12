@@ -29,7 +29,14 @@ from crew.contracts import (  # noqa: E402
     build_arrangement,
 )
 from crew.generators import VOICES  # noqa: E402
-from crew.riff import _accent_beats, _riff_guardrail, generate_riff, place_riff  # noqa: E402
+from crew.riff import (  # noqa: E402
+    RiffMemo,
+    _accent_beats,
+    _render_previous,
+    _riff_guardrail,
+    generate_riff,
+    place_riff,
+)
 
 
 def _arr(*section_layers: tuple[str, ...], tala: str = "teentaal") -> Arrangement:
@@ -50,12 +57,15 @@ def _pattern(*swaras: str, dur: float = 0.5) -> RiffPattern:
 
 def _fake(patterns: list[RiffPattern]):
     calls: list = []
+    seen_memory: list = []
     it = iter(patterns)
 
-    def fn(span, arr):
+    def fn(span, arr, memory):
         calls.append(span)
+        seen_memory.append(memory)
         return next(it)
 
+    fn.seen_memory = seen_memory
     return fn, calls
 
 
@@ -152,6 +162,30 @@ def test_generate_riff_emits_a_propose_event():
     _, events = generate_riff(arr, gen_fn=fn)
     proposes = [e for e in events if e.type == EventType.PROPOSE]
     assert len(proposes) == 1 and proposes[0].agent == "Riff"
+
+
+# --- composition memory: each riff section sees the realized prior ones ---------
+
+def test_generate_riff_threads_accumulating_memory():
+    arr = _arr(("rhythm", "drone"), ("rhythm", "drone"), ("rhythm", "drone"))
+    first, second, third = _pattern("S", "S"), _pattern("g", "g"), _pattern("m", "m")
+    fn, _ = _fake([first, second, third])
+    generate_riff(arr, gen_fn=fn)
+    assert fn.seen_memory[0] == []
+    assert [m.pattern for m in fn.seen_memory[1]] == [first]
+    assert [m.pattern for m in fn.seen_memory[2]] == [first, second]
+    assert all(isinstance(m, RiffMemo) for m in fn.seen_memory[2])
+
+
+def test_render_previous_shows_prior_riffs_with_chords():
+    memory = [RiffMemo("riff", RiffPattern(notes=[RiffNote(swara="S", dur=1.0, chord=["S"]),
+                                                  RiffNote(swara="g", oct=-1, dur=1.0)]))]
+    text = _render_previous(memory)
+    assert "riff: S+S" in text and "g(-1)" in text
+
+
+def test_render_previous_is_explicit_when_empty():
+    assert "FIRST" in _render_previous([])
 
 
 # --- chords + techniques: carried through placement, legality-checked ----------

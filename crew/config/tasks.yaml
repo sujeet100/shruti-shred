@@ -158,6 +158,19 @@ generate_lead:
       - solo: improvisation over the riff — mix held notes with quick runs.
       - outro: a short cadence resolving down to Sa.
 
+    WHAT YOU ALREADY PLAYED (the lead's memory of the piece so far, octave in parentheses,
+    ~ marks a meend):
+    {previous}
+
+    DEVELOP THE MATERIAL — do NOT start fresh each section. The piece must cohere as ONE
+    composition, not a bag of unrelated ideas:
+      - Restate or VARY the motif and your earlier phrases (transpose, ornament, extend,
+        invert) so the listener hears the same music growing — not a new tune each time.
+      - ANSWER the previous section: a taan can build on the alaap's opening; a later
+        section can quote the theme and push it higher.
+      - Shape the ARC across the whole piece — reserve your highest, most intense phrase
+        for the climax section, and let an outro resolve the theme back down to Sa.
+
     ORNAMENTS — use idiomatically, not on every note:
       - grace: a short list of kan swaras flicked just before the main note.
       - meend: a target swara to glide to across the note (a portamento). Give a
@@ -206,6 +219,16 @@ generate_riff:
     THE CYCLE — one {tala} cycle is {cycle_beats} beats. Land strong notes on the
     accented beats so the riff locks to the kick: {accents}. Your first note is the
     sam (beat 0) — hit it hardest.
+
+    THE RIFFS YOU ALREADY WROTE (the memory of the piece so far, octave in parentheses,
+    +X = a power chord on that note):
+    {previous}
+
+    DEVELOP, DON'T COLLAGE — a song is built on RETURN. Unless the section's intent asks
+    for a contrast (a breakdown, a bridge), BRING BACK the main riff or a clear variation
+    of it (transpose, halve/double the rhythm, add or drop a chord) so the piece has a
+    recognizable hook, not a new unrelated figure every section. A breakdown or bridge is
+    where you deliberately depart; then a later section can return to the main riff.
 
     HOW TO WRITE IT:
       - IT LOOPS: this one cycle repeats back-to-back, returning to your first note on

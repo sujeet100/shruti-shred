@@ -29,6 +29,7 @@ from __future__ import annotations
 import shutil
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Final
@@ -213,10 +214,37 @@ def _render_raga_facts(raga: str) -> str:
     return "\n".join(lines)
 
 
+@dataclass(frozen=True)
+class LeadMemo:
+    """One realized prior lead section — the memory the NEXT section develops from.
+
+    Composition MEMORY is how the music stops being a bag of unrelated sections: each
+    lead phrase is generated seeing what the lead already played, so it can restate or
+    vary the motif, answer the previous section, and build toward the climax. Holds the
+    section kind and the phrase as the model emitted it (LOCAL octaves)."""
+    kind: str
+    phrase: LeadPhrase
+
+
+def _local_token(note: LeadNote) -> str:
+    """One realized note as the model wrote it — swara with its LOCAL octave (a `~`
+    marks a meend), the frame the next phrase should build in."""
+    tok = note.swara if note.oct == 0 else f"{note.swara}({note.oct:+d})"
+    return tok + "~" if note.meend is not None else tok
+
+
+def _render_previous(memory: list[LeadMemo]) -> str:
+    """The lead's realized prior sections — its memory of the piece so far."""
+    if not memory:
+        return "  (this is the FIRST lead section — introduce the theme)"
+    return "\n".join(f"  {memo.kind}: {' '.join(_local_token(n) for n in memo.phrase.notes)}"
+                     for memo in memory)
+
+
 class _LeadContext:
     """Assembles a lead turn's prompt inputs. The piece-level facts (raga, motif,
-    register, tempo) are CONSTANT across a run, so they render once; only the
-    per-section fields change. Pure — no I/O."""
+    register, tempo) are CONSTANT across a run, so they render once; the per-section
+    fields and the realized-so-far MEMORY change per turn. Pure — no I/O."""
 
     def __init__(self, arr: Arrangement) -> None:
         from subgenres import SUBGENRES
@@ -228,13 +256,14 @@ class _LeadContext:
             "output_schema": _OUTPUT_SCHEMA,
         }
 
-    def inputs_for(self, span: SectionSpan) -> dict[str, Any]:
+    def inputs_for(self, span: SectionSpan, memory: list[LeadMemo]) -> dict[str, Any]:
         section = span.section
         return {
             **self._static,
             "section_kind": section.kind.value,
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "window_beats": f"{span.length:g}",
+            "previous": _render_previous(memory),
         }
 
 
@@ -317,8 +346,9 @@ class _LeadCrew:
         return phrase
 
 
-# A phrase provider: given a section span and the chart, return its lead phrase.
-type LeadFn = Callable[[SectionSpan, Arrangement], LeadPhrase]
+# A phrase provider: given a section span, the chart, and the memory of the sections
+# realized so far, return this section's lead phrase.
+type LeadFn = Callable[[SectionSpan, Arrangement, list[LeadMemo]], LeadPhrase]
 
 
 class _LLMLead:
@@ -328,8 +358,8 @@ class _LLMLead:
         self._crew = _LeadCrew()
         self._context = _LeadContext(arr)
 
-    def __call__(self, span: SectionSpan, arr: Arrangement) -> LeadPhrase:
-        return self._crew.run(arr.raga, self._context.inputs_for(span))
+    def __call__(self, span: SectionSpan, arr: Arrangement, memory: list[LeadMemo]) -> LeadPhrase:
+        return self._crew.run(arr.raga, self._context.inputs_for(span, memory))
 
 
 # --------------------------------------------------------------------------- #
@@ -368,10 +398,11 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
     events: list[DebateEvent] = []
     sitar_notes: list[Note] = []
     guitar_notes: list[Note] = []
+    memory: list[LeadMemo] = []                     # the sections realized so far — the memory
     for span in section_spans(arr):
         if _LEAD_ROLE not in span.section.layers:
             continue
-        phrase = gen_fn(span, arr)
+        phrase = gen_fn(span, arr, list(memory))    # a COPY, so gen_fn can't mutate the history
         line = place_phrase(phrase.notes, start=span.start, end=span.end,
                             register=arr.registers[_LEAD_ROLE])
         voicing = _voicing_for(span.section.kind)
@@ -379,6 +410,7 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
         sitar_notes.extend(sitar_line)
         guitar_notes.extend(guitar_line)
         events.append(_lead_event(span, phrase, line, voicing))
+        memory.append(LeadMemo(span.section.kind.value, phrase))
 
     layers: list[Layer] = []
     if sitar_notes:

@@ -370,10 +370,15 @@ and build order.
     vs ChatGPT's full 10-point list — added `motif_recurrence`, `section_variety`,
     `bass_riff_overlap`, `drums_tabla_overlap`, per-section `ornament_rate`, and a 9th scored
     criterion `repetition`. (208 pure tests green.)
-  - **NEXT (steps 4, 6–8):** composition memory (generators see realized previous sections);
-    structured-output robustness (parse+retry) + fuzzy pakad; prompt hygiene; live-hardening
-    (fast mode, failsafe chart, concurrent Lead∥Riff). A computed consistency check can fold
-    into `metrics.py`.
+  - **(step 4) Composition memory — ✅ DONE**: each Lead/Riff section is generated seeing the
+    REALIZED prior sections (`LeadMemo`/`RiffMemo` threaded through the generator loop, rendered
+    as a `{previous}` prompt block), so the music DEVELOPS (restate/vary the motif, answer the
+    prior section, bring the main riff back as a hook, reserve the peak for the climax) instead of
+    collaging. Within-voice; cross-voice seeding (lead sees riff) still deferred. Pure tests in
+    `test_lead.py`/`test_riff.py`. (214 pure tests green.)
+  - **NEXT (steps 6–8):** structured-output robustness (parse+retry) + fuzzy pakad; prompt
+    hygiene; live-hardening (fast mode, failsafe chart, concurrent Lead∥Riff). A computed
+    consistency check can fold into `metrics.py`.
   - **RUN NO LLM/live calls until ALL changes are done** (Sujit's instruction) — pure tests
     only, then ONE batched live render + one live Flow run at the very end.
 - **`REVIEW.md`** is the external design/prompt review request; GPT + Gemini feedback is triaged

@@ -24,6 +24,7 @@ from __future__ import annotations
 import shutil
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
@@ -140,9 +141,33 @@ def _accent_beats(arr: Arrangement) -> set[float]:
 # Facts -> prompt text. Pure.                                                  #
 # --------------------------------------------------------------------------- #
 
+@dataclass(frozen=True)
+class RiffMemo:
+    """One realized prior riff section — the memory the NEXT riff develops from, so a
+    later section can BRING BACK the main riff (a hook reinforced) or VARY it, rather
+    than inventing an unrelated figure each time. Holds the section kind and the pattern
+    as the model emitted it (LOCAL octaves)."""
+    kind: str
+    pattern: RiffPattern
+
+
+def _riff_token(note: RiffNote) -> str:
+    """One realized riff note — swara with its LOCAL octave and any power chord (`+X`)."""
+    tok = note.swara if note.oct == 0 else f"{note.swara}({note.oct:+d})"
+    return tok + "+" + "+".join(note.chord) if note.chord else tok
+
+
+def _render_previous(memory: list[RiffMemo]) -> str:
+    """The riff's realized prior sections — its memory of the piece so far."""
+    if not memory:
+        return "  (this is the FIRST riff section — establish the main riff)"
+    return "\n".join(f"  {memo.kind}: {' '.join(_riff_token(n) for n in memo.pattern.notes)}"
+                     for memo in memory)
+
+
 class _RiffContext:
-    """Assembles a riff turn's prompt inputs. Piece-level facts render once; only
-    the per-section fields change. Pure — no I/O."""
+    """Assembles a riff turn's prompt inputs. Piece-level facts render once; the
+    per-section fields and the realized-so-far MEMORY change per turn. Pure — no I/O."""
 
     def __init__(self, arr: Arrangement) -> None:
         s = SUBGENRES[arr.subgenre]
@@ -163,13 +188,14 @@ class _RiffContext:
             "output_schema": _OUTPUT_SCHEMA,
         }
 
-    def inputs_for(self, span: SectionSpan) -> dict[str, Any]:
+    def inputs_for(self, span: SectionSpan, memory: list[RiffMemo]) -> dict[str, Any]:
         section = span.section
         return {
             **self._static,
             "section_kind": section.kind.value,
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "bars": section.bars,
+            "previous": _render_previous(memory),
         }
 
 
@@ -231,7 +257,7 @@ class _RiffCrew:
         return pattern
 
 
-type RiffFn = Callable[[SectionSpan, Arrangement], RiffPattern]
+type RiffFn = Callable[[SectionSpan, Arrangement, list[RiffMemo]], RiffPattern]
 
 
 class _LLMRiff:
@@ -241,8 +267,8 @@ class _LLMRiff:
         self._crew = _RiffCrew()
         self._context = _RiffContext(arr)
 
-    def __call__(self, span: SectionSpan, arr: Arrangement) -> RiffPattern:
-        return self._crew.run(arr.raga, self._context.inputs_for(span))
+    def __call__(self, span: SectionSpan, arr: Arrangement, memory: list[RiffMemo]) -> RiffPattern:
+        return self._crew.run(arr.raga, self._context.inputs_for(span, memory))
 
 
 # --------------------------------------------------------------------------- #
@@ -268,15 +294,17 @@ def generate_riff(arr: Arrangement, *, gen_fn: RiffFn) -> tuple[Layer | None, li
     events: list[DebateEvent] = []
     notes: list[Note] = []
     accents = _accent_beats(arr)
+    memory: list[RiffMemo] = []                     # the riff sections realized so far
     for span in section_spans(arr):
         if _RHYTHM_ROLE not in span.section.layers:
             continue
-        pattern = gen_fn(span, arr)
+        pattern = gen_fn(span, arr, list(memory))   # a COPY, so gen_fn can't mutate the history
         placed = place_riff(pattern.notes, start=span.start, bars=span.section.bars,
                             cycle_beats=arr.beats_per_bar, register=arr.registers[_RHYTHM_ROLE],
                             accent_beats=accents)
         notes.extend(placed)
         events.append(_riff_event(span, pattern, placed))
+        memory.append(RiffMemo(span.section.kind.value, pattern))
 
     if not notes:
         events.append(DebateEvent(type=EventType.INFO, agent="Riff", role=_ROLE_GENERATOR,

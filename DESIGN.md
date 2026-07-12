@@ -486,8 +486,13 @@ Producer as a 3rd critic). Progress:**
 3. ⏳ **Producer as the 3rd critic + reframe the debate** — IN PROGRESS (chunk A above). Ustad
    EXITS the debate; Rasik narrows to authenticity; new Producer (composition quality) debates
    Rasik; hybrid triage over both.
-4. **Composition memory** — generators see the realized previous sections.
-5. ✅ **Producer's computed metrics** (chunk B above — "code measures, LLM evaluates"), DONE.
+4. ✅ **Composition memory** — DONE. Each Lead/Riff section is generated seeing the REALIZED
+   prior sections (`LeadMemo`/`RiffMemo`, threaded through `generate_lead`/`generate_riff` and
+   rendered as a `{previous}` block), so the music DEVELOPS — restate/vary the motif, answer the
+   previous section, bring back the main riff (a hook), reserve the peak for the climax — instead
+   of collaging unrelated ideas. Within-voice for now; cross-voice seeding (lead sees riff) stays
+   deferred. Pure tests in `tests/test_lead.py`, `tests/test_riff.py`.
+5. ✅ **Producer's computed metrics** (chunks B+C above — "code measures, LLM evaluates"), DONE.
    A computed cross-section consistency check remains open (can fold into `metrics.py`).
 6. **Structured-output robustness** (parse+retry ourselves vs provider strict JSON; kill
    nullable fields) + **fuzzy `pakad_presence`**.

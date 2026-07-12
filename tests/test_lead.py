@@ -31,7 +31,15 @@ from crew.contracts import (  # noqa: E402
     build_arrangement,
 )
 from crew.generators import VOICES  # noqa: E402
-from crew.lead import Voicing, _lead_guardrail, _voice_line, generate_lead, place_phrase  # noqa: E402
+from crew.lead import (  # noqa: E402
+    LeadMemo,
+    Voicing,
+    _lead_guardrail,
+    _render_previous,
+    _voice_line,
+    generate_lead,
+    place_phrase,
+)
 
 
 def _arr(*section_layers: tuple[str, ...], kind: SectionKind = SectionKind.ALAAP,
@@ -53,14 +61,17 @@ def _phrase(*swaras: str, dur: float = 2.0) -> LeadPhrase:
 
 
 def _fake(phrases: list[LeadPhrase]):
-    """A fake gen_fn that replays canned phrases and records the spans it saw."""
+    """A fake gen_fn that replays canned phrases and records the spans + memory it saw."""
     calls: list = []
+    seen_memory: list = []
     it = iter(phrases)
 
-    def fn(span, arr):
+    def fn(span, arr, memory):
         calls.append(span)
+        seen_memory.append(memory)
         return next(it)
 
+    fn.seen_memory = seen_memory
     return fn, calls
 
 
@@ -160,6 +171,49 @@ def test_generate_lead_emits_a_propose_event_per_section():
     _, events = generate_lead(arr, gen_fn=fn)
     proposes = [e for e in events if e.type == EventType.PROPOSE]
     assert len(proposes) == 2 and all(e.agent == "Lead" for e in proposes)
+
+
+# --- composition memory: each section sees the realized prior ones -------------
+
+def test_generate_lead_threads_accumulating_memory():
+    arr = _arr(("lead", "drone"), ("lead", "drone"), ("lead", "drone"))
+    first, second, third = _phrase("S", "m"), _phrase("g", "d"), _phrase("n", "S")
+    fn, _ = _fake([first, second, third])
+    generate_lead(arr, gen_fn=fn)
+    # section 1 has no history; section 2 sees section 1; section 3 sees 1 and 2 (in order)
+    assert fn.seen_memory[0] == []
+    assert [m.phrase for m in fn.seen_memory[1]] == [first]
+    assert [m.phrase for m in fn.seen_memory[2]] == [first, second]
+    assert all(isinstance(m, LeadMemo) for m in fn.seen_memory[2])
+    assert fn.seen_memory[2][0].kind == "alaap"
+
+
+def test_memory_passed_to_gen_fn_is_a_copy():
+    # a gen_fn that mutates its memory arg must not corrupt the loop's running history
+    arr = _arr(("lead", "drone"), ("lead", "drone"))
+    received: list[int] = []
+    phrases = iter([_phrase("S"), _phrase("m")])
+
+    def fn(span, a, memory):
+        received.append(len(memory))
+        memory.clear()                      # mutate the COPY we were handed
+        return next(phrases)
+
+    generate_lead(arr, gen_fn=fn)
+    assert received == [0, 1]               # section 2 still saw section 1 despite the clear
+
+
+def test_render_previous_shows_the_prior_phrases_and_marks_meend():
+    memory = [LeadMemo("alaap", _phrase("S", "m")),
+              LeadMemo("taan", LeadPhrase(notes=[LeadNote(swara="g", oct=1, dur=1.0),
+                                                 LeadNote(swara="m", dur=1.0, meend="P")]))]
+    text = _render_previous(memory)
+    assert "alaap: S m" in text
+    assert "g(+1)" in text and "m~" in text            # local octave + meend mark
+
+
+def test_render_previous_is_explicit_when_empty():
+    assert "FIRST" in _render_previous([])
 
 
 # --- voicing: sitar and/or lead guitar per section kind ------------------------
