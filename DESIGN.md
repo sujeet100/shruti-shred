@@ -483,9 +483,9 @@ Else accept. The Conductor then decides whether either concern is worth the sing
 Producer as a 3rd critic). Progress:**
 1. ✅ **Mix pass** (deterministic) — DONE, commit `40048f6`.
 2. ✅ **Riff extended-chords + techniques** — DONE (contract + render + guardrail + prompt + tests).
-3. ⏳ **Producer as the 3rd critic + reframe the debate** — IN PROGRESS (chunk A above). Ustad
-   EXITS the debate; Rasik narrows to authenticity; new Producer (composition quality) debates
-   Rasik; hybrid triage over both.
+3. ✅ **Producer as the 3rd critic + reframe the debate** — DONE (chunks A+B+C above). Ustad
+   EXITS the debate; Rasik narrows to authenticity; new Producer (composition quality, 9-criterion
+   rubric grounded in `crew/metrics.py`) debates Rasik; hybrid triage over both.
 4. ✅ **Composition memory** — DONE. Each Lead/Riff section is generated seeing the REALIZED
    prior sections (`LeadMemo`/`RiffMemo`, threaded through `generate_lead`/`generate_riff` and
    rendered as a `{previous}` block), so the music DEVELOPS — restate/vary the motif, answer the
@@ -494,15 +494,35 @@ Producer as a 3rd critic). Progress:**
    deferred. Pure tests in `tests/test_lead.py`, `tests/test_riff.py`.
 5. ✅ **Producer's computed metrics** (chunks B+C above — "code measures, LLM evaluates"), DONE.
    A computed cross-section consistency check remains open (can fold into `metrics.py`).
-6. **Structured-output robustness** (parse+retry ourselves vs provider strict JSON; kill
-   nullable fields) + **fuzzy `pakad_presence`**.
-7. **Prompt hygiene** — compress; system/user split; constraints-vs-style; anti-sycophancy
-   pacing; negative→positive rules.
-8. **Live-hardening** — fast mode; failsafe pre-rendered chart; concurrent Lead∥Riff.
+6. **Structured-output robustness** — ⏳ HALF DONE + REFRAMED. We VERIFIED (in installed CrewAI
+   1.15.2) that `gemini/gemini-3.5-flash` runs on the NATIVE `GeminiCompletion` provider
+   (`is_litellm=False`) → tool-less agents get Gemini's native controlled generation
+   (`response_json_schema`), so the model CANNOT emit fenced/prose JSON. So the reviewers'
+   "parse it yourself" concern targets the LiteLLM path we DON'T use → **the manual JSON
+   text-parser was dropped** (dead weight). The real risk is COMPLEX SCHEMAS, so ✅ **flattened
+   `meend: Optional[Union[str,dict]]` → `meend_swara` + `meend_oct`** (commit `e5e5d53`). STILL
+   OPEN: **fuzzy `pakad_presence`** (subsequence within a window, ignoring intervening grace/
+   passing notes — small, independent, pure). See PROMPTING.md §2.
+7. **Prompt hygiene** — now DIRECTLY INFORMED by `PROMPTING.md` (commit `af96bb9`). Concrete
+   changes to apply: **positive-over-negative** (Interpreter "never invent/guess" + the `Do NOT`
+   lines — Gemini-3 over-indexes on blanket negatives); **judge anchors** (spell out 1/3/5 per
+   Rasik/Producer criterion) + an **anti-length line**; **instructions AFTER the data** for the
+   critics (rubric below the composition dump); **dial back ALL-CAPS** mandates; consider a couple
+   of **few-shot** examples in the composing/scoring tasks (Google: "always include examples").
+8. **Live-hardening** — fast mode; failsafe pre-rendered chart; concurrent Lead∥Riff. ALSO fold in
+   the **temperature/reasoning reconciliation** (see the OPEN TENSION below) — it needs a live A/B.
 
-**RESUME HERE (next session):** step 2 is done + committed; do steps 3–8 (pure tests
-only), starting with the debate reframe (Ustad exits, Producer vs Rasik). **Run NO
-LLM/live calls until ALL changes are done** (Sujit's instruction, 2026-07-12)
-— then a SINGLE batched live render (`uv run python -m crew.flow` / `crew.band`) to hear the
-mix + chords + techniques together, and one live Flow run to confirm the reframed debate.
-Task list #7–#11 tracks the remaining chunks.
+**OPEN TENSION (decide in the live pass, do NOT silently flip):** PROMPTING.md §3 — Google
+STRONGLY recommends **temperature 1.0 for the Gemini-3.x family** and warns <1.0 degrades reasoning
+(looping/flat output), yet our critics run 0.2 and the extractor 0.0. And the CLAUDE.md premises
+"Gemini has no reasoning-effort knob" / "temperature is the main steering knob" are STALE — the code
+already passes `reasoning_effort="low"` and Gemini 3 exposes `thinking_level`. Resolve EMPIRICALLY:
+run a critic at 0.2 vs 1.0 on a fixed composition, read both traces, keep the stabler one; then
+reconcile `crew/config.py` temperatures + the CLAUDE.md wording.
+
+**RESUME HERE (next session, per Sujit 2026-07-12 — "do both in a new session"):** steps 1–5 DONE
++ committed; step 6 half done (meend flat + parser dropped; **fuzzy pakad remaining**). Next:
+(a) finish **fuzzy `pakad_presence`**, then (b) **step 7 prompt hygiene** applying PROMPTING.md
+(the list above). **Run NO LLM/live calls until ALL changes are done** (still in force) — then the
+SINGLE batched live pass: hear the mix + chords + techniques (`uv run python -m crew.flow` /
+`crew.band`), confirm the reframed Rasik↔Producer debate, AND settle the temperature A/B (§3).

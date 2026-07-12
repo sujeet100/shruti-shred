@@ -376,9 +376,22 @@ and build order.
     prior section, bring the main riff back as a hook, reserve the peak for the climax) instead of
     collaging. Within-voice; cross-voice seeding (lead sees riff) still deferred. Pure tests in
     `test_lead.py`/`test_riff.py`. (214 pure tests green.)
-  - **NEXT (steps 6–8):** structured-output robustness (parse+retry) + fuzzy pakad; prompt
-    hygiene; live-hardening (fast mode, failsafe chart, concurrent Lead∥Riff). A computed
-    consistency check can fold into `metrics.py`.
+  - **(step 6, structured-output) — ⏳ HALF DONE + REFRAMED**: VERIFIED we run on the NATIVE
+    `GeminiCompletion` provider (`is_litellm=False`) → native controlled generation
+    (`response_json_schema`) constrains the decoder, so the "parse JSON ourselves" reviewer
+    concern targets the LiteLLM path we DON'T use → **manual parser dropped**. Real risk = complex
+    schemas → ✅ **flattened `meend` Union → `meend_swara`+`meend_oct`** (`e5e5d53`). STILL OPEN:
+    **fuzzy `pakad_presence`**. A computed consistency check can still fold into `metrics.py`.
+  - **`PROMPTING.md` — ✅ ADDED** (`af96bb9`): a cited Gemini-focused prompt-engineering reference
+    (from a research pass). It now drives step 7 and flags an **OPEN TENSION** to settle in the
+    live pass: Google recommends **temp 1.0 for Gemini-3.x** and warns <1.0 degrades reasoning,
+    but our critics run 0.2 / extractor 0.0; and the "no reasoning knob" / "temperature is the
+    main knob" premises here are STALE (code already passes `reasoning_effort`, Gemini 3 has
+    `thinking_level`). Resolve EMPIRICALLY via traces — do NOT silently flip. See DESIGN.md.
+  - **NEXT (per Sujit 2026-07-12 — "do both in a new session"):** (a) finish **fuzzy
+    `pakad_presence`**, (b) **step 7 prompt hygiene** applying PROMPTING.md (positive-over-negative,
+    judge 1/3/5 anchors + anti-length, instructions-after-data for critics, dial back caps), then
+    step 8 live-hardening + the temperature A/B.
   - **RUN NO LLM/live calls until ALL changes are done** (Sujit's instruction) — pure tests
     only, then ONE batched live render + one live Flow run at the very end.
 - **`REVIEW.md`** is the external design/prompt review request; GPT + Gemini feedback is triaged
