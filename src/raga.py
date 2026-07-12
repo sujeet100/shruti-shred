@@ -318,9 +318,8 @@ def validate_composition(comp: dict) -> list[dict]:
             checks = [(n["swara"], "note")]
             checks += [(g, "grace") for g in n.get("grace", [])]
             checks += [(c, "chord") for c in n.get("chord", [])]
-            m = n.get("meend")
-            if m is not None:
-                tsw = m["swara"] if isinstance(m, dict) else m
+            tsw = n.get("meend_swara")
+            if tsw is not None:
                 checks.append((tsw, "meend-target"))
             for sw, kind in checks:
                 if sw not in allowed:

@@ -101,37 +101,37 @@ def test_place_phrase_truncates_at_window_end():
 
 
 def test_place_phrase_carries_ornaments():
-    placed = place_phrase([LeadNote(swara="g", dur=2.0, grace=["S"], meend="m")],
+    placed = place_phrase([LeadNote(swara="g", dur=2.0, grace=["S"], meend_swara="m")],
                           start=0.0, end=8.0, register=0)
-    assert placed[0].grace == ["S"] and placed[0].meend == "m"
+    assert placed[0].grace == ["S"] and placed[0].meend_swara == "m"
 
 
-def test_place_phrase_keeps_string_meend_same_octave():
-    # A bare-string meend needs no shift — the renderer glides to it in the note's
-    # (already register-seated) octave.
-    placed = place_phrase([LeadNote(swara="g", oct=0, dur=2.0, meend="m")],
+def test_place_phrase_keeps_same_octave_meend_unshifted():
+    # A glide with no meend_oct needs no shift — the renderer glides to the target in the
+    # note's (already register-seated) octave, so meend_oct stays None.
+    placed = place_phrase([LeadNote(swara="g", oct=0, dur=2.0, meend_swara="m")],
                           start=0.0, end=8.0, register=-1)
-    assert placed[0].meend == "m"
+    assert placed[0].meend_swara == "m" and placed[0].meend_oct is None
 
 
 def test_place_phrase_shifts_cross_octave_meend_by_register():
-    # A {"swara","oct"} meend carries a LOCAL octave; placement shifts it by the
-    # register, exactly like the note's own octave, so the glide lands in the right
-    # absolute octave. Here: note local 0 -> abs -1; meend local +1 -> abs 0.
-    placed = place_phrase([LeadNote(swara="m", oct=0, dur=2.0, meend={"swara": "S", "oct": 1})],
+    # meend_oct is a LOCAL octave; placement shifts it by the register, exactly like the
+    # note's own octave, so the glide lands in the right absolute octave. Here: note local
+    # 0 -> abs -1; meend_oct local +1 -> abs 0.
+    placed = place_phrase([LeadNote(swara="m", oct=0, dur=2.0, meend_swara="S", meend_oct=1)],
                           start=0.0, end=8.0, register=-1)
     assert placed[0].oct == -1
-    assert placed[0].meend == {"swara": "S", "oct": 0}
+    assert placed[0].meend_swara == "S" and placed[0].meend_oct == 0
 
 
-def test_leadnote_accepts_a_cross_octave_meend_dict():
-    note = LeadNote(swara="m", dur=2.0, meend={"swara": "S", "oct": 1})
-    assert note.meend == {"swara": "S", "oct": 1}
+def test_leadnote_accepts_a_cross_octave_meend():
+    note = LeadNote(swara="m", dur=2.0, meend_swara="S", meend_oct=1)
+    assert note.meend_swara == "S" and note.meend_oct == 1
 
 
-def test_leadnote_rejects_unknown_swara_in_a_meend_dict():
+def test_leadnote_rejects_an_unknown_meend_swara():
     try:
-        LeadNote(swara="S", dur=1.0, meend={"swara": "Z", "oct": 1})
+        LeadNote(swara="S", dur=1.0, meend_swara="Z", meend_oct=1)
         assert False, "expected ValueError"
     except Exception as e:  # noqa: BLE001
         assert "unknown meend" in str(e).lower()
@@ -206,7 +206,7 @@ def test_memory_passed_to_gen_fn_is_a_copy():
 def test_render_previous_shows_the_prior_phrases_and_marks_meend():
     memory = [LeadMemo("alaap", _phrase("S", "m")),
               LeadMemo("taan", LeadPhrase(notes=[LeadNote(swara="g", oct=1, dur=1.0),
-                                                 LeadNote(swara="m", dur=1.0, meend="P")]))]
+                                                 LeadNote(swara="m", dur=1.0, meend_swara="P")]))]
     text = _render_previous(memory)
     assert "alaap: S m" in text
     assert "g(+1)" in text and "m~" in text            # local octave + meend mark
@@ -270,10 +270,10 @@ def test_voice_line_third_wraps_the_octave_at_the_top_of_the_ladder():
 
 
 def test_harmony_strips_ornaments_but_the_melody_keeps_them():
-    line = [Note(swara="S", oct=0, start=0.0, dur=1.0, grace=["g"], meend="m")]
+    line = [Note(swara="S", oct=0, start=0.0, dur=1.0, grace=["g"], meend_swara="m")]
     sitar, guitar = _voice_line(line, Voicing.THIRD, "malkauns")
-    assert sitar[0].grace == ["g"] and sitar[0].meend == "m"    # melody keeps its ornaments
-    assert guitar[0].grace is None and guitar[0].meend is None  # the harmony is clean
+    assert sitar[0].grace == ["g"] and sitar[0].meend_swara == "m"    # melody keeps its ornaments
+    assert guitar[0].grace is None and guitar[0].meend_swara is None  # the harmony is clean
 
 
 # --- the legality guardrail: the hard line -------------------------------------
@@ -292,15 +292,15 @@ def test_guardrail_rejects_illegal_swara_with_a_precise_error():
 
 def test_guardrail_checks_grace_and_meend_swaras_too():
     # An illegal swara hiding in a meend target must not slip past the guardrail.
-    phrase = LeadPhrase(notes=[LeadNote(swara="S", dur=1.0, meend="P")])
+    phrase = LeadPhrase(notes=[LeadNote(swara="S", dur=1.0, meend_swara="P")])
     ok, msg = _lead_guardrail("malkauns")(_FakeOutput(phrase))
     assert ok is False and "P" in msg
 
 
-def test_guardrail_reads_the_swara_out_of_a_cross_octave_meend():
-    # The dict form must not blind the guardrail: an illegal cross-octave target
+def test_guardrail_catches_an_illegal_cross_octave_meend_target():
+    # A cross-octave glide must not blind the guardrail: an illegal target
     # (P is absent from Malkauns) is still caught.
-    phrase = LeadPhrase(notes=[LeadNote(swara="S", dur=1.0, meend={"swara": "P", "oct": 1})])
+    phrase = LeadPhrase(notes=[LeadNote(swara="S", dur=1.0, meend_swara="P", meend_oct=1)])
     ok, msg = _lead_guardrail("malkauns")(_FakeOutput(phrase))
     assert ok is False and "P" in msg
 
@@ -323,15 +323,15 @@ def test_leadnote_rejects_unknown_swara():
         assert "unknown swara" in str(e).lower()
 
 
-def test_leadnote_coerces_nullish_meend_to_none():
-    # LLMs express "no glide" as null, {}, or the STRING 'null'/'none'; all -> None,
-    # so a stray nullish meend can't hard-fail a whole generation (see _clean_meend).
-    for junk in ({}, "null", "none", "", {"oct": 1}):
-        assert LeadNote(swara="S", dur=1.0, meend=junk).meend is None
+def test_leadnote_coerces_nullish_meend_swara_to_none():
+    # LLMs express "no glide" as null or the STRING 'null'/'none'/''; all -> None, so a
+    # stray nullish meend can't hard-fail a generation (see _clean_meend_swara).
+    for junk in (None, "null", "none", ""):
+        assert LeadNote(swara="S", dur=1.0, meend_swara=junk).meend_swara is None
     # a real target still parses, and a genuinely unknown one still raises
-    assert LeadNote(swara="S", dur=1.0, meend="P").meend == "P"
+    assert LeadNote(swara="S", dur=1.0, meend_swara="P").meend_swara == "P"
     try:
-        LeadNote(swara="S", dur=1.0, meend="Z")
+        LeadNote(swara="S", dur=1.0, meend_swara="Z")
         assert False, "expected ValueError"
     except Exception as e:  # noqa: BLE001
         assert "unknown meend target" in str(e).lower()

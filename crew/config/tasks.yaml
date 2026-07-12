@@ -173,10 +173,10 @@ generate_lead:
 
     ORNAMENTS — use idiomatically, not on every note:
       - grace: a short list of kan swaras flicked just before the main note.
-      - meend: a target swara to glide to across the note (a portamento). Give a
-        bare swara to glide within the octave, or a swara-with-octave (see the
-        output shape) to glide ACROSS octaves — e.g. a long sweep from madhya Ma up
-        to taar Sa, a signature raga gesture.
+      - meend_swara: a target swara to glide to across the note (a portamento). Add
+        meend_oct ONLY to glide ACROSS octaves — e.g. meend_swara "S" with meend_oct 1
+        is a long sweep up to taar Sa, a signature raga gesture; omit meend_oct to glide
+        within the note's own octave.
       Grace and meend swaras must ALSO be legal swaras of this raga.
 
     HARD RULES (a phrase that breaks these is rejected and you redo it):

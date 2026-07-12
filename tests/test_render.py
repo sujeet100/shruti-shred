@@ -78,7 +78,7 @@ def test_technique_velocity_never_drops_below_one():
 # --- _bends: which notes need the wide pitch-bend range armed -------------------
 
 def test_bends_flags_glides_and_pitch_techniques():
-    assert _bends({"swara": "S", "meend": "g"}) is True
+    assert _bends({"swara": "S", "meend_swara": "g"}) is True
     assert _bends({"swara": "S", "technique": "slide"}) is True
     assert _bends({"swara": "S", "technique": "bend"}) is True
     assert _bends({"swara": "S", "technique": "palm_mute"}) is False

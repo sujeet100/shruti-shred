@@ -12,9 +12,9 @@ Composition schema:
   "layers": [
     {"role": "drone"|"lead"|"rhythm", "instrument": str, "program": int,
      "channel": int, "notes": [{"swara": "S", "oct": 0, "start": 0.0,
-                                "dur": 0.5, "vel": 100,
-                                "grace": ["R"], "chord": ["P"],
-                                "technique": "palm_mute"}, ...]},  # last three OPTIONAL
+                                "dur": 0.5, "vel": 100, "grace": ["R"],
+                                "meend_swara": "m", "meend_oct": null,
+                                "chord": ["P"], "technique": "palm_mute"}, ...]},  # last five OPTIONAL
     {"role": "drums", "channel": 9,
      "hits": [{"drum": "kick"|"snare"|"hhat", "start": 0.0, "dur": 0.2, "vel": 100}]},
   ]
@@ -28,11 +28,13 @@ note's onset — the discrete-MIDI stand-in for a Hindustani kan (a quick adjace
 touch that leans into the main swara, e.g. Darbari's Ga touched with a hint of
 Re). Grace swaras inherit the main note's octave.
 
-Meend (glide): a note may carry an optional "meend" target swara (a string, or
-{"swara","oct"} to cross octaves). The note sounds its own swara, then bends
-CONTINUOUSLY to the target across its duration — a true portamento, rendered
-with MIDI pitch-bend. Because pitch-bend is channel-wide, meend only works on a
-MONOPHONIC melodic channel (lead lines are); it is not for the drone or drums.
+Meend (glide): a note may carry an optional "meend_swara" target (with an optional
+"meend_oct" for the target's octave; omit/null to glide within the note's own octave).
+The note sounds its own swara, then bends CONTINUOUSLY to the target across its
+duration — a true portamento, rendered with MIDI pitch-bend. Because pitch-bend is
+channel-wide, meend only works on a MONOPHONIC melodic channel (lead lines are); it is
+not for the drone or drums. (Two flat fields rather than a swara|{swara,oct} union,
+which Gemini's controlled-generation JSON schema handles poorly.)
 
 Both kan and meend endpoints are validated by the raga grammar like any other
 pitch. The continuous pitches a meend sweeps THROUGH are deliberately not
@@ -86,13 +88,6 @@ BEND_ST = 2              # a bend rises this many semitones
 BEND_FRAC = 0.5          # ...over the first half of the note, then holds
 
 
-def _resolve(spec, default_oct: int):
-    """A swara spec is either 'P' (inherits octave) or {'swara','oct'}."""
-    if isinstance(spec, dict):
-        return spec["swara"], spec.get("oct", default_oct)
-    return spec, default_oct
-
-
 def _arm_bend_range(mf: MIDIFile, track: int, ch: int, semitones: int) -> None:
     """Widen a channel's pitch-bend range via RPN 0,0 so meend/slide/bend can span >2 semitones."""
     mf.addControllerEvent(track, ch, 0, 101, 0)          # RPN MSB
@@ -133,7 +128,7 @@ def _apply_technique(technique, dur: float, vel: int) -> tuple[float, int]:
 
 def _bends(n: dict) -> bool:
     """Does this note move the pitch wheel — a meend glide or a slide/bend technique?"""
-    return "meend" in n or n.get("technique") in ("slide", "bend")
+    return n.get("meend_swara") is not None or n.get("technique") in ("slide", "bend")
 
 
 def _render_meend(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
@@ -222,10 +217,10 @@ def build_midi(comp: dict, path: str) -> None:
                 tone = _stack_above(pitch, sa + SWARAS[csw] + 12 * oct)
                 mf.addNote(i, ch, tone, n["start"], dur, vel)
             # Pitch-wheel gestures: a meend glide to a target swara, or a riff slide/bend.
-            meend = n.get("meend")
-            if meend is not None:
-                tsw, toct = _resolve(meend, oct)
-                target = sa + SWARAS[tsw] + 12 * toct
+            tsw = n.get("meend_swara")
+            if tsw is not None:
+                toct = n.get("meend_oct")
+                target = sa + SWARAS[tsw] + 12 * (oct if toct is None else toct)
                 _render_meend(mf, i, ch, n["start"], dur, pitch, target)
             elif n.get("technique") == "slide":
                 _render_slide(mf, i, ch, n["start"], dur)

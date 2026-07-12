@@ -74,14 +74,14 @@ _OUTPUT_SCHEMA: Final = """{
   "reasoning": "the pakad/chalan idiom you build on and how you shape it to this section",
   "notes": [
     {"swara": "d", "oct": -1, "dur": 2.0, "vel": 80},
-    {"swara": "g", "oct": 0, "dur": 1.5, "grace": ["S"], "meend": "m"},
-    {"swara": "m", "oct": 0, "dur": 4.0, "meend": {"swara": "S", "oct": 1}}
+    {"swara": "g", "oct": 0, "dur": 1.5, "grace": ["S"], "meend_swara": "m"},
+    {"swara": "m", "oct": 0, "dur": 4.0, "meend_swara": "S", "meend_oct": 1}
   ]
 }
 "reasoning" comes FIRST. "oct" is your octave (0 = home; -1 mandra/lower, +1 taar/upper).
-"vel", "grace" and "meend" are optional. "meend" is a swara to glide to within the same
-octave, OR {"swara","oct"} to glide ACROSS octaves (that "oct" is in the same frame as a
-note's "oct"). Durations are in beats and must be positive."""
+"vel", "grace", "meend_swara" and "meend_oct" are optional. "meend_swara" is a swara to
+glide to; add "meend_oct" (same frame as a note's "oct") ONLY to glide ACROSS octaves —
+omit it to glide within the note's own octave. Durations are in beats and must be positive."""
 
 
 # --------------------------------------------------------------------------- #
@@ -106,23 +106,21 @@ def place_phrase(notes: list[LeadNote], *, start: float, end: float,
         dur = min(ln.dur, end - t)          # clip the note that straddles the edge
         placed.append(Note(swara=ln.swara, oct=register + ln.oct, start=round(t, 4),
                            dur=round(dur, 4), vel=ln.vel, grace=ln.grace,
-                           meend=_place_meend(ln, register)))
+                           meend_swara=ln.meend_swara,
+                           meend_oct=_place_meend_oct(ln, register)))
         t += ln.dur
     return placed
 
 
-def _place_meend(ln: LeadNote, register: int):
-    """Register-shift a cross-octave meend target; leave a same-octave one alone.
-
-    A `{"swara","oct"}` meend carries a LOCAL octave (same frame as the note); it is
-    shifted into the absolute octave the renderer expects, exactly as the note's own
-    octave is. A bare-string meend needs no shift — the renderer glides to it in the
-    note's octave (already register-seated). Returns None when there is no meend.
+def _place_meend_oct(ln: LeadNote, register: int) -> int | None:
+    """Register-shift the meend target's LOCAL octave into the absolute frame the renderer
+    expects, exactly as the note's own octave is shifted. Returns None when the glide has
+    no explicit octave — the renderer then glides WITHIN the note's own (already-seated)
+    octave — or when there is no glide at all.
     """
-    meend = ln.meend
-    if isinstance(meend, dict):
-        return {"swara": meend["swara"], "oct": register + meend.get("oct", ln.oct)}
-    return meend
+    if ln.meend_swara is None or ln.meend_oct is None:
+        return None
+    return register + ln.meend_oct
 
 
 # --------------------------------------------------------------------------- #
@@ -230,7 +228,7 @@ def _local_token(note: LeadNote) -> str:
     """One realized note as the model wrote it — swara with its LOCAL octave (a `~`
     marks a meend), the frame the next phrase should build in."""
     tok = note.swara if note.oct == 0 else f"{note.swara}({note.oct:+d})"
-    return tok + "~" if note.meend is not None else tok
+    return tok + "~" if note.meend_swara is not None else tok
 
 
 def _render_previous(memory: list[LeadMemo]) -> str:
@@ -290,8 +288,8 @@ def _phrase_swaras(phrase: LeadPhrase) -> list[str]:
     for note in phrase.notes:
         swaras.append(note.swara)
         swaras.extend(note.grace or [])
-        if note.meend is not None:
-            swaras.append(note.meend["swara"] if isinstance(note.meend, dict) else note.meend)
+        if note.meend_swara is not None:
+            swaras.append(note.meend_swara)
     return swaras
 
 

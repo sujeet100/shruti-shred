@@ -71,7 +71,7 @@ def test_ornaments_are_validated():
     legal = {"raga": "darbari", "sa": 60, "bpm": 100,
              "tala": {"name": "teentaal", "beats_per_bar": 4},
              "layers": [{"role": "lead", "channel": 2, "notes": [
-                 {"swara": "g", "oct": 0, "start": 0.0, "dur": 1.0, "grace": ["R"], "meend": "m"},
+                 {"swara": "g", "oct": 0, "start": 0.0, "dur": 1.0, "grace": ["R"], "meend_swara": "m"},
              ]}]}
     assert validate_composition(legal) == []
 
@@ -86,7 +86,7 @@ def test_ornaments_are_validated():
     bad_meend = {"raga": "malkauns", "sa": 60, "bpm": 100,
                  "tala": {"name": "teentaal", "beats_per_bar": 4},
                  "layers": [{"role": "lead", "channel": 2, "notes": [
-                     {"swara": "m", "oct": 0, "start": 0.0, "dur": 1.0, "meend": "P"},
+                     {"swara": "m", "oct": 0, "start": 0.0, "dur": 1.0, "meend_swara": "P"},
                  ]}]}
     v = validate_composition(bad_meend)
     assert len(v) == 1 and v[0]["kind"] == "meend-target", v

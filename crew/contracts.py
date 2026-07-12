@@ -22,7 +22,7 @@ the second gate, never the first.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Callable, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
@@ -538,21 +538,18 @@ def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arran
 # Contract 1: Composition                                                     #
 # --------------------------------------------------------------------------- #
 
-def _clean_meend(v):
-    """Normalize an LLM `meend` value to a valid target (swara or {swara, oct}) or None.
+def _clean_meend_swara(v):
+    """Normalize an LLM `meend_swara` (the glide TARGET) to a legal swara or None.
 
-    LLMs express "no glide" inconsistently — JSON null, an empty dict, or the STRING
-    'null'/'none' — and CrewAI's Gemini provider hard-raises on an output_pydantic
-    validation failure BEFORE any guardrail can retry, so a stray nullish meend would
-    kill a whole generation. We normalize the junk at the boundary (as the intake does
-    with `_NULLISH`); a genuinely unknown target swara still raises."""
-    if v is None:
+    The meend target was once a `str | {swara, oct}` union — but Gemini's native
+    controlled generation (`response_json_schema`) handles `anyOf`/union schemas poorly,
+    so we flattened it to two flat scalar fields (`meend_swara` + `meend_oct`). This still
+    absorbs the nullish sentinels an LLM emits for "no glide" (JSON null, '', 'null',
+    'none'); a genuinely unknown target swara still raises."""
+    if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
         return None
-    sw = v.get("swara") if isinstance(v, dict) else v
-    if sw is None or (isinstance(sw, str) and sw.strip().lower() in _NULLISH):
-        return None
-    if sw not in SWARAS:
-        raise ValueError(f"unknown meend target '{sw}'")
+    if v not in SWARAS:
+        raise ValueError(f"unknown meend target '{v}' (expected one of {' '.join(SWARAS)})")
     return v
 
 
@@ -569,7 +566,8 @@ class Note(BaseModel):
     dur: float
     vel: int = 100
     grace: Optional[list[str]] = None            # kan (grace notes)
-    meend: Optional[Union[str, dict]] = None     # glide target: swara or {swara, oct}
+    meend_swara: Optional[str] = None            # glide TARGET swara (None = no glide)
+    meend_oct: Optional[int] = None              # target's ABSOLUTE octave (None = the note's own octave)
     chord: Optional[list[str]] = None            # extra raga swaras sounded WITH the root (stacked up)
     technique: Optional[RiffTechnique] = None    # a rhythm-guitar articulation the renderer maps
 
@@ -588,10 +586,10 @@ class Note(BaseModel):
             raise ValueError(f"unknown swara(s) {bad}")
         return v
 
-    @field_validator("meend")
+    @field_validator("meend_swara", mode="before")
     @classmethod
     def _known_meend(cls, v):
-        return _clean_meend(v)
+        return _clean_meend_swara(v)
 
 
 class DrumHit(BaseModel):
@@ -654,21 +652,22 @@ def parse_composition(comp: dict) -> tuple[Optional[Composition], list[str]]:
 class LeadNote(BaseModel):
     """One note in a Lead phrase — a swara with a duration, no absolute start.
 
-    Same ornament vocabulary as `Note` (kan via `grace`, portamento via `meend`),
-    validated identically so an out-of-symbol ornament fails at the boundary; but
-    the timing is a `dur` the code sequences, and every octave here is LOCAL to the
-    lead's register (`generators.place_phrase` adds the register base). `meend` is a
-    bare swara (glide within the note's octave) OR `{"swara","oct"}` to glide ACROSS
-    octaves — that `oct` is local, in the same frame as the note's `oct`, and is
-    register-shifted at placement. Cross-octave glides (mandra<->taar) are core raga
-    idiom, so the lead needs them.
+    Same ornament vocabulary as `Note` (kan via `grace`, portamento via `meend_swara`),
+    validated identically so an out-of-symbol ornament fails at the boundary; but the
+    timing is a `dur` the code sequences, and every octave here is LOCAL to the lead's
+    register (`generators.place_phrase` adds the register base). The glide is two flat
+    fields (not a union — Gemini controlled generation dislikes `anyOf`): `meend_swara`
+    is the target, and `meend_oct` its LOCAL octave (same frame as the note's `oct`,
+    register-shifted at placement) — leave `meend_oct` None to glide WITHIN the note's
+    octave, or set it to glide ACROSS octaves (mandra<->taar), core raga idiom.
     """
     swara: str
     oct: int = 0
     dur: float = Field(gt=0)
     vel: int = Field(default=90, ge=1, le=127)
     grace: Optional[list[str]] = None
-    meend: Optional[Union[str, dict]] = None
+    meend_swara: Optional[str] = None
+    meend_oct: Optional[int] = None
 
     @field_validator("swara")
     @classmethod
@@ -685,10 +684,10 @@ class LeadNote(BaseModel):
             raise ValueError(f"unknown grace swara(s) {bad}")
         return v
 
-    @field_validator("meend")
+    @field_validator("meend_swara", mode="before")
     @classmethod
     def _known_meend(cls, v):
-        return _clean_meend(v)
+        return _clean_meend_swara(v)
 
 
 class LeadPhrase(BaseModel):

@@ -178,7 +178,7 @@ def test_ornament_rate_is_per_section_over_the_pitched_notes():
     arr = _arr()
     drone = [Note(swara="S", oct=-2, start=0.0, dur=48.0)]        # onset only in the alaap
     lead = [Note(swara="S", oct=0, start=16.0, dur=1.0, grace=["R"]),   # ornamented
-            Note(swara="g", oct=0, start=17.0, dur=1.0, meend="m"),     # ornamented
+            Note(swara="g", oct=0, start=17.0, dur=1.0, meend_swara="m"),     # ornamented
             Note(swara="m", oct=0, start=18.0, dur=1.0)]               # plain
     comp = Composition(
         raga="darbari", sa=62, bpm=72, tala={"name": "teentaal", "beats_per_bar": 16.0},

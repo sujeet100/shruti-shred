@@ -155,7 +155,7 @@ def _section_energy(comp: Composition, arr: Arrangement) -> list[SectionEnergy]:
         length = span.length or 1.0
         density = round(len(pitched) / length, 3)
         mean_vel = round(sum(n.vel for n in pitched) / len(pitched), 1) if pitched else 0.0
-        ornamented = sum(1 for n in pitched if n.grace or n.meend)
+        ornamented = sum(1 for n in pitched if n.grace or n.meend_swara)
         ornament_rate = round(ornamented / len(pitched), 3) if pitched else 0.0
         energy = round(active * mean_vel / 127, 3)
         rows.append(SectionEnergy(kind=span.section.kind.value, active_voices=active,
