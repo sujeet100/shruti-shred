@@ -494,23 +494,41 @@ Producer as a 3rd critic). Progress:**
    deferred. Pure tests in `tests/test_lead.py`, `tests/test_riff.py`.
 5. ✅ **Producer's computed metrics** (chunks B+C above — "code measures, LLM evaluates"), DONE.
    A computed cross-section consistency check remains open (can fold into `metrics.py`).
-6. **Structured-output robustness** — ⏳ HALF DONE + REFRAMED. We VERIFIED (in installed CrewAI
-   1.15.2) that `gemini/gemini-3.5-flash` runs on the NATIVE `GeminiCompletion` provider
-   (`is_litellm=False`) → tool-less agents get Gemini's native controlled generation
-   (`response_json_schema`), so the model CANNOT emit fenced/prose JSON. So the reviewers'
-   "parse it yourself" concern targets the LiteLLM path we DON'T use → **the manual JSON
-   text-parser was dropped** (dead weight). The real risk is COMPLEX SCHEMAS, so ✅ **flattened
-   `meend: Optional[Union[str,dict]]` → `meend_swara` + `meend_oct`** (commit `e5e5d53`). STILL
-   OPEN: **fuzzy `pakad_presence`** (subsequence within a window, ignoring intervening grace/
-   passing notes — small, independent, pure). See PROMPTING.md §2.
-7. **Prompt hygiene** — now DIRECTLY INFORMED by `PROMPTING.md` (commit `af96bb9`). Concrete
-   changes to apply: **positive-over-negative** (Interpreter "never invent/guess" + the `Do NOT`
-   lines — Gemini-3 over-indexes on blanket negatives); **judge anchors** (spell out 1/3/5 per
-   Rasik/Producer criterion) + an **anti-length line**; **instructions AFTER the data** for the
-   critics (rubric below the composition dump); **dial back ALL-CAPS** mandates; consider a couple
-   of **few-shot** examples in the composing/scoring tasks (Google: "always include examples").
-8. **Live-hardening** — fast mode; failsafe pre-rendered chart; concurrent Lead∥Riff. ALSO fold in
-   the **temperature/reasoning reconciliation** (see the OPEN TENSION below) — it needs a live A/B.
+6. ✅ **Structured-output robustness** — DONE. Verified `gemini/gemini-3.5-flash` runs on the
+   NATIVE `GeminiCompletion` provider → native controlled generation, so the reviewers' "parse it
+   yourself" concern targets the LiteLLM path we DON'T use → the manual JSON text-parser was dropped;
+   the complex `meend` union was flattened to `meend_swara` + `meend_oct` (`e5e5d53`); and **fuzzy
+   `pakad_presence`** shipped (commit `5c3cfa3`) — a three-state hint (literal / fuzzy / absent) where
+   the fuzzy tier is a bounded-gap in-order subsequence, so a stray grace note no longer breaks the
+   match. See PROMPTING.md §2.
+7. ✅ **Prompt hygiene** (PROMPTING.md) — DONE (commit `c3c5346`): **positive-over-negative**
+   (interpreter goal + the `Do NOT` lines), **per-criterion 1/3/5 judge anchors + anti-length lines**
+   for Rasik and the Producer, the **rubric/scoring instruction placed AFTER the composition data**,
+   and **dialed-back ALL-CAPS** mandates. Few-shot landed where it earns its tokens — a worked
+   transformation example in the rewritten `generate_lead` (step 9).
+8. **Live-hardening** — ⏳ STILL OPEN. fast mode; failsafe pre-rendered chart; concurrent Lead∥Riff.
+   ALSO fold in the **temperature/reasoning reconciliation** (see the OPEN TENSION below) — needs a
+   live A/B. (A couple of bounded live renders were run this session to confirm steps 6/7/9/10 by
+   ear, but the hardening + temp A/B themselves are not done.)
+9. ✅ **Lead compositional craft — `phrase_plan`** — DONE (commit `1a0fefb` code + `c3c5346` prompt).
+   External review (GPT+Gemini) and our own live render agreed the lead produced a straight SCALE run,
+   not a raga taan. Crucially, **Rasik CAUGHT it** ("the scalar run dilutes the raga; use vakra
+   phrasing + andolan on komal g/d") — proving the critic works but the GENERATOR couldn't act on the
+   directive. The bug was concrete: the old prompt literally told a taan to "run along the aroha and
+   avaroha." Fix, generation-side: a **REQUIRED `phrase_plan`** (seed / contour / transformations /
+   climax) ordered BEFORE `notes` in the schema (reasoning-first made structural — the model must
+   DESIGN before it writes), plus a rewritten prompt that builds the taan from chalan/vakra fragments
+   (sequencing, question-answer, contour, ~80% from pakad/chalan). Live-confirmed: the taan went from
+   a straight run to a pakad-derived, rhythmically-varied line and Rasik's idiom read rose.
+10. ✅ **Meend realism** — DONE (commit `1a0fefb` density guard + `6b6f897` render). Diagnosed by ear
+    plus pitch-contour + FFT measurement: the meend was pitch-CORRECT (lands on the swara; bend range
+    honored) but sounded out of tune on EVERY patch (flute/synth/guitar/sitar), so it was the GESTURE,
+    not the sitar sample or the renderer. The old glide crawled LINEARLY over 60% of the note, dwelling
+    audibly on the out-of-scale micro-pitches. Two-part fix: (a) a **density guard** strips meend from
+    sub-beat notes so fast taan runs articulate cleanly (kept on held/cadential notes; direction free —
+    kan/khatka/murki/meend all bend either way); (b) the render is now a **quick, capped, cubic-ease-out
+    pull ANCHORED ON THE TARGET** — the note sounds at the target's home sample, the wheel pre-bends to
+    the source and eases to 0, and it ends at 0 (no bleed). See the research notes below.
 
 **OPEN TENSION (decide in the live pass, do NOT silently flip):** PROMPTING.md §3 — Google
 STRONGLY recommends **temperature 1.0 for the Gemini-3.x family** and warns <1.0 degrades reasoning
@@ -520,9 +538,34 @@ already passes `reasoning_effort="low"` and Gemini 3 exposes `thinking_level`. R
 run a critic at 0.2 vs 1.0 on a fixed composition, read both traces, keep the stabler one; then
 reconcile `crew/config.py` temperatures + the CLAUDE.md wording.
 
-**RESUME HERE (next session, per Sujit 2026-07-12 — "do both in a new session"):** steps 1–5 DONE
-+ committed; step 6 half done (meend flat + parser dropped; **fuzzy pakad remaining**). Next:
-(a) finish **fuzzy `pakad_presence`**, then (b) **step 7 prompt hygiene** applying PROMPTING.md
-(the list above). **Run NO LLM/live calls until ALL changes are done** (still in force) — then the
-SINGLE batched live pass: hear the mix + chords + techniques (`uv run python -m crew.flow` /
-`crew.band`), confirm the reframed Rasik↔Producer debate, AND settle the temperature A/B (§3).
+### Meend realism — research notes (2026-07-12, from the live audio review)
+
+Replicating a sitar meend in a MIDI + SoundFont(FluidSynth) pipeline (subagent research, cited):
+- **A real meend is a single-pluck, EASED glide** (low-order polynomial, not linear); the transition
+  occupies a MINORITY of the note and the endpoints are HELD. The origin pitch also keeps ringing on
+  the fixed-tuned SYMPATHETIC strings — an anchor a single bent GM sample cannot reproduce (the hard
+  ceiling on realism). Upward bends lose HF energy. (ISMIR 2022 sitar-bend spectrogram abstract;
+  Hindustani-MIR contour-transcription work; UNSW portamento-perception notes.)
+- **Our fix, in order of impact:** (1) short, interval-scaled, CAPPED glide time (~80–220 ms), not a
+  fraction of the note; (2) ANCHOR on the target's home sample (pluck the target, pre-bend to source,
+  ease to 0) so the sustain is in tune and natural-timbred; (3) cubic ease-out curve; (4) dense 14-bit
+  ramp (~event/6 ms, no zipper). Implemented in `src/render.py`.
+- **MIDI portamento (CC5/CC65): supported by FluidSynth but REJECTED** — it only fires between
+  overlapping mono/legato notes (fiddly from MIDIUtil) and its glide shape is fixed/untunable, which
+  would throw away the ease-out curve that is the actual fix. Keep the manual pitch-wheel path.
+- **FluidSynth:** keep default 4th-order interpolation (7th-order can ring); interpolation was a red
+  herring. No new renderer or soundfont needed.
+- **Deferred polish:** a small CC74 brightness roll-off on ascending meends + light chorus (cheap
+  stand-ins for the missing sympathetic strings); and a first-class **andolan** ornament (schema +
+  renderer) — the slow oscillation on komal g/d that DEFINES Darbari and is Rasik's standing ask.
+
+**RESUME HERE (2026-07-12):** steps 1–7, 9, 10 DONE + committed (commits `5c3cfa3` fuzzy pakad,
+`1a0fefb` phrase_plan + meend guard, `6b6f897` meend render, `c3c5346` prompts). Remaining:
+- **Step 8 live-hardening** — fast mode, failsafe pre-rendered chart, concurrent Lead∥Riff; AND the
+  **temperature/reasoning A/B** (OPEN TENSION above — resolve EMPIRICALLY, do NOT silently flip).
+- **One full-band live render** to hear the taan + clean meend together in context (the isolated
+  meend is confirmed good).
+- **Deferred meend polish** — CC74 roll-off + chorus; and the **andolan** ornament (the one Darbari
+  feature we still can't produce).
+- **Triage bite** — make a weak Rasik idiom score actually FORCE a revise (worthwhile now that the
+  generator can produce idiomatic phrasing, so a revise has something better to become).

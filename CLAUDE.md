@@ -376,24 +376,43 @@ and build order.
     prior section, bring the main riff back as a hook, reserve the peak for the climax) instead of
     collaging. Within-voice; cross-voice seeding (lead sees riff) still deferred. Pure tests in
     `test_lead.py`/`test_riff.py`. (214 pure tests green.)
-  - **(step 6, structured-output) — ⏳ HALF DONE + REFRAMED**: VERIFIED we run on the NATIVE
-    `GeminiCompletion` provider (`is_litellm=False`) → native controlled generation
-    (`response_json_schema`) constrains the decoder, so the "parse JSON ourselves" reviewer
-    concern targets the LiteLLM path we DON'T use → **manual parser dropped**. Real risk = complex
-    schemas → ✅ **flattened `meend` Union → `meend_swara`+`meend_oct`** (`e5e5d53`). STILL OPEN:
-    **fuzzy `pakad_presence`**. A computed consistency check can still fold into `metrics.py`.
+  - **(step 6, structured-output) — ✅ DONE**: on the NATIVE `GeminiCompletion` provider (native
+    controlled generation), the "parse JSON ourselves" reviewer concern targets the LiteLLM path we
+    DON'T use → **manual parser dropped**; complex `meend` Union flattened → `meend_swara`+`meend_oct`
+    (`e5e5d53`); and **fuzzy `pakad_presence`** shipped (`5c3cfa3`) — literal / fuzzy / absent tiers
+    (the fuzzy tier a bounded-gap subsequence) so a stray grace note no longer breaks the match.
+  - **(step 7, prompt hygiene) — ✅ DONE** (`c3c5346`): positive-over-negative (interpreter + the
+    `Do NOT` lines), per-criterion **1/3/5 judge anchors + anti-length** lines, **rubric AFTER the
+    composition data** for the critics, dialed-back **ALL-CAPS**; one worked few-shot example in generate_lead.
+  - **(step 9, lead `phrase_plan`) — ✅ DONE** (`1a0fefb` code + `c3c5346` prompt): the lead produced
+    a straight SCALE run, not a raga taan — Rasik CAUGHT it ("scalar run dilutes the raga; use vakra
+    phrasing + andolan on komal g/d"), proving the critic works but the GENERATOR couldn't act on the
+    directive. Fix: a REQUIRED `phrase_plan` (seed/contour/transformations/climax) ordered BEFORE
+    `notes` in the schema (reasoning-first made STRUCTURAL) + a prompt that builds taans from
+    chalan/vakra fragments (~80% from pakad/chalan). Live-confirmed the taan became pakad-derived +
+    rhythmically varied. Lesson (talk-gold): a critique loop is only as good as the GENERATOR's
+    ability to act on the directive.
+  - **(step 10, meend realism) — ✅ DONE** (`1a0fefb` density guard + `6b6f897` render): the meend was
+    pitch-CORRECT (lands on the swara; bend range honored) yet sounded out of tune on EVERY patch → it
+    was the GESTURE, not the sitar sample or the renderer. The old glide crawled LINEARLY over 60% of
+    the note, dwelling on the out-of-scale micro-pitches. Fix: (a) a **density guard** strips meend from
+    sub-beat notes (fast taan articulates clean; direction free — kan/khatka/murki all bend either way);
+    (b) the render is a **quick, capped, cubic-ease-out pull ANCHORED ON THE TARGET** (sounds at the
+    target's home sample, wheel pre-bends to the source and eases to 0, ends at 0 — no bleed). MIDI
+    portamento (CC5/CC65) researched + rejected; no new renderer/soundfont. Research notes in DESIGN.md.
   - **`PROMPTING.md` — ✅ ADDED** (`af96bb9`): a cited Gemini-focused prompt-engineering reference
-    (from a research pass). It now drives step 7 and flags an **OPEN TENSION** to settle in the
+    (from a research pass). It drove step 7 (done) and still flags an **OPEN TENSION** for step 8's
     live pass: Google recommends **temp 1.0 for Gemini-3.x** and warns <1.0 degrades reasoning,
     but our critics run 0.2 / extractor 0.0; and the "no reasoning knob" / "temperature is the
     main knob" premises here are STALE (code already passes `reasoning_effort`, Gemini 3 has
     `thinking_level`). Resolve EMPIRICALLY via traces — do NOT silently flip. See DESIGN.md.
-  - **NEXT (per Sujit 2026-07-12 — "do both in a new session"):** (a) finish **fuzzy
-    `pakad_presence`**, (b) **step 7 prompt hygiene** applying PROMPTING.md (positive-over-negative,
-    judge 1/3/5 anchors + anti-length, instructions-after-data for critics, dial back caps), then
-    step 8 live-hardening + the temperature A/B.
-  - **RUN NO LLM/live calls until ALL changes are done** (Sujit's instruction) — pure tests
-    only, then ONE batched live render + one live Flow run at the very end.
+  - **NEXT:** **step 8 live-hardening** (fast mode, failsafe pre-rendered chart, concurrent Lead∥Riff)
+    + the **temperature A/B** (the OPEN TENSION — resolve empirically, do NOT silently flip); **one
+    full-band live render** (taan + clean meend in context — the isolated meend is confirmed good);
+    deferred **meend polish** (CC74 brightness roll-off on ascents + light chorus; a first-class
+    **andolan** ornament — the one Darbari feature we still can't produce, and Rasik's standing ask);
+    and **triage bite** (a weak Rasik idiom score should FORCE a revise now the generator can act on it).
+    (225 pure tests green; steps 6/7/9/10 committed: `5c3cfa3`, `1a0fefb`, `6b6f897`, `c3c5346`.)
 - **`REVIEW.md`** is the external design/prompt review request; GPT + Gemini feedback is triaged
   in DESIGN.md ("External review triage").
 - **External reviews are IN** (GPT + Gemini, on `REVIEW.md`) — triaged in DESIGN.md

@@ -434,6 +434,33 @@ convincing than a hypothetical.)*
   Conductor) → a rendered WAV, with the whole debate streamed as events. `compose_flow(query)`
   is the one call that turns a sentence into Hindustani-metal audio through the entire crew.
 
+### Phase 2, the audio-review pass — generation quality + meend realism — 2026-07-12
+
+- **A critique loop is only as good as the GENERATOR's ability to act on the directive.** The lead
+  was writing a straight scale run, not a raga taan — and Rasik CAUGHT it exactly ("the scalar run
+  dilutes the raga; use vakra phrasing, andolan on komal g/d"), the very thing an external Gemini
+  review said independently. But the music didn't improve, because the generator had no vocabulary
+  to compose an idiomatic taan. *Line:* "Your judge can be completely right and the music still
+  won't get better — a critique the generator can't act on fixes nothing." The fix was on the
+  GENERATION side, not the critic.
+- **`phrase_plan` — reasoning-first made STRUCTURAL.** Rather than ask the lead to 'plan first' in
+  prose, the schema REQUIRES a `phrase_plan` (seed → contour → transformations → climax) ORDERED
+  BEFORE the notes, so on native controlled generation the model literally cannot emit a note
+  without first committing to an idea and how it develops. Same move as Ustad having no verdict
+  field: *don't ask the model to be disciplined — make the schema enforce the discipline.* It turned
+  a random scale into a pakad-derived, developed taan.
+- **The loop is SYMBOLIC — no agent hears the audio — so timbre and gesture bugs are INVISIBLE to
+  the critics.** All three critics passed a meend that sounded out of tune, because they read swaras
+  and metrics, not sound. *Line:* "Your critics judge the score, not the recording — so a whole
+  class of bugs (mix, timbre, the feel of an ornament) can only be caught by ear and fixed in
+  deterministic code." An honest marker of where the agent layer's competence ends.
+- **Measure, don't guess — and be willing to be wrong twice.** The out-of-tune meend drew two
+  confident wrong diagnoses (the pitch-bend range, then the buzzy sitar sample) — each KILLED by
+  measurement: a pitch-contour trace showed the notes landed dead on the swara, and the observation
+  "it's bad on EVERY instrument" reframed it from timbre to gesture. The real cause was a slow
+  linear glide dwelling on the micro-pitches; the fix was a fast, eased pull anchored on the target —
+  one constant plus a curve, no new soundfont or renderer. *Line:* "I was wrong twice; the WAV wasn't."
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —
