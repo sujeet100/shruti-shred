@@ -64,11 +64,12 @@ def _rasik(pakad=4, idiom=4, rasa=4, notes="") -> RasikVerdict:
 
 
 def _producer(structure=4, dynamics=4, climax=4, motif=4, hook=4, balance=4,
-              independence=4, mood_fit=4, notes="") -> ProducerVerdict:
+              independence=4, mood_fit=4, repetition=4, notes="") -> ProducerVerdict:
     """A satisfied Producer by default; override a criterion to plant a conflict."""
     return ProducerVerdict(
         scores=ProducerScores(structure=structure, dynamics=dynamics, climax=climax, motif=motif,
-                              hook=hook, balance=balance, independence=independence, mood_fit=mood_fit),
+                              hook=hook, balance=balance, independence=independence,
+                              mood_fit=mood_fit, repetition=repetition),
         notes=notes)
 
 

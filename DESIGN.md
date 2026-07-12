@@ -439,13 +439,14 @@ So we split them, one dimension per critic:
   present, chalan movement, idiomatic ornaments, rasa, an expressive-not-scalar lead.
   `RasikScores` drops `coherence` and renames `mood`→`rasa` → **{pakad, idiom, rasa}**.
 - **Producer → composition quality** (NEW critic, raga-AGNOSTIC — doesn't care if it's
-  Malkauns or Yaman, only whether the song works). Owns the 8 things nobody checks today,
-  as an 8-criterion 1-5 rubric (Sujit chose the finer split): **structure** (sections lead
+  Malkauns or Yaman, only whether the song works). Owns the things nobody checks today, as a
+  **9-criterion** 1-5 rubric (Sujit chose the finer split): **structure** (sections lead
   onward), **dynamics** (energy actually builds), **climax** (earned peak + resolution),
   **motif** (introduced→repeated→varied→resolved — "the biggest omission today"), **hook**
   (riff memorable/loopable/strong downbeat), **balance** (arrangement space — not everyone
   playing always), **independence** (lead≠riff, bass≠riff, drums≠tabla), **mood_fit**
-  (holds the requested SUBGENRE mood — no bright power-metal solo in a doom piece).
+  (holds the requested SUBGENRE mood — no bright power-metal solo in a doom piece), and
+  **repetition** (added chunk C — enough return/reinforcement without monotony; "AI under-repeats").
 - **Conductor → arbitration.** Unchanged role; now refereeing **Rasik (soul) vs Producer
   (works-as-music)** — two GENUINE aesthetic stakes, a far better contest than "soul vs
   legality" (a non-contest once the piece is already legal).
@@ -462,6 +463,15 @@ So we split them, one dimension per critic:
   overlaps + the everyone-playing fraction (balance). `render_metrics` hands them to the Producer
   as a grounding block (as `pakad_presence` grounds Rasik). The Producer JUDGES the numbers; it
   does not measure. Pure tests: `tests/test_metrics.py`.
+- **CHUNK C (✅ DONE — closes the deltas vs ChatGPT's full 10-point list):** added the missing
+  metrics + the `repetition` criterion. `crew/metrics.py` now also computes `motif_recurrence`
+  (fraction of sections that RESTATE the motif contiguously — theme return, the flip side of
+  motif_share → repetition/motif), `section_variety` (distinct kinds/total → repetition:
+  through-composed vs recurring), `bass_riff_overlap` + `drums_tabla_overlap` (independence: a
+  bass merely doubling the riff, kit and tabla in lockstep), and per-section `ornament_rate`
+  (kan/meend density → climax/expressiveness). Audit of the 10-point list + coverage is in the
+  session notes; the only items left to the LLM (no clean metric) are riff catchiness and
+  subgenre mood, which are genuinely subjective.
 
 **Hybrid triage (both aesthetic critics):** illegal ⇒ forced revise (Ustad). Else the
 debate opens if EITHER Rasik OR Producer is dissatisfied — a CRITICAL criterion below the

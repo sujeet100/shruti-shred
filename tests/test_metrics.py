@@ -126,6 +126,68 @@ def test_always_on_fraction_counts_full_sections():
     assert m.always_on_fraction == round(1 / 3, 3)
 
 
+def test_motif_recurrence_counts_sections_that_restate_the_motif():
+    # the motif S R g appears contiguously only in the solo lead (S R g m) -> 1 of 3 sections
+    m = composition_metrics(_comp(), _arr())
+    assert m.motif_recurrence == round(1 / 3, 3)
+
+
+def test_section_variety_is_one_when_every_kind_is_distinct():
+    m = composition_metrics(_comp(), _arr())          # alaap, solo, outro — all distinct
+    assert m.section_variety == 1.0
+
+
+def test_section_variety_drops_when_a_kind_repeats():
+    draft = ArrangementDraft(
+        raga="darbari", subgenre="doom", tala="teentaal", bpm=72, motif=_MOTIF,
+        sections=[
+            Section(kind=SectionKind.RIFF, bars=1, layers=["rhythm", "drone"], foreground="rhythm"),
+            Section(kind=SectionKind.SOLO, bars=1, layers=["lead", "drone"], foreground="lead"),
+            Section(kind=SectionKind.RIFF, bars=1, layers=["rhythm", "drone"], foreground="rhythm")])
+    arr = build_arrangement(draft, CompositionBrief(mood="dark"))
+    m = composition_metrics(_comp(), arr)
+    assert m.section_variety == round(2 / 3, 3)        # riff recurs -> 2 distinct of 3
+
+
+def test_bass_riff_overlap_measures_a_bass_that_tracks_the_riff():
+    # bass plays {S}; riff distinct {S, g} -> all of the bass's notes are in the riff
+    comp = Composition(
+        raga="darbari", sa=62, bpm=72, tala={"name": "teentaal", "beats_per_bar": 16.0},
+        layers=[Layer(role="rhythm", notes=[Note(swara="S", oct=-2, start=0.0, dur=1.0),
+                                            Note(swara="g", oct=-2, start=1.0, dur=1.0)]),
+                Layer(role="bass", notes=[Note(swara="S", oct=-3, start=0.0, dur=2.0)])])
+    m = composition_metrics(comp, _arr())
+    assert m.bass_riff_overlap == 1.0
+
+
+def test_drums_tabla_overlap_measures_lockstep_percussion():
+    from crew.contracts import DrumHit
+    comp = Composition(
+        raga="darbari", sa=62, bpm=72, tala={"name": "teentaal", "beats_per_bar": 16.0},
+        layers=[Layer(role="drums", hits=[DrumHit(drum="kick", start=0.0),
+                                          DrumHit(drum="snare", start=1.0),
+                                          DrumHit(drum="kick", start=2.0)]),
+                Layer(role="tabla", hits=[DrumHit(drum="tabla_lo", start=0.0),
+                                          DrumHit(drum="tabla_hi", start=2.0),
+                                          DrumHit(drum="tabla_hi", start=4.0)])])
+    m = composition_metrics(comp, _arr())
+    assert m.drums_tabla_overlap == round(2 / 3, 3)    # tabla at 0 and 2 land on a kit hit
+
+
+def test_ornament_rate_is_per_section_over_the_pitched_notes():
+    arr = _arr()
+    drone = [Note(swara="S", oct=-2, start=0.0, dur=48.0)]        # onset only in the alaap
+    lead = [Note(swara="S", oct=0, start=16.0, dur=1.0, grace=["R"]),   # ornamented
+            Note(swara="g", oct=0, start=17.0, dur=1.0, meend="m"),     # ornamented
+            Note(swara="m", oct=0, start=18.0, dur=1.0)]               # plain
+    comp = Composition(
+        raga="darbari", sa=62, bpm=72, tala={"name": "teentaal", "beats_per_bar": 16.0},
+        layers=[Layer(role="drone", notes=drone), Layer(role="lead", notes=lead)])
+    m = composition_metrics(comp, arr)
+    assert m.energy[0].ornament_rate == 0.0            # alaap: just the plain drone onset
+    assert m.energy[1].ornament_rate == round(2 / 3, 3)  # solo: 2 of 3 lead notes ornamented
+
+
 # --- rendering -----------------------------------------------------------------
 
 def test_render_metrics_surfaces_the_curve_and_ratios():
@@ -133,7 +195,9 @@ def test_render_metrics_surfaces_the_curve_and_ratios():
     assert "dynamics curve" in text and "solo:" in text
     assert "resolves afterwards" in text
     assert "motif_share" in text and "75%" in text
-    assert "lead/riff overlap" in text
+    assert "motif_recurrence" in text and "section_variety" in text
+    assert "ornament rate per section" in text
+    assert "lead/riff overlap" in text and "bass/riff overlap" in text
 
 
 def test_render_metrics_handles_an_empty_piece():

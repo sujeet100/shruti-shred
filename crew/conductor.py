@@ -126,8 +126,8 @@ _RULING_SCHEMA: Final = """{
 # debate (the raga's soul for Rasik; the two biggest songwriting omissions for Producer).
 _RASIK_CRITERIA: Final = ("pakad", "idiom", "rasa")
 _RASIK_CRITICAL: Final = ("pakad", "idiom")
-_PRODUCER_CRITERIA: Final = ("structure", "dynamics", "climax", "motif",
-                             "hook", "balance", "independence", "mood_fit")
+_PRODUCER_CRITERIA: Final = ("structure", "dynamics", "climax", "motif", "hook",
+                             "balance", "independence", "mood_fit", "repetition")
 _PRODUCER_CRITICAL: Final = ("structure", "motif")
 
 
@@ -194,7 +194,8 @@ def _scores_str(rasik: RasikVerdict) -> str:
 def _producer_scores_str(producer: ProducerVerdict) -> str:
     s = producer.scores
     return (f"structure={s.structure} dynamics={s.dynamics} climax={s.climax} motif={s.motif} "
-            f"hook={s.hook} balance={s.balance} independence={s.independence} mood_fit={s.mood_fit}")
+            f"hook={s.hook} balance={s.balance} independence={s.independence} "
+            f"mood_fit={s.mood_fit} repetition={s.repetition}")
 
 
 def _render_ustad_summary(ustad: UstadVerdict) -> str:
@@ -450,8 +451,8 @@ def _demo_case() -> tuple[UstadVerdict, RasikVerdict, ProducerVerdict, Compositi
         notes=("The pakad is present, but the lead stays merely in-scale — it never leans "
                "into Darbari's andolan on komal ga and dha, so the raga's soul is thin."))
     producer = ProducerVerdict(
-        scores=ProducerScores(structure=4, dynamics=4, climax=4, motif=4,
-                              hook=4, balance=4, independence=4, mood_fit=4),
+        scores=ProducerScores(structure=4, dynamics=4, climax=4, motif=4, hook=4,
+                              balance=4, independence=4, mood_fit=4, repetition=4),
         notes="As a song it moves — the riff hooks, the arc builds; a lead revise risks the drive.")
     return ustad, rasik, producer, comp
 

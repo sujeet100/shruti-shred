@@ -11,8 +11,13 @@ the Producer spends its judgment on what the numbers MEAN, not on deriving them.
 Each metric maps to Producer rubric criteria:
   * the per-section ENERGY curve      -> dynamics, climax, balance
   * peak / resolution / flatness      -> climax, dynamics
+  * per-section ornament_rate         -> climax (an expressive peak), idiom cross-check
   * motif_share                       -> motif (developed vs abandoned vs never-varied)
+  * motif_recurrence                  -> repetition, motif (is the theme brought back?)
+  * section_variety                   -> repetition (through-composed vs recurring sections)
   * lead_riff_overlap                 -> independence (a lead that just doubles the riff)
+  * bass_riff_overlap                 -> independence (a bass that just doubles the riff)
+  * drums_tabla_overlap               -> independence (kit and tabla playing in lockstep)
   * register_overlaps                 -> balance (voices colliding in one octave)
   * always_on_fraction                -> balance (no arrangement space — everyone always on)
 
@@ -44,6 +49,7 @@ class SectionEnergy:
     active_voices: int          # distinct roles sounding in this section (perc included)
     notes_per_beat: float       # pitched-note density over the section window
     mean_vel: float             # average velocity of the pitched notes (0 if none)
+    ornament_rate: float        # fraction of the section's pitched notes carrying a kan/meend
     energy: float               # composite index = active_voices * mean_vel / 127
 
 
@@ -56,7 +62,11 @@ class ProducerMetrics:
     resolves: bool              # energy falls after the peak (a resolution, not a hard stop)
     is_flat: bool               # energy barely varies across sections (no arc)
     motif_share: float          # fraction of lead notes whose swara is in the motif set
+    motif_recurrence: float     # fraction of sections whose melody states the motif (theme return)
+    section_variety: float      # distinct section kinds / total (1.0 = through-composed, low = repeats)
     lead_riff_overlap: float    # fraction of the lead's swaras that also appear in the riff
+    bass_riff_overlap: float    # fraction of the bass's swaras that also appear in the riff
+    drums_tabla_overlap: float  # fraction of tabla hits that land on a kit hit (lockstep percussion)
     register_overlaps: list[tuple[str, str]]  # melodic voice pairs sharing an octave band
     always_on_fraction: float   # fraction of sections where EVERY present voice plays
 
@@ -97,6 +107,35 @@ def _role_swaras(comp: Composition, role: str) -> list[str]:
     return [n.swara for n in sorted(notes, key=lambda x: x.start)]
 
 
+def _role_swaras_in(comp: Composition, role: str, start: float, end: float) -> list[str]:
+    """A role's swaras whose onset lands in [start, end), in time order."""
+    notes = [n for ly in comp.layers if ly.role == role
+             for n in (ly.notes or []) if start <= n.start < end]
+    return [n.swara for n in sorted(notes, key=lambda x: x.start)]
+
+
+def _hit_onsets(comp: Composition, role: str) -> set[float]:
+    """The distinct onset beats of a percussion role's hits."""
+    return {round(h.start, 4) for ly in comp.layers if ly.role == role for h in (ly.hits or [])}
+
+
+def _contains(sequence: list[str], phrase: list[str]) -> bool:
+    """True iff `phrase` occurs as a contiguous run inside `sequence` (octave-agnostic).
+    (Reimplemented here rather than imported from rasik.py, which pulls in crewai — this
+    module stays LLM-free.)"""
+    n = len(phrase)
+    if not phrase or n > len(sequence):
+        return False
+    return any(sequence[i:i + n] == phrase for i in range(len(sequence) - n + 1))
+
+
+def _overlap_fraction(subject: set[str], reference: set[str]) -> float:
+    """Fraction of `subject`'s members that also appear in `reference` (0 if either empty)."""
+    if not subject or not reference:
+        return 0.0
+    return round(len(subject & reference) / len(subject), 3)
+
+
 def _role_oct_range(comp: Composition, role: str) -> tuple[int, int] | None:
     """The (min, max) octave a role occupies, or None if it has no notes."""
     octs = [n.oct for ly in comp.layers if ly.role == role for n in (ly.notes or [])]
@@ -116,10 +155,43 @@ def _section_energy(comp: Composition, arr: Arrangement) -> list[SectionEnergy]:
         length = span.length or 1.0
         density = round(len(pitched) / length, 3)
         mean_vel = round(sum(n.vel for n in pitched) / len(pitched), 1) if pitched else 0.0
+        ornamented = sum(1 for n in pitched if n.grace or n.meend)
+        ornament_rate = round(ornamented / len(pitched), 3) if pitched else 0.0
         energy = round(active * mean_vel / 127, 3)
         rows.append(SectionEnergy(kind=span.section.kind.value, active_voices=active,
-                                  notes_per_beat=density, mean_vel=mean_vel, energy=energy))
+                                  notes_per_beat=density, mean_vel=mean_vel,
+                                  ornament_rate=ornament_rate, energy=energy))
     return rows
+
+
+def _motif_recurrence(comp: Composition, arr: Arrangement) -> float:
+    """Fraction of SECTIONS whose lead or riff states the motif as a contiguous run — the
+    theme being brought back (reinforcement), the flip side of motif_share. Low means the
+    motif is stated once and never returns; high means it recurs as a hook."""
+    spans = section_spans(arr)
+    if not spans:
+        return 0.0
+    hits = sum(1 for span in spans
+               if _contains(_role_swaras_in(comp, "lead", span.start, span.end), arr.motif)
+               or _contains(_role_swaras_in(comp, "rhythm", span.start, span.end), arr.motif))
+    return round(hits / len(spans), 3)
+
+
+def _section_variety(arr: Arrangement) -> float:
+    """Distinct section KINDS over total sections. 1.0 = every section a different kind
+    (through-composed, little structural repetition); low = kinds recur (verse/chorus-like)."""
+    kinds = [s.kind.value for s in arr.sections]
+    return round(len(set(kinds)) / len(kinds), 3) if kinds else 0.0
+
+
+def _drums_tabla_overlap(comp: Composition) -> float:
+    """Fraction of tabla hits that land on the same beat as a kit hit — 1.0 means the two
+    percussion voices move in lockstep (no independence). 0 when there is no tabla."""
+    tabla = _hit_onsets(comp, "tabla")
+    if not tabla:
+        return 0.0
+    drums = _hit_onsets(comp, "drums")
+    return round(len(tabla & drums) / len(tabla), 3)
 
 
 def _peak_and_resolution(energy: list[SectionEnergy]) -> tuple[int, bool, bool]:
@@ -147,11 +219,14 @@ def _motif_share(comp: Composition, arr: Arrangement) -> float:
 def _lead_riff_overlap(comp: Composition) -> float:
     """Fraction of the lead's DISTINCT swaras that also appear in the riff — a proxy for
     the lead merely doubling the riff (low independence). 0 when either voice is absent."""
-    lead = set(_role_swaras(comp, "lead"))
-    riff = set(_role_swaras(comp, "rhythm"))
-    if not lead or not riff:
-        return 0.0
-    return round(len(lead & riff) / len(lead), 3)
+    return _overlap_fraction(set(_role_swaras(comp, "lead")), set(_role_swaras(comp, "rhythm")))
+
+
+def _bass_riff_overlap(comp: Composition) -> float:
+    """Fraction of the bass's DISTINCT swaras that also appear in the riff. A metal bass
+    SHOULD track the riff's roots, so a high value here is often fine — the Producer judges
+    whether it does anything of its own; code just supplies the number."""
+    return _overlap_fraction(set(_role_swaras(comp, "bass")), set(_role_swaras(comp, "rhythm")))
 
 
 def _register_overlaps(comp: Composition) -> list[tuple[str, str]]:
@@ -191,7 +266,11 @@ def composition_metrics(comp: Composition, arr: Arrangement) -> ProducerMetrics:
         resolves=resolves,
         is_flat=is_flat,
         motif_share=_motif_share(comp, arr),
+        motif_recurrence=_motif_recurrence(comp, arr),
+        section_variety=_section_variety(arr),
         lead_riff_overlap=_lead_riff_overlap(comp),
+        bass_riff_overlap=_bass_riff_overlap(comp),
+        drums_tabla_overlap=_drums_tabla_overlap(comp),
         register_overlaps=_register_overlaps(comp),
         always_on_fraction=_always_on_fraction(energy, comp))
 
@@ -214,8 +293,16 @@ def render_metrics(metrics: ProducerMetrics) -> str:
         lines.append(f"  arc: {arc}")
         lines.append("  active voices per section: "
                      + " ".join(f"{r.kind}={r.active_voices}" for r in metrics.energy))
+        lines.append("  ornament rate per section: "
+                     + " ".join(f"{r.kind}={r.ornament_rate:.0%}" for r in metrics.energy))
     lines.append(f"  motif_share (lead notes drawn from the motif): {metrics.motif_share:.0%}")
+    lines.append(f"  motif_recurrence (sections that restate the motif): {metrics.motif_recurrence:.0%}")
+    lines.append(f"  section_variety (distinct kinds / total; high = through-composed, "
+                 f"little repetition): {metrics.section_variety:.0%}")
     lines.append(f"  lead/riff overlap (lead swaras also in the riff): {metrics.lead_riff_overlap:.0%}")
+    lines.append(f"  bass/riff overlap (bass tracking the riff — often fine): {metrics.bass_riff_overlap:.0%}")
+    if metrics.drums_tabla_overlap:
+        lines.append(f"  drums/tabla lockstep (tabla hits on a kit hit): {metrics.drums_tabla_overlap:.0%}")
     lines.append(f"  everyone-playing sections: {metrics.always_on_fraction:.0%}")
     if metrics.register_overlaps:
         pairs = ", ".join(f"{a}+{b}" for a, b in metrics.register_overlaps)

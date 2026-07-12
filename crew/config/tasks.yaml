@@ -352,6 +352,9 @@ assess_composition:
       independence — does each voice CONTRIBUTE (lead != riff, drums != tabla)? (A bass locking
                      to the riff root is normal metal craft — do NOT dock it for that.)
       mood_fit     — does the whole piece hold the requested SUBGENRE mood (no bright section in a doom piece)?
+      repetition   — is there ENOUGH return (the hook and motif reinforced across sections) without
+                     tipping into monotony? Music needs repetition; a through-composed piece where
+                     nothing recurs is as weak as one where every section is identical.
 
     THE SUBGENRE — the intended feel the piece must hold (for mood_fit):
     {subgenre_facts}
@@ -379,9 +382,10 @@ assess_composition:
     HARD RULES:
       - Every score is an integer 1-5, justified in `reasoning` BEFORE you commit it.
       - Ground your scores in the MEASURED FACTS where they apply (dynamics/climax in the
-        energy curve, motif in motif_share, independence in the lead/riff overlap, balance
-        in the register overlaps and everyone-playing fraction) — do not contradict a number
-        without saying why.
+        energy curve and ornament rate, motif in motif_share, repetition in motif_recurrence
+        and section_variety, independence in the lead/riff and bass/riff and drums/tabla
+        overlaps, balance in the register overlaps and everyone-playing fraction) — do not
+        contradict a number without saying why.
       - Judge the SONG, not the raga — never dock a score for a raga choice; that is Rasik's
         lane. Do not inflate a score you cannot defend from the score above.
       - `notes` is a SHORT (2-3 sentence) critique a musician can act on.

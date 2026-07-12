@@ -840,6 +840,7 @@ class ProducerScores(BaseModel):
     balance: int = Field(ge=1, le=5)        # arrangement space — not every voice at full throughout?
     independence: int = Field(ge=1, le=5)   # does each voice contribute (lead != riff, bass != riff, drums != tabla)?
     mood_fit: int = Field(ge=1, le=5)       # does the whole piece hold the requested SUBGENRE mood?
+    repetition: int = Field(ge=1, le=5)     # enough return (hook/motif reinforced) without becoming monotonous?
 
 
 class ProducerVerdict(BaseModel):

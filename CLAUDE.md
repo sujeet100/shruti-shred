@@ -306,14 +306,15 @@ and build order.
   per-criterion justification required (reasoning first). No tool. Pure tests: `tests/test_rasik.py`.
 - **Agent #7 — the Producer, the COMPOSITION-QUALITY critic** (`crew/producer.py`) **done**
   (2026-07-12): the THIRD critic dimension (Sujit's insight — Rasik was doing two jobs). Raga-
-  AGNOSTIC songwriting/arrangement judgment on a fixed **1-5 rubric** over eight criteria
-  (`ProducerScores`: structure, dynamics, climax, motif, hook, balance, independence, mood_fit),
-  grounded in the whole symbolic SCORE (section timeline, motif, riff line with chords/techniques,
-  lead, ensemble — it reads the Arrangement, not just the Composition) AND in code-computed
-  metrics (`crew/metrics.py`, pure): the per-section dynamics/energy curve, peak/resolution/flat
-  arc, `motif_share`, `lead_riff_overlap` (independence), register overlaps + everyone-playing
-  fraction (balance) — "code measures, LLM evaluates". LLM-as-judge like Rasik. Pure tests:
-  `tests/test_producer.py`, `tests/test_metrics.py`.
+  AGNOSTIC songwriting/arrangement judgment on a fixed **1-5 rubric** over NINE criteria
+  (`ProducerScores`: structure, dynamics, climax, motif, hook, balance, independence, mood_fit,
+  repetition), grounded in the whole symbolic SCORE (section timeline, motif, riff line with
+  chords/techniques, lead, ensemble — it reads the Arrangement, not just the Composition) AND in
+  code-computed metrics (`crew/metrics.py`, pure): the per-section dynamics/energy curve +
+  ornament rate, peak/resolution/flat arc, `motif_share` + `motif_recurrence` + `section_variety`
+  (motif/repetition), `lead_riff_overlap`/`bass_riff_overlap`/`drums_tabla_overlap`
+  (independence), register overlaps + everyone-playing fraction (balance) — "code measures, LLM
+  evaluates". LLM-as-judge like Rasik. Pure tests: `tests/test_producer.py`, `tests/test_metrics.py`.
 - **Agent #6 — the Conductor** (`crew/conductor.py`) **done** (the arbitration half of step 6,
   the talk's money moment): DISAGREEMENT → BOUNDED DEBATE → a REFEREE's verdict. `detect_conflict`
   is pure CODE triage — **illegal ⇒ forced revise, no debate** (legality is non-negotiable);
@@ -365,7 +366,10 @@ and build order.
     computes the dynamics/energy curve, arc peak/resolution/flatness, `motif_share`,
     `lead_riff_overlap`, register overlaps + everyone-playing fraction; `render_metrics` grounds
     the Producer prompt ("code measures, LLM evaluates"). Pure tests: `tests/test_metrics.py`.
-    (202 pure tests green.)
+  - **(chunk C) Deepen Producer metrics + `repetition` criterion — ✅ DONE**: closed the deltas
+    vs ChatGPT's full 10-point list — added `motif_recurrence`, `section_variety`,
+    `bass_riff_overlap`, `drums_tabla_overlap`, per-section `ornament_rate`, and a 9th scored
+    criterion `repetition`. (208 pure tests green.)
   - **NEXT (steps 4, 6–8):** composition memory (generators see realized previous sections);
     structured-output robustness (parse+retry) + fuzzy pakad; prompt hygiene; live-hardening
     (fast mode, failsafe chart, concurrent Lead∥Riff). A computed consistency check can fold
