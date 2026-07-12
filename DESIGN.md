@@ -311,30 +311,39 @@ judges the **lead** line plus an abstract ensemble summary, never the riff's not
 mix/timbre fixes belong in **deterministic code**; making a critic *able* to complain
 would mean feeding Rasik the riff + a "metal idiom" lens.
 
-**Mix pass (deterministic, prompt-independent — do first).** In `src/render.py` +
-`crew/generators.py`/`crew/riff.py`:
-- **Bass an octave BELOW the rhythm guitar** (today `bass_layer` copies the riff note's
-  octave, so bass and guitar are the SAME pitch → "sounds like bass"). And keep the
-  guitar out of sub-bass (doom/death sit at oct −3 = D1 ≈ 37 Hz; lift so the distortion
-  reads as a guitar, not a rumble).
-- **Per-channel pan** (MIDI CC 10) added to the renderer + a `pan` on the voice/layer.
-- **Pan sitar vs. lead-guitar to opposite sides** so the harmonized lead separates.
-- **Double-track the rhythm guitar hard L/R** — but two IDENTICAL MIDI tracks panned
-  L/R sum to mono/center, so give the second track a small deterministic timing/velocity
-  offset for real width.
+**✅ Mix pass — DONE (commit `40048f6`).** `Layer.pan`/`Voice.pan` + MIDI CC10 in
+`src/render.py`; bass an octave below the guitar (`_BASS_FLOOR`); guitar floored at oct −2
+(`_RHYTHM_FLOOR`); sitar (left) / lead-guitar (right) pan opposite; rhythm double-tracked
+hard L/R via `generators.double_track` (left = Overdriven GM30 pan 20, right = Distortion
+GM31 pan 108, ~10 ms Haas offset + slight vel drop); bass/groove/tabla still derive from the
+ORIGINAL riff. Covered by `tests/test_generators.py`. (Not yet heard — batched for the final
+live render per "no LLM runs until all changes done".)
 
-**Riff voicing + technique (prompt + contract + render — do after the external review).**
-Decision (Sujit, 2026-07-12): **legal-only, realized as EXTENDED CHORDS built from the
-raga's own allowed swaras** — the prog-metal move (add-9/7th/sus/quartal stacks, root+
-octave for weight), NOT fixed power-chord +7 fifths. Any subset of `RAGAS[raga]["allowed"]`
-is legal BY CONSTRUCTION (Ustad still passes), and `raga.scale_step_up` already walks the
-raga ladder for diatonic intervals. Techniques (slides/bends/hammer-ons/pull-offs between
-LEGAL swaras; palm-mute as a feel) need the `RiffNote`/`RiffPattern` contract to carry a
-voicing + technique, render support, and a prompt update to `generate_riff`.
-
-**Sequencing:** mix pass now (audible fix, no prompt risk); the riff chords/techniques
-land after the external design/prompt review comes back — see `REVIEW.md` (a self-contained
-review request for Gemini/ChatGPT; questions 11–13 cover exactly this modeling choice).
+**Riff voicing + technique — NEXT (contract + render + prompt). Concrete design worked out
+2026-07-12 (implement directly):**
+- **Extended chords, legal-BY-CONSTRUCTION.** Add `chord: Optional[list[str]]` to `RiffNote`
+  (and to the render-time `Note`): extra swaras sounded WITH the root, each a legal raga
+  swara (same guardrail check as the root — extend `raga.validate_composition` to check chord
+  tones too). The renderer sounds them **stacked UPWARD from the root** (each chord tone at
+  the lowest octave whose pitch is > the root's). That single rule yields everything Sujit
+  asked for and stays in-raga: a fifth = `["P"]`; a root+octave power chord = `["S"]` (the
+  repeated root lands an octave up); a prog extended voicing = e.g. `["g","n"]` (stack raga
+  color tones). NO fixed +7 fifths — the palette IS `RAGAS[raga]["allowed"]`.
+- **Techniques.** Add `technique: Optional[Literal["palm_mute","slide","bend","hammer_on",
+  "pull_off"]]` to `RiffNote`/`Note`. Render mappings: **palm_mute** → dur ×~0.5 + vel ×~0.9
+  (the chug — solid, pure-testable); **slide** → brief pitch-bend ramp −2 st → 0 into the
+  onset; **bend** → pitch-bend 0 → +2 st over the first half; **hammer_on/pull_off** → softer
+  attack velocity (legato approximation). Reuse `_arm_bend_range`/`_render_meend` machinery;
+  arm the rhythm channel's bend range if any note slides/bends. **Caveat:** the rhythm channel
+  is now polyphonic (chords), and pitch-bend is channel-wide — so a *slid power chord* bends
+  the whole chord together (correct!), but a bend on one note of a sustained chord bends the
+  chord (acceptable). Riff notes are laid end-to-end, so reset the wheel to 0 at each note end.
+  Slide/bend audio quality needs Sujit's ear at the final render.
+- **Plumbing:** `RiffNote` → `Note` copy of `chord`/`technique` in `riff.py` `_sequence_cycle`;
+  extend the riff guardrail (`_riff_guardrail`) + `validate_composition` to check chord tones;
+  update the `generate_riff` prompt (extended raga voicings + the technique vocabulary +
+  legal-only). Pure tests: chord placement + legality (guardrail catches an illegal chord
+  tone) + technique passthrough + a chord-stacking pitch-math helper + palm_mute dur/vel.
 
 ---
 
@@ -408,10 +417,22 @@ debate as the weakest link.** Where they converge = highest confidence.
   already cheap, and "agent #1 = the front door / validate-at-boundary" is a teaching beat.
 - **Keep Ustad's name** — but it now EXITS the debate (its legality job ends at triage).
 
-**Proposed roadmap (integrating the audio work; order to confirm with Sujit):**
-1. Mix pass (deterministic).  2. Riff extended-chords + techniques.  3. Reframe the debate
-(Rasik vs a Producer/impact voice) + hybrid triage — the top review finding.  4. Composition
-memory.  5. Computed metrics → Rasik + the computed consistency check.  6. Structured-output
-robustness (manual parse + retry; kill nullable fields) + fuzzy pakad.  7. Prompt compression
-/ system-user split / constraints-vs-style / anti-sycophancy pacing.  8. Fast mode + failsafe
-chart + concurrent Lead∥Riff for the live talk.
+**Roadmap — Sujit chose "do all together" (one campaign, committed in tested chunks;
+Producer for the debate). Progress:**
+1. ✅ **Mix pass** (deterministic) — DONE, commit `40048f6`.
+2. ⏳ **Riff extended-chords + techniques** — NEXT (design above; started, no code yet).
+3. **Reframe the debate** — Ustad EXITS; new **Producer** (impact/momentum) agent debates
+   Rasik; hybrid triage (weighted overall OR a critical criterion low). *(chosen: Producer.)*
+4. **Composition memory** — generators see the realized previous sections.
+5. **Computed metrics → Rasik + a computed consistency check.**
+6. **Structured-output robustness** (parse+retry ourselves vs provider strict JSON; kill
+   nullable fields) + **fuzzy `pakad_presence`**.
+7. **Prompt hygiene** — compress; system/user split; constraints-vs-style; anti-sycophancy
+   pacing; negative→positive rules.
+8. **Live-hardening** — fast mode; failsafe pre-rendered chart; concurrent Lead∥Riff.
+
+**RESUME HERE (next session):** tree is clean at commit `40048f6`. Do steps 2–8 (pure tests
+only). **Run NO LLM/live calls until ALL changes are done** (Sujit's instruction, 2026-07-12)
+— then a SINGLE batched live render (`uv run python -m crew.flow` / `crew.band`) to hear the
+mix + chords + techniques together, and one live Flow run to confirm the reframed debate.
+Task list #7–#11 tracks the remaining chunks.

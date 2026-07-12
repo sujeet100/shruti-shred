@@ -107,13 +107,16 @@ Phase 2 is complete: `compose_flow("a dark doom fusion in Malkauns")` runs the w
 to end and returns a `ComposeState` with the `Composition`, the full `DebateEvent` stream, the
 Conductor's ruling, and the rendered WAV path. Everything downstream already exists.
 
-**Immediate next (decided 2026-07-12 — see DESIGN.md "Audio production & riff voicing"):** a
-listen exposed mix gaps the agents can't catch (the loop is symbolic — no agent hears audio).
-Do the **deterministic mix pass** first (bass an octave below the guitar, per-channel pan in
-the renderer, sitar/lead panned opposite, rhythm double-tracked hard L/R). Then, **after the
-external review** (`REVIEW.md`, out to Gemini/ChatGPT), add **riff chords + techniques** —
-legal-only, as EXTENDED CHORDS stacked from the raga's own swaras (prog-metal voicings), plus
-slides/bends/hammer-ons/palm-mutes between legal swaras (needs a `RiffNote` contract change).
+**Immediate work (2026-07-12 — Sujit: "do all together"; full plan + RESUME-HERE note in
+DESIGN.md "Audio production & riff voicing" + roadmap):** audio + review-informed polish, in
+tested chunks. Root insight: the loop is symbolic — no agent hears audio — so mix/timbre fixes
+are deterministic code. **Mix pass is DONE** (commit `40048f6`: bass an octave below the
+guitar, per-channel pan, sitar/lead panned opposite, rhythm double-tracked hard L/R). **Resume
+at step 2:** riff extended-chords + techniques (legal-only, stacked from the raga's own
+swaras — concrete design in DESIGN.md), then the debate reframe (**Ustad exits; a Producer
+critic debates Rasik**), composition memory, computed metrics + consistency, robustness, prompt
+hygiene, live-hardening. **Run NO LLM until all changes are done** — then one batched live render.
+The external reviews (GPT + Gemini on `REVIEW.md`) are triaged in DESIGN.md.
 
 Then Phase 3:
 

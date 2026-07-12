@@ -326,16 +326,22 @@ and build order.
   `crew/evals.py` is the interpreter eval harness. See the "Observability" section.
 - Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
 - **Phase 2's agentic pipeline is COMPLETE end-to-end** (`compose_flow(query)` → WAV).
-- **NEXT (decided 2026-07-12) — audio production polish** (see DESIGN.md "Audio production &
-  riff voicing"): a listen exposed mix gaps the agents can't catch (the loop is symbolic — **no
-  agent hears audio**; the critics judge notes, not sound). (1) **Deterministic mix pass** (do
-  first, prompt-independent): bass an octave BELOW the rhythm guitar (today it doubles the
-  guitar's octave → "sounds like bass"), per-channel pan in the renderer, sitar/lead panned
-  opposite, rhythm double-tracked hard L/R. (2) **Riff chords + techniques** (after the external
-  review): **legal-only, as EXTENDED CHORDS stacked from the raga's own swaras** (prog-metal
-  voicings — NOT fixed power-chord fifths), plus slides/bends/hammer-ons/palm-mutes between
-  legal swaras — needs a `RiffNote` contract change. **`REVIEW.md`** is a self-contained
-  design/prompt review request (for Gemini/ChatGPT; 17 questions) — out for external feedback.
+- **IN PROGRESS (2026-07-12) — audio production + review-informed polish** (Sujit: "do all
+  together", tested chunks; full roadmap + design in DESIGN.md "Audio production & riff voicing"
+  + "External review triage"). Root insight: the loop is symbolic — **no agent hears audio** —
+  so the critics can't catch mix/timbre/technique gaps; those fixes are deterministic code.
+  - **(1) Mix pass — ✅ DONE** (commit `40048f6`): bass an octave below the guitar, guitar out
+    of sub-bass, per-channel pan (CC10), sitar/lead panned opposite, rhythm double-tracked hard
+    L/R (Overdriven left / Distortion right + Haas offset). Not yet heard (batched — see below).
+  - **NEXT (steps 2–8):** riff extended-chords + techniques (legal-only, stacked from the raga's
+    own swaras — concrete design in DESIGN.md); reframe the debate (**Ustad exits; a new
+    Producer/impact critic debates Rasik**; hybrid triage); composition memory; computed metrics
+    → Rasik + a consistency check; structured-output robustness (parse+retry) + fuzzy pakad;
+    prompt hygiene; live-hardening (fast mode, failsafe chart, concurrent Lead∥Riff).
+  - **RUN NO LLM/live calls until ALL changes are done** (Sujit's instruction) — pure tests
+    only, then ONE batched live render + one live Flow run at the very end.
+- **`REVIEW.md`** is the external design/prompt review request; GPT + Gemini feedback is triaged
+  in DESIGN.md ("External review triage").
 - **External reviews are IN** (GPT + Gemini, on `REVIEW.md`) — triaged in DESIGN.md
   ("External review triage"). Both independently flag the **Ustad↔Rasik debate as the
   weakest link** (by triage the piece is already legal, so Ustad has no aesthetic stake):
