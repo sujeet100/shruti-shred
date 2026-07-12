@@ -1,0 +1,1085 @@
+<!--
+  Shruti Shred — the live composition UI.
+
+  This file is CONTENT-ONLY (no <!doctype>/<html>/<head>/<body>): it is served two ways
+  from one source — wrapped by crew/ui server for a live local run, and published as a
+  self-contained Artifact for review. It speaks ONLY the two UI_CONTRACT.md seams:
+  the DebateEvent stream (the timeline) and the Composition (the audio/score). It never
+  reaches into agent internals.
+
+  Offline (this file alone): it plays an EMBEDDED, contract-accurate DebateEvent stream
+  + a matching Composition, so the whole demo runs at zero LLM cost. Live: the server
+  swaps in real state.events + state.composition through the same code path.
+-->
+<style>
+  /*__PIXEL_FONTS__*/
+  :root {
+    /* Palette — the fusion thesis: cold metal night lit by warm temple gold.
+       Committed dark aesthetic (the stage is always the stage), so we don't key off
+       prefers-color-scheme; explicit values below win under any data-theme. */
+    --stage-black:  #08070d;   /* the club/night — deepest ground */
+    --stage-deep:   #120f1d;   /* panel + cabinet background */
+    --stage-panel:  #191426;   /* raised panel */
+    --stage-line:   #2a2138;   /* hairline / plank seams */
+    --temple-gold:  #f2b53c;   /* saffron/brass — the raga warmth, primary accent + spotlight */
+    --temple-hi:    #ffd97a;   /* lit gold highlight */
+    --saffron:      #d9702a;   /* deeper marigold — secondary warmth */
+    --neon-magenta: #ff2e88;   /* the metal neon edge — debate / revise / danger */
+    --drone-cyan:   #38e0cf;   /* cold accent — the arbiter / accept */
+    --ink:          #ece5d3;   /* warm parchment text */
+    --ink-dim:      #8c8399;   /* muted lavender-grey — secondary text */
+    --ink-faint:    #574f68;   /* faintest */
+
+    /* role → lane colour (the contract's styling key) */
+    --role-system:    #7d7690;
+    --role-composer:  #f2b53c;
+    --role-generator: #d9702a;
+    --role-critic:    #ff2e88;
+    --role-conductor: #38e0cf;
+
+    /* Pixel type everywhere: VT323 (readable terminal) for body/log/readouts,
+       Press Start 2P (chunky) for display/labels. Injected as @font-face data URIs. */
+    --font-body: "VT323", ui-monospace, "Menlo", monospace;
+    --font-mono: "VT323", ui-monospace, "Menlo", monospace;
+    --font-pixel: "PressStart2P", "VT323", monospace;
+    --font-deva: "Kohinoor Devanagari", "Nirmala UI", "Noto Sans Devanagari", "Mangal", serif;
+
+    --edge: 3px;               /* chunky pixel border width */
+  }
+
+  * { box-sizing: border-box; }
+
+  .ss-root {
+    background:
+      radial-gradient(120% 80% at 50% -10%, #1b1330 0%, transparent 55%),
+      var(--stage-black);
+    color: var(--ink);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding: clamp(8px, 2vw, 22px);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.4;
+  }
+
+  /* The cabinet — the whole demo lives in one bordered console, like an arcade screen. */
+  .cabinet {
+    max-width: 1180px;
+    margin: 0 auto;
+    background: var(--stage-deep);
+    border: var(--edge) solid var(--stage-line);
+    box-shadow: 0 0 0 3px var(--stage-black), 0 24px 60px rgba(0,0,0,.6),
+                inset 0 0 120px rgba(0,0,0,.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---- Title bar ---- */
+  .titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 18px;
+    border-bottom: var(--edge) solid var(--stage-line);
+    background: linear-gradient(180deg, #1a1330, var(--stage-deep));
+  }
+  .brand { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .logo-deva { line-height: 0; filter: drop-shadow(0 3px 0 rgba(0,0,0,.5)) drop-shadow(0 0 16px rgba(242,181,60,.3)); }
+  .logo-latin { display: flex; align-items: baseline; gap: 12px; padding-bottom: 2px; }
+  #logoLatin { font-family: var(--font-pixel); font-size: 13px; color: var(--ink); letter-spacing: 1px; }
+  .tagline {
+    font-family: var(--font-body); text-transform: uppercase; letter-spacing: .16em;
+    font-size: 15px; color: var(--ink-faint);
+  }
+  /* a pixel-text canvas — real glyphs rasterised small then upscaled nearest-neighbour */
+  .pxc { display: block; image-rendering: pixelated; }
+
+  .status {
+    display: flex; align-items: center; gap: 10px; min-height: 24px; text-transform: uppercase;
+    font-family: var(--font-pixel); font-size: 8px; letter-spacing: 1px; color: var(--ink-dim);
+    border: 2px solid var(--stage-line); border-radius: 2px;
+    padding: 8px 11px; background: var(--stage-black); white-space: nowrap;
+  }
+  .status.running { color: var(--temple-gold); }
+  .status.done { color: var(--drone-cyan); }
+  .status .dot {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--ink-faint);
+    box-shadow: 0 0 0 0 rgba(255,46,136,.5);
+  }
+  .status.running .dot { background: var(--neon-magenta); animation: rec 1.1s steps(2) infinite; }
+  .status.done .dot { background: var(--drone-cyan); box-shadow: 0 0 10px var(--drone-cyan); }
+  @keyframes rec { 50% { opacity: .25; } }
+
+  /* ---- The stage (the "room") ---- */
+  .stage {
+    position: relative;
+    height: clamp(290px, 40vw, 400px);
+    overflow: hidden;
+    background:
+      /* dithered twilight raga sky over a metal-dark floor */
+      linear-gradient(180deg, #241a3d 0%, #191233 40%, #0e0a1a 72%, #0a0712 100%);
+    border-bottom: var(--edge) solid var(--stage-line);
+  }
+  /* haze + faint temple arch, painted, not decorative — it's the venue */
+  .stage::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(60% 40% at 50% 6%, rgba(242,181,60,.10), transparent 70%),
+      repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.05) 3px 4px);
+    pointer-events: none;
+  }
+  /* stage floor planks */
+  .floor {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 30%;
+    background:
+      repeating-linear-gradient(90deg, #150f22 0 46px, #120c1c 46px 48px),
+      linear-gradient(180deg, #1a1329, #0b0813);
+    border-top: 2px solid #2c2340;
+    box-shadow: inset 0 3px 0 rgba(242,181,60,.06);
+  }
+
+  /* the moving temple-gold spotlight — the signature element */
+  .spotlight {
+    position: absolute; width: 190px; height: 300px;
+    left: 0; top: -20px; transform: translateX(-50%);
+    background: radial-gradient(50% 60% at 50% 20%, rgba(242,181,60,.30), rgba(242,181,60,.06) 55%, transparent 72%);
+    pointer-events: none; z-index: 1;
+    transition: left .55s cubic-bezier(.5,0,.2,1), opacity .4s;
+    mix-blend-mode: screen;
+    opacity: 0;
+  }
+  .stage.lit .spotlight { opacity: 1; }
+
+  .mascot {
+    position: absolute; transform: translate(-50%, -100%);
+    width: clamp(58px, 8vw, 78px);
+    z-index: 2;
+    cursor: default;
+    transition: filter .3s, transform .3s;
+    filter: saturate(.7) brightness(.62);
+  }
+  .mascot .sprite { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+  .mascot .nameplate {
+    position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    margin-top: 7px; white-space: nowrap;
+    font-family: var(--font-pixel); font-size: 7px; letter-spacing: .5px;
+    color: #8a7f66; transition: color .3s; text-shadow: 0 1px 0 #000;
+  }
+  .mascot .bob { transform-origin: 50% 100%; animation: bob 2.6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-2px); } }
+
+  /* active = spotlit: full colour, lifted, working harder */
+  .mascot.active { filter: none; z-index: 5; }
+  .mascot.active .nameplate { color: var(--temple-hi); text-shadow: 0 0 6px rgba(255,217,122,.7), 0 1px 0 #000; }
+  .mascot.active .bob { animation: work .5s ease-in-out infinite; }
+  @keyframes work { 25% { transform: translateY(-4px) rotate(-2deg);} 75% { transform: translateY(-1px) rotate(2deg);} }
+
+  /* speech bubble */
+  .bubble {
+    position: absolute; bottom: 108%; left: 50%; transform: translateX(-50%) scale(0);
+    transform-origin: 50% 120%;
+    min-width: 120px; max-width: 240px; width: max-content;
+    background: var(--ink); color: #14101c;
+    font-family: var(--font-body); font-size: 16px; line-height: 1.15;
+    padding: 8px 10px; border-radius: 3px;
+    border: 2px solid #000; box-shadow: 3px 3px 0 rgba(0,0,0,.5);
+    z-index: 30; pointer-events: none;
+    transition: transform .16s cubic-bezier(.3,1.4,.5,1);
+  }
+  .bubble::after {
+    content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 7px solid transparent; border-top-color: var(--ink);
+  }
+  .mascot.speaking .bubble { transform: translateX(-50%) scale(1); }
+  .mascot.speaking.right .bubble { left: auto; right: -8px; transform: scale(1); }
+
+  /* verdict flashes on the stage */
+  .stage.flash-accept { animation: flashA .6s ease-out; }
+  .stage.flash-revise { animation: flashR .6s ease-out; }
+  @keyframes flashA { 0% { box-shadow: inset 0 0 0 2000px rgba(56,224,207,.28);} 100% { box-shadow: none;} }
+  @keyframes flashR { 0% { box-shadow: inset 0 0 0 2000px rgba(255,46,136,.28);} 100% { box-shadow: none;} }
+
+  /* the money-moment banner */
+  .moment {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%) translateY(-14px);
+    z-index: 8; opacity: 0; transition: opacity .4s, transform .4s;
+    display: flex; align-items: center;
+    font-family: var(--font-pixel); font-size: 9px; letter-spacing: 2px;
+    padding: 8px 15px; border: 2px solid; border-radius: 2px; background: rgba(8,7,13,.85);
+  }
+  .moment.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .moment.cooperate { color: var(--temple-gold); border-color: var(--temple-gold); }
+  .moment.debate { color: var(--neon-magenta); border-color: var(--neon-magenta); }
+
+  /* ---- Sentence line (Thimbleweed's caption) ---- */
+  .sentence {
+    padding: 11px 18px; min-height: 46px;
+    display: flex; align-items: center; gap: 12px;
+    background: var(--stage-black);
+    border-bottom: var(--edge) solid var(--stage-line);
+    font-family: var(--font-mono); font-size: clamp(17px, 2.1vw, 21px);
+  }
+  .sentence .who { color: var(--temple-gold); white-space: nowrap; }
+  .sentence .arrow { color: var(--ink-faint); }
+  .sentence .what { color: var(--ink); }
+  .sentence .cursor { color: var(--temple-gold); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- Panels: log + player ---- */
+  .panels { display: grid; grid-template-columns: 1fr 1fr; }
+  .panel { padding: 14px 16px; min-height: 220px; }
+  .panel.log { border-right: var(--edge) solid var(--stage-line); }
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--font-pixel); font-size: 8px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--ink-dim); margin-bottom: 12px;
+  }
+  .panel-head .tag { font-family: var(--font-body); font-size: 14px; letter-spacing: 0; color: var(--ink-faint); }
+
+  .logfeed {
+    font-family: var(--font-mono); font-size: 16px; line-height: 1.32;
+    height: 210px; overflow-y: auto; padding-right: 6px;
+    scrollbar-width: thin; scrollbar-color: var(--stage-line) transparent;
+  }
+  .logline { display: flex; gap: 8px; padding: 2px 0; opacity: 0; animation: fadein .3s forwards; }
+  @keyframes fadein { to { opacity: 1; } }
+  .logline .lg-agent { flex: 0 0 auto; font-weight: 700; }
+  .logline .lg-text { color: var(--ink); }
+  .logline .lg-round { color: var(--ink-faint); }
+  .logline .lg-score { color: var(--ink-dim); }
+  .r-system    .lg-agent { color: var(--role-system); }
+  .r-composer  .lg-agent { color: var(--role-composer); }
+  .r-generator .lg-agent { color: var(--role-generator); }
+  .r-critic    .lg-agent { color: var(--role-critic); }
+  .r-conductor .lg-agent { color: var(--role-conductor); }
+  .logline.verdict-revise .lg-text { color: var(--neon-magenta); }
+  .logline.verdict-accept .lg-text { color: var(--drone-cyan); }
+
+  /* ---- Player / visualizer ---- */
+  .viz-wrap { position: relative; border: 2px solid var(--stage-line); background: #0a0813; border-radius: 2px; }
+  .viz { display: block; width: 100%; height: 138px; image-rendering: pixelated; }
+  .viz-empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-body); font-size: 15px; color: var(--ink-faint); letter-spacing: .06em;
+    text-transform: uppercase; text-align: center; padding: 12px;
+  }
+  .transport { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; min-height: 20px;
+    font-family: var(--font-pixel); font-size: 9px; letter-spacing: 1px;
+    color: var(--ink); background: var(--stage-panel);
+    border: 2px solid var(--stage-line); border-bottom-width: 4px; border-radius: 3px;
+    padding: 9px 14px; cursor: pointer; transition: transform .05s, background .15s, border-color .15s;
+  }
+  .btn:hover { border-color: var(--temple-gold); color: var(--temple-hi); }
+  .btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+  .btn:focus-visible { outline: 2px solid var(--temple-gold); outline-offset: 2px; }
+  .btn.play { color: #14101c; background: var(--temple-gold); border-color: var(--saffron); }
+  .btn.play:hover { background: var(--temple-hi); color: #14101c; }
+  .btn[disabled] { opacity: .4; cursor: not-allowed; }
+  .time { font-family: var(--font-mono); font-size: 16px; color: var(--ink-dim); margin-left: auto; }
+  .meta { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .chip-meta {
+    font-family: var(--font-mono); font-size: 14px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ink-dim); border: 2px solid var(--stage-line); border-radius: 2px; padding: 3px 8px;
+  }
+  .chip-meta b { color: var(--temple-gold); }
+
+  /* ---- Input bar (the "verb" row) ---- */
+  .inputbar { padding: 14px 16px; border-top: var(--edge) solid var(--stage-line); background: var(--stage-black); }
+  .prompt-row { display: flex; gap: 10px; align-items: stretch; }
+  .prompt-glyph { font-family: var(--font-mono); color: var(--temple-gold); align-self: center; font-size: 20px; }
+  .prompt {
+    flex: 1; font-family: var(--font-mono); font-size: 19px; color: var(--ink);
+    background: var(--stage-deep); border: 2px solid var(--stage-line); border-radius: 3px;
+    padding: 10px 12px; caret-color: var(--temple-gold);
+  }
+  .prompt::placeholder { color: var(--ink-faint); }
+  .prompt:focus { outline: none; border-color: var(--temple-gold); box-shadow: 0 0 0 2px rgba(242,181,60,.18); }
+  .compose {
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-pixel); font-size: 10px; letter-spacing: 1px;
+    color: #14101c; background: linear-gradient(180deg, var(--temple-hi), var(--temple-gold));
+    border: 2px solid var(--saffron); border-bottom-width: 4px; border-radius: 3px;
+    padding: 0 22px; cursor: pointer; white-space: nowrap;
+  }
+  .compose:active { transform: translateY(2px); border-bottom-width: 2px; }
+  .compose:focus-visible { outline: 2px solid var(--drone-cyan); outline-offset: 2px; }
+  .compose[disabled] { filter: grayscale(.6) brightness(.7); cursor: not-allowed; }
+
+  .picks { display: flex; align-items: center; gap: 7px; margin-top: 11px; flex-wrap: wrap; }
+  .picks .pl {
+    font-family: var(--font-pixel); font-size: 7px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--ink-faint); margin-right: 2px;
+  }
+  .chip {
+    display: inline-flex; align-items: center;
+    font-family: var(--font-body); font-size: 16px; color: var(--ink-dim); text-transform: capitalize;
+    background: transparent; border: 2px solid var(--stage-line); border-radius: 2px;
+    padding: 3px 10px; cursor: pointer; transition: all .12s;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--ink-dim); }
+  .chip.raga:hover  { border-color: var(--temple-gold); color: var(--temple-gold); }
+  .chip.sub:hover   { border-color: var(--neon-magenta); color: var(--neon-magenta); }
+  .chip:focus-visible { outline: 2px solid var(--temple-gold); outline-offset: 2px; }
+
+  .hint { font-family: var(--font-body); font-size: 14px; color: var(--ink-faint); margin-top: 10px; letter-spacing: .02em; }
+  .hint b { color: var(--ink-dim); }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 720px) {
+    .panels { grid-template-columns: 1fr; }
+    .panel.log { border-right: none; border-bottom: var(--edge) solid var(--stage-line); }
+    .prompt-row { flex-wrap: wrap; }
+    .compose { flex: 1; padding: 11px; }
+    .logo-latin { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mascot .bob, .mascot.active .bob, .status.running .dot,
+    .sentence .cursor { animation: none !important; }
+    .spotlight { transition: opacity .2s; }
+    .stage.flash-accept, .stage.flash-revise { animation: none; }
+  }
+</style>
+
+<div class="ss-root">
+  <div class="cabinet">
+
+    <!-- TITLE BAR -->
+    <div class="titlebar">
+      <div class="brand">
+        <div class="logo-deva" id="logoDeva" lang="hi">श्रुति श्रेड</div>
+        <div class="logo-latin"><span id="logoLatin"></span><span class="tagline">raga × metal · composed live</span></div>
+      </div>
+      <div class="status" id="status"><span class="dot"></span><span id="statusText">idle</span></div>
+    </div>
+
+    <!-- STAGE -->
+    <div class="stage" id="stage">
+      <div class="floor"></div>
+      <div class="spotlight" id="spotlight"></div>
+      <div class="moment" id="moment"></div>
+      <!-- mascots injected here -->
+    </div>
+
+    <!-- SENTENCE LINE -->
+    <div class="sentence">
+      <span class="who" id="sWho">Shruti Shred</span>
+      <span class="arrow">▸</span>
+      <span class="what" id="sWhat">press <b>Compose</b> to watch the band write a song.</span>
+      <span class="cursor">▌</span>
+    </div>
+
+    <!-- PANELS -->
+    <div class="panels">
+      <div class="panel log">
+        <div class="panel-head"><span>Session log</span><span class="tag" id="logTag">— events</span></div>
+        <div class="logfeed" id="logfeed"></div>
+      </div>
+      <div class="panel player">
+        <div class="panel-head"><span>The song</span><span class="tag">midi · generated notes</span></div>
+        <div class="viz-wrap">
+          <canvas class="viz" id="viz" width="520" height="138"></canvas>
+          <div class="viz-empty" id="vizEmpty">no song yet — compose one</div>
+        </div>
+        <audio id="audioEl" preload="auto"></audio>
+        <div class="transport">
+          <button class="btn play" id="playBtn" disabled>PLAY</button>
+          <button class="btn" id="stopBtn" disabled>STOP</button>
+          <span class="time" id="time">0:00 / 0:00</span>
+        </div>
+        <div class="meta" id="meta"></div>
+      </div>
+    </div>
+
+    <!-- INPUT BAR -->
+    <div class="inputbar">
+      <div class="prompt-row">
+        <span class="prompt-glyph">❯</span>
+        <input class="prompt" id="prompt" type="text" autocomplete="off" spellcheck="false"
+               value="a dark doom fusion in Darbari, key of D"
+               aria-label="Describe the song to compose"/>
+        <button class="compose" id="composeBtn">COMPOSE</button>
+      </div>
+      <div class="picks">
+        <span class="pl">raga</span>
+        <button class="chip raga" data-raga="Bhairavi">Bhairavi</button>
+        <button class="chip raga" data-raga="Bhimpalasi">Bhimpalasi</button>
+        <button class="chip raga" data-raga="Darbari">Darbari</button>
+        <button class="chip raga" data-raga="Bhairav">Bhairav</button>
+        <button class="chip raga" data-raga="Malkauns">Malkauns</button>
+        <span class="pl" style="margin-left:8px">metal</span>
+        <button class="chip sub" data-sub="progressive">progressive</button>
+        <button class="chip sub" data-sub="thrash">thrash</button>
+        <button class="chip sub" data-sub="doom">doom</button>
+        <button class="chip sub" data-sub="death">death</button>
+      </div>
+      <div class="hint">One text box drives it — the <b>Interpreter</b> agent extracts the brief and leaves the rest <b>open</b> for the band. Chips just seed the words.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+"use strict";
+(function () {
+  // ======================================================================= //
+  //  PERSONAS — one mascot per stable `agent` (UI_CONTRACT §5.5).            //
+  //  x/y are stage coords in %. `spec` drives the parametric pixel sprite.   //
+  // ======================================================================= //
+  const PERSONAS = {
+    // Back row (intake + creation) sits higher/further back; the critics form the
+    // lit front row; the Conductor stands apart on the right; System is a corner badge.
+    Interpreter: { role:"system",    name:"Interpreter", x:8,  y:58,
+      spec:{ skin:"#e6b98a", coat:"#2f7d76", hair:"#241a2e", prop:"headphones", accent:"#38e0cf" } },
+    Pandit:      { role:"composer",  name:"Pandit",      x:25, y:62,
+      spec:{ skin:"#e0b083", coat:"#efe7d2", hair:"#cfc7b8", beard:true, tilak:true, prop:"tanpura", accent:"#f2b53c" } },
+    Riffsmith:   { role:"composer",  name:"Riffsmith",   x:40, y:58,
+      spec:{ skin:"#d9a679", coat:"#161320", hair:"#0d0a14", longhair:true, prop:"flyingv", accent:"#ff2e88" } },
+    Lead:        { role:"generator", name:"Lead",        x:56, y:62,
+      spec:{ skin:"#e0b083", coat:"#b8462a", hair:"#1c1526", topknot:true, prop:"sitar", accent:"#d9702a" } },
+    Riff:        { role:"generator", name:"Riff",        x:71, y:58,
+      spec:{ skin:"#d9a679", coat:"#20222e", hair:"#141019", cap:true, prop:"guitar", accent:"#d9702a" } },
+    Ustad:       { role:"critic",    name:"Ustad",       x:16, y:93,
+      spec:{ skin:"#dcae80", coat:"#26202f", hair:"#8a8072", beard:true, glasses:true, prop:"rulebook", accent:"#38e0cf", pose:"point" } },
+    Rasik:       { role:"critic",    name:"Rasik",       x:40, y:93,
+      spec:{ skin:"#e0b083", coat:"#5a1f36", hair:"#241a2e", eyesClosed:true, prop:"rose", accent:"#ff2e88", pose:"wah" } },
+    Producer:    { role:"critic",    name:"Producer",    x:64, y:93,
+      spec:{ skin:"#d9a679", coat:"#1d2740", hair:"#141019", beanie:true, prop:"mixer", accent:"#ff2e88" } },
+    Conductor:   { role:"conductor", name:"Conductor",   x:88, y:84,
+      spec:{ skin:"#e0b083", coat:"#123a3f", hair:"#e9e3d4", prop:"baton", accent:"#38e0cf", pose:"baton" } },
+    // System / Flow — plumbing, a badge not a character (rendered as a small CRT).
+    System:      { role:"system",    name:"System",      x:94, y:24,
+      spec:{ device:"crt", accent:"#7d7690" } },
+  };
+  const AGENT_ALIAS = { Flow:"System" };   // Flow narrates through the System badge
+  const personaKey = (a) => AGENT_ALIAS[a] || (PERSONAS[a] ? a : "System");
+
+  // ======================================================================= //
+  //  SPRITE FACTORY — parametric pixel-art chibi as SVG <rect>s.            //
+  //  A shared body template + per-persona hair/prop/pose/palette gives a     //
+  //  cohesive SET that still reads as ten distinct band members.            //
+  // ======================================================================= //
+  const P = (x,y,w,h,c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+  const OUT = "#0d0a14";  // shared outline / ground shadow
+
+  function drawPerson(s) {
+    const skin = s.skin, coat = s.coat, hair = s.hair, ac = s.accent || "#f2b53c";
+    const skinSh = shade(skin, -22), coatSh = shade(coat, -18), coatHi = shade(coat, 14);
+    let r = "";
+    // ground shadow
+    r += P(4,29,16,2,"rgba(0,0,0,.45)");
+    // legs
+    r += P(8,25,3,5,"#15121d") + P(13,25,3,5,"#15121d") + P(8,29,3,1,OUT) + P(13,29,3,1,OUT);
+    // body / coat (a robe drops lower for the Pandit/classical)
+    const bodyTop = 15, bodyH = s.coat==="#efe7d2" ? 12 : 10;
+    r += P(6,bodyTop,12,bodyH,coat);
+    r += P(6,bodyTop,12,1,coatHi) + P(6,bodyTop,1,bodyH,coatHi);
+    r += P(17,bodyTop,1,bodyH,coatSh) + P(6,bodyTop+bodyH-1,12,1,coatSh);
+    // a saffron/accent stripe or sash to tie voices to their lane colour
+    r += P(6,bodyTop+3,12,1,ac);
+    // arms (pose-dependent) — default arms down
+    r += armLeft(s, skin, skinSh, coat);
+    r += armRight(s, skin, skinSh, coat, ac);
+    // neck + head
+    r += P(11,13,3,2,skinSh);
+    r += P(8,6,8,8,skin) + P(8,6,8,1,shade(skin,12)) + P(15,7,1,7,skinSh);
+    // face
+    r += face(s);
+    // hair / headgear
+    r += headgear(s, hair);
+    return svgWrap(r);
+  }
+
+  function armLeft(s, skin, skinSh, coat) {
+    // left arm generally rests / holds the prop body
+    return P(4,16,2,7,coat) + P(4,22,2,2,skin);
+  }
+  function armRight(s, skin, skinSh, coat, ac) {
+    if (s.pose === "wah" || s.pose === "baton") {
+      // arm raised (appreciation / baton)
+      let a = P(18,10,2,7,coat) + P(18,8,2,3,skin);
+      if (s.pose === "baton") a += P(19,3,1,6,"#efe7d2");   // the baton
+      return a;
+    }
+    if (s.pose === "point") {
+      return P(18,17,4,2,coat) + P(21,17,2,2,skin);         // pointing finger
+    }
+    return P(18,16,2,7,coat) + P(18,22,2,2,skin);
+  }
+
+  function face(s) {
+    let r = "";
+    if (s.eyesClosed) {
+      r += P(10,9,2,1,"#241a2e") + P(13,9,2,1,"#241a2e");   // serene closed eyes
+    } else {
+      r += P(10,9,1,2,"#141018") + P(13,9,1,2,"#141018");
+    }
+    if (s.glasses) {
+      r += P(9,9,3,1,"#e8e2d0") + P(13,9,3,1,"#e8e2d0") + P(12,9,1,1,"#e8e2d0");
+    }
+    if (s.tilak) r += P(11,7,1,2,"#c0392b");                // a tilak on the brow
+    if (s.beard) r += P(9,12,6,2,shade(s.hair,-6)) + P(9,11,1,2,shade(s.hair,-6)) + P(14,11,1,2,shade(s.hair,-6));
+    return r;
+  }
+
+  function headgear(s, hair) {
+    if (s.beanie)  return P(7,4,10,3,shade(hair,26)) + P(7,6,10,1,shade(hair,10));
+    if (s.cap)     return P(7,4,10,2,shade(hair,20)) + P(15,5,4,1,shade(hair,20)); // cap + brim
+    let r = P(7,4,10,3,hair) + P(7,4,1,4,hair) + P(16,4,1,4,hair);                 // hairline
+    if (s.longhair) r += P(6,6,2,9,hair) + P(16,6,2,9,hair);                       // metal long hair
+    if (s.topknot)  r += P(11,2,2,2,hair);                                         // a topknot
+    return r;
+  }
+
+  function drawCRT(s) {
+    const ac = s.accent;
+    let r = "";
+    r += P(3,7,20,16,"#0e1420") + P(3,7,20,16,"none");
+    r += `<rect x="3" y="7" width="20" height="16" fill="#0e1420" stroke="#2a2138" stroke-width="1"/>`;
+    r += P(5,9,16,10,"#0a0f18");
+    // scanlines + a blip
+    for (let y=9; y<19; y+=2) r += P(5,y,16,1,"rgba(56,224,207,.10)");
+    r += P(7,16,3,1,ac) + P(11,14,2,1,ac) + P(14,17,4,1,ac);
+    r += P(10,23,6,3,"#1a1626") + P(7,26,12,2,"#241f30"); // stand
+    return svgWrap(r);
+  }
+
+  // props drawn as a separate overlay layer (so they can sit in front of arms)
+  function drawProp(s) {
+    const ac = s.accent || "#f2b53c";
+    let r = "";
+    switch (s.prop) {
+      case "tanpura":  // long-necked drone
+        r += P(2,2,2,20,"#7a4a1e") + P(1,20,4,5,"#9a5a24") + P(1,20,4,1,"#c07a34");
+        r += P(2,4,2,1,ac) + P(2,8,2,1,ac); break;
+      case "flyingv":  // Flying-V guitar
+        r += P(16,17,7,2,"#161320") + P(20,14,3,3,ac) + P(20,19,3,3,shade(ac,-20));
+        r += P(15,17,2,2,"#c9c2b0"); break;
+      case "sitar":    // sitar — round gourd + long neck
+        r += P(2,18,7,7,"#8a4a1a") + P(2,18,7,1,"#b0651f") + P(5,4,2,15,"#6a3a14");
+        r += P(4,20,3,3,ac); break;
+      case "guitar":   // rhythm guitar, slung low
+        r += P(15,19,8,4,"#20222e") + P(15,19,8,1,shade("#20222e",30)) + P(13,20,2,2,"#c9c2b0");
+        r += P(21,20,2,2,ac); break;
+      case "rulebook": // the rule of law
+        r += P(1,17,5,7,"#2a2138") + P(1,17,5,1,ac) + P(2,19,3,1,"#e8e2d0") + P(2,21,3,1,"#e8e2d0"); break;
+      case "rose":     // a connoisseur's rose
+        r += P(20,7,2,2,ac) + P(21,9,1,5,"#2f7d4a") + P(19,8,1,1,shade(ac,20)); break;
+      case "mixer":    // a mixing desk with faders
+        r += P(15,20,9,5,"#12151f") + P(15,20,9,1,"#2a3550");
+        r += P(16,21,1,3,ac) + P(19,22,1,2,ac) + P(22,21,1,3,ac); break;
+      case "baton": break; // drawn in the raised arm
+      default: break;
+    }
+    return svgWrap(r);
+  }
+
+  function svgWrap(inner) {
+    return `<svg class="sprite" viewBox="0 0 26 32" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+  }
+  function shade(hex, amt) {
+    const n = parseInt(hex.slice(1),16);
+    let r=(n>>16)+amt, g=((n>>8)&255)+amt, b=(n&255)+amt;
+    r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+    return "#"+((r<<16)|(g<<8)|b).toString(16).padStart(6,"0");
+  }
+
+  function mascotSVG(spec) {
+    if (spec.device === "crt") return drawCRT(spec);
+    // prop behind (tanpura/sitar/rulebook/rose on the left) then person then prop-front
+    return `<div style="position:relative">
+      <div style="position:absolute;inset:0">${drawProp(spec)}</div>
+      ${drawPerson(spec)}
+    </div>`;
+  }
+
+  // ======================================================================= //
+  //  PIXEL TEXT — no pixel FONT is available offline, and there is no good    //
+  //  Devanagari pixel face at all, so we rasterise the REAL glyphs (which the  //
+  //  browser shapes correctly, conjuncts and all) at a small size and let CSS  //
+  //  upscale them nearest-neighbour (`image-rendering: pixelated`). Any text,  //
+  //  Latin or Devanagari, becomes true chunky pixel art with zero font files. //
+  // ======================================================================= //
+  function pxCanvas(text, o) {
+    const fontPx = o.fontPx, scale = o.scale, tracking = o.tracking || 0;
+    const family = o.font || "Arial, 'Helvetica Neue', sans-serif", weight = o.weight || "700";
+    const padTop = o.padTop != null ? o.padTop : Math.ceil(fontPx * 0.35);
+    const padBot = o.padBot != null ? o.padBot : Math.ceil(fontPx * 0.35);
+    const c = document.createElement("canvas");
+    let g = c.getContext("2d");
+    g.font = `${weight} ${fontPx}px ${family}`;
+    // width: Devanagari MUST be shaped as one run (per-codepoint would break clusters);
+    // Latin is laid out glyph-by-glyph so we can add retro letter-tracking.
+    let w;
+    if (o.shaped) w = Math.ceil(g.measureText(text).width) + 2;
+    else { w = 1; for (const ch of text) w += Math.ceil(g.measureText(ch).width) + tracking; w += 1; }
+    const h = padTop + fontPx + padBot;
+    c.width = Math.max(1, w); c.height = h;
+    g = c.getContext("2d");
+    g.font = `${weight} ${fontPx}px ${family}`;
+    g.textBaseline = "alphabetic";
+    const baseY = padTop + fontPx;
+    let fill = o.color || "#ece5d3";
+    if (o.gradient) { const gr = g.createLinearGradient(0, padTop, 0, baseY); o.gradient.forEach(([off, col]) => gr.addColorStop(off, col)); fill = gr; }
+    const draw = (str, x) => {
+      if (o.outline) { g.fillStyle = o.outline; for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1],[1,1],[-1,-1],[1,-1],[-1,1]]) g.fillText(str, x + dx, baseY + dy); }
+      g.fillStyle = fill; g.fillText(str, x, baseY);
+    };
+    if (o.shaped) draw(text, 1);
+    else { let x = 1; for (const ch of text) { draw(ch, x); x += Math.ceil(g.measureText(ch).width) + tracking; } }
+    c.className = "pxc";
+    c.style.width = (c.width * scale) + "px"; c.style.height = (h * scale) + "px";
+    return c;
+  }
+  function pxInto(el, o) {
+    if (!el) return;
+    el._px = o;
+    el.textContent = "";
+    if ((o.text || "").length) el.appendChild(pxCanvas(o.text, o));
+  }
+
+  // ======================================================================= //
+  //  Build the stage                                                        //
+  // ======================================================================= //
+  const stage = document.getElementById("stage");
+  const els = {};
+  for (const [key, p] of Object.entries(PERSONAS)) {
+    const m = document.createElement("div");
+    m.className = "mascot" + (p.x > 55 ? " right" : "");
+    m.style.left = p.x + "%"; m.style.top = p.y + "%";
+    m.innerHTML =
+      `<div class="bubble" id="bub-${key}"></div>` +
+      `<div class="bob">${mascotSVG(p.spec)}</div>` +
+      `<div class="nameplate"></div>`;
+    stage.appendChild(m);
+    m.querySelector(".nameplate").textContent = p.name;
+    els[key] = m;
+  }
+
+  const dom = {
+    logoDeva: document.getElementById("logoDeva"),
+    logoLatin: document.getElementById("logoLatin"),
+    spotlight: document.getElementById("spotlight"),
+    moment: document.getElementById("moment"),
+    status: document.getElementById("status"),
+    statusText: document.getElementById("statusText"),
+    sWho: document.getElementById("sWho"),
+    sWhat: document.getElementById("sWhat"),
+    logfeed: document.getElementById("logfeed"),
+    logTag: document.getElementById("logTag"),
+    prompt: document.getElementById("prompt"),
+    composeBtn: document.getElementById("composeBtn"),
+    playBtn: document.getElementById("playBtn"),
+    stopBtn: document.getElementById("stopBtn"),
+    time: document.getElementById("time"),
+    meta: document.getElementById("meta"),
+    viz: document.getElementById("viz"),
+    vizEmpty: document.getElementById("vizEmpty"),
+  };
+
+  // ---- pixel-font application to the chrome (logo, labels, buttons, status) ----
+  const DEVA_FONT = "'Kohinoor Devanagari','Noto Sans Devanagari','Nirmala UI','Mangal',serif";
+  // Only the Devanagari logo stays a pixel-canvas (no webfont covers Devanagari);
+  // all Latin text is the injected pixel WEBFONTS (VT323 + Press Start 2P) via CSS.
+  function renderLogo() {
+    const narrow = window.innerWidth < 600;
+    pxInto(dom.logoDeva, { text: "श्रुति श्रेड", shaped: true, font: DEVA_FONT, weight: "700",
+      fontPx: narrow ? 20 : 26, scale: narrow ? 2 : 3,
+      gradient: [[0, "#ffe7a6"], [0.5, "#f2b53c"], [1, "#c26320"]], outline: "#241206",
+      padTop: narrow ? 18 : 24, padBot: narrow ? 10 : 13 });
+    dom.logoLatin.textContent = "SHRUTI SHRED";
+  }
+  function pxPlay(word) { dom.playBtn.textContent = word; }
+  function setStatus(text, cls) { if (cls) dom.status.className = cls; dom.statusText.textContent = text.toUpperCase(); }
+  function applyPixelFonts() { renderLogo(); }
+  let _rz = 0;
+  window.addEventListener("resize", () => { clearTimeout(_rz); _rz = setTimeout(renderLogo, 150); });
+
+  let activeKey = null;
+  function setActive(key, opts = {}) {
+    if (activeKey && els[activeKey]) els[activeKey].classList.remove("active","speaking");
+    activeKey = key;
+    const m = els[key]; if (!m) return;
+    m.classList.add("active");
+    // move the spotlight to this mascot
+    const p = PERSONAS[key];
+    stage.classList.add("lit");
+    dom.spotlight.style.left = p.x + "%";
+    dom.spotlight.style.top = (p.y - 62) + "%";
+    if (opts.say) {
+      const bub = document.getElementById("bub-" + key);
+      if (bub) { bub.textContent = opts.say; m.classList.add("speaking"); }
+    }
+  }
+  function clearActive() {
+    if (activeKey && els[activeKey]) els[activeKey].classList.remove("active","speaking");
+    activeKey = null; stage.classList.remove("lit");
+  }
+
+  function showMoment(kind, label) {
+    dom.moment.className = "moment show " + kind;
+    dom.moment.textContent = label;
+  }
+  function hideMoment() { dom.moment.className = "moment"; }
+
+  // ======================================================================= //
+  //  The DIRECTOR — plays a DebateEvent stream with pacing + choreography.   //
+  //  Same code path for the embedded replay and a live run (§9 option 1).    //
+  // ======================================================================= //
+  const PACE = { info:900, propose:1500, critique:1700, debate:1600, verdict:2000, validate:1200, revise:1200, render:1200 };
+  const scoreStr = (sc) => sc ? Object.entries(sc).map(([k,v]) => `${k} ${v}`).join("  ") : "";
+
+  function logEvent(e) {
+    const line = document.createElement("div");
+    let cls = "logline r-" + (e.role || "system");
+    if (e.type === "verdict" && e.verdict) cls += " verdict-" + e.verdict;
+    line.className = cls;
+    const rnd = e.round != null ? `<span class="lg-round">[r${e.round}]</span>` : "";
+    const sc = e.scores ? `<span class="lg-score">${scoreStr(e.scores)}</span>` : "";
+    line.innerHTML = `${rnd}<span class="lg-agent">${e.agent}</span><span class="lg-text">${escapeHtml(e.text)}</span> ${sc}`;
+    dom.logfeed.appendChild(line);
+    dom.logfeed.scrollTop = dom.logfeed.scrollHeight;
+  }
+  const escapeHtml = (s) => (s||"").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+  function setSentence(e) {
+    dom.sWho.textContent = e.agent;
+    dom.sWho.style.color = `var(--role-${e.role||"system"})`;
+    dom.sWhat.textContent = e.text;
+  }
+
+  let runToken = 0;
+  let speed = 1;
+  // window.SHRUTI_SPEED is an optional runtime override (a dev/stage pacing knob).
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms / (window.SHRUTI_SPEED || speed)));
+
+  async function playStream(events, composition, audio) {
+    const myToken = ++runToken;
+    stopAudio();
+    dom.logfeed.innerHTML = "";
+    hideMoment();
+    setStatus("composing", "status running");
+    dom.composeBtn.disabled = true;
+    dom.logTag.textContent = `— ${events.length} events`;
+
+    for (const e of events) {
+      if (myToken !== runToken) return;            // a newer run superseded us
+      choreograph(e);
+      setSentence(e);
+      logEvent(e);
+      await sleep(PACE[e.type] || 1200);
+    }
+    if (myToken !== runToken) return;
+    // finish
+    clearActive();
+    setActive("Conductor");
+    setStatus("done", "status done");
+    dom.composeBtn.disabled = false;
+    loadComposition(composition, audio);
+    // "renders to audio": play the finished WAV automatically. The Compose click
+    // primed the <audio>, so this gesture-free start is permitted.
+    if (composition && audio) startAudio();
+  }
+
+  // Map each event to stage choreography (the mascots taking turns IS the show).
+  function choreograph(e) {
+    const key = personaKey(e.agent);
+
+    // money-moment banners
+    if (e.role === "composer") showMoment("cooperate", "★ MONEY MOMENT · THE BAND COOPERATES");
+    else if (e.type === "debate" && e.role === "critic") showMoment("debate", "★ MONEY MOMENT · THE CRITICS DEBATE");
+    else if (e.type === "verdict" || (e.role !== "composer" && e.type !== "debate")) {
+      if (e.role !== "composer") hideMoment();
+    }
+
+    // the speaker steps into the light and says its (trimmed) line
+    setActive(key, { say: shortSay(e) });
+
+    if (e.type === "verdict" && e.role === "conductor") {
+      stage.classList.remove("flash-accept","flash-revise");
+      void stage.offsetWidth;                       // restart the animation
+      stage.classList.add(e.verdict === "accept" ? "flash-accept" : "flash-revise");
+    }
+  }
+
+  function shortSay(e) {
+    let t = (e.text || "").trim();
+    if (t.length > 90) t = t.slice(0, 88) + "…";
+    return t;
+  }
+
+  // ======================================================================= //
+  //  PLAYER — the FluidSynth-rendered WAV (MuseScore_General.sf3) via <audio>.//
+  //  Best sound (real distortion guitar / sitar). The piano-roll visualiser   //
+  //  reads the Composition contract and follows the WAV's clock.             //
+  // ======================================================================= //
+  const SEMI = { S:0, r:1, R:2, g:3, G:4, m:5, M:6, P:7, d:8, D:9, n:10, N:11 };
+  const VOICE_COLOR = { drone:"#6a5a8a", bass:"#b8532a", rhythm:"#d9702a", lead:"#f2b53c", drums:"#ff2e88", tabla:"#38e0cf" };
+  const VOICE_ORDER = ["lead","rhythm","bass","drone","drums","tabla"];
+
+  const audioEl = document.getElementById("audioEl");   // the FluidSynth WAV plays through a real <audio>
+  let currentComp = null, compDur = 0, songDur = 0, rafId = 0;
+
+  function loadComposition(comp, audioUrl) {
+    currentComp = comp;
+    compDur = 0;
+    if (comp) {
+      const spb = 60 / comp.bpm;
+      for (const L of comp.layers) {
+        for (const n of (L.notes||[])) compDur = Math.max(compDur, (n.start + n.dur) * spb);
+        for (const h of (L.hits||[]))  compDur = Math.max(compDur, (h.start + h.dur) * spb);
+      }
+    }
+    songDur = compDur || 0;
+    if (audioUrl) { audioEl.src = audioUrl; audioEl.load(); }
+    else { audioEl.removeAttribute("src"); }
+    const playable = !!(comp && audioUrl);
+    dom.playBtn.disabled = !playable; dom.stopBtn.disabled = !playable;
+    dom.playBtn.classList.toggle("ready", playable);
+    dom.vizEmpty.style.display = comp ? "none" : "flex";
+    if (comp) { renderMeta(comp); drawViz(0); }
+    updateTime(0);
+  }
+  function updateTime(el) { dom.time.textContent = `${fmt(el || 0)} / ${fmt(songDur)}`; }
+
+  function renderMeta(comp) {
+    const t = comp.tala || {};
+    dom.meta.innerHTML =
+      `<span class="chip-meta">raga <b>${comp.raga}</b></span>` +
+      `<span class="chip-meta">tala <b>${t.name||"?"}</b></span>` +
+      `<span class="chip-meta">bpm <b>${comp.bpm}</b></span>` +
+      `<span class="chip-meta">voices <b>${comp.layers.length}</b></span>`;
+  }
+
+  // The song is the FluidSynth-rendered WAV (out/*.wav live, state.wav_path from a run).
+  // The <audio> element is the clock; the piano-roll visualiser follows its currentTime.
+  function startAudio() {
+    if (dom.playBtn.disabled || !audioEl.getAttribute("src")) return;
+    dom.playBtn.classList.remove("ready");
+    audioEl.play().catch(() => dom.playBtn.classList.add("ready"));  // autoplay blocked -> let the user click
+  }
+  function stopAudio() { audioEl.pause(); try { audioEl.currentTime = 0; } catch (_) {} drawViz(0); updateTime(0); }
+  function tick() {
+    if (audioEl.paused) return;
+    drawViz(audioEl.currentTime); updateTime(audioEl.currentTime);
+    rafId = requestAnimationFrame(tick);
+  }
+  const fmt = (s) => { s=Math.max(0,s|0); return `${(s/60)|0}:${String(s%60).padStart(2,"0")}`; };
+
+  // ---- visualiser: a pixel piano-roll of the generated notes ----
+  function drawViz(elapsed) {
+    const cv = dom.viz, ctx = cv.getContext("2d");
+    const W = cv.width, H = cv.height;
+    ctx.clearRect(0,0,W,H); ctx.fillStyle = "#0a0813"; ctx.fillRect(0,0,W,H);
+    if (!currentComp || compDur <= 0) return;
+    const dur = songDur || compDur;                 // the WAV's length is the timeline
+    const spb = 60/currentComp.bpm;
+    const lanes = VOICE_ORDER.filter(r => currentComp.layers.some(L => L.role===r));
+    const laneH = H / lanes.length;
+    // lane backgrounds + labels
+    lanes.forEach((r,i)=>{
+      ctx.fillStyle = i%2 ? "rgba(255,255,255,.015)" : "rgba(255,255,255,.03)";
+      ctx.fillRect(0, i*laneH, W, laneH);
+      ctx.fillStyle = "rgba(140,131,153,.5)"; ctx.font = "8px ui-monospace, monospace";
+      ctx.fillText(r, 4, i*laneH + 10);
+    });
+    // note blocks
+    for (const L of currentComp.layers) {
+      const li = lanes.indexOf(L.role); if (li<0) continue;
+      const col = VOICE_COLOR[L.role] || "#888";
+      const y0 = li*laneH;
+      const items = (L.notes||[]).map(n=>({s:n.start,d:n.dur,p:(SEMI[n.swara]??0)+(n.oct||0)*12}))
+                 .concat((L.hits||[]).map(h=>({s:h.start,d:h.dur,p:6})));
+      for (const it of items) {
+        // notes span the composition's own length, scaled to fill the WAV timeline
+        const x = (it.s*spb/compDur)*W, w = Math.max(2,(it.d*spb/compDur)*W - 1);
+        const yy = y0 + laneH - 6 - ((it.p%12)/12)*(laneH-10);
+        const past = (it.s*spb/compDur) <= (elapsed/dur);
+        ctx.fillStyle = past ? col : hexA(col,.32);
+        ctx.fillRect(x, yy, w, 4);
+      }
+    }
+    // playhead follows the WAV clock
+    const px = (elapsed/dur)*W;
+    ctx.fillStyle = "#ffd97a"; ctx.fillRect(px, 0, 2, H);
+  }
+  function hexA(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; }
+
+  // ======================================================================= //
+  //  Wiring                                                                 //
+  // ======================================================================= //
+  document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+    const raga = c.dataset.raga, sub = c.dataset.sub;
+    const cur = dom.prompt.value.trim();
+    if (raga) dom.prompt.value = cur ? seedRaga(cur, raga) : `a metal fusion in ${raga}`;
+    if (sub)  dom.prompt.value = cur ? seedSub(cur, sub) : `a ${sub} metal fusion`;
+    dom.prompt.focus();
+  }));
+  const seedRaga = (t,r) => /in [A-Z][a-z]+/i.test(t) ? t.replace(/in [A-Z][a-z]+/i, `in ${r}`) : `${t} in ${r}`;
+  const seedSub  = (t,s) => /(progressive|thrash|doom|death)/i.test(t) ? t.replace(/(progressive|thrash|doom|death)/i, s) : `a ${s} ${t}`;
+
+  dom.playBtn.addEventListener("click", () => { if (audioEl.paused) startAudio(); else audioEl.pause(); });
+  dom.stopBtn.addEventListener("click", () => stopAudio());
+  audioEl.addEventListener("loadedmetadata", () => {
+    if (isFinite(audioEl.duration) && audioEl.duration > 0) songDur = audioEl.duration;
+    updateTime(audioEl.currentTime);
+  });
+  audioEl.addEventListener("play", () => { pxPlay("PAUSE"); tick(); });
+  audioEl.addEventListener("pause", () => { pxPlay("PLAY"); cancelAnimationFrame(rafId); });
+  audioEl.addEventListener("ended", () => { pxPlay("PLAY"); try { audioEl.currentTime = 0; } catch (_) {} drawViz(0); updateTime(0); });
+
+  dom.composeBtn.addEventListener("click", runCompose);
+  dom.prompt.addEventListener("keydown", (e) => { if (e.key === "Enter") runCompose(); });
+
+  // Where the demo WAV comes from: the server injects a URL; the artifact embeds a clip.
+  function resolveDemoAudio() {
+    if (window.SHRUTI_AUDIO) return window.SHRUTI_AUDIO;
+    return (typeof EMBEDDED_AUDIO === "string" && EMBEDDED_AUDIO.indexOf("data:") === 0) ? EMBEDDED_AUDIO : null;
+  }
+
+  async function runCompose() {
+    const query = dom.prompt.value.trim() || "a metal fusion";
+    let events = DEMO_EVENTS, comp = DEMO_COMPOSITION, audio = resolveDemoAudio();
+    // Prime the <audio> inside this click so the finished song can auto-play (autoplay policy).
+    if (audio) {
+      audioEl.src = audio; audioEl.muted = true;
+      audioEl.play().then(() => { audioEl.pause(); audioEl.currentTime = 0; audioEl.muted = false; })
+                    .catch(() => { audioEl.muted = false; });
+    }
+    if (LIVE) {
+      try {
+        setStatus("calling the crew", "status running");
+        const res = await fetch("/api/compose", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ query }) });
+        const data = await res.json();
+        events = data.events; comp = data.composition; audio = data.audio || audio;
+      } catch (err) {
+        console.warn("live compose failed, falling back to replay", err);
+      }
+    }
+    playStream(events, comp, audio);
+  }
+
+  // detect the live backend (set by the server-wrapped build); default false for the artifact
+  const LIVE = (typeof window.SHRUTI_LIVE !== "undefined") ? !!window.SHRUTI_LIVE : false;
+  // the artifact build replaces this token with a base64 WAV data URI; empty otherwise
+  const EMBEDDED_AUDIO = "__EMBED_AUDIO__";
+
+  // ======================================================================= //
+  //  EMBEDDED DEMO DATA — a contract-accurate DebateEvent stream (§4) and a  //
+  //  matching Composition, so this file runs the full show with no backend.  //
+  //  The live server replaces both via /api/compose through the same path.   //
+  // ======================================================================= //
+  const DEMO_EVENTS = [
+    {type:"info", agent:"Interpreter", role:"system", text:"heard: raga=Darbari, key=D, subgenre=doom — mood, tempo, tala left open."},
+    {type:"info", agent:"Interpreter", role:"system", text:"brief: Darbari Kanada in D, doom feel; the band picks tala, tempo, instruments."},
+    {type:"info", agent:"System", role:"system", text:"Composer dialogue: Pandit ⇄ Riffsmith, 2 rounds.", round:1},
+    {type:"propose", agent:"Pandit", role:"composer", round:1,
+     text:"Darbari lives in the lower octave — brood on komal g and d, a slow ektaal.",
+     data:{draft:"Darbari · teentaal · alaap→riff→taan", reasoning:"anchor the vadi (R), let the andolan on d carry the weight."}},
+    {type:"debate", agent:"Riffsmith", role:"composer", round:2,
+     text:"Keep the brood, but half-time teentaal so the riff crushes. I'll seat the pakad on the sam.",
+     data:{reasoning:"doom wants space; 16 matras at ~78 gives room for the chug."}},
+    {type:"info", agent:"Pandit", role:"composer", text:"agrees — the chart serves both sides."},
+    {type:"propose", agent:"Riff", role:"generator",
+     text:"riff: 1-cycle riff, 8 notes/cycle, palm-muted, pakad on the sam.",
+     data:{reasoning:"root-fifth chug on S–P, komal g accent off the beat.", swaras:["S","S","g","S","m","P","d","P"]}},
+    {type:"propose", agent:"Lead", role:"generator",
+     text:"taan: 12 notes over 16 beats [sitar] — a scale run to the peak.",
+     data:{voicing:"sitar", reasoning:"climb S R g m P d n to taar Sa.", swaras:["S","R","g","m","P","d","n","S"]}},
+    {type:"critique", agent:"Ustad", role:"critic", round:1, verdict:"legal",
+     text:"All notes sit inside Darbari — legal.",
+     data:{violations:[], reasoning:"every swara ∈ {S R g m P d n}; the validator passes."}},
+    {type:"critique", agent:"Rasik", role:"critic", round:1,
+     text:"Legal, but the taan runs the scale — the pakad never lands. Missing andolan on d.",
+     scores:{pakad:2, idiom:3, rasa:3}, data:{reasoning:"a straight ascent dilutes the raga; needs vakra phrasing."}},
+    {type:"critique", agent:"Producer", role:"critic", round:1,
+     text:"The riff hooks, but the arc is flat — the taan peaks too early and nothing resolves.",
+     scores:{structure:3, dynamics:2, climax:2, motif:3, hook:4, balance:3, independence:3, mood_fit:4, repetition:3},
+     data:{reasoning:"energy curve is nearly level; no reserved climax."}},
+    {type:"info", agent:"System", role:"system", text:"Aesthetic conflict — Rasik (soul) vs Producer (works-as-song). Debate.", round:1},
+    {type:"debate", agent:"Rasik", role:"critic", round:1, verdict:"revise",
+     text:"Rebuild the taan from the pakad — vakra, andolit d — or it's just a scale in costume.",
+     data:{reasoning:"authenticity is the point; a scalar run fails the raga.", target_layer:"lead"}},
+    {type:"debate", agent:"Producer", role:"critic", round:1, verdict:"revise",
+     text:"Agreed it's the lead — and reserve the peak for the last cycle so the climax is earned.",
+     data:{reasoning:"one fix serves both: a shaped taan lands the arc.", target_layer:"lead"}},
+    {type:"verdict", agent:"Conductor", role:"conductor", round:1, verdict:"revise",
+     text:"Revise the lead: build the taan from the pakad (vakra, andolit d) and hold the peak for the climax.",
+     data:{layer:"lead", reasoning:"both critics converge on the lead; legality already holds."}},
+    {type:"info", agent:"Flow", role:"system", text:"Revise round 2: regenerating 'lead' per the Conductor.", round:2},
+    {type:"propose", agent:"Lead", role:"generator", round:2,
+     text:"taan: pakad-derived, vakra phrasing, andolan on d, peak held to the last cycle.",
+     data:{voicing:"sitar", reasoning:"seed g-m-R-S from the pakad; sequence up, resolve to Sa on the sam.", swaras:["g","m","R","S","d","n","S"]}},
+    {type:"critique", agent:"Ustad", role:"critic", round:2, verdict:"legal", text:"Still legal.", data:{violations:[]}},
+    {type:"critique", agent:"Rasik", role:"critic", round:2,
+     text:"Now it sings Darbari — the pakad lands and the andolan carries the weight.",
+     scores:{pakad:4, idiom:4, rasa:4}, data:{reasoning:"vakra motion + oscillated d reads as the raga."}},
+    {type:"critique", agent:"Producer", role:"critic", round:2,
+     text:"The arc breathes now — the climax is earned and it resolves on the sam.",
+     scores:{structure:4, dynamics:4, climax:4, motif:4, hook:4, balance:4, independence:4, mood_fit:4, repetition:4}},
+    {type:"verdict", agent:"Conductor", role:"conductor", round:2, verdict:"accept",
+     text:"Accept — soul and song agree. Render it.", data:{reasoning:"both rubrics clear the floor; ship it."}},
+    {type:"render", agent:"System", role:"system", text:"Rendered the full band — press Play."},
+  ];
+
+  // A small Darbari (Aeolian: S R g m P d n) piece in D (sa=62), teentaal, ~78 bpm.
+  // Patterns are expanded to notes/hits below (keeps the data compact + readable).
+  const DEMO_COMPOSITION = (function buildComp() {
+    const sa = 62, bpm = 78, cycle = 16, cycles = 3;
+    const layers = [];
+    // drone: Sa + Pa, sustained per cycle, low
+    const drone = [];
+    for (let c=0;c<cycles;c++){ drone.push({swara:"S",oct:-1,start:c*cycle,dur:cycle,vel:70}); drone.push({swara:"P",oct:-1,start:c*cycle,dur:cycle,vel:60}); }
+    layers.push({role:"drone", instrument:"tanpura", notes:drone});
+    // rhythm: an 8-note/cycle palm-muted riff (eighth-ish), power root
+    const riffCell = [["S",0.5],["S",0.5],["g",0.5],["S",0.5],["m",1],["P",0.5],["d",0.5],["P",1],["S",0.5],["S",0.5],["g",1],["m",1],["P",1],["d",1],["P",1]];
+    const rhythm = expandCell(riffCell, cycle, cycles, 0, 110);
+    layers.push({role:"rhythm", instrument:"dist_guitar", notes:rhythm});
+    // bass: roots on strong beats, an octave under
+    const bassCell = [["S",1],["S",1],["P",1,-1],["S",1],["m",1],["m",1],["d",1,-1],["P",1]];
+    const bass = expandCell(bassCell, cycle, cycles, -1, 100);
+    layers.push({role:"bass", instrument:"bass", notes:bass});
+    // lead: enters cycle 2 — the shaped taan (pakad-derived), climbs by cycle 3
+    const lead = [];
+    const leadPhrase = [["g",1],["m",1],["R",1],["S",1],["d",1,-1],["n",1,-1],["S",2]];
+    let t = cycle; for (const [sw,d,o] of leadPhrase){ lead.push({swara:sw,oct:(o||0),start:t,dur:d,vel:96}); t+=d; }
+    const taan = [["S",.5],["R",.5],["g",.5],["m",.5],["P",.5],["d",.5],["n",.5],["S",.5,1],["d",.5],["P",.5],["m",1],["g",1],["R",1],["S",2]];
+    t = cycle*2; for (const [sw,d,o] of taan){ lead.push({swara:sw,oct:(o||0),start:t,dur:d,vel:104,meend_swara:(sw==="d"?"n":null)}); t+=d; }
+    layers.push({role:"lead", instrument:"sitar", notes:lead});
+    // drums: kick on 1 & 9, snare on 5 & 13, hats on eighths
+    const drums = [];
+    for (let c=0;c<cycles;c++){ const b=c*cycle;
+      drums.push({drum:"kick",start:b,dur:.2,vel:118},{drum:"kick",start:b+8,dur:.2,vel:112});
+      drums.push({drum:"snare",start:b+4,dur:.2,vel:108},{drum:"snare",start:b+12,dur:.2,vel:108});
+      for(let h=0;h<cycle;h+=1) drums.push({drum:"hat",start:b+h,dur:.1,vel:70});
+    }
+    layers.push({role:"drums", instrument:"kit", hits:drums});
+    // tabla: a light teentaal-ish theka under the kit
+    const tabla = [];
+    for (let c=0;c<cycles;c++){ const b=c*cycle;
+      [0,2,4,6,8,10,12,14].forEach((m,i)=> tabla.push({drum:(i%2? "tabla_hi":"tabla_low"), start:b+m, dur:.15, vel:64}));
+    }
+    layers.push({role:"tabla", instrument:"tabla", hits:tabla});
+    return { raga:"darbari", sa, bpm, tala:{name:"teentaal", beats_per_bar:16}, layers };
+
+    function expandCell(cell, cycle, cycles, baseOct, vel) {
+      const out = [];
+      for (let c=0;c<cycles;c++){ let tt=c*cycle;
+        for (const [sw,d,o] of cell){ if (tt < (c+1)*cycle){ out.push({swara:sw, oct:(o!=null?o:baseOct), start:tt, dur:d, vel, technique:"palm_mute"}); tt+=d; } }
+        // pad the remainder of the cycle with the root chug
+        while (tt < (c+1)*cycle){ out.push({swara:"S", oct:baseOct, start:tt, dur:Math.min(1,(c+1)*cycle-tt), vel:vel-10, technique:"palm_mute"}); tt+=1; }
+      }
+      return out;
+    }
+  })();
+
+  // Idle: pixel-render the chrome, then put the interpreter in the light.
+  applyPixelFonts();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(applyPixelFonts);
+  setActive("Interpreter");
+  loadComposition(null);
+})();
+</script>
