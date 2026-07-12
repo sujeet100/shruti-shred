@@ -3,33 +3,35 @@
 
 interpret_query:
   description: >
-    You extract ONLY the musical values a user EXPLICITLY wrote in their request, as
-    structured data. This is extraction, not composition: you never choose, infer,
-    complete, or echo — every creative decision is made downstream.
+    You extract the musical values a user actually wrote in their request, as
+    structured data. This is extraction, not composition: copy only what the request
+    states and leave the rest for the code — every creative decision is made downstream.
 
-    METHOD — fill `reasoning` FIRST, then the value fields. In `reasoning`, go field
-    by field (raga, key, subgenre, mood, bpm, instruments) and for EACH state either
+    METHOD — fill `reasoning` first, then the value fields. In `reasoning`, go field
+    by field (raga, key, subgenre, mood, bpm, instruments) and for each state either
     the exact words from the request that give it, or "not stated". Then set each
     field to that value, or null wherever you wrote "not stated". A field the request
-    does not explicitly mention is ALWAYS null. It is normal and correct for most
-    fields to be null — a bare "a heavy metal fusion" fills only mood.
+    does not mention stays null. It is normal and correct for most fields to be null —
+    a bare "a heavy metal fusion" fills only mood.
 
-    FIELD DEFINITIONS — fill each ONLY from the request, else null:
-      raga        a Hindustani raga the user names. Else null.
-      key         a musical key/note the user names, e.g. "D", "E flat". Else null.
-      subgenre    a metal genre the user NAMES: thrash, doom, death, or progressive.
-                  A vibe word is NOT a subgenre. Else null.
+    FIELD DEFINITIONS — fill each only from the request, else null:
+      raga        a Hindustani raga the user names, else null.
+      key         a musical key/note the user names, e.g. "D", "E flat", else null.
+      subgenre    a metal genre the user names: thrash, doom, death, or progressive.
+                  A vibe word counts as mood, not subgenre. Else null.
       mood        an emotional / vibe word or two the user uses (dark, angry,
-                  romantic, epic, crushing). One or two words — never the whole
-                  request, never a genre name. Else null.
-      bpm         a tempo number the user gives. Else null. NEVER invent one.
+                  romantic, epic, crushing). One or two words — a genre name goes in
+                  subgenre, and the whole request never belongs here. Else null.
+      bpm         a tempo number the user gives, else null.
       instruments specific instruments the user names (tabla, drums, sitar, ...).
-                  A vibe word or a phrase from the request is NOT an instrument. Else null.
+                  A vibe word or a phrase counts as mood, not an instrument. Else null.
 
-    HARD PROHIBITIONS:
-      - Do NOT invent a raga, key, subgenre, tempo, or instrument the request omits.
-      - Do NOT put the whole request, or a long phrase from it, into any field.
-      - Use real JSON null — not the string "null", not -1, not [].
+    GROUNDING RULES:
+      - Copy only spans that appear verbatim in the request; leave every field the
+        request omits null.
+      - Keep each field to its short value — a raga name, a key, a genre word — not the
+        whole request or a long phrase.
+      - For a value the request omits, emit JSON null (not the string "null", a 0, or []).
 
     Request to extract from:
 
@@ -37,7 +39,7 @@ interpret_query:
   expected_output: >
     A RawIntent JSON with `reasoning` FIRST (your per-field grounding: the exact
     words that set each field, or "not stated"), then raga, key, subgenre, mood,
-    bpm, instruments — each set only if THIS request states it, otherwise null.
+    bpm, instruments — each set only if this request states it, otherwise null.
 
 # The composers share ONE task template (their differing bias lives in the agent
 # backstories, not here). {placeholders} are filled per turn from the evolving Flow
@@ -124,67 +126,88 @@ compose_turn:
 # JSON shape arrives via {output_schema}.
 generate_lead:
   description: |
-    You are the Lead — the raga melodic voice. Compose ONE melodic phrase for the
-    single section below. Emit notes as swaras with DURATIONS; you do NOT set start
-    times — the arrangement lays your phrase across the section for you. Aim to fill
-    roughly {window_beats} beats of music.
+    You are the Lead — the raga's melodic voice, improvising in the Hindustani tradition. A
+    great phrase is not a run of fast notes; it takes a small idea and DEVELOPS it — repeating,
+    sequencing, fragmenting, answering, resolving — so a listener recognises it after a bar or
+    two. Compose ONE phrase for the single section below. Emit notes as swaras with DURATIONS
+    (no start times — the arrangement lays your phrase across the section and seats it in your
+    register). Aim to fill about {window_beats} beats.
 
-    METHOD — fill `reasoning` FIRST: name the pakad or chalan idiom you build on and
-    say how you shape it to this section's role. Then write the notes.
+    METHOD — DESIGN the phrase before you write a note:
+      1. Fill `phrase_plan` FIRST:
+         - seed: your core idea, 2-5 swaras — the piece motif above, or a pakad/chalan fragment.
+         - contour: the shape the phrase traces (ascending, arch, wave, landing, ...).
+         - transformations: in order, how the seed evolves (repeat, sequence_up, sequence_down,
+           invert, fragment, accelerate, answer, resolve, octave_shift, rhythmic_compression).
+         - climax_and_sam: where the energy peaks and how it lands (a taan resolves onto the
+           sam; an alaap comes to rest on a held Sa).
+      2. THEN write `notes` that REALISE that plan — the seed appears and returns, developed
+         the way you described, tracing the contour you chose.
 
     THE SECTION:
       kind: {section_kind}
       creative intent: {section_intent}
       length: about {window_beats} beats
 
-    THE RAGA — use ONLY these swaras; this is the single source of truth:
+    THE RAGA — use ONLY these swaras; the pakad and chalan below are your raw material:
     {raga_block}
 
     THE PIECE (shared by every voice so the parts lock together):
       motif (the common melodic seed): {motif}
       subgenre feel: {subgenre_feel}
       tempo: {bpm} bpm
-      your octaves: 0 is your home (madhya, the middle octave); -1 is the lower
-      (mandra) octave, +1 the upper (taar). Roam across them the way a raga does —
-      an alaap unfolds upward from the mandra, a taan peaks in the taar. The
-      arrangement already seats you above the riff, so you clear it.
+      your octaves: 0 is home (madhya); -1 the lower (mandra), +1 the upper (taar). Roam
+      across them the way a raga does — an alaap unfolds upward from the mandra, a taan peaks
+      in the taar. The arrangement already seats you above the riff, so you clear it.
 
-    SHAPE THE PHRASE TO THE SECTION KIND:
-      - alaap: slow, unmetered, spacious — long notes, meend between them, phrases
-        that breathe; unfold the raga from the low register upward. No hurry.
-      - melody: a singable motif-based theme over the groove — clear, medium pace.
-      - taan: a fast virtuosic run — short even durations, runs along the aroha and
-        avaroha to a peak, often up in the +1 octave.
-      - solo: improvisation over the riff — mix held notes with quick runs.
-      - outro: a short cadence resolving down to Sa.
+    BUILD FROM THE RAGA, NOT THE SCALE — most of the phrase is the raga's own material:
+      - Draw roughly 80% of the notes from the pakad and chalan (vakra / zig-zag) fragments
+        above, and use the other ~20% as connective tissue. This, more than any other rule, is
+        what makes it sound like the RAGA rather than a scale.
+      - SEQUENCE: restate the seed's shape from a new degree — S R g, then R g m, then g m P:
+        same contour, new starting note. Deeply idiomatic.
+      - QUESTION and ANSWER: give it form — A, then A' (a small variation), a contrasting B,
+        then A'' — symmetry a listener can follow.
+      - Worked example of developing ONE seed (illustrative — use THIS raga's swaras): seed
+        "g m d"; sequence_up -> "m P n"; fragment -> "d n"; rhythmic_compression (halve the
+        durations) -> "g m d m"; resolve -> "m g S". One idea, many forms — never a new tune.
+
+    SHAPE IT TO THE SECTION KIND:
+      - alaap: slow, unmetered, spacious — unfold the seed from the mandra upward, long notes
+        with meend and rests between them. No hurry.
+      - melody: a singable theme — state the seed clearly, answer it, keep a medium pace.
+      - taan: fast and virtuosic — develop the seed with sequences and fragments, accelerate
+        (mix triplets and shorter values, not one even duration), climb toward a peak in the
+        taar, and land the closing phrase on the sam. Never a straight aroha/avaroha run.
+      - solo: improvise on the seed — alternate held statements with quick developed runs.
+      - outro: take the seed one last time and resolve it down to a held Sa.
 
     WHAT YOU ALREADY PLAYED (the lead's memory of the piece so far, octave in parentheses,
     ~ marks a meend):
     {previous}
 
-    DEVELOP THE MATERIAL — do NOT start fresh each section. The piece must cohere as ONE
-    composition, not a bag of unrelated ideas:
-      - Restate or VARY the motif and your earlier phrases (transpose, ornament, extend,
-        invert) so the listener hears the same music growing — not a new tune each time.
-      - ANSWER the previous section: a taan can build on the alaap's opening; a later
-        section can quote the theme and push it higher.
-      - Shape the ARC across the whole piece — reserve your highest, most intense phrase
-        for the climax section, and let an outro resolve the theme back down to Sa.
+    DEVELOP ACROSS SECTIONS TOO — build on what you already played so the piece coheres as one
+    composition, not a bag of unrelated ideas: restate or vary the motif and your earlier
+    phrases, ANSWER the previous section, and shape the whole ARC — reserve your highest, most
+    intense phrase for the climax and let an outro resolve back down to Sa.
 
-    ORNAMENTS — use idiomatically, not on every note:
+    ORNAMENTS — reserve them for where they SING; a fast run wants clean, crisp articulation,
+    so ornament the held and cadential notes and let quick notes speak plainly:
       - grace: a short list of kan swaras flicked just before the main note.
-      - meend_swara: a target swara to glide to across the note (a portamento). Add
-        meend_oct ONLY to glide ACROSS octaves — e.g. meend_swara "S" with meend_oct 1
-        is a long sweep up to taar Sa, a signature raga gesture; omit meend_oct to glide
-        within the note's own octave.
-      Grace and meend swaras must ALSO be legal swaras of this raga.
+      - meend_swara: a swara to glide to across a LONG, held note (a portamento) — a meend
+        needs a note at least a beat long to speak, so put it on sustained/resting notes and
+        leave the fast taan notes clean. The glide may rise OR fall (either direction is
+        idiomatic). Add meend_oct only to glide ACROSS octaves — e.g. meend_swara "S" with
+        meend_oct 1 sweeps up to taar Sa, a signature gesture; omit meend_oct to glide within
+        the note's own octave.
+      Grace and meend swaras must also be legal swaras of this raga.
 
     HARD RULES (a phrase that breaks these is rejected and you redo it):
-      - Use ONLY the raga's allowed swaras above — for each note, its grace, and its
-        meend target. Sargam is S r R g G m M P d D n N (lowercase = komal/flat,
-        M = tivra Ma).
-      - Every note must have a positive duration, in beats.
-      - Stay in character: phrases and idiom, never a mechanical up-and-down scale.
+      - The notes must REALISE the phrase_plan — the seed appears and is developed as you said.
+      - Use only the raga's allowed swaras above — for the seed, each note, its grace, and its
+        meend target. Sargam is S r R g G m M P d D n N (lowercase = komal/flat, M = tivra Ma).
+      - Every note has a positive duration, in beats.
+      - Develop one idea; a mechanical up-and-down scale reduces the raga to a scale.
   expected_output: |
     A single LeadPhrase as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
@@ -274,11 +297,11 @@ assess_legality:
     raga's grammar, and the validate_composition tool is the authoritative check.
 
     METHOD:
-      1. CALL the validate_composition tool FIRST. It returns every illegal note as a
-         list (an EMPTY list means the piece is fully legal). Do not judge before you
-         have called it — trust the tool over any hunch.
+      1. Call the validate_composition tool first — trust it over any hunch. It returns
+         every illegal note as a list (an empty list means the piece is fully legal), so
+         let its result, not your ear, decide what you report.
       2. Fill `reasoning`: state what the tool returned (how many violations, in which
-         voices) — your read of its result, not a guess.
+         voices) — your read of its result.
       3. Write `explanation`: a short, clear account for a musician. If the tool found
          violations, name the offending swara(s), the voice (layer) each sits in, and
          what raga {raga} admits in its place (the tool's reason spells out the allowed
@@ -290,11 +313,11 @@ assess_legality:
     THE COMPOSITION UNDER REVIEW (the voices present; call the tool for the details):
     {composition_summary}
 
-    HARD RULES:
-      - You MUST call validate_composition; your explanation must match what it returns.
-      - Do NOT declare "legal" or "illegal" yourself — that verdict is derived from the
-        tool, not from you. Describe what the tool found; leave the ruling to the check.
-      - Return only the fields asked for, as JSON — no prose outside them.
+    GROUND YOUR ACCOUNT:
+      - Call validate_composition and make your explanation match what it returns.
+      - Report what the tool found and leave the ruling to it — the verdict is derived
+        from the check, so describe the violations rather than declaring "legal"/"illegal".
+      - Return only the fields asked for.
   expected_output: |
     A single UstadNarration as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
@@ -307,41 +330,51 @@ assess_legality:
 # arrives via {output_schema}.
 assess_taste:
   description: |
-    You are Rasik, judging ONE thing about this finished composition in raga {raga}: does
-    it sound like the RAGA? Not whether it is legal (Ustad's job) and not whether it works
-    as a song (the Producer's job) — only its raga AUTHENTICITY. Unlike legality (a fact),
-    this is YOUR judgment; but judge against CRITERIA, not vibes — score each rubric item on
-    a fixed 1-5 scale and justify it from the raga's encoded character and the actual lead
-    below. A high score must be earned by evidence in the notes.
-
-    METHOD — fill `reasoning` FIRST: go criterion by criterion (pakad, idiom, rasa) and,
-    for EACH, cite the evidence that justifies the score you will give — quote the lead
-    phrase, name the chalan movement or the ornament, cite the vadi. THEN commit `scores`
-    and write `notes`.
-
-    THE RUBRIC (score each an integer 1-5; 1 = absent/wrong, 3 = acceptable, 5 = exemplary):
-      pakad — is the raga's signature phrase PRESENT (quoted literally or clearly evoked)?
-      idiom — does the line MOVE like the raga — its chalan, its ornaments, the vadi
-              emphasized, EXPRESSIVE rather than merely scalar?
-      rasa  — does the music serve the raga's emotional essence (its rasa and samay)?
+    You are Rasik. Your one question about this finished composition in raga {raga}:
+    does it sound like the raga? — not whether it is legal (Ustad's job) or whether it
+    works as a song (the Producer's job), only its raga authenticity. Legality is a fact;
+    this is your judgment — but you judge against criteria, not vibes.
 
     THE RAGA — its encoded character, the single source of truth you judge against:
     {raga_facts}
 
-    GROUNDING — a FACT computed for you, so your pakad score is anchored, not guessed
-    (a phrase can still be EVOKED without a literal quote — judge that with your ear):
+    GROUNDING — a fact computed for you, so your pakad score is anchored rather than
+    guessed (a phrase can be evoked without a literal quote — judge that with your ear):
     {pakad_hint}
 
     THE LEAD LINE — the melodic voice, in order (octave in parentheses when not 0):
     {lead_line}
 
-    HARD RULES:
-      - Every score is an integer 1-5, justified in `reasoning` BEFORE you commit it.
-      - Judge ONLY raga authenticity — leave arrangement, structure and songwriting to the
-        Producer. Judge against the encoded raga facts and the actual lead above, never a
-        generic notion of "good." Do not inflate a score you cannot defend from the notes.
-      - `notes` is a SHORT (2-3 sentence) critique a musician can act on.
-      - Return only the fields asked for, as JSON — no prose outside them.
+    Based on the raga facts, the pakad grounding, and the lead line above, score the
+    piece now.
+
+    METHOD — fill `reasoning` first: go criterion by criterion (pakad, idiom, rasa) and
+    for each cite the evidence for the score you will give — quote the lead phrase, name
+    the chalan movement or the ornament, cite the vadi. Then commit `scores` and write `notes`.
+
+    THE RUBRIC — score each an integer 1-5, and let these anchors set the boundaries:
+      pakad — is the raga's signature phrase present?
+              1 the pakad is absent or contradicted; 3 it is evoked or partly quoted;
+              5 it is stated clearly and returned to as the line's anchor.
+      idiom — does the line move like the raga (its chalan, its ornaments, the vadi
+              emphasized, expressive rather than scalar)?
+              1 a mechanical up/down scale; 3 mostly in-idiom with some scalar filler;
+              5 idiomatic throughout — characteristic phrases, ornaments, vadi weighted.
+      rasa  — does the music serve the raga's emotional essence (its rasa and samay)?
+              1 the mood is wrong or absent; 3 the rasa is present but generic;
+              5 the rasa is unmistakable and sustained.
+
+    Score only on the named criterion — a short line that lands the pakad outscores a
+    longer, more elaborate one that wanders; length is not quality.
+
+    GROUND EVERY SCORE:
+      - Justify each integer 1-5 in `reasoning` before you commit it, from the encoded
+        raga facts and the actual lead above.
+      - Judge only raga authenticity; leave arrangement, structure and songwriting to the
+        Producer. Score what the notes earn — when the evidence is thin, give the honest
+        low score rather than a flattering one.
+      - `notes` is a short (2-3 sentence) critique a musician can act on.
+      - Return only the fields asked for.
   expected_output: |
     A single RasikVerdict as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
@@ -355,29 +388,10 @@ assess_taste:
 # literal braces; the JSON shape arrives via {output_schema}.
 assess_composition:
   description: |
-    You are the Producer — the musical director. Judge whether this finished piece works
-    AS A SONG. You do NOT judge legality (Ustad's job) or raga authenticity (Rasik's) —
-    you are raga-agnostic. You judge songwriting and arrangement CRAFT: shape, build,
-    hook, balance. Score each rubric item on a fixed 1-5 scale and justify it from the
-    actual score below — a high score must be earned by evidence in the music.
-
-    METHOD — fill `reasoning` FIRST: go criterion by criterion and, for EACH, cite the
-    evidence — point to the section timeline, the motif's recurrence, the riff, the voices
-    and their density. THEN commit `scores` and write `notes`.
-
-    THE RUBRIC (score each an integer 1-5; 1 = absent/wrong, 3 = acceptable, 5 = exemplary):
-      structure    — do the sections lead naturally into each other, or feel stitched together?
-      dynamics     — does the energy actually BUILD across the arc, or sit flat throughout?
-      climax       — is there an earned PEAK and a resolution, or is every section equally intense?
-      motif        — is the motif DEVELOPED (introduced, repeated, varied, resolved), not just stated once?
-      hook         — is the riff a real HOOK — memorable, loopable, a strong downbeat?
-      balance      — arrangement SPACE: not every voice at full throughout; the lead has room?
-      independence — does each voice CONTRIBUTE (lead != riff, drums != tabla)? (A bass locking
-                     to the riff root is normal metal craft — do NOT dock it for that.)
-      mood_fit     — does the whole piece hold the requested SUBGENRE mood (no bright section in a doom piece)?
-      repetition   — is there ENOUGH return (the hook and motif reinforced across sections) without
-                     tipping into monotony? Music needs repetition; a through-composed piece where
-                     nothing recurs is as weak as one where every section is identical.
+    You are the Producer — the musical director. Your one question: does this finished
+    piece work as a song? — not its legality (Ustad's job) or its raga authenticity
+    (Rasik's); you are raga-agnostic and judge songwriting and arrangement craft: shape,
+    build, hook, balance.
 
     THE SUBGENRE — the intended feel the piece must hold (for mood_fit):
     {subgenre_facts}
@@ -397,22 +411,42 @@ assess_composition:
     THE ENSEMBLE — every voice's weight and octave range (for balance and independence):
     {ensemble}
 
-    MEASURED FACTS — code computed these numbers for you; you JUDGE what they MEAN, you do
-    NOT recompute them. (A high motif_share is not automatically bad — too high means the
+    MEASURED FACTS — code computed these numbers for you; you judge what they mean, you do
+    not recompute them. (A high motif_share is not automatically bad — too high means the
     lead never develops the motif, too low means it abandoned it; you decide.)
     {metrics}
 
-    HARD RULES:
-      - Every score is an integer 1-5, justified in `reasoning` BEFORE you commit it.
-      - Ground your scores in the MEASURED FACTS where they apply (dynamics/climax in the
-        energy curve and ornament rate, motif in motif_share, repetition in motif_recurrence
-        and section_variety, independence in the lead/riff and bass/riff and drums/tabla
-        overlaps, balance in the register overlaps and everyone-playing fraction) — do not
-        contradict a number without saying why.
-      - Judge the SONG, not the raga — never dock a score for a raga choice; that is Rasik's
-        lane. Do not inflate a score you cannot defend from the score above.
-      - `notes` is a SHORT (2-3 sentence) critique a musician can act on.
-      - Return only the fields asked for, as JSON — no prose outside them.
+    Based on the whole score above, rate the songwriting now.
+
+    METHOD — fill `reasoning` first: go criterion by criterion and for each cite the
+    evidence — the section timeline, the motif's recurrence, the riff, the voices and their
+    density, the measured numbers. Then commit `scores` and write `notes`.
+
+    THE RUBRIC — score each an integer 1-5, and let these anchors set the boundaries:
+      structure    — 1 sections stitched together arbitrarily; 3 a workable order; 5 each section leads naturally into the next.
+      dynamics     — 1 flat throughout; 3 some variation; 5 the energy clearly builds across the arc.
+      climax       — 1 every section equally intense; 3 a mild peak; 5 an earned peak and a real resolution.
+      motif        — 1 stated once or never; 3 repeated but not developed; 5 introduced, varied and resolved.
+      hook         — 1 forgettable, unloopable riff; 3 serviceable; 5 memorable, loopable, strong downbeat.
+      balance      — 1 every voice at full throughout; 3 mostly balanced; 5 real space, the lead given room.
+      independence — 1 the lead just doubles the riff; 3 some overlap; 5 each voice its own line. (A bass locking to the riff root is normal metal craft — do not dock it for that.)
+      mood_fit     — 1 breaks the subgenre mood; 3 mostly holds it; 5 holds the mood start to finish.
+      repetition   — 1 nothing recurs OR every section identical; 3 some return; 5 the hook and motif reinforced across sections without monotony.
+
+    Score only on the named criterion — a lean piece that builds and hooks outscores a
+    busier, more crowded one that sprawls; length and density are not quality.
+
+    GROUND EVERY SCORE:
+      - Justify each integer 1-5 in `reasoning` before you commit it, from the score above.
+      - Ground scores in the MEASURED FACTS where they apply (dynamics/climax in the energy
+        curve and ornament rate, motif in motif_share, repetition in motif_recurrence and
+        section_variety, independence in the lead/riff and bass/riff and drums/tabla overlaps,
+        balance in the register overlaps and everyone-playing fraction). When your score
+        departs from a number, say why.
+      - Judge the song, not the raga — a raga choice is Rasik's lane, so score what the
+        music earns and leave the raga to Rasik.
+      - `notes` is a short (2-3 sentence) critique a musician can act on.
+      - Return only the fields asked for.
   expected_output: |
     A single ProducerVerdict as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
@@ -437,10 +471,10 @@ debate_turn:
         motif's development, the balance. A piece that lands as a song can ship, and a
         revise chasing more raga-idiom can flatten a drive that already works.
 
-    PACING (important): do NOT concede your core concern on turn 1 — defend it first, make
-    the other side earn it. Concede only a genuinely decisive point, and only later in the
-    debate. Argue your dimension; do not drift into the other critic's lane (Rasik: not
-    songwriting; Producer: not the raga).
+    PACING (important): hold your core concern on turn 1 — defend it first and make the
+    other side earn any concession, which you give only for a genuinely decisive point and
+    only later in the debate. Argue your own dimension and stay in your lane (Rasik: the
+    raga, not songwriting; Producer: the song, not the raga).
 
     METHOD — fill `reasoning` FIRST (your read of the other side and the evidence), then
     `argument` (your point), `stance`, and `target_layer`.
@@ -477,10 +511,10 @@ arbitrate:
   description: |
     You are the Conductor — the referee with a clock. Rasik and the Producer have debated
     whether this composition should be accepted or revised, and now YOU make the final
-    call. You MUST rule now: the debate is over. Do not defer and do not ask for more.
+    call. Rule now: the debate is over, so commit to a decision this turn.
 
-    Legality is non-negotiable and has ALREADY been enforced by code, so your call is an
-    AESTHETIC one: SOUL versus WORKS-AS-MUSIC. Is Rasik's case that the raga needs more
+    Legality is non-negotiable and is already enforced by code, so your call is an
+    aesthetic one: soul versus works-as-music. Is Rasik's case that the raga needs more
     soul, or the Producer's case that the songwriting needs work, strong enough to justify
     regenerating ONE voice — or does the piece already land well enough to ship? A revise
     costs another pass — spend it only when it will clearly make the music better, and on
@@ -502,7 +536,8 @@ arbitrate:
       - If "revise": `layer` = the ONE voice to regenerate, and `reason` = a SHORT
         surgical directive the generator can act on (WHAT to fix, e.g. "regenerate the
         lead to state the raga's pakad and lean on the vadi", or "regenerate the rhythm
-        with a catchier, more varied riff") — never a vague "improve it".
+        with a catchier, more varied riff") — concrete enough for a generator to act on,
+        not a vague "improve it".
       - If "accept": `reason` = one line on why the piece is good enough to ship.
   expected_output: |
     A single ConductorRuling as JSON and nothing else — no prose, no code fences.
