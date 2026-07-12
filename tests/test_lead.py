@@ -26,6 +26,7 @@ from crew.contracts import (  # noqa: E402
     LeadNote,
     LeadPhrase,
     Note,
+    PhrasePlan,
     Section,
     SectionKind,
     build_arrangement,
@@ -56,8 +57,14 @@ def _arr(*section_layers: tuple[str, ...], kind: SectionKind = SectionKind.ALAAP
     return build_arrangement(draft, CompositionBrief(mood="dark"))
 
 
+def _plan(*seed: str) -> PhrasePlan:
+    """A minimal valid phrase plan for fixtures (Sa is legal in every raga)."""
+    return PhrasePlan(seed=list(seed) or ["S"], contour="arch",
+                      transformations=["repeat", "resolve"], climax_and_sam="peaks, lands on Sa")
+
+
 def _phrase(*swaras: str, dur: float = 2.0) -> LeadPhrase:
-    return LeadPhrase(notes=[LeadNote(swara=s, dur=dur) for s in swaras])
+    return LeadPhrase(phrase_plan=_plan(), notes=[LeadNote(swara=s, dur=dur) for s in swaras])
 
 
 def _fake(phrases: list[LeadPhrase]):
@@ -104,6 +111,25 @@ def test_place_phrase_carries_ornaments():
     placed = place_phrase([LeadNote(swara="g", dur=2.0, grace=["S"], meend_swara="m")],
                           start=0.0, end=8.0, register=0)
     assert placed[0].grace == ["S"] and placed[0].meend_swara == "m"
+
+
+def test_place_phrase_strips_meend_from_a_short_note():
+    # A meend needs a long note to speak; a glide crammed onto a fast taan note sags. Code
+    # strips the glide from a sub-beat note (keeping the note and its kan), but keeps it on a
+    # long one — density/length only, never direction.
+    fast = LeadNote(swara="g", dur=0.25, grace=["S"], meend_swara="m")
+    held = LeadNote(swara="m", dur=1.5, meend_swara="P")
+    placed = place_phrase([fast, held], start=0.0, end=8.0, register=0)
+    assert placed[0].meend_swara is None and placed[0].meend_oct is None  # stripped: too short
+    assert placed[0].grace == ["S"]                                       # kan is untouched
+    assert placed[1].meend_swara == "P"                                   # kept: long enough
+
+
+def test_place_phrase_strips_meend_when_the_window_clips_a_note_short():
+    # A long note clipped by the window edge below the threshold also loses its glide.
+    placed = place_phrase([LeadNote(swara="m", dur=4.0, meend_swara="P")],
+                          start=0.0, end=0.5, register=0)
+    assert placed[0].dur == 0.5 and placed[0].meend_swara is None
 
 
 def test_place_phrase_keeps_same_octave_meend_unshifted():
@@ -205,7 +231,8 @@ def test_memory_passed_to_gen_fn_is_a_copy():
 
 def test_render_previous_shows_the_prior_phrases_and_marks_meend():
     memory = [LeadMemo("alaap", _phrase("S", "m")),
-              LeadMemo("taan", LeadPhrase(notes=[LeadNote(swara="g", oct=1, dur=1.0),
+              LeadMemo("taan", LeadPhrase(phrase_plan=_plan("g", "m"),
+                                          notes=[LeadNote(swara="g", oct=1, dur=1.0),
                                                  LeadNote(swara="m", dur=1.0, meend_swara="P")]))]
     text = _render_previous(memory)
     assert "alaap: S m" in text
@@ -292,7 +319,8 @@ def test_guardrail_rejects_illegal_swara_with_a_precise_error():
 
 def test_guardrail_checks_grace_and_meend_swaras_too():
     # An illegal swara hiding in a meend target must not slip past the guardrail.
-    phrase = LeadPhrase(notes=[LeadNote(swara="S", dur=1.0, meend_swara="P")])
+    phrase = LeadPhrase(phrase_plan=_plan("S"),
+                        notes=[LeadNote(swara="S", dur=1.0, meend_swara="P")])
     ok, msg = _lead_guardrail("malkauns")(_FakeOutput(phrase))
     assert ok is False and "P" in msg
 
@@ -300,9 +328,36 @@ def test_guardrail_checks_grace_and_meend_swaras_too():
 def test_guardrail_catches_an_illegal_cross_octave_meend_target():
     # A cross-octave glide must not blind the guardrail: an illegal target
     # (P is absent from Malkauns) is still caught.
-    phrase = LeadPhrase(notes=[LeadNote(swara="S", dur=1.0, meend_swara="P", meend_oct=1)])
+    phrase = LeadPhrase(phrase_plan=_plan("S"),
+                        notes=[LeadNote(swara="S", dur=1.0, meend_swara="P", meend_oct=1)])
     ok, msg = _lead_guardrail("malkauns")(_FakeOutput(phrase))
     assert ok is False and "P" in msg
+
+
+def test_guardrail_checks_the_declared_seed_too():
+    # The phrase_plan seed is part of what the phrase commits to, so an illegal seed swara
+    # (P is absent from Malkauns) is caught even when every NOTE is legal.
+    phrase = LeadPhrase(phrase_plan=_plan("S", "P"),
+                        notes=[LeadNote(swara="S", dur=1.0)])
+    ok, msg = _lead_guardrail("malkauns")(_FakeOutput(phrase))
+    assert ok is False and "P" in msg
+
+
+def test_lead_phrase_requires_a_plan_before_notes():
+    # phrase_plan is REQUIRED — the model cannot emit notes without first committing a plan.
+    try:
+        LeadPhrase(notes=[LeadNote(swara="S", dur=1.0)])
+        assert False, "expected a validation error for the missing phrase_plan"
+    except Exception as e:  # noqa: BLE001
+        assert "phrase_plan" in str(e)
+
+
+def test_phrase_plan_rejects_an_unknown_seed_swara():
+    try:
+        PhrasePlan(seed=["S", "Z"], contour="arch", transformations=[], climax_and_sam="x")
+        assert False, "expected a validation error for the unknown seed swara"
+    except Exception as e:  # noqa: BLE001
+        assert "seed" in str(e).lower()
 
 
 # --- the LeadNote contract: boundary shape checks ------------------------------

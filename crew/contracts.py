@@ -690,16 +690,49 @@ class LeadNote(BaseModel):
         return _clean_meend_swara(v)
 
 
+# A phrase's overall shape, and the transformations that develop its seed — closed sets
+# (Literal, friendly to Gemini's controlled generation) so the model picks from a fixed
+# compositional vocabulary rather than inventing one.
+LeadContour = Literal["ascending", "descending", "arch", "wave", "landing", "explosion"]
+PhraseMove = Literal[
+    "repeat", "sequence_up", "sequence_down", "invert", "fragment",
+    "accelerate", "answer", "resolve", "octave_shift", "rhythmic_compression",
+]
+
+
+class PhrasePlan(BaseModel):
+    """The compositional plan the Lead commits to BEFORE any notes — so a taan DEVELOPS one
+    idea (the way a real improviser does) instead of running the scale (the "drunken
+    staircase" a directionless model produces). This is reasoning-first made STRUCTURAL: the
+    schema puts the plan ahead of the notes, so the model cannot emit a note without first
+    declaring the seed it grows, the shape, and the transformations. The renderer ignores the
+    plan — it steers the notes and shows the intent in the trace, while Rasik/Producer judge
+    whether the notes actually honour it.
+    """
+    seed: list[str]                     # the core idea — 2-5 swaras, drawn from pakad/chalan
+    contour: LeadContour                # the phrase's overall shape
+    transformations: list[PhraseMove]   # how the seed evolves, in order
+    climax_and_sam: str                 # one line: where energy peaks and how it resolves/lands
+
+    @field_validator("seed")
+    @classmethod
+    def _known_seed(cls, v: list[str]) -> list[str]:
+        bad = [s for s in v if s not in SWARAS]
+        if bad:
+            raise ValueError(f"unknown seed swara(s) {bad} (expected from {' '.join(SWARAS)})")
+        return v
+
+
 class LeadPhrase(BaseModel):
     """The Lead generator's structured output for ONE section.
 
-    `reasoning` is filled FIRST (chain-of-thought, like every other agent here):
-    which pakad/chalan idiom the phrase builds on and how it is shaped to the
-    section's role — disciplining the melody and showing in the trace. Legality
-    (every swara in the raga) is NOT enforced here; it is the generator's guardrail
-    (a bounded retry) so `output_pydantic` can always parse a well-formed phrase.
+    `phrase_plan` is filled FIRST and is REQUIRED: the model commits to a seed, a contour,
+    and the transformations that develop it BEFORE it may write a single note (reasoning-first
+    made structural — see `PhrasePlan`). Legality (every swara in the raga, seed included) is
+    NOT enforced here; it is the generator's guardrail (a bounded retry) so `output_pydantic`
+    can always parse a well-formed phrase.
     """
-    reasoning: str = ""
+    phrase_plan: PhrasePlan
     notes: list[LeadNote] = Field(min_length=1)
 
 

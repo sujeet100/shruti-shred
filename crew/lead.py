@@ -48,6 +48,7 @@ from crew.contracts import (
     LeadNote,
     LeadPhrase,
     Note,
+    PhrasePlan,
     SectionKind,
     motif_illegal_in_raga,
 )
@@ -71,22 +72,39 @@ _OUT_DIR: Final[Path] = _ROOT / "out"
 # The exact JSON shape we want back, injected as an input so CrewAI's {placeholder}
 # interpolation never has to parse these literal braces (same trick as composers).
 _OUTPUT_SCHEMA: Final = """{
-  "reasoning": "the pakad/chalan idiom you build on and how you shape it to this section",
+  "phrase_plan": {
+    "seed": ["g", "m", "d"],
+    "contour": "arch",
+    "transformations": ["repeat", "sequence_up", "rhythmic_compression", "resolve"],
+    "climax_and_sam": "peaks in the taar octave, then resolves down to land on the sam"
+  },
   "notes": [
     {"swara": "d", "oct": -1, "dur": 2.0, "vel": 80},
     {"swara": "g", "oct": 0, "dur": 1.5, "grace": ["S"], "meend_swara": "m"},
     {"swara": "m", "oct": 0, "dur": 4.0, "meend_swara": "S", "meend_oct": 1}
   ]
 }
-"reasoning" comes FIRST. "oct" is your octave (0 = home; -1 mandra/lower, +1 taar/upper).
-"vel", "grace", "meend_swara" and "meend_oct" are optional. "meend_swara" is a swara to
-glide to; add "meend_oct" (same frame as a note's "oct") ONLY to glide ACROSS octaves —
-omit it to glide within the note's own octave. Durations are in beats and must be positive."""
+Decide "phrase_plan" FIRST, then write "notes" that REALIZE it. "contour" is one of
+ascending / descending / arch / wave / landing / explosion. "transformations" (in the
+order they happen) are drawn from repeat, sequence_up, sequence_down, invert, fragment,
+accelerate, answer, resolve, octave_shift, rhythmic_compression. In the notes: "oct" is
+your octave (0 = home; -1 mandra/lower, +1 taar/upper); "vel", "grace", "meend_swara" and
+"meend_oct" are optional. "meend_swara" is a swara to glide to; add "meend_oct" (same frame
+as a note's "oct") ONLY to glide ACROSS octaves — omit it to glide within the note's own
+octave. Durations are in beats and must be positive."""
 
 
 # --------------------------------------------------------------------------- #
 # Placement: LLM phrase -> notes on the section's window. Pure.                #
 # --------------------------------------------------------------------------- #
+
+# A meend needs a long note to speak — a glide crammed onto a fast taan note reads as a
+# sag, not an ornament (the "drunken staircase" a dense run of meends produces). So code
+# strips meend from any note shorter than this, reserving it for held/cadential notes. The
+# DIRECTION is left free: a bend may rise or fall (kan, khatka, murki, meend all move either
+# way), so we gate on note length and density, never on which way it glides.
+_MEEND_MIN_BEATS: Final = 1.0
+
 
 def place_phrase(notes: list[LeadNote], *, start: float, end: float,
                  register: int) -> list[Note]:
@@ -104,12 +122,19 @@ def place_phrase(notes: list[LeadNote], *, start: float, end: float,
         if t >= end:
             break
         dur = min(ln.dur, end - t)          # clip the note that straddles the edge
-        placed.append(Note(swara=ln.swara, oct=register + ln.oct, start=round(t, 4),
-                           dur=round(dur, 4), vel=ln.vel, grace=ln.grace,
-                           meend_swara=ln.meend_swara,
-                           meend_oct=_place_meend_oct(ln, register)))
+        placed.append(_placed_note(ln, register=register, start=t, dur=dur))
         t += ln.dur
     return placed
+
+
+def _placed_note(ln: LeadNote, *, register: int, start: float, dur: float) -> Note:
+    """One placed Note, with the meend guard applied: a glide is kept only on a note at
+    least `_MEEND_MIN_BEATS` long, so fast-run notes articulate cleanly instead of sagging."""
+    keep_meend = ln.meend_swara is not None and dur >= _MEEND_MIN_BEATS
+    return Note(swara=ln.swara, oct=register + ln.oct, start=round(start, 4),
+                dur=round(dur, 4), vel=ln.vel, grace=ln.grace,
+                meend_swara=ln.meend_swara if keep_meend else None,
+                meend_oct=_place_meend_oct(ln, register) if keep_meend else None)
 
 
 def _place_meend_oct(ln: LeadNote, register: int) -> int | None:
@@ -282,9 +307,10 @@ def _phrase_from_output(output: Any) -> LeadPhrase | None:
 
 
 def _phrase_swaras(phrase: LeadPhrase) -> list[str]:
-    """Every swara the phrase actually sounds — the note, its kan, its meend target
-    — flattened so the raga grammar can judge them all (no ornament blind spot)."""
-    swaras: list[str] = []
+    """Every swara the phrase commits to — the declared seed, plus each note, its kan and
+    its meend target — flattened so the raga grammar can judge them all (no ornament or
+    seed blind spot; a seed the raga forbids fails the guardrail like any other)."""
+    swaras: list[str] = list(phrase.phrase_plan.seed)
     for note in phrase.notes:
         swaras.append(note.swara)
         swaras.extend(note.grace or [])
@@ -364,13 +390,20 @@ class _LLMLead:
 # The generator loop — pure control flow, LLM injected via `gen_fn`.           #
 # --------------------------------------------------------------------------- #
 
+def _render_plan(plan: PhrasePlan) -> str:
+    """One-line human view of the compositional plan, for the trace and the debate event."""
+    seed = " ".join(plan.seed) or "?"
+    moves = " → ".join(plan.transformations) or "—"
+    return f"seed [{seed}] · {plan.contour} · {moves} · {plan.climax_and_sam}"
+
+
 def _lead_event(span: SectionSpan, phrase: LeadPhrase, line: list[Note],
                 voicing: Voicing) -> DebateEvent:
     return DebateEvent(
         type=EventType.PROPOSE, agent="Lead", role=_ROLE_GENERATOR,
         text=f"{span.section.kind.value}: {len(line)} notes over {span.length:g} beats "
              f"[{voicing.value}]",
-        data={"reasoning": phrase.reasoning, "voicing": voicing.value,
+        data={"reasoning": _render_plan(phrase.phrase_plan), "voicing": voicing.value,
               "swaras": [n.swara for n in line]})
 
 
