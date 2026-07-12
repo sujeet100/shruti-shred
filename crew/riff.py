@@ -68,15 +68,19 @@ _OUT_DIR: Final[Path] = _ROOT / "out"
 _OUTPUT_SCHEMA: Final = """{
   "reasoning": "which raga swaras and part of the motif the riff is built on, and how it lands the accents",
   "notes": [
-    {"swara": "S", "oct": 0, "dur": 0.5, "vel": 118},
-    {"swara": "S", "oct": 0, "dur": 0.5},
+    {"swara": "S", "oct": 0, "dur": 0.5, "vel": 118, "chord": ["S"], "technique": "palm_mute"},
+    {"swara": "S", "oct": 0, "dur": 0.5, "technique": "palm_mute"},
     {"swara": "g", "oct": 0, "dur": 0.5},
-    {"swara": "S", "oct": 0, "dur": 0.5}
+    {"swara": "S", "oct": 0, "dur": 0.5, "chord": ["P"], "technique": "slide"}
   ]
 }
 "reasoning" comes FIRST. This is ONE tala cycle; the arrangement repeats it across the
 section's bars. "oct" is your octave (0 = home/low; -1 lower). "vel" is optional.
-Durations are in beats (0.25 = 16th, 0.5 = 8th, 1 = quarter) and should sum to about one cycle."""
+Durations are in beats (0.25 = 16th, 0.5 = 8th, 1 = quarter) and should sum to about one cycle.
+"chord" (optional) = extra raga swaras sounded WITH the root, stacked above it: ["S"] = a
+root-octave POWER CHORD, ["P"] = a fifth, ["g","n"] = an extended raga voicing. Every chord
+swara MUST be one of the raga's allowed swaras. "technique" (optional) = one of
+palm_mute (a tight chug), slide, bend, hammer_on, pull_off — omit for a plain picked note."""
 
 
 # --------------------------------------------------------------------------- #
@@ -99,7 +103,8 @@ def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int) 
             break
         dur = min(rn.dur, cycle_beats - t)
         placed.append(Note(swara=rn.swara, oct=register + rn.oct, start=round(t, 4),
-                           dur=round(dur, 4), vel=rn.vel))
+                           dur=round(dur, 4), vel=rn.vel,
+                           chord=rn.chord, technique=rn.technique))
         t += rn.dur
     if placed:
         last = placed[-1]
@@ -122,8 +127,7 @@ def place_riff(pattern: list[RiffNote], *, start: float, bars: int, cycle_beats:
         offset = start + bar * cycle_beats
         for n in cycle:
             vel = min(127, round(n.vel * _RIFF_ACCENT_BOOST)) if n.start in accent_beats else n.vel
-            notes.append(Note(swara=n.swara, oct=n.oct, start=round(n.start + offset, 4),
-                             dur=n.dur, vel=vel))
+            notes.append(n.model_copy(update={"start": round(n.start + offset, 4), "vel": vel}))
     return notes
 
 
@@ -192,11 +196,15 @@ def _riff_guardrail(raga: str):
         pattern = _pattern_from_output(output)
         if pattern is None:
             return (False, "Return a single valid RiffPattern JSON object and nothing else.")
-        illegal = motif_illegal_in_raga([n.swara for n in pattern.notes], raga)
+        # Every sounding pitch faces the grammar — the root AND each chord tone stacked
+        # on it — so a power chord / extended voicing stays legal by construction.
+        swaras = [n.swara for n in pattern.notes]
+        swaras += [c for n in pattern.notes for c in (n.chord or [])]
+        illegal = motif_illegal_in_raga(swaras, raga)
         if illegal:
             allowed = " ".join(RAGAS[raga]["allowed"])
             return (False, f"swaras {sorted(set(illegal))} are illegal in raga {raga}. "
-                           f"Use only these swaras: {allowed}. Fix and resend.")
+                           f"Use only these swaras (roots AND chord tones): {allowed}. Fix and resend.")
         return (True, pattern)
 
     guard.__annotations__["return"] = tuple[bool, Any]

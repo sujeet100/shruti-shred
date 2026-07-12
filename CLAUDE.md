@@ -333,11 +333,16 @@ and build order.
   - **(1) Mix pass — ✅ DONE** (commit `40048f6`): bass an octave below the guitar, guitar out
     of sub-bass, per-channel pan (CC10), sitar/lead panned opposite, rhythm double-tracked hard
     L/R (Overdriven left / Distortion right + Haas offset). Not yet heard (batched — see below).
-  - **NEXT (steps 2–8):** riff extended-chords + techniques (legal-only, stacked from the raga's
-    own swaras — concrete design in DESIGN.md); reframe the debate (**Ustad exits; a new
-    Producer/impact critic debates Rasik**; hybrid triage); composition memory; computed metrics
-    → Rasik + a consistency check; structured-output robustness (parse+retry) + fuzzy pakad;
-    prompt hygiene; live-hardening (fast mode, failsafe chart, concurrent Lead∥Riff).
+  - **(2) Riff extended-chords + techniques — ✅ DONE**: `chord`/`technique` on `RiffNote`+`Note`;
+    the renderer stacks chord tones upward from the root (`_stack_above`) so `["S"]`=power chord,
+    `["P"]`=fifth, `["g","n"]`=extended voicing, all legal-only (chord tones hit BOTH
+    `validate_composition` kind `"chord"` and the riff guardrail); palm_mute chug + legato +
+    slide/bend pitch-wheel gestures in `src/render.py`; prompt teaches it. New `tests/test_render.py`
+    + riff/knowledge tests (179 pure tests green). Not yet heard (batched).
+  - **NEXT (steps 3–8):** reframe the debate (**Ustad exits; a new Producer/impact critic debates
+    Rasik**; hybrid triage); composition memory; computed metrics → Rasik + a consistency check;
+    structured-output robustness (parse+retry) + fuzzy pakad; prompt hygiene; live-hardening (fast
+    mode, failsafe chart, concurrent Lead∥Riff).
   - **RUN NO LLM/live calls until ALL changes are done** (Sujit's instruction) — pure tests
     only, then ONE batched live render + one live Flow run at the very end.
 - **`REVIEW.md`** is the external design/prompt review request; GPT + Gemini feedback is triaged

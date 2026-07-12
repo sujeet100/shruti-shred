@@ -13,7 +13,8 @@ Composition schema:
     {"role": "drone"|"lead"|"rhythm", "instrument": str, "program": int,
      "channel": int, "notes": [{"swara": "S", "oct": 0, "start": 0.0,
                                 "dur": 0.5, "vel": 100,
-                                "grace": ["R"]}, ...]},   # "grace" is OPTIONAL
+                                "grace": ["R"], "chord": ["P"],
+                                "technique": "palm_mute"}, ...]},  # last three OPTIONAL
     {"role": "drums", "channel": 9,
      "hits": [{"drum": "kick"|"snare"|"hhat", "start": 0.0, "dur": 0.2, "vel": 100}]},
   ]
@@ -37,6 +38,15 @@ Both kan and meend endpoints are validated by the raga grammar like any other
 pitch. The continuous pitches a meend sweeps THROUGH are deliberately not
 validated — sliding through microtones between two legal swaras is what a meend
 is, not a grammar violation.
+
+Riff chords + techniques (the rhythm guitar): a note may carry an optional "chord"
+list of extra swaras — each sounded WITH the root, stacked at the lowest octave
+above it, so `["S"]` is a root-octave power chord, `["P"]` a fifth, `["g","n"]` a
+stacked raga-colour voicing. Chord tones are validated by the grammar like the root.
+A note may also carry an optional "technique": "palm_mute" (a short, slightly softer
+chug), "hammer_on"/"pull_off" (a softer legato attack), or "slide"/"bend" (a pitch-
+wheel gesture into/up from the note). Because pitch-bend is channel-wide, a slide/bend
+on a chorded rhythm channel bends the whole chord together — correct for a power chord.
 """
 
 import subprocess
@@ -66,6 +76,15 @@ GRACE_LEN = 0.15         # beats: total window a note's kan ornament occupies be
 MEEND_RANGE = 12         # semitones of pitch-bend range we arm the channel with (±octave)
 MEEND_GLIDE_FRAC = 0.6   # glide over the first 60% of the note, then hold the target
 
+# Rhythm-guitar technique shaping (see _apply_technique / _render_slide / _render_bend).
+PALM_MUTE_DUR = 0.5      # a chug is short — clip the note to half its written length
+PALM_MUTE_VEL = 0.9      # and a hair softer, the muted-string thud
+LEGATO_VEL = 0.8         # hammer_on / pull_off: a softer attack, no re-pick
+SLIDE_IN_ST = -2         # a slide starts this far below and rises INTO the note
+SLIDE_IN_FRAC = 0.25     # ...over the first quarter of the note
+BEND_ST = 2              # a bend rises this many semitones
+BEND_FRAC = 0.5          # ...over the first half of the note, then holds
+
 
 def _resolve(spec, default_oct: int):
     """A swara spec is either 'P' (inherits octave) or {'swara','oct'}."""
@@ -75,24 +94,82 @@ def _resolve(spec, default_oct: int):
 
 
 def _arm_bend_range(mf: MIDIFile, track: int, ch: int, semitones: int) -> None:
-    """Widen a channel's pitch-bend range via RPN 0,0 so meend can span >2 semitones."""
+    """Widen a channel's pitch-bend range via RPN 0,0 so meend/slide/bend can span >2 semitones."""
     mf.addControllerEvent(track, ch, 0, 101, 0)          # RPN MSB
     mf.addControllerEvent(track, ch, 0, 100, 0)          # RPN LSB -> RPN(0,0) = bend range
     mf.addControllerEvent(track, ch, 0, 6, semitones)    # data entry MSB = semitones
     mf.addControllerEvent(track, ch, 0, 38, 0)           # data entry LSB = cents
 
 
+def _wheel(semitones: float) -> int:
+    """Pitch-wheel value for a bend of `semitones`, scaled to the armed MEEND_RANGE."""
+    return max(-8192, min(8191, round(semitones / MEEND_RANGE * 8191)))
+
+
+def _stack_above(root_pitch: int, tone_pitch: int) -> int:
+    """Raise `tone_pitch` by whole octaves until it sounds strictly ABOVE `root_pitch`.
+
+    The one rule behind chord voicing: every chord tone is seated at the lowest octave
+    over the root, so `["S"]` becomes the root's octave (a power chord), `["P"]` the
+    fifth just above, `["g","n"]` a stacked raga-colour voicing — all in-raga by
+    construction, since the caller only passes legal swaras. Pure.
+    """
+    while tone_pitch <= root_pitch:
+        tone_pitch += 12
+    return tone_pitch
+
+
+def _apply_technique(technique, dur: float, vel: int) -> tuple[float, int]:
+    """Return (dur, vel) shaped for a technique's ATTACK/SUSTAIN — the part that is
+    pure note geometry (pitch gestures are rendered separately). A palm-mute chug is
+    short and slightly softer; a hammer-on/pull-off is a softer legato attack; slide
+    and bend leave dur/vel alone (they only move the pitch wheel). Pure."""
+    if technique == "palm_mute":
+        return round(dur * PALM_MUTE_DUR, 4), max(1, int(vel * PALM_MUTE_VEL))
+    if technique in ("hammer_on", "pull_off"):
+        return dur, max(1, int(vel * LEGATO_VEL))
+    return dur, vel
+
+
+def _bends(n: dict) -> bool:
+    """Does this note move the pitch wheel — a meend glide or a slide/bend technique?"""
+    return "meend" in n or n.get("technique") in ("slide", "bend")
+
+
 def _render_meend(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
                   from_pitch: int, to_pitch: int) -> None:
     """Ramp the pitch wheel from `from_pitch` to `to_pitch`, then recenter at note end."""
     interval = to_pitch - from_pitch                     # signed semitones
-    full = max(-8192, min(8191, round(interval / MEEND_RANGE * 8191)))
+    full = _wheel(interval)
     glide = dur * MEEND_GLIDE_FRAC
     steps = max(6, min(48, int(glide / 0.02)))           # ~1 event per 0.02 beat, capped
     for k in range(steps + 1):
         t = start + glide * k / steps
         mf.addPitchWheelEvent(track, ch, round(t, 4), round(full * k / steps))
     # hold the target for the rest of the note, then recenter for the next note
+    mf.addPitchWheelEvent(track, ch, round(start + dur, 4), 0)
+
+
+def _render_slide(mf: MIDIFile, track: int, ch: int, start: float, dur: float) -> None:
+    """Slide INTO the note: wheel starts SLIDE_IN_ST below and rises to pitch over the
+    first quarter, then recenters at note end (riff notes lie end-to-end)."""
+    glide = dur * SLIDE_IN_FRAC
+    steps = max(4, min(24, int(glide / 0.02)))
+    for k in range(steps + 1):
+        t = start + glide * k / steps
+        mf.addPitchWheelEvent(track, ch, round(t, 4), _wheel(SLIDE_IN_ST * (1 - k / steps)))
+    mf.addPitchWheelEvent(track, ch, round(start + dur, 4), 0)
+
+
+def _render_bend(mf: MIDIFile, track: int, ch: int, start: float, dur: float) -> None:
+    """Bend UP: wheel rises from 0 to BEND_ST over the first half, holds, then recenters
+    at note end. On a polyphonic (chorded) channel the whole chord bends together —
+    acceptable, and correct for a slid/bent power chord."""
+    glide = dur * BEND_FRAC
+    steps = max(4, min(24, int(glide / 0.02)))
+    for k in range(steps + 1):
+        t = start + glide * k / steps
+        mf.addPitchWheelEvent(track, ch, round(t, 4), _wheel(BEND_ST * k / steps))
     mf.addPitchWheelEvent(track, ch, round(start + dur, 4), 0)
 
 
@@ -116,12 +193,16 @@ def build_midi(comp: dict, path: str) -> None:
         # L/R and separate the melodic voices, so parts don't stack up mono-centre.
         if layer.get("pan") is not None:
             mf.addControllerEvent(i, ch, 0, 10, max(0, min(127, layer["pan"])))
-        # If any note on this channel glides, arm a wide bend range once up front.
-        if any("meend" in n for n in layer["notes"]):
+        # If any note on this channel moves the pitch wheel (a meend glide, or a riff
+        # slide/bend), arm a wide bend range once up front so the gesture spans cleanly.
+        if any(_bends(n) for n in layer["notes"]):
             _arm_bend_range(mf, i, ch, MEEND_RANGE)
         for n in layer["notes"]:
             oct = n.get("oct", 0)
             vel = n.get("vel", 100)
+            # Technique first: it shapes the note's length/attack before it is sounded
+            # (the chug of a palm-mute, the softer legato of a hammer-on/pull-off).
+            dur, vel = _apply_technique(n.get("technique"), n["dur"], vel)
             # Kan: crushed grace notes stolen from just before the main onset.
             grace = n.get("grace")
             if grace:
@@ -134,13 +215,22 @@ def build_midi(comp: dict, path: str) -> None:
                         mf.addNote(i, ch, gp, round(n["start"] - span + j * each, 4),
                                    each * 0.9, gvel)
             pitch = sa + SWARAS[n["swara"]] + 12 * oct
-            mf.addNote(i, ch, pitch, n["start"], n["dur"], vel)
-            # Meend: continuous glide from this note to a target swara.
+            mf.addNote(i, ch, pitch, n["start"], dur, vel)
+            # Chord: extra raga swaras sounded WITH the root, each stacked at the lowest
+            # octave above it — a power chord (`["S"]`), a fifth (`["P"]`), a voicing.
+            for csw in n.get("chord") or []:
+                tone = _stack_above(pitch, sa + SWARAS[csw] + 12 * oct)
+                mf.addNote(i, ch, tone, n["start"], dur, vel)
+            # Pitch-wheel gestures: a meend glide to a target swara, or a riff slide/bend.
             meend = n.get("meend")
             if meend is not None:
                 tsw, toct = _resolve(meend, oct)
                 target = sa + SWARAS[tsw] + 12 * toct
-                _render_meend(mf, i, ch, n["start"], n["dur"], pitch, target)
+                _render_meend(mf, i, ch, n["start"], dur, pitch, target)
+            elif n.get("technique") == "slide":
+                _render_slide(mf, i, ch, n["start"], dur)
+            elif n.get("technique") == "bend":
+                _render_bend(mf, i, ch, n["start"], dur)
     with open(path, "wb") as f:
         mf.writeFile(f)
 

@@ -319,8 +319,16 @@ GM31 pan 108, ~10 ms Haas offset + slight vel drop); bass/groove/tabla still der
 ORIGINAL riff. Covered by `tests/test_generators.py`. (Not yet heard — batched for the final
 live render per "no LLM runs until all changes done".)
 
-**Riff voicing + technique — NEXT (contract + render + prompt). Concrete design worked out
-2026-07-12 (implement directly):**
+**✅ Riff voicing + technique — DONE (2026-07-12, step 2).** `chord`/`technique` on
+`RiffNote` + `Note` (contracts), rendered in `src/render.py` (`_stack_above` seats each
+chord tone at the lowest octave over the root; `_apply_technique` does the palm-mute chug
++ legato attack; `_render_slide`/`_render_bend` are pitch-wheel gestures, armed via
+`_bends`). Chord tones face the grammar in BOTH `validate_composition` (kind `"chord"`) and
+the riff guardrail, so a power chord is legal-by-construction. Plumbed through
+`_sequence_cycle`/`place_riff` (model_copy) and taught in the `generate_riff` prompt +
+`_OUTPUT_SCHEMA`. Pure tests: `tests/test_render.py` (new), `tests/test_riff.py`,
+`tests/test_knowledge.py`. NOT yet heard — batched for the final live render (slide/bend
+audio quality needs Sujit's ear then). Design as-built (kept for the record):
 - **Extended chords, legal-BY-CONSTRUCTION.** Add `chord: Optional[list[str]]` to `RiffNote`
   (and to the render-time `Note`): extra swaras sounded WITH the root, each a legal raga
   swara (same guardrail check as the root — extend `raga.validate_composition` to check chord
@@ -420,8 +428,9 @@ debate as the weakest link.** Where they converge = highest confidence.
 **Roadmap — Sujit chose "do all together" (one campaign, committed in tested chunks;
 Producer for the debate). Progress:**
 1. ✅ **Mix pass** (deterministic) — DONE, commit `40048f6`.
-2. ⏳ **Riff extended-chords + techniques** — NEXT (design above; started, no code yet).
-3. **Reframe the debate** — Ustad EXITS; new **Producer** (impact/momentum) agent debates
+2. ✅ **Riff extended-chords + techniques** — DONE (design above; contract + render + guardrail
+   + prompt + pure tests).
+3. ⏳ **Reframe the debate** — NEXT. Ustad EXITS; new **Producer** (impact/momentum) agent debates
    Rasik; hybrid triage (weighted overall OR a critical criterion low). *(chosen: Producer.)*
 4. **Composition memory** — generators see the realized previous sections.
 5. **Computed metrics → Rasik + a computed consistency check.**
@@ -431,8 +440,9 @@ Producer for the debate). Progress:**
    pacing; negative→positive rules.
 8. **Live-hardening** — fast mode; failsafe pre-rendered chart; concurrent Lead∥Riff.
 
-**RESUME HERE (next session):** tree is clean at commit `40048f6`. Do steps 2–8 (pure tests
-only). **Run NO LLM/live calls until ALL changes are done** (Sujit's instruction, 2026-07-12)
+**RESUME HERE (next session):** step 2 is done + committed; do steps 3–8 (pure tests
+only), starting with the debate reframe (Ustad exits, Producer vs Rasik). **Run NO
+LLM/live calls until ALL changes are done** (Sujit's instruction, 2026-07-12)
 — then a SINGLE batched live render (`uv run python -m crew.flow` / `crew.band`) to hear the
 mix + chords + techniques together, and one live Flow run to confirm the reframed debate.
 Task list #7–#11 tracks the remaining chunks.

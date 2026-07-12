@@ -92,6 +92,26 @@ def test_ornaments_are_validated():
     assert len(v) == 1 and v[0]["kind"] == "meend-target", v
 
 
+def test_chord_tones_are_validated():
+    # A riff power chord faces the grammar like any other pitch: a legal chord passes,
+    # an out-of-raga chord tone is caught (kind "chord"), so a power chord can't smuggle
+    # an illegal note in past the root. Malkauns: S g m d n legal; P and R are not.
+    legal = {"raga": "malkauns", "sa": 60, "bpm": 100,
+             "tala": {"name": "teentaal", "beats_per_bar": 4},
+             "layers": [{"role": "rhythm", "channel": 3, "notes": [
+                 {"swara": "S", "oct": -2, "start": 0.0, "dur": 1.0, "chord": ["S", "m"]},
+             ]}]}
+    assert validate_composition(legal) == []
+
+    bad_chord = {"raga": "malkauns", "sa": 60, "bpm": 100,
+                 "tala": {"name": "teentaal", "beats_per_bar": 4},
+                 "layers": [{"role": "rhythm", "channel": 3, "notes": [
+                     {"swara": "S", "oct": -2, "start": 0.0, "dur": 1.0, "chord": ["P"]},
+                 ]}]}
+    v = validate_composition(bad_chord)
+    assert len(v) == 1 and v[0]["kind"] == "chord" and v[0]["swara"] == "P", v
+
+
 def test_phase0_pipeline_still_holds():
     # The proven Phase 0 composition is clean; the deliberately-illegal variant
     # is caught. Guards against a schema/validator change silently regressing.

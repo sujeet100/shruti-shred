@@ -556,6 +556,12 @@ def _clean_meend(v):
     return v
 
 
+# A rhythm-guitar playing technique the renderer maps to a MIDI gesture — the chug of
+# a palm-mute, a slide/bend on the pitch wheel, or a softer legato attack. A closed set,
+# so it validates at the boundary; shared by the riff contract and the render-time Note.
+RiffTechnique = Literal["palm_mute", "slide", "bend", "hammer_on", "pull_off"]
+
+
 class Note(BaseModel):
     swara: str
     oct: int = 0
@@ -564,6 +570,8 @@ class Note(BaseModel):
     vel: int = 100
     grace: Optional[list[str]] = None            # kan (grace notes)
     meend: Optional[Union[str, dict]] = None     # glide target: swara or {swara, oct}
+    chord: Optional[list[str]] = None            # extra raga swaras sounded WITH the root (stacked up)
+    technique: Optional[RiffTechnique] = None    # a rhythm-guitar articulation the renderer maps
 
     @field_validator("swara")
     @classmethod
@@ -572,12 +580,12 @@ class Note(BaseModel):
             raise ValueError(f"unknown swara '{v}' (expected one of {' '.join(SWARAS)})")
         return v
 
-    @field_validator("grace")
+    @field_validator("grace", "chord")
     @classmethod
-    def _known_grace(cls, v):
+    def _known_extra_swaras(cls, v):
         bad = [g for g in (v or []) if g not in SWARAS]
         if bad:
-            raise ValueError(f"unknown grace swara(s) {bad}")
+            raise ValueError(f"unknown swara(s) {bad}")
         return v
 
     @field_validator("meend")
@@ -697,19 +705,34 @@ class LeadPhrase(BaseModel):
 
 
 class RiffNote(BaseModel):
-    """One note of a metal riff — a swara with a duration, no ornaments (a riff
-    chugs, it doesn't kan/meend). `oct` is LOCAL to the rhythm register; `vel`
-    defaults loud. Timing is a `dur` the code lays on the tala grid."""
+    """One note of a metal riff — a swara with a duration. A riff doesn't kan/meend,
+    but it DOES voice power chords and articulate the chug: `chord` stacks extra raga
+    swaras above the root (each legal in the raga — a fifth `["P"]`, a root-octave power
+    chord `["S"]`, an extended voicing `["g","n"]`), and `technique` names an
+    articulation the renderer maps (palm_mute, slide, bend, hammer_on, pull_off). `oct`
+    is LOCAL to the rhythm register; `vel` defaults loud; timing is a `dur` the code
+    lays on the tala grid. Chord legality is the generator's guardrail, not enforced
+    here, so `output_pydantic` can always parse a well-formed note."""
     swara: str
     oct: int = 0
     dur: float = Field(gt=0)
     vel: int = Field(default=110, ge=1, le=127)
+    chord: Optional[list[str]] = None
+    technique: Optional[RiffTechnique] = None
 
     @field_validator("swara")
     @classmethod
     def _known_swara(cls, v: str) -> str:
         if v not in SWARAS:
             raise ValueError(f"unknown swara '{v}' (expected one of {' '.join(SWARAS)})")
+        return v
+
+    @field_validator("chord")
+    @classmethod
+    def _known_chord(cls, v):
+        bad = [c for c in (v or []) if c not in SWARAS]
+        if bad:
+            raise ValueError(f"unknown chord swara(s) {bad}")
         return v
 
 

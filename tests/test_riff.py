@@ -154,6 +154,43 @@ def test_generate_riff_emits_a_propose_event():
     assert len(proposes) == 1 and proposes[0].agent == "Riff"
 
 
+# --- chords + techniques: carried through placement, legality-checked ----------
+
+def test_place_riff_carries_chord_and_technique_through():
+    # a power-chord chug must survive the cycle-repeat + accent pass unchanged.
+    notes = [RiffNote(swara="S", dur=1.0, chord=["S"], technique="palm_mute"),
+             RiffNote(swara="g", dur=1.0, technique="slide")]
+    placed = place_riff(notes, start=0.0, bars=2, cycle_beats=2.0, register=-3,
+                        accent_beats={0.0})
+    assert placed[0].chord == ["S"] and placed[0].technique == "palm_mute"
+    assert placed[1].chord is None and placed[1].technique == "slide"
+    # the accent boost still applies to the chorded sam note, chord intact
+    assert placed[0].vel > notes[0].vel
+    # and the second bar's repeat keeps the voicing too
+    assert placed[2].chord == ["S"] and placed[2].technique == "palm_mute"
+
+
+def test_guardrail_passes_a_legal_chord():
+    pattern = RiffPattern(notes=[RiffNote(swara="S", dur=1.0, chord=["S", "m"])])
+    ok, value = _riff_guardrail("malkauns")(_FakeOutput(pattern))
+    assert ok is True and isinstance(value, RiffPattern)
+
+
+def test_guardrail_rejects_an_illegal_chord_tone():
+    # the root 'S' is legal but the chord tone 'P' is not in Malkauns -> rejected.
+    pattern = RiffPattern(notes=[RiffNote(swara="S", dur=1.0, chord=["P"])])
+    ok, msg = _riff_guardrail("malkauns")(_FakeOutput(pattern))
+    assert ok is False and "illegal" in msg.lower() and "P" in msg
+
+
+def test_riffnote_rejects_an_unknown_chord_swara():
+    try:
+        RiffNote(swara="S", dur=1.0, chord=["Q"])
+        assert False, "expected ValueError"
+    except Exception as e:  # noqa: BLE001
+        assert "chord" in str(e).lower()
+
+
 # --- the legality guardrail ----------------------------------------------------
 
 def test_guardrail_passes_a_legal_riff():

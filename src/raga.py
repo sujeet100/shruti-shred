@@ -311,11 +311,13 @@ def validate_composition(comp: dict) -> list[dict]:
             continue
         for n in layer.get("notes", []):
             # Every pitch that actually sounds faces the grammar — the main
-            # swara, each kan (grace note), and a meend's TARGET swara (the note
-            # you land on). The guardrail can't have a blind spot for ornaments.
-            # The microtones a meend sweeps through are not notes, so not checked.
+            # swara, each kan (grace note), each riff CHORD tone (sounded with the
+            # root), and a meend's TARGET swara (the note you land on). The guardrail
+            # can't have a blind spot for ornaments or chords. The microtones a meend
+            # sweeps through are not notes, so not checked.
             checks = [(n["swara"], "note")]
             checks += [(g, "grace") for g in n.get("grace", [])]
+            checks += [(c, "chord") for c in n.get("chord", [])]
             m = n.get("meend")
             if m is not None:
                 tsw = m["swara"] if isinstance(m, dict) else m

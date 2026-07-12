@@ -1,0 +1,129 @@
+"""
+Tests for the renderer's DETERMINISTIC note geometry — chord stacking and technique
+shaping — all pure (no fluidsynth, no audio). These are the two pieces of the
+riff-voicing feature that live in `src/render.py`: `_stack_above` (a chord tone seats
+at the lowest octave over the root) and `_apply_technique` (palm-mute chug / legato
+attack). A final smoke builds a MIDI with chords + techniques to prove the wiring
+holds; the actual SOUND of a slide/bend still needs Sujit's ear at the live render.
+
+Runs as a script (`uv run python tests/test_render.py`) or under pytest.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+from render import (  # noqa: E402
+    BEND_ST,
+    PALM_MUTE_DUR,
+    PALM_MUTE_VEL,
+    SLIDE_IN_ST,
+    _apply_technique,
+    _bends,
+    _stack_above,
+    build_midi,
+)
+
+
+# --- _stack_above: a chord tone seats at the lowest octave over the root --------
+
+def test_power_chord_is_the_root_octave_above():
+    # ["S"] on an S root: the chord tone starts AT the root, so it lifts one octave.
+    assert _stack_above(60, 60) == 72
+
+
+def test_fifth_already_above_the_root_stays_put():
+    # ["P"] (7 semis) over S(60): already above, so it sounds as the fifth, unmoved.
+    assert _stack_above(60, 67) == 67
+
+
+def test_a_tone_below_the_root_is_lifted_over_it():
+    # ["S"] over a P(67) root: S(60) is below, so it climbs to the octave above P.
+    assert _stack_above(67, 60) == 72
+
+
+def test_stacking_is_octave_by_octave_and_strictly_above():
+    assert _stack_above(80, 60) == 84            # 60 -> 72 -> 84, first strictly > 80
+    assert _stack_above(72, 72) == 84            # equal counts as "not above" -> lift
+
+
+# --- _apply_technique: palm-mute chug + legato attack, pitch left alone ---------
+
+def test_palm_mute_shortens_and_softens():
+    dur, vel = _apply_technique("palm_mute", 1.0, 100)
+    assert dur == round(1.0 * PALM_MUTE_DUR, 4)
+    assert vel == int(100 * PALM_MUTE_VEL)
+
+
+def test_legato_softens_attack_only():
+    dur, vel = _apply_technique("hammer_on", 1.0, 100)
+    assert dur == 1.0 and vel < 100
+    assert _apply_technique("pull_off", 0.5, 90)[0] == 0.5
+
+
+def test_slide_and_bend_leave_note_geometry_untouched():
+    # slide/bend are pitch-wheel gestures — they must not change dur or vel.
+    assert _apply_technique("slide", 1.0, 100) == (1.0, 100)
+    assert _apply_technique("bend", 0.5, 110) == (0.5, 110)
+    assert _apply_technique(None, 1.0, 100) == (1.0, 100)
+
+
+def test_technique_velocity_never_drops_below_one():
+    assert _apply_technique("palm_mute", 1.0, 1)[1] >= 1
+
+
+# --- _bends: which notes need the wide pitch-bend range armed -------------------
+
+def test_bends_flags_glides_and_pitch_techniques():
+    assert _bends({"swara": "S", "meend": "g"}) is True
+    assert _bends({"swara": "S", "technique": "slide"}) is True
+    assert _bends({"swara": "S", "technique": "bend"}) is True
+    assert _bends({"swara": "S", "technique": "palm_mute"}) is False
+    assert _bends({"swara": "S"}) is False
+
+
+# --- build_midi smoke: chords + techniques render without crashing --------------
+
+def test_build_midi_renders_chords_and_techniques():
+    comp = {
+        "raga": "malkauns", "sa": 60, "bpm": 90,
+        "tala": {"name": "teentaal", "beats_per_bar": 4},
+        "layers": [{
+            "role": "rhythm", "instrument": "gtr", "program": 30, "channel": 3, "pan": 20,
+            "notes": [
+                {"swara": "S", "oct": -2, "start": 0.0, "dur": 1.0,
+                 "chord": ["S"], "technique": "palm_mute"},
+                {"swara": "g", "oct": -2, "start": 1.0, "dur": 1.0, "technique": "slide"},
+                {"swara": "m", "oct": -2, "start": 2.0, "dur": 1.0,
+                 "chord": ["P"], "technique": "bend"},
+                {"swara": "S", "oct": -2, "start": 3.0, "dur": 1.0, "technique": "hammer_on"},
+            ],
+        }],
+    }
+    scratch = os.environ.get("TMPDIR", "/tmp")
+    path = os.path.join(scratch, "rma_test_render.mid")
+    build_midi(comp, path)
+    assert os.path.exists(path) and os.path.getsize(path) > 0
+    os.remove(path)
+
+
+def test_constants_are_sane():
+    assert 0 < PALM_MUTE_DUR < 1 and 0 < PALM_MUTE_VEL <= 1
+    assert SLIDE_IN_ST < 0 and BEND_ST > 0
+
+
+if __name__ == "__main__":
+    tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    failed = 0
+    for t in tests:
+        try:
+            t()
+            print(f"PASS  {t.__name__}")
+        except Exception as e:  # noqa: BLE001
+            failed += 1
+            print(f"FAIL  {t.__name__}: {e}")
+    print(f"\n{len(tests) - failed}/{len(tests)} passed")
+    sys.exit(1 if failed else 0)

@@ -219,8 +219,21 @@ generate_riff:
         to one FULL cycle ({cycle_beats} beats) — leave no gap where the loop repeats.
       - You are seated LOW already — use oct 0 for your home, -1 to go even lower.
 
+    VOICING + ARTICULATION (this is what makes it sound like a metal guitar, not a bass):
+      - POWER CHORDS: give a note a "chord" list of extra raga swaras sounded WITH it,
+        stacked above the root. ["S"] = a root+octave power chord (the metal staple),
+        ["P"] = a fifth, ["g","n"] = a heavier extended raga voicing. Chord every swara
+        MUST be one of the raga's allowed swaras — the same legality as the root. Chord
+        the strong, accented notes (the sam and the tali) for weight; leave passing notes
+        single for movement.
+      - TECHNIQUE: give a note a "technique" — palm_mute for the tight, chugging muted
+        notes that drive a riff (use these a LOT — the gallop/chug is the point), and
+        slide, bend, hammer_on, or pull_off for expression on a lead-in or accent. Omit it
+        for a plain picked note.
+
     HARD RULES (a riff that breaks these is rejected and you redo it):
-      - Use ONLY the raga's allowed swaras above. Sargam: S r R g G m M P d D n N.
+      - Use ONLY the raga's allowed swaras above — for BOTH the roots AND every chord tone.
+        Sargam: S r R g G m M P d D n N.
       - Every note needs a positive duration in beats.
   expected_output: |
     A single RiffPattern as JSON and nothing else — no prose, no code fences.
