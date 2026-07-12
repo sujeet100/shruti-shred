@@ -348,10 +348,11 @@ def _lead_event(span: SectionSpan, phrase: LeadPhrase, line: list[Note],
 
 def _lead_layer(voice_name: str, notes: list[Note]) -> Layer:
     """Build a lead Layer for one timbre (sitar or lead_guitar). Both carry the
-    `lead` role; only the patch and channel differ."""
+    `lead` role; the patch, channel, and pan differ (sitar left / lead guitar right,
+    so a harmonized third separates across the stereo field)."""
     voice = VOICES[voice_name]
     return Layer(role=_LEAD_ROLE, instrument=voice.instrument, program=voice.program,
-                 channel=voice.channel, notes=notes)
+                 channel=voice.channel, pan=voice.pan, notes=notes)
 
 
 def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], list[DebateEvent]]:

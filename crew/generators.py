@@ -62,17 +62,28 @@ class Voice:
     instrument: str
     program: int   # 0-indexed GM program (29 -> GM #30, Distortion Guitar)
     channel: int
+    pan: int = 64  # MIDI CC10 stereo position: 0=hard-left, 64=centre, 127=hard-right
 
 
 # The `lead` role can be voiced by two timbres, chosen per section (see crew/lead.py):
 # the sitar sings the raga, the lead guitar shreds — a DISTINCT, more saturated patch
 # than the rhythm guitar's tighter overdrive, so the solo voice reads separately.
+#
+# STEREO FIELD (a metal mix, not everything stacked mono-centre): the rhythm guitar is
+# DOUBLE-TRACKED and panned hard L/R (`rhythm` left + `rhythm_double` right, its own
+# channel), the two melodic timbres separate (sitar left-of-centre, lead guitar right),
+# and the low end (bass, drone) holds the centre.
 VOICES: Final[dict[str, Voice]] = {
-    "drone": Voice("strings", 48, 1),        # String Ensemble — the tanpura pad
-    "sitar": Voice("sitar", 104, 2),         # the raga melodic voice (lead role)
-    "lead_guitar": Voice("dist_guitar_lead", 30, 4),  # GM #31 Distortion — the shred voice (lead role)
-    "rhythm": Voice("dist_guitar", 29, 0),   # GM #30 Overdriven — the downtuned rhythm guitar
-    "bass": Voice("electric_bass", 33, 3),   # GM #34 Electric Bass — the low-end anchor
+    "drone": Voice("strings", 48, 1, pan=64),         # String Ensemble — the tanpura pad (centre)
+    "sitar": Voice("sitar", 104, 2, pan=44),          # the raga voice (lead role) — left-of-centre
+    "lead_guitar": Voice("dist_guitar_lead", 30, 4, pan=84),  # GM #31 Distortion shred (lead) — right
+    # The double-tracked rhythm pair use DIFFERENT gain patches (GM's two high-gain
+    # tones) — Overdriven left, Distortion right — so the two sides don't sum to one
+    # mono tone; the distinct saturation + the micro-offset in band.py is what gives
+    # the classic wide double-tracked wall.
+    "rhythm": Voice("overdrive_guitar", 29, 0, pan=20),      # GM #30 Overdriven — hard LEFT
+    "rhythm_double": Voice("dist_guitar", 30, 5, pan=108),   # GM #31 Distortion — hard RIGHT
+    "bass": Voice("electric_bass", 33, 3, pan=64),    # GM #34 Electric Bass — the low-end anchor (centre)
 }
 
 
@@ -142,7 +153,7 @@ def drone_layer(arr: Arrangement) -> Layer:
              for swara, velocity in zip(tones, velocities)]
     voice = VOICES["drone"]
     return Layer(role="drone", instrument=voice.instrument, program=voice.program,
-                 channel=voice.channel, notes=notes)
+                 channel=voice.channel, pan=voice.pan, notes=notes)
 
 
 # --------------------------------------------------------------------------- #
@@ -150,6 +161,7 @@ def drone_layer(arr: Arrangement) -> Layer:
 # --------------------------------------------------------------------------- #
 
 _BASS_VEL_SCALE: Final[float] = 0.9    # the bass sits just under the guitar it follows
+_BASS_FLOOR: Final[int] = -3           # deepest octave the bass drops to (~D1) — never subsonic
 
 
 def bass_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
@@ -159,8 +171,10 @@ def bass_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
     ROOTS on the pulse. So this plays the riff notes whose onset lands on a whole
     beat, each SUSTAINED to the next — which DOUBLES a slow, on-beat riff but thins a
     busy tremolo riff down to a driving root line. The notes are the riff's own, so
-    they are already raga-legal, sit in the same (rhythm) register (never subsonic),
-    and can't clash. Returns None when there is no rhythm layer (no riff -> no bass,
+    they are already raga-legal. Crucially the bass sounds an OCTAVE BELOW the rhythm
+    guitar (floored so it never goes subsonic): in metal the bass underpins the guitar
+    rather than doubling its exact pitch, which is what stops the guitar from reading
+    as "just bass". Returns None when there is no rhythm layer (no riff -> no bass,
     e.g. a bare alaap). `arr` is unused today but kept so a future subgenre-aware bass
     (busier for prog, root-only for death) can read the chart without a call-site change.
     """
@@ -174,10 +188,35 @@ def bass_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
     notes: list[Note] = []
     for i, n in enumerate(on_beat):
         end = on_beat[i + 1].start if i + 1 < len(on_beat) else riff_end
-        notes.append(Note(swara=n.swara, oct=n.oct, start=n.start, dur=round(end - n.start, 4),
+        notes.append(Note(swara=n.swara, oct=max(n.oct - 1, _BASS_FLOOR),
+                          start=n.start, dur=round(end - n.start, 4),
                           vel=max(1, round(n.vel * _BASS_VEL_SCALE))))
     return Layer(role="bass", instrument=voice.instrument, program=voice.program,
-                 channel=voice.channel, notes=notes)
+                 channel=voice.channel, pan=voice.pan, notes=notes)
+
+
+# --------------------------------------------------------------------------- #
+# The double-tracked rhythm guitar — the hard-RIGHT half of the L/R wall. No LLM.#
+# --------------------------------------------------------------------------- #
+
+_DOUBLE_DT: Final[float] = 0.02          # ~10 ms at 120 bpm — a Haas offset that widens the pair
+_DOUBLE_VEL_SCALE: Final[float] = 0.93   # a touch quieter, so the sum is decorrelated, not mono
+
+
+def double_track(rhythm: Layer | None) -> Layer | None:
+    """The second rhythm-guitar track (hard right) — the riff on a DIFFERENT gain patch
+    (`rhythm_double`), nudged a hair late and softer. Two IDENTICAL hard-panned tracks
+    would sum back to mono-centre; the different tone + the tiny timing offset are what
+    make the pair read as a WIDE double-tracked wall. No LLM. None when there is no riff.
+    """
+    if rhythm is None or not rhythm.notes:
+        return None
+    voice = VOICES["rhythm_double"]
+    notes = [n.model_copy(update={"start": round(n.start + _DOUBLE_DT, 4),
+                                  "vel": max(1, round(n.vel * _DOUBLE_VEL_SCALE))})
+             for n in rhythm.notes]
+    return Layer(role="rhythm", instrument=voice.instrument, program=voice.program,
+                 channel=voice.channel, pan=voice.pan, notes=notes)
 
 
 # --------------------------------------------------------------------------- #

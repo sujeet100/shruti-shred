@@ -112,6 +112,10 @@ def build_midi(comp: dict, path: str) -> None:
         ch = layer["channel"]
         if "program" in layer:
             mf.addProgramChange(i, ch, 0, layer["program"])
+        # Stereo placement (CC10): metal mixes pan the two rhythm-guitar tracks hard
+        # L/R and separate the melodic voices, so parts don't stack up mono-centre.
+        if layer.get("pan") is not None:
+            mf.addControllerEvent(i, ch, 0, 10, max(0, min(127, layer["pan"])))
         # If any note on this channel glides, arm a wide bend range once up front.
         if any("meend" in n for n in layer["notes"]):
             _arm_bend_range(mf, i, ch, MEEND_RANGE)

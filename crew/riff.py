@@ -277,7 +277,7 @@ def generate_riff(arr: Arrangement, *, gen_fn: RiffFn) -> tuple[Layer | None, li
 
     voice = VOICES[_RHYTHM_ROLE]
     layer = Layer(role=_RHYTHM_ROLE, instrument=voice.instrument, program=voice.program,
-                  channel=voice.channel, notes=notes)
+                  channel=voice.channel, pan=voice.pan, notes=notes)
     return layer, events
 
 

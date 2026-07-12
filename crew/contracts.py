@@ -487,6 +487,7 @@ def motif_from_pakad(raga: str) -> list[str]:
 # How far above the riff's floor the lead sits, in octaves — enough that the
 # melody clears the downtuned rhythm and they don't fight for the same register.
 _LEAD_OCTAVES_ABOVE_RIFF: int = 2
+_RHYTHM_FLOOR: int = -2   # lowest octave the rhythm guitar sits at (~D2); below this it reads as bass
 
 
 def voice_registers(subgenre: str) -> dict[str, int]:
@@ -499,7 +500,11 @@ def voice_registers(subgenre: str) -> dict[str, int]:
     """
     riff_floor, _ = SUBGENRES[subgenre]["register"]
     lead = max(0, riff_floor + _LEAD_OCTAVES_ABOVE_RIFF)
-    return {"lead": lead, "rhythm": riff_floor, "drone": riff_floor}
+    # Keep the rhythm GUITAR out of sub-bass: at oct -3 (~D1, 37 Hz) a distortion patch
+    # is a muddy rumble that reads as bass, not a guitar. Floor it at -2 (~D2) so the
+    # bass (an octave below it) owns the sub and the guitar keeps its crunch.
+    rhythm = max(riff_floor, _RHYTHM_FLOOR)
+    return {"lead": lead, "rhythm": rhythm, "drone": riff_floor}
 
 
 def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arrangement:
@@ -601,6 +606,7 @@ class Layer(BaseModel):
     instrument: Optional[str] = None
     program: Optional[int] = None
     channel: Optional[int] = None
+    pan: Optional[int] = None                     # MIDI CC10 stereo position, 0=L .. 64=C .. 127=R
     notes: Optional[list[Note]] = None
     hits: Optional[list[DrumHit]] = None
 

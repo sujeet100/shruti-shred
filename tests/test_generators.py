@@ -25,12 +25,14 @@ from crew.contracts import (  # noqa: E402
     SectionKind,
     build_arrangement,
     parse_composition,
+    voice_registers,
 )
 from crew.contracts import Layer, Note  # noqa: E402
 from crew.generators import (  # noqa: E402
     VOICES,
     assemble_composition,
     bass_layer,
+    double_track,
     drone_layer,
     section_spans,
     total_beats,
@@ -181,16 +183,55 @@ def test_bass_doubles_a_riff_that_is_all_on_the_beat():
     assert [(n.swara, n.start) for n in bass.notes] == [("S", 0.0), ("g", 1.0)]
 
 
-def test_bass_sits_in_the_rhythm_register_under_the_guitar():
-    bass = bass_layer(_arr(), _busy_riff())
-    assert all(n.oct == -3 for n in bass.notes)        # same register as the riff
+def _guitar_riff(oct_: int = -2) -> Layer:
+    """A riff seated at the (clamped) rhythm register, for the octave-below bass test."""
+    v = VOICES["rhythm"]
+    return Layer(role="rhythm", instrument=v.instrument, program=v.program, channel=v.channel,
+                 pan=v.pan, notes=[Note(swara="S", oct=oct_, start=0.0, dur=1.0, vel=120),
+                                   Note(swara="g", oct=oct_, start=1.0, dur=1.0, vel=110)])
+
+
+def test_bass_sounds_an_octave_below_the_guitar():
+    # bass underpins the guitar rather than doubling its pitch — that's what stops the
+    # guitar reading as "just bass". Riff at -2 -> bass at -3.
+    bass = bass_layer(_arr(), _guitar_riff(-2))
+    assert all(n.oct == -3 for n in bass.notes)
     assert all(n.vel < 121 for n in bass.notes)        # scaled down, sits under the guitar
+
+
+def test_bass_never_goes_subsonic():
+    # if the riff is already deep, the bass floors rather than dropping into inaudible sub-bass
+    bass = bass_layer(_arr(), _guitar_riff(-3))
+    assert all(n.oct == -3 for n in bass.notes)        # floored at _BASS_FLOOR, not -4
 
 
 def test_bass_uses_the_bass_voice_not_the_guitar():
     bass = bass_layer(_arr(), _busy_riff())
     assert (bass.instrument, bass.program, bass.channel) == (
         VOICES["bass"].instrument, VOICES["bass"].program, VOICES["bass"].channel)
+    assert bass.pan == 64                              # low end holds the centre
+
+
+def test_rhythm_register_never_drops_to_subbass():
+    # a distortion patch at oct -3 (~D1) reads as a rumble; the guitar floors at -2
+    for subgenre in ("doom", "death", "thrash", "progressive"):
+        assert voice_registers(subgenre)["rhythm"] >= -2
+
+
+def test_double_track_is_a_second_track_panned_opposite_on_a_different_tone():
+    src = _guitar_riff(-2)
+    dbl = double_track(src)
+    assert dbl is not None and dbl.role == "rhythm"
+    assert (src.pan, dbl.pan) == (20, 108)             # hard L / hard R
+    assert src.program != dbl.program                  # overdrive vs distortion — not one mono tone
+    assert dbl.channel != src.channel                  # its own channel
+    # nudged a hair late so the pair decorrelates (Haas width), not mono-summed
+    assert dbl.notes[0].start > src.notes[0].start
+    assert all(d.swara == s.swara for d, s in zip(dbl.notes, src.notes))   # same riff
+
+
+def test_no_riff_means_no_double():
+    assert double_track(None) is None
 
 
 def test_no_riff_means_no_bass():

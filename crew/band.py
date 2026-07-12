@@ -28,6 +28,7 @@ from crew.contracts import Arrangement, Composition, DebateEvent, EventStream, L
 from crew.generators import (
     assemble_composition,
     bass_layer,
+    double_track,
     drone_layer,
     render_composition,
 )
@@ -49,7 +50,12 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     layers: list[Layer] = [drone_layer(arr)]
     layers.extend(lead_layers)
     if rhythm is not None:
-        layers.append(rhythm)
+        layers.append(rhythm)                        # the hard-left rhythm track
+        double = double_track(rhythm)                # the hard-right double (different gain patch)
+        if double is not None:
+            layers.append(double)
+    # Bass, groove and tabla derive from the ORIGINAL riff (never the double), so the
+    # low end and kit stay locked to one rhythm-guitar line, not a smeared pair.
     for derived in (bass_layer(arr, rhythm), groove_layer(arr, rhythm), tabla_layer(arr)):
         if derived is not None:
             layers.append(derived)
