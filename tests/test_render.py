@@ -23,7 +23,9 @@ from render import (  # noqa: E402
     SLIDE_IN_ST,
     _apply_technique,
     _bends,
+    _meend_wheel,
     _stack_above,
+    _wheel,
     build_midi,
 )
 
@@ -73,6 +75,36 @@ def test_slide_and_bend_leave_note_geometry_untouched():
 
 def test_technique_velocity_never_drops_below_one():
     assert _apply_technique("palm_mute", 1.0, 1)[1] >= 1
+
+
+# --- _meend_wheel: anchored on the target, a quick eased pull that settles in tune -----
+
+def test_meend_pre_bends_to_the_source_and_settles_on_the_target():
+    # Anchored on the target: the note is played at the TARGET, so the wheel starts pre-bent
+    # at the SOURCE and eases to 0 — the sustained tail rests in tune on the target's sample.
+    events = _meend_wheel(0.0, 4.0, from_pitch=60, to_pitch=62, bpm=120)   # +2 st glide up
+    assert events[0][1] == _wheel(60 - 62)       # pre-bent DOWN to sound the source on a target note
+    assert events[-1][1] == 0                    # ...and settles ON the target (wheel 0)
+
+
+def test_meend_glide_eases_monotonically_onto_the_target():
+    events = _meend_wheel(0.0, 4.0, from_pitch=64, to_pitch=60, bpm=120)   # -4 st (downward is fine)
+    vals = [v for _, v in events]
+    assert vals[0] == _wheel(64 - 60) and vals[-1] == 0
+    assert all(abs(a) >= abs(b) for a, b in zip(vals, vals[1:]))  # magnitude never grows: settles
+
+
+def test_meend_glide_is_short_and_capped_not_proportional_to_note_length():
+    # The pull is a brisk fixed-ish time, NOT a fraction of the note: a long note gets the
+    # same quick glide as a short one (no slow swoop lingering on the micro-pitches).
+    short = _meend_wheel(0.0, 2.0, 60, 65, bpm=120)
+    long = _meend_wheel(0.0, 8.0, 60, 65, bpm=120)
+    assert short[-1][0] == long[-1][0]           # identical glide end time regardless of dur
+    assert long[-1][0] < 1.0                     # and well under a beat (a pull, not a swoop)
+
+
+def test_meend_no_glide_when_source_equals_target():
+    assert _meend_wheel(0.0, 2.0, 62, 62, bpm=120) == []
 
 
 # --- _bends: which notes need the wide pitch-bend range armed -------------------

@@ -76,7 +76,15 @@ DRUMS = {
 }
 GRACE_LEN = 0.15         # beats: total window a note's kan ornament occupies before it
 MEEND_RANGE = 12         # semitones of pitch-bend range we arm the channel with (±octave)
-MEEND_GLIDE_FRAC = 0.6   # glide over the first 60% of the note, then hold the target
+# A meend is a QUICK pull to the target, not a slow swoop. The glide is a short, fixed-ish
+# time (scaled a little by interval, capped) — NOT a fraction of the note — so a long held
+# note gets a crisp pull and the ear isn't left sitting on the out-of-scale micro-pitches
+# in between. (Confirmed empirically: the old 60%-of-the-note linear glide sounded out of
+# tune on every patch; see DESIGN.md "meend realism".)
+MEEND_GLIDE_BASE_MS = 60     # base glide time
+MEEND_GLIDE_PER_ST_MS = 25   # + this per semitone of interval (wider bends read as slower)
+MEEND_GLIDE_MIN_MS = 80      # never faster than this (else it stops reading as a glide)
+MEEND_GLIDE_MAX_MS = 220     # never slower than this (else it's a swoop again)
 
 # Rhythm-guitar technique shaping (see _apply_technique / _render_slide / _render_bend).
 PALM_MUTE_DUR = 0.5      # a chug is short — clip the note to half its written length
@@ -131,18 +139,44 @@ def _bends(n: dict) -> bool:
     return n.get("meend_swara") is not None or n.get("technique") in ("slide", "bend")
 
 
-def _render_meend(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
-                  from_pitch: int, to_pitch: int) -> None:
-    """Ramp the pitch wheel from `from_pitch` to `to_pitch`, then recenter at note end."""
-    interval = to_pitch - from_pitch                     # signed semitones
-    full = _wheel(interval)
-    glide = dur * MEEND_GLIDE_FRAC
-    steps = max(6, min(48, int(glide / 0.02)))           # ~1 event per 0.02 beat, capped
+def _meend_glide_beats(interval: int, dur: float, bpm: float) -> float:
+    """The glide's duration in beats: a short, interval-scaled, capped pull (never longer
+    than the note). Kept in real time (ms) so tempo doesn't stretch it into a swoop."""
+    ms = min(MEEND_GLIDE_MAX_MS, max(MEEND_GLIDE_MIN_MS,
+                                     MEEND_GLIDE_BASE_MS + MEEND_GLIDE_PER_ST_MS * interval))
+    return min(ms * bpm / 60000.0, dur)
+
+
+def _meend_wheel(start: float, dur: float, from_pitch: int, to_pitch: int,
+                 bpm: float) -> list[tuple[float, int]]:
+    """Pure: the (time, wheel-value) ramp for a meend, ANCHORED ON THE TARGET.
+
+    The note is sounded at the TARGET pitch (see `build_midi`); the wheel starts PRE-BENT at
+    the source and eases UP TO 0, so the attack is heard at the source, the glide arrives at
+    the target, and the sustained tail rests in tune on the target's HOME sample (best
+    fidelity) — then holds 0, so nothing bleeds into the next note. The pull is a short,
+    interval-scaled, capped time with a CUBIC EASE-OUT (fast off the source, settling onto
+    the target), emitted as a dense ramp so there's no zipper stair-stepping. A leading event
+    a hair before the note-on guarantees the wheel is pre-bent when the note attacks.
+    """
+    pre = _wheel(from_pitch - to_pitch)                  # wheel that sounds the source on a target note
+    if pre == 0:
+        return []                                        # same pitch — no glide
+    glide = _meend_glide_beats(abs(from_pitch - to_pitch), dur, bpm)
+    ms = MEEND_GLIDE_BASE_MS + MEEND_GLIDE_PER_ST_MS * abs(from_pitch - to_pitch)
+    steps = max(8, min(48, int(ms / 6)))                 # ~1 event per 6 ms — dense, no zipper
+    ramp: list[tuple[float, int]] = [(round(max(0.0, start - 0.002), 4), pre)]  # pre-bend before onset
     for k in range(steps + 1):
-        t = start + glide * k / steps
-        mf.addPitchWheelEvent(track, ch, round(t, 4), round(full * k / steps))
-    # hold the target for the rest of the note, then recenter for the next note
-    mf.addPitchWheelEvent(track, ch, round(start + dur, 4), 0)
+        frac = k / steps
+        eased = 1.0 - (1.0 - frac) ** 3                  # cubic ease-out: fast off source, settle on target
+        ramp.append((round(start + glide * frac, 4), round(pre * (1.0 - eased))))
+    return ramp
+
+
+def _render_meend(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
+                  from_pitch: int, to_pitch: int, bpm: float) -> None:
+    for t, val in _meend_wheel(start, dur, from_pitch, to_pitch, bpm):
+        mf.addPitchWheelEvent(track, ch, t, val)
 
 
 def _render_slide(mf: MIDIFile, track: int, ch: int, start: float, dur: float) -> None:
@@ -192,16 +226,18 @@ def build_midi(comp: dict, path: str) -> None:
         # slide/bend), arm a wide bend range once up front so the gesture spans cleanly.
         if any(_bends(n) for n in layer["notes"]):
             _arm_bend_range(mf, i, ch, MEEND_RANGE)
+        bpm = comp["bpm"]
         for n in layer["notes"]:
             oct = n.get("oct", 0)
             vel = n.get("vel", 100)
             # Technique first: it shapes the note's length/attack before it is sounded
             # (the chug of a palm-mute, the softer legato of a hammer-on/pull-off).
             dur, vel = _apply_technique(n.get("technique"), n["dur"], vel)
-            # Kan: crushed grace notes stolen from just before the main onset.
+            # Kan: crushed grace notes stolen from just before the main onset (at the
+            # written pitch, wheel 0 — a meend leaves the wheel at 0, so they never bleed).
             grace = n.get("grace")
             if grace:
-                span = min(GRACE_LEN, n["start"])  # never start before beat 0
+                span = min(GRACE_LEN, n["start"])
                 if span > 0:
                     each = span / len(grace)
                     gvel = max(1, int(vel * 0.7))   # kan is softer than the note
@@ -210,18 +246,23 @@ def build_midi(comp: dict, path: str) -> None:
                         mf.addNote(i, ch, gp, round(n["start"] - span + j * each, 4),
                                    each * 0.9, gvel)
             pitch = sa + SWARAS[n["swara"]] + 12 * oct
-            mf.addNote(i, ch, pitch, n["start"], dur, vel)
+            # A meend is ANCHORED ON ITS TARGET: sound the note at the target swara (so the
+            # sustained tail rests on that sample's home pitch), and let `_render_meend`
+            # pre-bend the wheel to the source and ease it to 0. Non-meend notes sound at
+            # their own pitch. Chord tones stack above whichever pitch actually sounds.
+            tsw = n.get("meend_swara")
+            toct = n.get("meend_oct")
+            target = (sa + SWARAS[tsw] + 12 * (oct if toct is None else toct)) if tsw is not None else None
+            sounding = target if target is not None else pitch
+            mf.addNote(i, ch, sounding, n["start"], dur, vel)
             # Chord: extra raga swaras sounded WITH the root, each stacked at the lowest
-            # octave above it — a power chord (`["S"]`), a fifth (`["P"]`), a voicing.
+            # octave above the sounding pitch — a power chord (`["S"]`), a fifth (`["P"]`).
             for csw in n.get("chord") or []:
-                tone = _stack_above(pitch, sa + SWARAS[csw] + 12 * oct)
+                tone = _stack_above(sounding, sa + SWARAS[csw] + 12 * oct)
                 mf.addNote(i, ch, tone, n["start"], dur, vel)
             # Pitch-wheel gestures: a meend glide to a target swara, or a riff slide/bend.
-            tsw = n.get("meend_swara")
-            if tsw is not None:
-                toct = n.get("meend_oct")
-                target = sa + SWARAS[tsw] + 12 * (oct if toct is None else toct)
-                _render_meend(mf, i, ch, n["start"], dur, pitch, target)
+            if target is not None:
+                _render_meend(mf, i, ch, n["start"], dur, pitch, target, bpm)
             elif n.get("technique") == "slide":
                 _render_slide(mf, i, ch, n["start"], dur)
             elif n.get("technique") == "bend":
