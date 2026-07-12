@@ -34,7 +34,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 import yaml
 from crewai import Agent, Crew, Process, Task
@@ -63,10 +63,22 @@ _RUBRIC_SCHEMA: Final = """{
 
 # --------------------------------------------------------------------------- #
 # Grounding: the deterministic pakad hint. Whether the raga's signature phrase #
-# appears LITERALLY in the lead line is a fact code can compute — so we hand it #
-# to the judge to anchor the pakad score (the judge still decides whether it is #
-# EVOKED when not literal). "Ground the LLM in facts", made concrete.          #
+# surfaces in the lead line is a fact code can compute — so we hand it to the   #
+# judge to anchor the pakad score. A LITERAL contiguous quote is the strongest  #
+# signal, but a real rendition threads grace/passing notes through the phrase,  #
+# so a strict literal match is too brittle (one kan mid-phrase breaks it). We    #
+# add a FUZZY tier — the pakad swaras in order with a bounded gap between them — #
+# and fall through to ABSENT. Three states, not a bald boolean: the judge still #
+# decides whether an absent pakad is EVOKED in spirit. "Ground the LLM in facts".#
 # --------------------------------------------------------------------------- #
+
+PakadMatch = Literal["literal", "fuzzy", "absent"]
+
+# Max intervening (grace/passing) notes tolerated between consecutive pakad swaras
+# in the fuzzy tier. 2 admits an ornamented rendition without letting a phrase merely
+# scattered across the whole line count as present.
+_MAX_PAKAD_GAP: Final = 2
+
 
 def _lead_swaras(comp: Composition) -> list[str]:
     """The primary lead voice's swaras, in time order (empty if there is no lead)."""
@@ -84,14 +96,55 @@ def _contains(sequence: list[str], phrase: list[str]) -> bool:
                for i in range(len(sequence) - len(phrase) + 1))
 
 
-def pakad_presence(lead: list[str], raga: str) -> list[tuple[list[str], bool]]:
-    """For each of the raga's pakad phrases, whether it appears literally in `lead`.
+def _next_within(sequence: list[str], swara: str, lo: int, max_gap: int) -> int | None:
+    """Earliest index of `swara` at or after `lo` skipping at most `max_gap` notes, else None."""
+    hi = min(len(sequence), lo + max_gap + 1)
+    for i in range(lo, hi):
+        if sequence[i] == swara:
+            return i
+    return None
 
-    Pure and testable. A literal contiguous match is the strong signal; a pakad may
-    still be present in spirit without a literal quote, which is exactly the judgment
-    left to Rasik — code supplies the fact, the LLM supplies the taste.
+
+def _fuzzy_contains(sequence: list[str], phrase: list[str], max_gap: int) -> bool:
+    """True iff `phrase` occurs as an in-order subsequence of `sequence` with at most
+    `max_gap` intervening notes between consecutive swaras (octave-agnostic).
+
+    Anchored at each occurrence of the first swara; greedy-earliest for the rest, which
+    minimises every gap and so never misses a valid bounded-gap match.
     """
-    return [(phrase, _contains(lead, phrase)) for phrase in RAGAS[raga]["pakad"]]
+    if not phrase or len(phrase) > len(sequence):
+        return False
+    for start in range(len(sequence)):
+        if sequence[start] != phrase[0]:
+            continue
+        pos, matched = start, 1
+        for swara in phrase[1:]:
+            nxt = _next_within(sequence, swara, pos + 1, max_gap)
+            if nxt is None:
+                break
+            pos, matched = nxt, matched + 1
+        if matched == len(phrase):
+            return True
+    return False
+
+
+def _match_pakad(lead: list[str], phrase: list[str]) -> PakadMatch:
+    if _contains(lead, phrase):
+        return "literal"
+    if _fuzzy_contains(lead, phrase, _MAX_PAKAD_GAP):
+        return "fuzzy"
+    return "absent"
+
+
+def pakad_presence(lead: list[str], raga: str) -> list[tuple[list[str], PakadMatch]]:
+    """For each pakad phrase, how it surfaces in `lead`: literal / fuzzy / absent.
+
+    Pure and testable. A literal contiguous quote is the strong signal; a fuzzy match
+    tolerates grace/passing notes threaded through the phrase; absent means neither
+    fired, and whether it is still present in spirit is the judgment left to Rasik —
+    code supplies the fact, the LLM supplies the taste.
+    """
+    return [(phrase, _match_pakad(lead, phrase)) for phrase in RAGAS[raga]["pakad"]]
 
 
 # --------------------------------------------------------------------------- #
@@ -118,15 +171,20 @@ def _render_raga_facts(raga: str) -> str:
     return "\n".join(lines)
 
 
+_PAKAD_MARK: Final[dict[PakadMatch, str]] = {
+    "literal": "appears verbatim",
+    "fuzzy": "appears with intervening grace/passing notes (ornamented)",
+    "absent": "not found in the lead (may still be evoked in spirit)",
+}
+
+
 def _render_pakad_hint(comp: Composition) -> str:
     lead = _lead_swaras(comp)
     if not lead:
         return "  (no lead voice in this piece — score pakad from whatever melodic content exists)"
-    lines = []
-    for phrase, present in pakad_presence(lead, comp.raga):
-        mark = "appears literally" if present else "not found literally (may still be evoked)"
-        lines.append(f"  - {' '.join(phrase)}: {mark}")
-    return "\n".join(lines)
+    return "\n".join(
+        f"  - {' '.join(phrase)}: {_PAKAD_MARK[match]}"
+        for phrase, match in pakad_presence(lead, comp.raga))
 
 
 def _swara_with_oct(swara: str, oct_: int) -> str:

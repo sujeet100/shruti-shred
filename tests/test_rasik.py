@@ -59,21 +59,31 @@ def _fake_judge(scores: RasikScores, notes: str = "", reasoning: str = ""):
 
 
 def test_pakad_presence_detects_a_literal_quote():
-    # a lead that quotes the pakad verbatim (plus a trailing note) -> present
+    # a lead that quotes the pakad verbatim (plus a trailing note) -> literal
     found = {tuple(p): v for p, v in pakad_presence(list(_PAKAD) + [_SA], _RAGA)}
-    assert found[tuple(_PAKAD)] is True
+    assert found[tuple(_PAKAD)] == "literal"
 
 
-def test_pakad_presence_is_false_when_absent():
+def test_pakad_presence_is_absent_when_missing():
     hits = pakad_presence([_SA, _SA, _SA], _RAGA)
-    assert all(present is False for _, present in hits)
+    assert all(match == "absent" for _, match in hits)
 
 
-def test_pakad_presence_needs_contiguity():
-    # every pakad swara is present, but a note wedged mid-phrase breaks the literal run
-    scattered = [*_PAKAD[:2], _SA, *_PAKAD[2:]]
+def test_pakad_presence_tolerates_a_wedged_grace_note():
+    # every pakad swara is present in order, one grace note wedged mid-phrase: no longer
+    # a literal run, but the fuzzy tier evokes it (the brittleness this fixes)
+    ornamented = [*_PAKAD[:2], _SA, *_PAKAD[2:]]
+    found = {tuple(p): v for p, v in pakad_presence(ornamented, _RAGA)}
+    assert found[tuple(_PAKAD)] == "fuzzy"
+
+
+def test_pakad_presence_absent_when_scattered_beyond_the_gap():
+    # pakad swaras present but strung far apart (gaps > the fuzzy window) -> absent,
+    # so a coincidental scatter across the whole line does not count as present
+    filler = [_SA, _SA, _SA, _SA]
+    scattered = [_PAKAD[0], *filler, _PAKAD[1], *filler, *_PAKAD[2:]]
     found = {tuple(p): v for p, v in pakad_presence(scattered, _RAGA)}
-    assert found[tuple(_PAKAD)] is False
+    assert found[tuple(_PAKAD)] == "absent"
 
 
 def test_lead_swaras_reads_the_lead_in_time_order():
@@ -86,11 +96,13 @@ def test_lead_swaras_reads_the_lead_in_time_order():
     assert _lead_swaras(comp) == ["S", "R", "P"]           # sorted by start, not input order
 
 
-def test_pakad_hint_marks_literal_vs_evoked():
-    hint = _render_pakad_hint(_comp(list(_PAKAD)))
-    assert "appears literally" in hint
+def test_pakad_hint_marks_literal_fuzzy_and_absent():
+    literal = _render_pakad_hint(_comp(list(_PAKAD)))
+    assert "appears verbatim" in literal
+    fuzzy = _render_pakad_hint(_comp([*_PAKAD[:2], _SA, *_PAKAD[2:]]))
+    assert "ornamented" in fuzzy
     absent = _render_pakad_hint(_comp([_SA, _SA]))
-    assert "not found literally" in absent
+    assert "not found in the lead" in absent
 
 
 def test_assess_streams_the_rubric_as_event_scores():
