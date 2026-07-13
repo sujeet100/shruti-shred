@@ -246,6 +246,13 @@ class Section(BaseModel):
     swells", "a tihai landing on sam") — fusion fails at the handoffs, so the
     composers design them explicitly. Both are optional shaping hints the step-4
     generators read; the section's `kind` alone is enough to render it.
+
+    `riff_slot` names WHICH riff the rhythm plays here — a small library ("main", "chorus",
+    "breakdown"). Sections that share a slot REPLAY the same riff, so the main riff RECURS
+    as a hook (a real song form, and a mukhda/refrain on the raga side); distinct slots get
+    distinct riffs. Identity lives in the slot ("code owns the recurrence"), not in the LLM
+    remembering to reprise; `None` falls back to the `kind`, so same-kind sections reuse one
+    riff by default.
     """
     kind: SectionKind
     bars: int = Field(ge=1)          # length in tala cycles
@@ -253,6 +260,18 @@ class Section(BaseModel):
     foreground: str                  # the role in the spotlight (must be active here)
     intent: str = ""                 # optional creative hint the composer writes
     transition: str = ""             # optional: how this section hands off to the next
+    riff_slot: Optional[str] = None  # which named riff plays here ("main"/"chorus"/"breakdown");
+                                     # sections sharing a slot REPLAY the same riff (recurrence).
+                                     # None -> falls back to the section kind.
+
+    @field_validator("riff_slot", mode="before")
+    @classmethod
+    def _norm_slot(cls, v):
+        # normalise to a lowercase label; blank/nullish -> None (fall back to the kind)
+        if v is None:
+            return None
+        s = str(v).strip().lower()
+        return s or None
 
     @field_validator("layers")
     @classmethod

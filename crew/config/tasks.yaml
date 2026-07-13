@@ -101,6 +101,11 @@ compose_turn:
       - DESIGN THE SEAMS, not just the blocks: for each section set `transition` to say
         HOW it hands off to the next (a 3-beat silence, "tabla fades as feedback swells",
         a shared tihai/unison landing on the sam) — fusion fails at the handoffs.
+      - SHAPE THE RIFFS LIKE A SONG: give every rhythm section a `riff_slot` — a small
+        library of named riffs ("main", "chorus", "breakdown"). REUSE "main" wherever the
+        main riff should RETURN (the hook — repetition is what makes it a song, and a
+        recurring riff on the sam is a mukhda coming back); give the chorus and breakdown
+        their OWN slots so they contrast. Sections sharing a slot replay the SAME riff.
       - For a climactic section (taan/breakdown), negotiate a RHYTHMIC UNISON — a tihai
         (a phrase thrice, resolving on the sam) doubling as the metal breakdown, or the
         double-kick locked to the tabla's bols. Shape an ENERGY CURVE: don't run every
@@ -114,6 +119,8 @@ compose_turn:
       - The motif is your melodic seed: use ONLY the chosen raga's allowed swaras.
         Sargam is S r R g G m M P d D n N (lowercase = komal/flat, M = tivra Ma).
       - Every section's foreground must be one of that section's own layers.
+      - Every section that includes the `rhythm` layer must carry a `riff_slot` — reuse a
+        slot to bring a riff back, use a new slot for a contrasting riff.
       - Keep bpm within the chosen subgenre's range.
   expected_output: |
     A single ComposerTurn as JSON and nothing else — no prose, no code fences.
@@ -402,7 +409,9 @@ assess_composition:
     THE MOTIF — the shared melodic seed every voice is built on (for the motif development score):
       {motif}
 
-    THE RIFF — one cycle of the rhythm guitar, chords as +X, techniques as .name (for the hook):
+    THE MAIN RIFF — one cycle of the primary rhythm figure, chords as +X, techniques as
+    .name (for the hook; how many DISTINCT riffs there are and how often the main riff
+    RETURNS is in the measured facts below, under "riff form"):
     {riff_line}
 
     THE LEAD — the melodic voice in order (for independence — it must not merely double the riff):
@@ -423,15 +432,15 @@ assess_composition:
     density, the measured numbers. Then commit `scores` and write `notes`.
 
     THE RUBRIC — score each an integer 1-5, and let these anchors set the boundaries:
-      structure    — 1 sections stitched together arbitrarily; 3 a workable order; 5 each section leads naturally into the next.
+      structure    — 1 sections stitched together arbitrarily; 3 a workable order; 5 each section leads naturally into the next, and a returning main riff frames the form (verse/chorus-like).
       dynamics     — 1 flat throughout; 3 some variation; 5 the energy clearly builds across the arc.
       climax       — 1 every section equally intense; 3 a mild peak; 5 an earned peak and a real resolution.
       motif        — 1 stated once or never; 3 repeated but not developed; 5 introduced, varied and resolved.
-      hook         — 1 forgettable, unloopable riff; 3 serviceable; 5 memorable, loopable, strong downbeat.
+      hook         — 1 forgettable, unloopable riff that never returns; 3 serviceable; 5 a memorable, loopable riff with a strong downbeat that RECURS as the song's hook.
       balance      — 1 every voice at full throughout; 3 mostly balanced; 5 real space, the lead given room.
       independence — 1 the lead just doubles the riff; 3 some overlap; 5 each voice its own line. (A bass locking to the riff root is normal metal craft — do not dock it for that.)
       mood_fit     — 1 breaks the subgenre mood; 3 mostly holds it; 5 holds the mood start to finish.
-      repetition   — 1 nothing recurs OR every section identical; 3 some return; 5 the hook and motif reinforced across sections without monotony.
+      repetition   — 1 nothing recurs OR every section identical; 3 some return; 5 the hook (a recurring riff slot) and the motif reinforced across sections without monotony.
 
     Score only on the named criterion — a lean piece that builds and hooks outscores a
     busier, more crowded one that sprawls; length and density are not quality.
@@ -439,10 +448,11 @@ assess_composition:
     GROUND EVERY SCORE:
       - Justify each integer 1-5 in `reasoning` before you commit it, from the score above.
       - Ground scores in the MEASURED FACTS where they apply (dynamics/climax in the energy
-        curve and ornament rate, motif in motif_share, repetition in motif_recurrence and
-        section_variety, independence in the lead/riff and bass/riff and drums/tabla overlaps,
-        balance in the register overlaps and everyone-playing fraction). When your score
-        departs from a number, say why.
+        curve and ornament rate, motif in motif_share, hook and structure in the riff form —
+        riff_recurrence (does the main riff RETURN?) and riff_variety — repetition in
+        riff_recurrence, motif_recurrence and section_variety, independence in the lead/riff
+        and bass/riff and drums/tabla overlaps, balance in the register overlaps and
+        everyone-playing fraction). When your score departs from a number, say why.
       - Judge the song, not the raga — a raga choice is Rasik's lane, so score what the
         music earns and leave the raga to Rasik.
       - `notes` is a short (2-3 sentence) critique a musician can act on.

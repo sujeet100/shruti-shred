@@ -627,3 +627,57 @@ sections; cost/latency tuning + a fast-mode path. **Touchpoints:** `crew/contrac
 `crew/generators.py`, `crew/lead.py`, `crew/riff.py`, `crew/band.py`, and `_generate` in `crew/flow.py`.
 Precedent already in the codebase: the composers' bounded dialogue over a shared transcript — this brings
 the same pattern DOWN to the note-generation, but COOPERATIVE (build) rather than ADVERSARIAL (debate).
+
+## Riff library + recurrence — song form (decided 2026-07-13; step 1 built)
+
+**Problem.** Real metal songs have a *main riff* that RECURS (verse), a different riff or power
+chords for the *chorus*, and another for the *breakdown/bridge*. The old riff engine generated a
+**fresh** riff per rhythm section with only a soft prompt hint to "bring the main riff back" — so
+the hook never reliably returned, and there was no first-class verse/chorus/breakdown contrast.
+This is the step-9 lesson again: the Producer already *scores* `hook`/`repetition`/`structure`, but
+the generator couldn't reliably *deliver* it.
+
+**Design (the pattern: code owns the recurrence, the LLM composes each riff once).** A section names
+a **`riff_slot`** — a small library of labels (`main`/`chorus`/`breakdown`). Sections that share a
+slot REPLAY the same riff; distinct slots get distinct riffs. Identity lives in the slot (in code),
+not in the LLM remembering to reprise. `None` falls back to the section `kind`, so same-kind sections
+reuse one riff by default (recurrence out of the box). Mirrors the raga side too — a recurring riff
+landing on the sam is a mukhda/refrain.
+
+**Mechanics.** `generate_riff` writes a riff ONCE PER SLOT (via a `slot -> pattern` library) and
+reuses it wherever the slot recurs; a new slot is generated seeing the *other* realized slots so it
+CONTRASTS them (chorus vs main). A recurring section emits a light `reprise` INFO event (the hook
+returns on the timeline) instead of a fresh `propose`. Fewer LLM calls (~3 riffs, not one/section).
+
+**Build order.**
+1. **Contract + pure placement — DONE (2026-07-13).** `Section.riff_slot` (`crew/contracts.py`);
+   `generate_riff` generate-once-per-slot + reuse + reprise events (`crew/riff.py`); `RiffMemo.kind`
+   -> `.slot`; `_slot_for`. Pure tests in `tests/test_riff.py` (reuse/reprise/distinct-slots/default).
+   No LLM, no cost. UI unaffected (same `DebateEvent` contract; propose `data.slot` added).
+2. **Metrics — DONE (2026-07-13).** `riff_recurrence` / `riff_variety` / `riff_slots` in
+   `crew/metrics.py` (computed from the section->slot map; slot resolution mirrored inline so the
+   module stays LLM-free), surfaced in `render_metrics` as a "riff form" block. Pure tests in
+   `tests/test_metrics.py`.
+3. **Composer prompt — DONE (2026-07-13).** `config/tasks.yaml` teaches Pandit/Riffsmith to
+   assign a `riff_slot` per rhythm section (reuse "main" for the hook; distinct slots contrast);
+   the output schema + `_render_draft` show slots (so the counterpart aligns); the composer
+   guardrail (`_validate_turn`) now REJECTS a rhythm section with no slot (bounded retry, beside
+   the motif-legality check). Pure tests in `tests/test_composers.py`.
+4. **Producer prompt — DONE (2026-07-13).** The riff-form metrics already reach the Producer
+   (step 2 added them to `render_metrics`, which `crew/producer.py` injects); this step wires them
+   into the RUBRIC — the `hook`/`repetition`/`structure` anchors now reference a *returning* main
+   riff, and the grounding block maps them to `riff_recurrence`/`riff_variety`. Prompt-only
+   (`config/tasks.yaml`); no code/test change. (Deferred: rendering the per-slot riff *library* to
+   the Producer — the test comps carry only a first-cycle riff, so it adds fixture churn for
+   marginal gain; revisit if the Producer needs to judge chorus-vs-main contrast at the note level.)
+5. **One live confirmation — DEFERRED (2026-07-13) to the NEXT session.** Rather than a one-off
+   CLI `compose_flow`, we'll do UI improvements first so a LIVE run can be triggered and watched
+   from the UI itself (`RMA_UI_LIVE=1`, the `/api/compose` path in `ui/server.py`), then use that
+   run to confirm the feature end-to-end: the composers assign `main`/`chorus`/`breakdown` slots
+   and reuse `main`; the Riff emits `reprise` events where a slot returns; the Producer's
+   `hook`/`repetition` reasoning cites the riff-form numbers. Steps 1–4 (all offline/pure) are
+   DONE and green; only this live check remains for the riff-library feature.
+
+**Note:** default fallback (same kind -> same slot) is a deliberate BEHAVIOR CHANGE — two `RIFF`
+sections now replay one riff (a hook) rather than two independently-developed figures. Composers get
+contrast by assigning explicit slots or using distinct kinds (`BREAKDOWN` is already its own kind).

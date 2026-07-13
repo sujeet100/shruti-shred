@@ -35,7 +35,8 @@ def _draft(raga="malkauns", subgenre="doom", tala="teentaal", bpm=72,
     return ArrangementDraft(
         raga=raga, subgenre=subgenre, tala=tala, bpm=bpm, motif=list(motif),
         sections=[Section(kind=SectionKind.RIFF, bars=4,
-                          layers=["rhythm", "drums", "drone"], foreground="rhythm")])
+                          layers=["rhythm", "drums", "drone"], foreground="rhythm",
+                          riff_slot="main")])
 
 
 def _turn(agree=False, note="x", **draft_over) -> ComposerTurn:
@@ -147,6 +148,26 @@ def test_guardrail_rejects_an_illegal_motif_with_a_precise_error():
     ok, msg = _validate_turn(_FakeOutput(_turn(motif=("d", "R", "S"))))
     assert ok is False
     assert "illegal" in msg.lower() and "R" in msg
+
+
+def test_guardrail_rejects_a_rhythm_section_without_a_slot():
+    # a legal motif, but a rhythm section names no riff -> the song-form guardrail bounces it
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=[Section(kind=SectionKind.RIFF, bars=4, layers=["rhythm", "drone"],
+                          foreground="rhythm")])   # no riff_slot
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "riff_slot" in msg
+
+
+def test_guardrail_allows_a_lead_only_section_without_a_slot():
+    # a section with no rhythm layer needs no slot
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=[Section(kind=SectionKind.ALAAP, bars=2, layers=["lead", "drone"],
+                          foreground="lead")])
+    ok, value = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is True and isinstance(value, ComposerTurn)
 
 
 def test_reasoning_monologue_is_carried_into_the_turn_event():

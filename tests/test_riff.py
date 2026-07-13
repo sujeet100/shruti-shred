@@ -39,13 +39,17 @@ from crew.riff import (  # noqa: E402
 )
 
 
-def _arr(*section_layers: tuple[str, ...], tala: str = "teentaal") -> Arrangement:
-    """A real Malkauns chart with one section per arg (teentaal -> 16-beat cycles)."""
-    sections = [
-        Section(kind=SectionKind.RIFF, bars=1, layers=list(layers),
-                foreground="rhythm" if "rhythm" in layers else layers[0])
-        for layers in section_layers
-    ]
+def _arr(*section_layers: tuple[str, ...], tala: str = "teentaal",
+         slots: list | None = None) -> Arrangement:
+    """A real Malkauns chart with one section per arg (teentaal -> 16-beat cycles).
+
+    `slots[i]` sets section i's `riff_slot` (None -> default, which is the kind)."""
+    sections = []
+    for i, layers in enumerate(section_layers):
+        slot = slots[i] if slots and i < len(slots) else None
+        sections.append(Section(kind=SectionKind.RIFF, bars=1, layers=list(layers),
+                                foreground="rhythm" if "rhythm" in layers else layers[0],
+                                riff_slot=slot))
     draft = ArrangementDraft(raga="malkauns", subgenre="doom", tala=tala, bpm=72,
                              motif=["d", "n", "S", "m"], sections=sections)
     return build_arrangement(draft, CompositionBrief(mood="dark"))
@@ -132,7 +136,9 @@ def test_accent_beats_are_the_sam_and_tali():
 # --- generate_riff: fan out over the rhythm-active sections --------------------
 
 def test_generate_riff_fills_only_rhythm_active_sections():
-    arr = _arr(("rhythm", "drone"), ("lead", "drone"), ("rhythm", "drone"))
+    # two rhythm sections with distinct slots -> two riffs; the lead-only section is skipped
+    arr = _arr(("rhythm", "drone"), ("lead", "drone"), ("rhythm", "drone"),
+               slots=["main", None, "chorus"])
     fn, calls = _fake([_pattern("S", "S"), _pattern("g", "g")])
     layer, _events = generate_riff(arr, gen_fn=fn)
     assert len(calls) == 2                          # the lead-only section is skipped
@@ -164,10 +170,12 @@ def test_generate_riff_emits_a_propose_event():
     assert len(proposes) == 1 and proposes[0].agent == "Riff"
 
 
-# --- composition memory: each riff section sees the realized prior ones ---------
+# --- the riff library: one riff per slot, reused where the slot recurs ----------
 
-def test_generate_riff_threads_accumulating_memory():
-    arr = _arr(("rhythm", "drone"), ("rhythm", "drone"), ("rhythm", "drone"))
+def test_generate_riff_threads_the_slot_library_as_memory():
+    # three DISTINCT slots -> the library (other slots realized so far) accrues as memory
+    arr = _arr(("rhythm", "drone"), ("rhythm", "drone"), ("rhythm", "drone"),
+               slots=["main", "chorus", "breakdown"])
     first, second, third = _pattern("S", "S"), _pattern("g", "g"), _pattern("m", "m")
     fn, _ = _fake([first, second, third])
     generate_riff(arr, gen_fn=fn)
@@ -175,6 +183,37 @@ def test_generate_riff_threads_accumulating_memory():
     assert [m.pattern for m in fn.seen_memory[1]] == [first]
     assert [m.pattern for m in fn.seen_memory[2]] == [first, second]
     assert all(isinstance(m, RiffMemo) for m in fn.seen_memory[2])
+
+
+def test_same_slot_reuses_one_riff_and_reprises():
+    # two sections share the "main" slot -> the riff is written ONCE and replayed
+    arr = _arr(("rhythm", "drone"), ("rhythm", "drone"), slots=["main", "main"])
+    fn, calls = _fake([_pattern("S", "g")])            # only one pattern is ever needed
+    layer, events = generate_riff(arr, gen_fn=fn)
+    assert len(calls) == 1                             # the main riff is written once...
+    reprises = [e for e in events if e.data and e.data.get("reprise")]
+    assert len(reprises) == 1 and "main" in reprises[0].text   # ...and reprised on its return
+    assert len([e for e in events if e.type == EventType.PROPOSE]) == 1
+    # both sections play the SAME riff: 2 sections x 2 notes/cycle x 1 bar = 4 notes over {S,g}
+    assert len(layer.notes) == 4 and {n.swara for n in layer.notes} == {"S", "g"}
+
+
+def test_default_slot_is_the_kind_so_same_kind_sections_reprise():
+    arr = _arr(("rhythm", "drone"), ("rhythm", "drone"))   # both RIFF, no explicit slot
+    fn, calls = _fake([_pattern("S")])
+    _, events = generate_riff(arr, gen_fn=fn)
+    assert len(calls) == 1                                  # same kind -> same slot -> one riff
+    assert any(e.data and e.data.get("reprise") for e in events)
+
+
+def test_distinct_slots_get_distinct_riffs():
+    arr = _arr(("rhythm", "drone"), ("rhythm", "drone"), slots=["main", "breakdown"])
+    fn, calls = _fake([_pattern("S", "S"), _pattern("m", "m")])
+    layer, events = generate_riff(arr, gen_fn=fn)
+    assert len(calls) == 2
+    proposes = [e for e in events if e.type == EventType.PROPOSE]
+    assert {e.data["slot"] for e in proposes} == {"main", "breakdown"}
+    assert {n.swara for n in layer.notes} == {"S", "m"}
 
 
 def test_render_previous_shows_prior_riffs_with_chords():

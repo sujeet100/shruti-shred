@@ -118,14 +118,17 @@ _OUTPUT_SCHEMA: Final = """{
     "motif": ["d", "n", "S", "m"],
     "sections": [
       {"kind": "alaap", "bars": 2, "layers": ["lead", "tabla", "drone"], "foreground": "lead", "intent": "unfold the raga slowly over soft tabla", "transition": "tabla drops out; a 2-beat silence before the riff"},
-      {"kind": "riff", "bars": 4, "layers": ["rhythm", "drums", "tabla", "drone"], "foreground": "rhythm", "intent": "tabla theka under the heavy downtuned groove", "transition": "a shared tihai lands on the sam into the taan"}
+      {"kind": "riff", "bars": 4, "layers": ["rhythm", "drums", "tabla", "drone"], "foreground": "rhythm", "riff_slot": "main", "intent": "the main hook — tabla theka under the heavy downtuned groove", "transition": "a shared tihai lands on the sam into the breakdown"},
+      {"kind": "breakdown", "bars": 2, "layers": ["rhythm", "drums", "drone"], "foreground": "rhythm", "riff_slot": "breakdown", "intent": "half-time crush on the komal notes", "transition": "feedback swells; the main riff returns"},
+      {"kind": "riff", "bars": 4, "layers": ["rhythm", "drums", "drone"], "foreground": "rhythm", "riff_slot": "main", "intent": "bring the main riff back as the closing hook", "transition": "ring out"}
     ],
     "registers": {"lead": 0, "rhythm": -3, "drone": -3}
   },
   "note": "one or two sentences arguing your change, in character",
   "agree": false
 }
-"reasoning" comes FIRST. "registers" is OPTIONAL — omit it to use sensible defaults. "intent" and "transition" are short free-text hints and may be empty."""
+"reasoning" comes FIRST. "registers" is OPTIONAL — omit it to use sensible defaults. "intent" and "transition" are short free-text hints and may be empty.
+Every rhythm section needs a "riff_slot" naming which riff it plays — a small library like "main"/"chorus"/"breakdown". Sections that SHARE a slot replay the SAME riff, so REUSE "main" wherever the main riff returns (the hook), and give the chorus/breakdown their OWN slots to contrast (note the third section above reuses "main" — that is the hook coming back). Lead-only sections need no slot."""
 
 
 # --------------------------------------------------------------------------- #
@@ -223,11 +226,17 @@ def _render_transcript(transcript: list[tuple[str, str]]) -> str:
     return "\n".join(f"  {who}: {note}" for who, note in transcript)
 
 
+def _section_line(s) -> str:
+    """One section in the draft summary — kind, length, voices, foreground, and (for a
+    rhythm section) its riff slot, so the counterpart can align on the same riff library."""
+    slot = f", riff={s.riff_slot}" if s.riff_slot else ""
+    return f"{s.kind.value}[{s.bars}b, {'+'.join(s.layers)}, fg={s.foreground}{slot}]"
+
+
 def _render_draft(draft: ArrangementDraft | None) -> str:
     if draft is None:
         return "  (no draft yet — propose one)"
-    sections = "; ".join(
-        f"{s.kind.value}[{s.bars}b, {'+'.join(s.layers)}, fg={s.foreground}]" for s in draft.sections)
+    sections = "; ".join(_section_line(s) for s in draft.sections)
     registers = f"\n  registers: {draft.registers}" if draft.registers else ""
     return (f"  raga={draft.raga}, subgenre={draft.subgenre}, tala={draft.tala}, bpm={draft.bpm}\n"
             f"  motif: {' '.join(draft.motif)}\n"
@@ -296,10 +305,11 @@ def _turn_from_output(output: Any) -> ComposerTurn | None:
 
 
 def _validate_turn(output: Any):
-    """Task guardrail — the ONE domain rule kept out of the schema: the composer's
-    motif must be legal in its raga. `output_pydantic` already guarantees the SHAPE;
-    this checks the raga grammar and, on a violation, returns the precise error so
-    CrewAI re-runs the turn (a bounded retry, not a loop).
+    """Task guardrail — the domain rules kept out of the schema: (1) the composer's motif
+    must be legal in its raga, and (2) every rhythm section must NAME a riff_slot (so the
+    reuse that makes the main riff a hook is deliberate). `output_pydantic` already
+    guarantees the SHAPE; this checks the raga grammar and the song-form rule and, on a
+    violation, returns the precise error so CrewAI re-runs the turn (a bounded retry).
 
     Contract: returns (True, ComposerTurn) or (False, error-message). CrewAI inspects
     this guardrail's RETURN ANNOTATION and requires the literal object tuple[bool, Any];
@@ -314,6 +324,15 @@ def _validate_turn(output: Any):
         allowed = " ".join(RAGAS[turn.draft.raga]["allowed"])
         return (False, f"motif swaras {illegal} are illegal in raga {turn.draft.raga}. "
                        f"Use only these swaras: {allowed}. Fix the motif and resend.")
+    # Song form: every rhythm section must NAME its riff (a slot), so the reuse that makes
+    # the main riff a recurring hook is a deliberate choice, not an accident of the kind.
+    unslotted = [f"#{i + 1} {s.kind.value}" for i, s in enumerate(turn.draft.sections)
+                 if "rhythm" in s.layers and not s.riff_slot]
+    if unslotted:
+        return (False, "Every rhythm section needs a riff_slot naming which riff it plays "
+                       "('main'/'chorus'/'breakdown'); sections that share a slot replay the "
+                       "same riff, so reuse 'main' wherever the main riff returns. Add a "
+                       f"riff_slot to section(s): {', '.join(unslotted)}. Fix and resend.")
     return (True, turn)
 
 

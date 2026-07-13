@@ -15,6 +15,7 @@ Each metric maps to Producer rubric criteria:
   * motif_share                       -> motif (developed vs abandoned vs never-varied)
   * motif_recurrence                  -> repetition, motif (is the theme brought back?)
   * section_variety                   -> repetition (through-composed vs recurring sections)
+  * riff_recurrence / riff_variety    -> hook, repetition, structure (does the main riff RETURN?)
   * lead_riff_overlap                 -> independence (a lead that just doubles the riff)
   * bass_riff_overlap                 -> independence (a bass that just doubles the riff)
   * drums_tabla_overlap               -> independence (kit and tabla playing in lockstep)
@@ -36,6 +37,7 @@ from crew.generators import section_spans
 # Voices whose octave ranges we check for collisions — the melodic/rhythmic parts. The
 # drone is a fixed pedal and the percussion carries no pitch, so neither is a "collision".
 _PITCHED_MELODIC: Final = ("lead", "rhythm", "bass")
+_RHYTHM_ROLE: Final = "rhythm"
 
 # Energy barely moves across the piece if the peak is within this fraction of the trough —
 # a "flat" arc, the Producer's cue that nothing builds.
@@ -64,6 +66,9 @@ class ProducerMetrics:
     motif_share: float          # fraction of lead notes whose swara is in the motif set
     motif_recurrence: float     # fraction of sections whose melody states the motif (theme return)
     section_variety: float      # distinct section kinds / total (1.0 = through-composed, low = repeats)
+    riff_recurrence: float      # fraction of rhythm sections that REPLAY a riff (the hook returning)
+    riff_variety: float         # distinct riffs / rhythm sections (1.0 = every riff unique, low = reuse)
+    riff_slots: list[tuple[str, int]]  # (slot, how many rhythm sections play it), first-seen order
     lead_riff_overlap: float    # fraction of the lead's swaras that also appear in the riff
     bass_riff_overlap: float    # fraction of the bass's swaras that also appear in the riff
     drums_tabla_overlap: float  # fraction of tabla hits that land on a kit hit (lockstep percussion)
@@ -184,6 +189,38 @@ def _section_variety(arr: Arrangement) -> float:
     return round(len(set(kinds)) / len(kinds), 3) if kinds else 0.0
 
 
+def _riff_slots(arr: Arrangement) -> list[tuple[str, int]]:
+    """(slot, count) per distinct riff slot over the rhythm-active sections, first-seen order.
+
+    The slot resolution mirrors `crew/riff._slot_for` (riff_slot, else the kind), reimplemented
+    here so this module stays LLM-free — riff.py pulls in crewai."""
+    counts: dict[str, int] = {}
+    order: list[str] = []
+    for s in arr.sections:
+        if _RHYTHM_ROLE not in s.layers:
+            continue
+        slot = s.riff_slot or s.kind.value
+        if slot not in counts:
+            counts[slot] = 0
+            order.append(slot)
+        counts[slot] += 1
+    return [(slot, counts[slot]) for slot in order]
+
+
+def _riff_form(arr: Arrangement) -> tuple[float, float, list[tuple[str, int]]]:
+    """(recurrence, variety, slots). recurrence = the fraction of rhythm sections that REPLAY
+    an already-heard riff (0 = nothing returns; high = a hook keeps coming back). variety =
+    distinct riffs / rhythm sections (1.0 = every rhythm section its own riff, no repetition)."""
+    slots = _riff_slots(arr)
+    total = sum(count for _, count in slots)
+    distinct = len(slots)
+    if total == 0:
+        return 0.0, 0.0, slots
+    recurrence = round((total - distinct) / total, 3)
+    variety = round(distinct / total, 3)
+    return recurrence, variety, slots
+
+
 def _drums_tabla_overlap(comp: Composition) -> float:
     """Fraction of tabla hits that land on the same beat as a kit hit — 1.0 means the two
     percussion voices move in lockstep (no independence). 0 when there is no tabla."""
@@ -260,6 +297,7 @@ def composition_metrics(comp: Composition, arr: Arrangement) -> ProducerMetrics:
     """Measure the composition against its chart — the facts the Producer judges. Pure."""
     energy = _section_energy(comp, arr)
     peak, resolves, is_flat = _peak_and_resolution(energy)
+    riff_recurrence, riff_variety, riff_slots = _riff_form(arr)
     return ProducerMetrics(
         energy=energy,
         peak_index=peak,
@@ -268,6 +306,9 @@ def composition_metrics(comp: Composition, arr: Arrangement) -> ProducerMetrics:
         motif_share=_motif_share(comp, arr),
         motif_recurrence=_motif_recurrence(comp, arr),
         section_variety=_section_variety(arr),
+        riff_recurrence=riff_recurrence,
+        riff_variety=riff_variety,
+        riff_slots=riff_slots,
         lead_riff_overlap=_lead_riff_overlap(comp),
         bass_riff_overlap=_bass_riff_overlap(comp),
         drums_tabla_overlap=_drums_tabla_overlap(comp),
@@ -299,6 +340,13 @@ def render_metrics(metrics: ProducerMetrics) -> str:
     lines.append(f"  motif_recurrence (sections that restate the motif): {metrics.motif_recurrence:.0%}")
     lines.append(f"  section_variety (distinct kinds / total; high = through-composed, "
                  f"little repetition): {metrics.section_variety:.0%}")
+    if metrics.riff_slots:
+        layout = " ".join(f"{slot}x{n}" for slot, n in metrics.riff_slots)
+        lines.append(f"  riff form ({len(metrics.riff_slots)} distinct riff(s), reuse shown): {layout}")
+        lines.append(f"  riff_recurrence (rhythm sections replaying a riff — the hook returning): "
+                     f"{metrics.riff_recurrence:.0%}")
+        lines.append(f"  riff_variety (distinct riffs / rhythm sections; high = little riff repetition): "
+                     f"{metrics.riff_variety:.0%}")
     lines.append(f"  lead/riff overlap (lead swaras also in the riff): {metrics.lead_riff_overlap:.0%}")
     lines.append(f"  bass/riff overlap (bass tracking the riff — often fine): {metrics.bass_riff_overlap:.0%}")
     if metrics.drums_tabla_overlap:

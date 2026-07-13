@@ -143,12 +143,19 @@ def _accent_beats(arr: Arrangement) -> set[float]:
 
 @dataclass(frozen=True)
 class RiffMemo:
-    """One realized prior riff section — the memory the NEXT riff develops from, so a
-    later section can BRING BACK the main riff (a hook reinforced) or VARY it, rather
-    than inventing an unrelated figure each time. Holds the section kind and the pattern
-    as the model emitted it (LOCAL octaves)."""
-    kind: str
+    """One already-realized riff SLOT — the library the NEXT distinct riff is written
+    against, so a `chorus` riff can deliberately CONTRAST the `main` riff (different
+    shape, power chords) instead of drifting into an unrelated figure. Holds the slot
+    label and the pattern as the model emitted it (LOCAL octaves)."""
+    slot: str
     pattern: RiffPattern
+
+
+def _slot_for(section) -> str:
+    """The riff SLOT a section plays — its explicit `riff_slot`, else its kind. Sections
+    that resolve to the same slot REPLAY one riff (recurrence); this is where the identity
+    that makes the main riff a hook lives, in code, not in the LLM."""
+    return section.riff_slot or section.kind.value
 
 
 def _riff_token(note: RiffNote) -> str:
@@ -158,10 +165,10 @@ def _riff_token(note: RiffNote) -> str:
 
 
 def _render_previous(memory: list[RiffMemo]) -> str:
-    """The riff's realized prior sections — its memory of the piece so far."""
+    """The riff library realized so far — the other slots this new riff should contrast."""
     if not memory:
-        return "  (this is the FIRST riff section — establish the main riff)"
-    return "\n".join(f"  {memo.kind}: {' '.join(_riff_token(n) for n in memo.pattern.notes)}"
+        return "  (this is the FIRST riff — establish the main riff)"
+    return "\n".join(f"  {memo.slot}: {' '.join(_riff_token(n) for n in memo.pattern.notes)}"
                      for memo in memory)
 
 
@@ -193,6 +200,7 @@ class _RiffContext:
         return {
             **self._static,
             "section_kind": section.kind.value,
+            "riff_slot": _slot_for(section),
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "bars": section.bars,
             "previous": _render_previous(memory),
@@ -275,36 +283,55 @@ class _LLMRiff:
 # The generator loop — pure control flow, LLM injected via `gen_fn`.           #
 # --------------------------------------------------------------------------- #
 
-def _riff_event(span: SectionSpan, pattern: RiffPattern, placed: list[Note]) -> DebateEvent:
+def _riff_event(span: SectionSpan, pattern: RiffPattern, slot: str) -> DebateEvent:
     return DebateEvent(
         type=EventType.PROPOSE, agent="Riff", role=_ROLE_GENERATOR,
-        text=f"{span.section.kind.value}: {span.section.bars}-bar riff, "
-             f"{len(pattern.notes)} notes/cycle",
-        data={"reasoning": pattern.reasoning, "swaras": [n.swara for n in pattern.notes]})
+        text=f"{slot} riff: {span.section.bars}-bar, {len(pattern.notes)} notes/cycle",
+        data={"slot": slot, "reasoning": pattern.reasoning,
+              "swaras": [n.swara for n in pattern.notes]})
+
+
+def _reprise_event(span: SectionSpan, slot: str) -> DebateEvent:
+    """A section replays an already-written slot — the hook returns. A light INFO beat
+    (not a fresh PROPOSE) so the timeline shows the main riff coming back."""
+    return DebateEvent(
+        type=EventType.INFO, agent="Riff", role=_ROLE_GENERATOR,
+        text=f"reprise: the {slot} riff returns ({span.section.kind.value}, "
+             f"{span.section.bars} bar{'s' if span.section.bars != 1 else ''})",
+        data={"slot": slot, "reprise": True})
 
 
 def generate_riff(arr: Arrangement, *, gen_fn: RiffFn) -> tuple[Layer | None, list[DebateEvent]]:
     """Fill the rhythm layer across the arrangement's rhythm-active sections.
 
-    For each section that lists `rhythm`, get a one-cycle pattern from `gen_fn` and
-    repeat it across that section's bars, locked to the accent grid. Returns
-    (None, events) when no section uses the rhythm guitar. `gen_fn` is injected so
-    this loop is tested with no LLM.
+    A riff is written ONCE PER SLOT and REUSED wherever that slot recurs — so the main
+    riff literally returns as a hook, distinct slots stay distinct, and `gen_fn` fires
+    only for a new slot (fewer LLM calls). A recurring section emits a light reprise event
+    rather than a fresh proposal. Returns (None, events) when no section uses the rhythm
+    guitar. `gen_fn` is injected so this loop is tested with no LLM.
     """
     events: list[DebateEvent] = []
     notes: list[Note] = []
     accents = _accent_beats(arr)
-    memory: list[RiffMemo] = []                     # the riff sections realized so far
+    library: dict[str, RiffPattern] = {}            # slot -> its one-cycle riff
+    order: list[str] = []                           # slots in first-seen order (the memory)
     for span in section_spans(arr):
         if _RHYTHM_ROLE not in span.section.layers:
             continue
-        pattern = gen_fn(span, arr, list(memory))   # a COPY, so gen_fn can't mutate the history
+        slot = _slot_for(span.section)
+        if slot in library:                         # the hook returns — reuse, don't regenerate
+            pattern = library[slot]
+            events.append(_reprise_event(span, slot))
+        else:                                        # a new slot — write a riff that contrasts the rest
+            memory = [RiffMemo(s, library[s]) for s in order]
+            pattern = gen_fn(span, arr, memory)
+            library[slot] = pattern
+            order.append(slot)
+            events.append(_riff_event(span, pattern, slot))
         placed = place_riff(pattern.notes, start=span.start, bars=span.section.bars,
                             cycle_beats=arr.beats_per_bar, register=arr.registers[_RHYTHM_ROLE],
                             accent_beats=accents)
         notes.extend(placed)
-        events.append(_riff_event(span, pattern, placed))
-        memory.append(RiffMemo(span.section.kind.value, pattern))
 
     if not notes:
         events.append(DebateEvent(type=EventType.INFO, agent="Riff", role=_ROLE_GENERATOR,

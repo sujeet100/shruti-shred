@@ -27,6 +27,7 @@ from crew.contracts import (  # noqa: E402
     build_arrangement,
 )
 from crew.metrics import (  # noqa: E402
+    _riff_form,
     composition_metrics,
     render_metrics,
 )
@@ -188,6 +189,56 @@ def test_ornament_rate_is_per_section_over_the_pitched_notes():
     assert m.energy[1].ornament_rate == round(2 / 3, 3)  # solo: 2 of 3 lead notes ornamented
 
 
+# --- riff form: the main riff returning (slots) --------------------------------
+
+def _arr_slots(*specs: tuple[SectionKind, str | None]):
+    """An arrangement of rhythm-active sections (ALAAP is lead-only), one per (kind, slot)."""
+    sections = []
+    for kind, slot in specs:
+        layers = ["lead", "drone"] if kind == SectionKind.ALAAP else ["rhythm", "drone"]
+        fg = "rhythm" if "rhythm" in layers else "lead"
+        sections.append(Section(kind=kind, bars=1, layers=layers, foreground=fg, riff_slot=slot))
+    draft = ArrangementDraft(raga="darbari", subgenre="doom", tala="teentaal", bpm=72,
+                             motif=_MOTIF, sections=sections)
+    return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def test_riff_form_counts_slots_and_measures_recurrence():
+    # main x3, chorus x1, breakdown x1 -> 5 rhythm sections, 3 distinct riffs
+    arr = _arr_slots((SectionKind.RIFF, "main"), (SectionKind.MELODY, "chorus"),
+                     (SectionKind.RIFF, "main"), (SectionKind.BREAKDOWN, "breakdown"),
+                     (SectionKind.RIFF, "main"))
+    recurrence, variety, slots = _riff_form(arr)
+    assert slots == [("main", 3), ("chorus", 1), ("breakdown", 1)]
+    assert recurrence == round(2 / 5, 3)   # 5 sections - 3 distinct riffs = 2 reprises
+    assert variety == round(3 / 5, 3)
+
+
+def test_riff_form_default_slot_is_the_kind():
+    # two RIFF sections with no explicit slot share the "riff" slot -> reuse
+    arr = _arr_slots((SectionKind.RIFF, None), (SectionKind.RIFF, None))
+    recurrence, variety, slots = _riff_form(arr)
+    assert slots == [("riff", 2)] and recurrence == 0.5 and variety == 0.5
+
+
+def test_riff_form_ignores_non_rhythm_sections():
+    arr = _arr_slots((SectionKind.ALAAP, None), (SectionKind.RIFF, "main"))
+    _, _, slots = _riff_form(arr)
+    assert slots == [("main", 1)]          # the lead-only alaap is not a riff section
+
+
+def test_riff_form_all_distinct_has_no_recurrence():
+    arr = _arr_slots((SectionKind.RIFF, "main"), (SectionKind.BREAKDOWN, "breakdown"))
+    recurrence, variety, _ = _riff_form(arr)
+    assert recurrence == 0.0 and variety == 1.0
+
+
+def test_composition_metrics_exposes_riff_form():
+    arr = _arr_slots((SectionKind.RIFF, "main"), (SectionKind.RIFF, "main"))
+    m = composition_metrics(_comp(), arr)
+    assert m.riff_recurrence == 0.5 and m.riff_slots == [("main", 2)]
+
+
 # --- rendering -----------------------------------------------------------------
 
 def test_render_metrics_surfaces_the_curve_and_ratios():
@@ -198,6 +249,14 @@ def test_render_metrics_surfaces_the_curve_and_ratios():
     assert "motif_recurrence" in text and "section_variety" in text
     assert "ornament rate per section" in text
     assert "lead/riff overlap" in text and "bass/riff overlap" in text
+
+
+def test_render_metrics_includes_riff_form():
+    arr = _arr_slots((SectionKind.RIFF, "main"), (SectionKind.MELODY, "chorus"),
+                     (SectionKind.RIFF, "main"))
+    text = render_metrics(composition_metrics(_comp(), arr))
+    assert "riff form" in text and "mainx2" in text
+    assert "riff_recurrence" in text and "riff_variety" in text
 
 
 def test_render_metrics_handles_an_empty_piece():
