@@ -20,22 +20,32 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
 from crew.contracts import (  # noqa: E402
     Arrangement,
     ArrangementDraft,
+    CanvasMove,
     CompositionBrief,
     EventType,
+    LeadNote,
+    LeadPhrase,
+    PhrasePlan,
     RiffNote,
     RiffPattern,
     Section,
+    SectionCanvas,
     SectionKind,
     build_arrangement,
 )
-from crew.generators import VOICES  # noqa: E402
+from crew.generators import VOICES, section_spans  # noqa: E402
 from crew.riff import (  # noqa: E402
     RiffMemo,
+    _RiffContext,
     _accent_beats,
+    _render_canvas_for_riff,
     _render_previous,
     _riff_guardrail,
     generate_riff,
     place_riff,
+    rhythm_layer_from,
+    slot_for,
+    studio_riff_fn,
 )
 
 
@@ -285,6 +295,79 @@ def test_riffnote_rejects_nonpositive_duration():
         assert False, "expected ValueError"
     except Exception as e:  # noqa: BLE001
         assert "greater than 0" in str(e).lower()
+
+
+# --- rhythm_layer_from / slot_for: assemble from already-generated riffs --------
+
+def test_rhythm_layer_from_places_each_cycle_by_index():
+    arr = _arr(("rhythm", "drone"), ("rhythm", "drone"))
+    layer = rhythm_layer_from({0: _pattern("S", "S", "S", "S"),
+                               1: _pattern("g", "g", "g", "g")}, arr)
+    assert layer is not None and layer.role == "rhythm"
+    assert any(n.start >= 16.0 for n in layer.notes)             # section 1 placed at/after 16
+
+
+def test_rhythm_layer_from_skips_missing_and_returns_none_when_empty():
+    arr = _arr(("rhythm", "drone"))
+    assert rhythm_layer_from({}, arr) is None
+
+
+def test_slot_for_prefers_riff_slot_then_falls_back_to_kind():
+    explicit = Section(kind=SectionKind.RIFF, bars=1, layers=["rhythm"],
+                       foreground="rhythm", riff_slot="main")
+    assert slot_for(explicit) == "main"
+    default = Section(kind=SectionKind.BREAKDOWN, bars=1, layers=["rhythm"], foreground="rhythm")
+    assert slot_for(default) == "breakdown"
+
+
+# --- canvas awareness: the riff LISTENS to the shared canvas -------------------
+
+def _lead_on_canvas(*swaras: str) -> LeadPhrase:
+    return LeadPhrase(
+        phrase_plan=PhrasePlan(seed=["S"], contour="arch", transformations=["repeat"],
+                               climax_and_sam="lands on Sa"),
+        notes=[LeadNote(swara=s, dur=1.0) for s in swaras])
+
+
+def _canvas_for_riff(lead=None, riff=None) -> SectionCanvas:
+    return SectionCanvas(index=0, kind=SectionKind.TAAN, start=0.0, end=16.0,
+                         leader="lead", follower="rhythm", lead=lead, riff=riff)
+
+
+def test_render_canvas_for_riff_opens_without_a_canvas_or_when_proposing():
+    assert "OPEN" in _render_canvas_for_riff(None, CanvasMove.PROPOSE)
+
+
+def test_render_canvas_for_riff_respond_shows_the_lead_and_asks_to_lock():
+    canvas = _canvas_for_riff(lead=_lead_on_canvas("g", "m", "d"))
+    text = _render_canvas_for_riff(canvas, CanvasMove.RESPOND)
+    assert "the Lead is playing" in text and "LOCK" in text
+    assert "g" in text
+
+
+def test_render_canvas_for_riff_refine_shows_its_own_riff():
+    canvas = _canvas_for_riff(lead=_lead_on_canvas("g"), riff=_pattern("S", "S"))
+    text = _render_canvas_for_riff(canvas, CanvasMove.REFINE)
+    assert "your current riff" in text and "REFINE" in text
+
+
+def test_riff_inputs_for_carries_the_move_and_the_canvas():
+    arr = _arr(("rhythm", "lead", "drone"))
+    inputs = _RiffContext(arr).inputs_for(
+        section_spans(arr)[0], [], canvas=_canvas_for_riff(lead=_lead_on_canvas("g", "m")),
+        move=CanvasMove.RESPOND)
+    assert inputs["move"] == "respond" and "the Lead is playing" in inputs["canvas"]
+
+
+def test_riff_inputs_for_defaults_to_solo_without_a_canvas():
+    arr = _arr(("rhythm", "drone"))
+    inputs = _RiffContext(arr).inputs_for(section_spans(arr)[0], [])
+    assert inputs["move"] == "propose" and "OPEN" in inputs["canvas"]
+
+
+def test_studio_riff_fn_builds_a_callable_without_an_llm():
+    arr = _arr(("rhythm", "lead", "drone"))
+    assert callable(studio_riff_fn(arr))
 
 
 if __name__ == "__main__":

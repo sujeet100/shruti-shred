@@ -21,25 +21,33 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
 from crew.contracts import (  # noqa: E402
     Arrangement,
     ArrangementDraft,
+    CanvasMove,
     CompositionBrief,
     EventType,
     LeadNote,
     LeadPhrase,
     Note,
     PhrasePlan,
+    RiffNote,
+    RiffPattern,
     Section,
+    SectionCanvas,
     SectionKind,
     build_arrangement,
 )
-from crew.generators import VOICES  # noqa: E402
+from crew.generators import VOICES, section_spans  # noqa: E402
 from crew.lead import (  # noqa: E402
     LeadMemo,
     Voicing,
+    _LeadContext,
     _lead_guardrail,
+    _render_canvas_for_lead,
     _render_previous,
     _voice_line,
     generate_lead,
+    lead_layers_from,
     place_phrase,
+    studio_lead_fn,
 )
 
 
@@ -301,6 +309,82 @@ def test_harmony_strips_ornaments_but_the_melody_keeps_them():
     sitar, guitar = _voice_line(line, Voicing.THIRD, "malkauns")
     assert sitar[0].grace == ["g"] and sitar[0].meend_swara == "m"    # melody keeps its ornaments
     assert guitar[0].grace is None and guitar[0].meend_swara is None  # the harmony is clean
+
+
+# --- lead_layers_from: assemble layers from already-generated phrases -----------
+
+def test_lead_layers_from_places_and_voices_by_index():
+    arr = _arr(("lead", "drone"), ("lead", "drone"), kind=SectionKind.MELODY)  # UNISON -> 2 layers
+    layers = lead_layers_from({0: _phrase("S", "m"), 1: _phrase("g", "d")}, arr)
+    assert len(layers) == 2                          # unison: sitar + guitar
+    starts = sorted(n.start for n in layers[0].notes)
+    assert starts[0] == 0.0 and any(s >= 16.0 for s in starts)   # both sections placed
+
+
+def test_lead_layers_from_skips_a_section_without_a_phrase():
+    arr = _arr(("lead", "drone"), ("lead", "drone"))              # ALAAP -> solo sitar
+    layers = lead_layers_from({0: _phrase("S")}, arr)             # only section 0 has a phrase
+    assert len(layers) == 1
+    assert all(n.start < 16.0 for n in layers[0].notes)          # nothing placed from section 1
+
+
+def test_lead_layers_from_empty_when_no_phrases():
+    assert lead_layers_from({}, _arr(("lead", "drone"))) == []
+
+
+# --- canvas awareness: the lead LISTENS to the shared canvas -------------------
+
+def _riff_on_canvas(*swaras: str, chord=None) -> RiffPattern:
+    return RiffPattern(reasoning="groove",
+                       notes=[RiffNote(swara=s, dur=0.5, chord=chord) for s in swaras])
+
+
+def _canvas_for_lead(riff=None, lead=None) -> SectionCanvas:
+    return SectionCanvas(index=0, kind=SectionKind.RIFF, start=0.0, end=16.0,
+                         leader="rhythm", follower="lead", riff=riff, lead=lead)
+
+
+def test_render_canvas_for_lead_opens_without_a_canvas_or_when_proposing():
+    assert "OPEN" in _render_canvas_for_lead(None, CanvasMove.PROPOSE)
+    # even with a populated canvas, PROPOSE means the lead OPENS the section (ignores it)
+    populated = _canvas_for_lead(riff=_riff_on_canvas("S", "g"))
+    assert "OPEN" in _render_canvas_for_lead(populated, CanvasMove.PROPOSE)
+
+
+def test_render_canvas_for_lead_respond_shows_the_riff_and_asks_to_answer():
+    canvas = _canvas_for_lead(riff=_riff_on_canvas("S", "g", chord=["S"]))
+    text = _render_canvas_for_lead(canvas, CanvasMove.RESPOND)
+    assert "the Riff laid down" in text
+    assert "S+S" in text                       # a power chord shows its stacked tone
+    assert "ANSWER" in text
+
+
+def test_render_canvas_for_lead_refine_shows_its_own_line():
+    canvas = _canvas_for_lead(riff=_riff_on_canvas("S"), lead=_phrase("g", "m"))
+    text = _render_canvas_for_lead(canvas, CanvasMove.REFINE)
+    assert "your current line" in text and "REFINE" in text
+
+
+def test_lead_inputs_for_carries_the_move_and_the_canvas():
+    arr = _arr(("lead", "rhythm", "drone"), kind=SectionKind.RIFF, raga="darbari")
+    span = section_spans(arr)[0]
+    inputs = _LeadContext(arr).inputs_for(
+        span, [], canvas=_canvas_for_lead(riff=_riff_on_canvas("S", "g")),
+        move=CanvasMove.RESPOND)
+    assert inputs["move"] == "respond"
+    assert "the Riff laid down" in inputs["canvas"]
+
+
+def test_lead_inputs_for_defaults_to_solo_without_a_canvas():
+    # backward compatible: the non-studio path passes no canvas -> propose / open
+    arr = _arr(("lead", "drone"))
+    inputs = _LeadContext(arr).inputs_for(section_spans(arr)[0], [])
+    assert inputs["move"] == "propose" and "OPEN" in inputs["canvas"]
+
+
+def test_studio_lead_fn_builds_a_callable_without_an_llm():
+    arr = _arr(("lead", "rhythm", "drone"), kind=SectionKind.RIFF)
+    assert callable(studio_lead_fn(arr))
 
 
 # --- the legality guardrail: the hard line -------------------------------------

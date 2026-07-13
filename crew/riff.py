@@ -35,13 +35,16 @@ from pydantic import ValidationError
 from crew.config import GENERATOR_MAX_ITER, GENERATOR_RETRIES, generator_llm, load_env
 from crew.contracts import (
     Arrangement,
+    CanvasMove,
     DebateEvent,
     EventStream,
     EventType,
     Layer,
+    LeadNote,
     Note,
     RiffNote,
     RiffPattern,
+    SectionCanvas,
     motif_illegal_in_raga,
 )
 from crew.generators import (
@@ -151,7 +154,7 @@ class RiffMemo:
     pattern: RiffPattern
 
 
-def _slot_for(section) -> str:
+def slot_for(section) -> str:
     """The riff SLOT a section plays — its explicit `riff_slot`, else its kind. Sections
     that resolve to the same slot REPLAY one riff (recurrence); this is where the identity
     that makes the main riff a hook lives, in code, not in the LLM."""
@@ -170,6 +173,39 @@ def _render_previous(memory: list[RiffMemo]) -> str:
         return "  (this is the FIRST riff — establish the main riff)"
     return "\n".join(f"  {memo.slot}: {' '.join(_riff_token(n) for n in memo.pattern.notes)}"
                      for memo in memory)
+
+
+def _lead_line_token(note: LeadNote) -> str:
+    """One LeadNote as the RIFF sees it on the shared canvas — swara with its local octave —
+    enough for the riff to lock a groove under the lead's phrase."""
+    return note.swara if note.oct == 0 else f"{note.swara}({note.oct:+d})"
+
+
+def _render_canvas_for_riff(canvas: SectionCanvas | None, move: CanvasMove) -> str:
+    """What the riff SEES on this section's shared canvas, rendered for its MOVE. Pure.
+
+    On RESPOND the riff locks a groove under the lead (support the phrase, don't chase the
+    melody); on REFINE it tightens its riff against the finished ensemble. When it OPENS the
+    section (PROPOSE) or there is no canvas (the solo / non-studio path), it simply
+    establishes the main riff — so one prompt serves both the studio and the standalone
+    generator."""
+    if canvas is None or move is CanvasMove.PROPOSE:
+        return "  (you OPEN this section — the canvas is empty; lay down the main groove)"
+    lines: list[str] = []
+    lead = canvas.lead
+    if lead is not None:
+        lines.append(f"  the Lead is playing: {' '.join(_lead_line_token(n) for n in lead.notes)}")
+    if move is CanvasMove.RESPOND:
+        lines.append("  LOCK a groove under the lead — support its phrase and hit the accents it"
+                     " leaves open; stay root-driven, do not chase its melody."
+                     if lead is not None else
+                     "  (no lead on the canvas yet — establish the main riff.)")
+    else:  # REFINE
+        if canvas.riff is not None:
+            lines.append(f"  your current riff: {' '.join(_riff_token(n) for n in canvas.riff.notes)}")
+        lines.append("  REFINE your riff to lock tighter with the ensemble above — keep the hook,"
+                     " tighten the interplay.")
+    return "\n".join(lines)
 
 
 class _RiffContext:
@@ -195,15 +231,19 @@ class _RiffContext:
             "output_schema": _OUTPUT_SCHEMA,
         }
 
-    def inputs_for(self, span: SectionSpan, memory: list[RiffMemo]) -> dict[str, Any]:
+    def inputs_for(self, span: SectionSpan, memory: list[RiffMemo], *,
+                   canvas: SectionCanvas | None = None,
+                   move: CanvasMove = CanvasMove.PROPOSE) -> dict[str, Any]:
         section = span.section
         return {
             **self._static,
             "section_kind": section.kind.value,
-            "riff_slot": _slot_for(section),
+            "riff_slot": slot_for(section),
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "bars": section.bars,
             "previous": _render_previous(memory),
+            "move": move.value,
+            "canvas": _render_canvas_for_riff(canvas, move),
         }
 
 
@@ -301,24 +341,45 @@ def _reprise_event(span: SectionSpan, slot: str) -> DebateEvent:
         data={"slot": slot, "reprise": True})
 
 
+def rhythm_layer_from(patterns: dict[int, RiffPattern], arr: Arrangement) -> Layer | None:
+    """Assemble the single rhythm layer from already-generated per-section riffs (section
+    index -> the cycle that plays there). Repeats and accent-locks each cycle across the
+    section's bars exactly as the fan-out does; a section with no riff is skipped. Returns
+    None when nothing plays. Pure — so the studio, which fills the canvases, reuses it."""
+    accents = _accent_beats(arr)
+    notes: list[Note] = []
+    for span in section_spans(arr):
+        pattern = patterns.get(span.index)
+        if pattern is None:
+            continue
+        notes.extend(place_riff(pattern.notes, start=span.start, bars=span.section.bars,
+                                cycle_beats=arr.beats_per_bar,
+                                register=arr.registers[_RHYTHM_ROLE], accent_beats=accents))
+    if not notes:
+        return None
+    voice = VOICES[_RHYTHM_ROLE]
+    return Layer(role=_RHYTHM_ROLE, instrument=voice.instrument, program=voice.program,
+                 channel=voice.channel, pan=voice.pan, notes=notes)
+
+
 def generate_riff(arr: Arrangement, *, gen_fn: RiffFn) -> tuple[Layer | None, list[DebateEvent]]:
     """Fill the rhythm layer across the arrangement's rhythm-active sections.
 
     A riff is written ONCE PER SLOT and REUSED wherever that slot recurs — so the main
     riff literally returns as a hook, distinct slots stay distinct, and `gen_fn` fires
     only for a new slot (fewer LLM calls). A recurring section emits a light reprise event
-    rather than a fresh proposal. Returns (None, events) when no section uses the rhythm
-    guitar. `gen_fn` is injected so this loop is tested with no LLM.
+    rather than a fresh proposal. The per-section riffs are then placed/accent-locked into
+    one layer via `rhythm_layer_from`. Returns (None, events) when no section uses the
+    rhythm guitar. `gen_fn` is injected so this loop is tested with no LLM.
     """
     events: list[DebateEvent] = []
-    notes: list[Note] = []
-    accents = _accent_beats(arr)
+    patterns: dict[int, RiffPattern] = {}
     library: dict[str, RiffPattern] = {}            # slot -> its one-cycle riff
     order: list[str] = []                           # slots in first-seen order (the memory)
     for span in section_spans(arr):
         if _RHYTHM_ROLE not in span.section.layers:
             continue
-        slot = _slot_for(span.section)
+        slot = slot_for(span.section)
         if slot in library:                         # the hook returns — reuse, don't regenerate
             pattern = library[slot]
             events.append(_reprise_event(span, slot))
@@ -328,25 +389,37 @@ def generate_riff(arr: Arrangement, *, gen_fn: RiffFn) -> tuple[Layer | None, li
             library[slot] = pattern
             order.append(slot)
             events.append(_riff_event(span, pattern, slot))
-        placed = place_riff(pattern.notes, start=span.start, bars=span.section.bars,
-                            cycle_beats=arr.beats_per_bar, register=arr.registers[_RHYTHM_ROLE],
-                            accent_beats=accents)
-        notes.extend(placed)
+        patterns[span.index] = pattern
 
-    if not notes:
+    layer = rhythm_layer_from(patterns, arr)
+    if layer is None:
         events.append(DebateEvent(type=EventType.INFO, agent="Riff", role=_ROLE_GENERATOR,
                                   text="no rhythm-active sections in this arrangement"))
-        return None, events
-
-    voice = VOICES[_RHYTHM_ROLE]
-    layer = Layer(role=_RHYTHM_ROLE, instrument=voice.instrument, program=voice.program,
-                  channel=voice.channel, pan=voice.pan, notes=notes)
     return layer, events
 
 
 def compose_riff(arr: Arrangement) -> tuple[Layer | None, list[DebateEvent]]:
     """Run the real (LLM-backed) riff generation for a chart."""
     return generate_riff(arr, gen_fn=_LLMRiff(arr))
+
+
+# A canvas-aware per-section riff call, for the cooperative studio loop: (span, memory,
+# canvas, move) -> the section's riff, locked under whatever the lead put on the canvas.
+type StudioRiffFn = Callable[[SectionSpan, list[RiffMemo], SectionCanvas, CanvasMove], RiffPattern]
+
+
+def studio_riff_fn(arr: Arrangement) -> StudioRiffFn:
+    """A CANVAS-AWARE riff generator for the studio loop — the per-section counterpart to
+    `compose_riff`. Generates ONE section's riff given the shared canvas (the lead's line to
+    support) and the move (propose / respond / refine); crew + context built once, reused."""
+    crew = _RiffCrew()
+    context = _RiffContext(arr)
+
+    def gen(span: SectionSpan, memory: list[RiffMemo], canvas: SectionCanvas,
+            move: CanvasMove) -> RiffPattern:
+        return crew.run(arr.raga, context.inputs_for(span, memory, canvas=canvas, move=move))
+
+    return gen
 
 
 # --------------------------------------------------------------------------- #

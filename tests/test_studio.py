@@ -22,21 +22,33 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
 
 from crew.config import CANVAS_PASSES  # noqa: E402
 from crew.contracts import (  # noqa: E402
+    Arrangement,
+    ArrangementDraft,
     CanvasMove,
+    CompositionBrief,
+    DebateEvent,
+    EventType,
     LeadNote,
     LeadPhrase,
     PhrasePlan,
     RiffNote,
     RiffPattern,
+    Section,
     SectionCanvas,
     SectionIntent,
     SectionKind,
+    build_arrangement,
 )
 from crew.studio import (  # noqa: E402
+    StudioResult,
     Turn,
+    active_roles,
     collaboration_schedule,
     follower_of,
     leader_for,
+    run_studio,
+    section_turns,
+    session_canvas,
 )
 
 _RHYTHM_LED = (SectionKind.RIFF, SectionKind.BREAKDOWN)
@@ -224,6 +236,149 @@ def test_canvas_intent_defaults_none_then_reads_back():
     assert canvas.intent is None
     canvas.intent = _intent(motif=["S"], groove="gallop")
     assert canvas.intent.groove == "gallop" and canvas.intent.motif == ["S"]
+
+
+# --- the cooperative LOOP: active_roles / section_turns / run_studio -----------
+# The loop is PURE — the note-writing is injected as `contribute`, so these tests
+# drive it with a fake that records the turn order and stubs a line onto the canvas.
+
+def _section(kind: SectionKind, layers: list[str], foreground: str) -> Section:
+    return Section(kind=kind, bars=1, layers=layers, foreground=foreground)
+
+
+def _arr(sections: list[Section]) -> Arrangement:
+    """A real Arrangement (through the composer contract) to run the loop over, so
+    section_spans / beats_per_bar are genuine. Darbari × teentaal."""
+    draft = ArrangementDraft(raga="darbari", subgenre="progressive", tala="teentaal",
+                             bpm=120, motif=["S", "R", "g", "m", "P"], sections=sections)
+    return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def _recorder():
+    """A fake `contribute`: records each (role, move, #completed-canvases) call, writes a
+    stub line so the canvas fills, and returns one event per turn. Returns (calls, fn)."""
+    calls: list[tuple[str, CanvasMove, int]] = []
+
+    def contribute(role, move, canvas, done):
+        calls.append((role, move, len(done)))
+        if role == "lead":
+            canvas.lead = _lead_line()
+        else:
+            canvas.riff = _riff_line()
+        return [DebateEvent(type=EventType.PROPOSE, agent=role.capitalize(),
+                            role="generator", text=move.value, data={"move": move.value})]
+
+    return calls, contribute
+
+
+def test_active_roles_both_present_leader_first():
+    riff = _section(SectionKind.RIFF, ["rhythm", "lead", "drums"], "rhythm")
+    assert active_roles(riff) == ["rhythm", "lead"]        # leader (rhythm) first
+    taan = _section(SectionKind.TAAN, ["lead", "rhythm", "drums"], "lead")
+    assert active_roles(taan) == ["lead", "rhythm"]        # leader (lead) first
+
+
+def test_active_roles_filters_a_voice_that_lays_out():
+    # An alaap with no rhythm layer: only the lead is active (the riff lays out).
+    alaap = _section(SectionKind.ALAAP, ["lead", "drone"], "lead")
+    assert active_roles(alaap) == ["lead"]
+
+
+def test_active_roles_none_when_no_creative_voice():
+    drums_only = _section(SectionKind.BREAKDOWN, ["drums", "drone"], "drums")
+    assert active_roles(drums_only) == []
+
+
+def test_section_turns_two_active_is_the_full_schedule():
+    riff = _section(SectionKind.RIFF, ["rhythm", "lead"], "rhythm")
+    assert section_turns(riff, passes=3) == collaboration_schedule(SectionKind.RIFF, passes=3)
+
+
+def test_section_turns_one_active_is_a_solo_propose():
+    alaap = _section(SectionKind.ALAAP, ["lead", "drone"], "lead")
+    assert section_turns(alaap) == [Turn("lead", CanvasMove.PROPOSE)]
+
+
+def test_section_turns_none_active_is_empty():
+    drums_only = _section(SectionKind.BREAKDOWN, ["drums", "drone"], "drums")
+    assert section_turns(drums_only) == []
+
+
+def test_session_canvas_carries_span_and_bandleader_rule():
+    arr = _arr([_section(SectionKind.TAAN, ["lead", "rhythm"], "lead")])
+    from crew.generators import section_spans
+    span = section_spans(arr)[0]
+    canvas = session_canvas(span)
+    assert canvas.index == 0 and canvas.kind is SectionKind.TAAN
+    assert canvas.leader == "lead" and canvas.follower == "rhythm"
+    assert canvas.window == span.length
+
+
+def test_run_studio_fills_a_canvas_per_section_and_orders_turns():
+    arr = _arr([
+        _section(SectionKind.RIFF, ["rhythm", "lead", "drums"], "rhythm"),
+        _section(SectionKind.TAAN, ["lead", "rhythm", "drums"], "lead"),
+    ])
+    calls, contribute = _recorder()
+    result = run_studio(arr, contribute=contribute, passes=3)
+
+    assert isinstance(result, StudioResult)
+    assert len(result.canvases) == 2
+    assert result.canvases[0].lead is not None and result.canvases[0].riff is not None
+    # The turn order is the two sections' schedules, back to back (roles + moves only).
+    moves = [(role, move) for role, move, _ in calls]
+    assert moves == [
+        ("rhythm", CanvasMove.PROPOSE), ("lead", CanvasMove.RESPOND), ("rhythm", CanvasMove.REFINE),
+        ("lead", CanvasMove.PROPOSE), ("rhythm", CanvasMove.RESPOND), ("lead", CanvasMove.REFINE),
+    ]
+
+
+def test_run_studio_threads_completed_canvases_as_memory():
+    arr = _arr([
+        _section(SectionKind.RIFF, ["rhythm", "lead"], "rhythm"),
+        _section(SectionKind.TAAN, ["lead", "rhythm"], "lead"),
+    ])
+    calls, contribute = _recorder()
+    run_studio(arr, contribute=contribute, passes=3)
+    # Section 0's turns see 0 completed canvases; section 1's turns see exactly 1.
+    prior_counts = [n for _, _, n in calls]
+    assert prior_counts == [0, 0, 0, 1, 1, 1]
+
+
+def test_run_studio_solo_section_runs_only_the_active_voice():
+    arr = _arr([_section(SectionKind.ALAAP, ["lead", "drone"], "lead")])
+    calls, contribute = _recorder()
+    result = run_studio(arr, contribute=contribute)
+    assert [(role, move) for role, move, _ in calls] == [("lead", CanvasMove.PROPOSE)]
+    assert result.canvases[0].riff is None            # the riff laid out
+
+
+def test_run_studio_skips_a_section_with_no_creative_voice():
+    arr = _arr([_section(SectionKind.BREAKDOWN, ["drums", "drone"], "drums")])
+    calls, contribute = _recorder()
+    result = run_studio(arr, contribute=contribute)
+    assert calls == []                                 # nobody wrote a note
+    assert len(result.canvases) == 1                   # but the canvas still exists on the timeline
+
+
+def test_run_studio_fast_mode_one_pass_is_leader_only():
+    arr = _arr([_section(SectionKind.RIFF, ["rhythm", "lead"], "rhythm")])
+    calls, contribute = _recorder()
+    run_studio(arr, contribute=contribute, passes=1)
+    assert [(role, move) for role, move, _ in calls] == [("rhythm", CanvasMove.PROPOSE)]
+
+
+def test_run_studio_emits_a_framing_event_per_section():
+    arr = _arr([
+        _section(SectionKind.RIFF, ["rhythm", "lead"], "rhythm"),
+        _section(SectionKind.ALAAP, ["lead", "drone"], "lead"),
+    ])
+    _, contribute = _recorder()
+    result = run_studio(arr, contribute=contribute)
+    framing = [e for e in result.events if e.agent == "Studio"]
+    assert len(framing) == 2
+    assert all(e.type is EventType.INFO for e in framing)
+    assert "leads" in framing[0].text and "solo" in framing[1].text
 
 
 if __name__ == "__main__":

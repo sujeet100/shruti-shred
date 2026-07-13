@@ -20,17 +20,30 @@ agents choose the turn order or when to quit).
   * WHEN it stops is a fixed turn budget (`collaboration_schedule`, capped by
     `CANVAS_PASSES`) — the guaranteed terminator, never organic consensus.
 
-The cooperative LOOP itself (the LLM turns that actually write on the canvas) lands
-in the next sub-step; this module is the deterministic skeleton it walks, fully
-unit-tested with no LLM and no cost.
+The cooperative LOOP now lives here too (`run_studio`): a pure driver that walks the
+schedule section by section, filling each `SectionCanvas`, with the actual note-writing
+INJECTED as a `contribute` callback — so the loop is unit-tested with no LLM and no
+cost, exactly like the Flow's injected `Stages`. The LLM-backed contributors (the Lead
+and Riff writing real lines on the canvas) and the wiring into the Flow land next.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from crew.config import CANVAS_PASSES
-from crew.contracts import CanvasMove, CreativeRole, SectionKind
+from crew.contracts import (
+    Arrangement,
+    CanvasMove,
+    CreativeRole,
+    DebateEvent,
+    EventType,
+    Section,
+    SectionCanvas,
+    SectionKind,
+)
+from crew.generators import SectionSpan, section_spans
 
 
 # --------------------------------------------------------------------------- #
@@ -101,3 +114,112 @@ def collaboration_schedule(kind: SectionKind, *, passes: int = CANVAS_PASSES) ->
     while len(plan) < passes:
         plan.append(Turn(voices[(len(plan) - 2) % 2], CanvasMove.REFINE))
     return plan[:passes]
+
+
+# --------------------------------------------------------------------------- #
+# The cooperative LOOP — a pure driver over the schedule. The actual           #
+# note-writing (LLM or a test fake) is INJECTED as `contribute`, the same seam #
+# the Flow uses for its `Stages`, so the whole loop is tested with no LLM.      #
+# --------------------------------------------------------------------------- #
+
+# One voice's turn at the canvas: it READS the canvas (the other voice's line +
+# the shared intent) and the completed prior sections (the cross-section memory),
+# WRITES its own line/intent back IN PLACE, and returns the events for that turn.
+type Contribute = Callable[
+    [CreativeRole, CanvasMove, SectionCanvas, list[SectionCanvas]],
+    list[DebateEvent]]
+
+
+def active_roles(section: Section) -> list[CreativeRole]:
+    """The creative voices that actually play this section, LEADER FIRST.
+
+    A voice is active only if its role is one of the section's `layers`; one that is
+    not LAYS OUT — silence is a valid contribution (an alaap's riff, say). Leader-first
+    is the order the session runs them, so the caller reads it as [leader, follower].
+    """
+    leader = leader_for(section.kind)
+    return [r for r in (leader, follower_of(leader)) if r in section.layers]
+
+
+def section_turns(section: Section, *, passes: int = CANVAS_PASSES) -> list[Turn]:
+    """The bounded turn plan for a section, honouring which voices are active.
+
+      * BOTH creative voices active -> the full `collaboration_schedule` (leader
+        proposes, follower responds, then bounded refines) — a real session;
+      * exactly ONE active -> a single solo PROPOSE (no counterpart to answer, so no
+        respond/refine) — a genuine solo, e.g. a sitar alaap with the riff laid out;
+      * NONE active -> [] (no creative voice; the deterministic rhythm section carries it).
+
+    Bounded either way — the terminator is `collaboration_schedule`'s `passes` cap.
+    """
+    roles = active_roles(section)
+    if not roles:
+        return []
+    if len(roles) == 1:
+        return [Turn(roles[0], CanvasMove.PROPOSE)]
+    return collaboration_schedule(section.kind, passes=passes)
+
+
+def session_canvas(span: SectionSpan) -> SectionCanvas:
+    """A fresh blackboard for a section — its window and leader/follower fixed by CODE
+    (the section's position on the grid + the bandleader rule); the intent and the note
+    lines start empty and are filled by the session."""
+    leader = leader_for(span.section.kind)
+    return SectionCanvas(index=span.index, kind=span.section.kind,
+                         start=span.start, end=span.end,
+                         leader=leader, follower=follower_of(leader))
+
+
+@dataclass(frozen=True)
+class StudioResult:
+    """The outcome of a studio run — every section's FILLED canvas plus the event
+    stream (the session framing + each voice's contribution), in order."""
+    canvases: list[SectionCanvas]
+    events: list[DebateEvent]
+
+
+def _session_event(canvas: SectionCanvas, turns: list[Turn]) -> DebateEvent:
+    """A framing INFO beat announcing a section's session — silent, solo, or a full
+    leader/follower collaboration — so the stream (and the audience) can see who is
+    about to build this section before the notes arrive."""
+    common = {"index": canvas.index, "passes": len(turns)}
+    if not turns:
+        return DebateEvent(type=EventType.INFO, agent="Studio", role="system",
+                           text=f"{canvas.kind.value}: no creative voice — "
+                                f"the deterministic rhythm section carries it",
+                           data=common)
+    if len(turns) == 1:
+        return DebateEvent(type=EventType.INFO, agent="Studio", role="system",
+                           text=f"{canvas.kind.value}: {turns[0].role} solo "
+                                f"(the other voice lays out)",
+                           data={**common, "leader": turns[0].role})
+    return DebateEvent(type=EventType.INFO, agent="Studio", role="system",
+                       text=f"{canvas.kind.value}: {canvas.leader} leads, "
+                            f"{canvas.follower} follows ({len(turns)} passes)",
+                       data={**common, "leader": canvas.leader, "follower": canvas.follower})
+
+
+def run_studio(arr: Arrangement, *, contribute: Contribute,
+               passes: int = CANVAS_PASSES) -> StudioResult:
+    """Walk the whole arrangement as a sequence of bounded studio sessions.
+
+    For each section, in order: build a fresh `SectionCanvas`, then run its turn plan
+    (`section_turns`) — leader proposes, follower responds, bounded refines — calling
+    `contribute` for each turn. Every COMPLETED canvas is handed to later sections as
+    the piece's realized memory (both voices, cross-section), so the band builds ON what
+    came before instead of composing blind.
+
+    Pure control flow: `contribute` does the actual writing (LLM or a test fake), so the
+    loop is unit-tested with no LLM — the terminator (`passes`) and the order (the
+    bandleader rule) are guaranteed in CODE, never chosen by the agents.
+    """
+    canvases: list[SectionCanvas] = []
+    events: list[DebateEvent] = []
+    for span in section_spans(arr):
+        canvas = session_canvas(span)
+        turns = section_turns(span.section, passes=passes)
+        events.append(_session_event(canvas, turns))
+        for turn in turns:
+            events.extend(contribute(turn.role, turn.move, canvas, list(canvases)))
+        canvases.append(canvas)
+    return StudioResult(canvases=canvases, events=events)

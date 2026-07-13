@@ -167,6 +167,11 @@ generate_lead:
       across them the way a raga does — an alaap unfolds upward from the mandra, a taan peaks
       in the taar. The arrangement already seats you above the riff, so you clear it.
 
+    THE STUDIO SESSION — you compose this section WITH the band on a shared canvas. Your move
+    now is: {move}. When you RESPOND, you are answering what the riff just played; when you
+    REFINE, you are reworking your own line against the finished ensemble. Read the canvas:
+    {canvas}
+
     BUILD FROM THE RAGA, NOT THE SCALE — most of the phrase is the raga's own material:
       - Draw roughly 80% of the notes from the pakad and chalan (vakra / zig-zag) fragments
         above, and use the other ~20% as connective tissue. This, more than any other rule, is
@@ -249,6 +254,11 @@ generate_riff:
     THE CYCLE — one {tala} cycle is {cycle_beats} beats. Land strong notes on the
     accented beats so the riff locks to the kick: {accents}. Your first note is the
     sam (beat 0) — hit it hardest.
+
+    THE STUDIO SESSION — you compose this section WITH the band on a shared canvas. Your move
+    now is: {move}. When you RESPOND, you lock a groove under the lead's line; when you
+    REFINE, you tighten your riff against the finished ensemble. Read the canvas:
+    {canvas}
 
     THE RIFFS YOU ALREADY WROTE (the memory of the piece so far, octave in parentheses,
     +X = a power chord on that note):

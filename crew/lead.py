@@ -41,6 +41,7 @@ from pydantic import ValidationError
 from crew.config import GENERATOR_MAX_ITER, GENERATOR_RETRIES, generator_llm, load_env
 from crew.contracts import (
     Arrangement,
+    CanvasMove,
     DebateEvent,
     EventStream,
     EventType,
@@ -49,6 +50,8 @@ from crew.contracts import (
     LeadPhrase,
     Note,
     PhrasePlan,
+    RiffNote,
+    SectionCanvas,
     SectionKind,
     motif_illegal_in_raga,
 )
@@ -264,6 +267,40 @@ def _render_previous(memory: list[LeadMemo]) -> str:
                      for memo in memory)
 
 
+def _riff_line_token(note: RiffNote) -> str:
+    """One RiffNote as the LEAD sees it on the shared canvas — swara with its local octave
+    and any power chord (+X) — enough for the lead to answer the riff's pitches and weight."""
+    tok = note.swara if note.oct == 0 else f"{note.swara}({note.oct:+d})"
+    return tok + "+" + "+".join(note.chord) if note.chord else tok
+
+
+def _render_canvas_for_lead(canvas: SectionCanvas | None, move: CanvasMove) -> str:
+    """What the lead SEES on this section's shared canvas, rendered for its MOVE. Pure.
+
+    The cooperative pattern made concrete: on RESPOND the lead answers what the riff just
+    played (call-and-response, not doubling); on REFINE it reworks its own line against the
+    finished ensemble. When it OPENS the section (PROPOSE) or there is no canvas at all (the
+    solo / non-studio path), the canvas is empty and the lead simply states the theme — so
+    one prompt serves both the studio and the standalone generator."""
+    if canvas is None or move is CanvasMove.PROPOSE:
+        return "  (you OPEN this section — the canvas is empty; state the theme the band builds on)"
+    lines: list[str] = []
+    riff = canvas.riff
+    if riff is not None:
+        lines.append(f"  the Riff laid down: {' '.join(_riff_line_token(n) for n in riff.notes)}")
+    if move is CanvasMove.RESPOND:
+        lines.append("  ANSWER the riff — weave your line through its groove (call-and-response),"
+                     " leaving space on its accents; do not merely double it."
+                     if riff is not None else
+                     "  (no riff on the canvas yet — lead the section.)")
+    else:  # REFINE
+        if canvas.lead is not None:
+            lines.append(f"  your current line: {' '.join(_local_token(n) for n in canvas.lead.notes)}")
+        lines.append("  REFINE your line to lock with the ensemble above — keep what works and"
+                     " sharpen the interplay and the arc.")
+    return "\n".join(lines)
+
+
 class _LeadContext:
     """Assembles a lead turn's prompt inputs. The piece-level facts (raga, motif,
     register, tempo) are CONSTANT across a run, so they render once; the per-section
@@ -279,7 +316,9 @@ class _LeadContext:
             "output_schema": _OUTPUT_SCHEMA,
         }
 
-    def inputs_for(self, span: SectionSpan, memory: list[LeadMemo]) -> dict[str, Any]:
+    def inputs_for(self, span: SectionSpan, memory: list[LeadMemo], *,
+                   canvas: SectionCanvas | None = None,
+                   move: CanvasMove = CanvasMove.PROPOSE) -> dict[str, Any]:
         section = span.section
         return {
             **self._static,
@@ -287,6 +326,8 @@ class _LeadContext:
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "window_beats": f"{span.length:g}",
             "previous": _render_previous(memory),
+            "move": move.value,
+            "canvas": _render_canvas_for_lead(canvas, move),
         }
 
 
@@ -416,38 +457,53 @@ def _lead_layer(voice_name: str, notes: list[Note]) -> Layer:
                  channel=voice.channel, pan=voice.pan, notes=notes)
 
 
-def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], list[DebateEvent]]:
-    """Fill the lead across the arrangement's lead-active sections, VOICED.
-
-    For each section that lists `lead`: get a phrase from `gen_fn`, place it as ONE
-    melodic line, then VOICE it per the section kind (solo sitar, solo lead guitar,
-    unison, octave, or a raga-diatonic third) into a sitar line and/or a lead-guitar
-    line. Returns up to TWO layers — a sitar layer and a lead-guitar layer — and an
-    empty list when no section uses the lead. `gen_fn` is injected so this loop is
-    tested with no LLM.
-    """
-    events: list[DebateEvent] = []
+def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement) -> list[Layer]:
+    """Assemble the lead layer(s) from already-generated per-section phrases (section index
+    -> phrase). Places and VOICES each phrase exactly as the fan-out does — solo sitar,
+    solo lead guitar, unison, octave, or a raga-diatonic third — so the studio, which
+    generates phrases on the shared canvas rather than in the fan-out loop, produces
+    identical layers. A section with no phrase (a voice that laid out) is skipped. Pure."""
     sitar_notes: list[Note] = []
     guitar_notes: list[Note] = []
-    memory: list[LeadMemo] = []                     # the sections realized so far — the memory
     for span in section_spans(arr):
-        if _LEAD_ROLE not in span.section.layers:
+        phrase = phrases.get(span.index)
+        if phrase is None:
             continue
-        phrase = gen_fn(span, arr, list(memory))    # a COPY, so gen_fn can't mutate the history
         line = place_phrase(phrase.notes, start=span.start, end=span.end,
                             register=arr.registers[_LEAD_ROLE])
-        voicing = _voicing_for(span.section.kind)
-        sitar_line, guitar_line = _voice_line(line, voicing, arr.raga)
+        sitar_line, guitar_line = _voice_line(line, _voicing_for(span.section.kind), arr.raga)
         sitar_notes.extend(sitar_line)
         guitar_notes.extend(guitar_line)
-        events.append(_lead_event(span, phrase, line, voicing))
-        memory.append(LeadMemo(span.section.kind.value, phrase))
-
     layers: list[Layer] = []
     if sitar_notes:
         layers.append(_lead_layer("sitar", sitar_notes))
     if guitar_notes:
         layers.append(_lead_layer("lead_guitar", guitar_notes))
+    return layers
+
+
+def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], list[DebateEvent]]:
+    """Fill the lead across the arrangement's lead-active sections, VOICED.
+
+    For each section that lists `lead`: get a phrase from `gen_fn` (threading the realized
+    prior sections as memory), then assemble every phrase into a sitar line and/or a
+    lead-guitar line via `lead_layers_from`. Returns up to TWO layers and an empty list when
+    no section uses the lead. `gen_fn` is injected so this loop is tested with no LLM.
+    """
+    events: list[DebateEvent] = []
+    phrases: dict[int, LeadPhrase] = {}
+    memory: list[LeadMemo] = []                     # the sections realized so far — the memory
+    for span in section_spans(arr):
+        if _LEAD_ROLE not in span.section.layers:
+            continue
+        phrase = gen_fn(span, arr, list(memory))    # a COPY, so gen_fn can't mutate the history
+        phrases[span.index] = phrase
+        line = place_phrase(phrase.notes, start=span.start, end=span.end,
+                            register=arr.registers[_LEAD_ROLE])
+        events.append(_lead_event(span, phrase, line, _voicing_for(span.section.kind)))
+        memory.append(LeadMemo(span.section.kind.value, phrase))
+
+    layers = lead_layers_from(phrases, arr)
     if not layers:
         events.append(DebateEvent(type=EventType.INFO, agent="Lead", role=_ROLE_GENERATOR,
                                   text="no lead-active sections in this arrangement"))
@@ -457,6 +513,28 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
 def compose_lead(arr: Arrangement) -> tuple[list[Layer], list[DebateEvent]]:
     """Run the real (LLM-backed) lead generation for a chart."""
     return generate_lead(arr, gen_fn=_LLMLead(arr))
+
+
+# A canvas-aware per-section lead call, for the cooperative studio loop: (span, memory,
+# canvas, move) -> the section's phrase, answering what is already on the canvas.
+type StudioLeadFn = Callable[[SectionSpan, list[LeadMemo], SectionCanvas, CanvasMove], LeadPhrase]
+
+
+def studio_lead_fn(arr: Arrangement) -> StudioLeadFn:
+    """A CANVAS-AWARE lead generator for the studio loop.
+
+    Where `compose_lead` fans out over the whole arrangement on its own, this returns a
+    per-section call the cooperative loop drives: it generates ONE section's phrase given
+    the shared canvas (the riff's line to answer) and the move (propose / respond / refine).
+    The crew and the piece-level context are built once and reused across the run."""
+    crew = _LeadCrew()
+    context = _LeadContext(arr)
+
+    def gen(span: SectionSpan, memory: list[LeadMemo], canvas: SectionCanvas,
+            move: CanvasMove) -> LeadPhrase:
+        return crew.run(arr.raga, context.inputs_for(span, memory, canvas=canvas, move=move))
+
+    return gen
 
 
 # --------------------------------------------------------------------------- #
