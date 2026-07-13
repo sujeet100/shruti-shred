@@ -88,6 +88,11 @@ streamed debate fills the wait — the wait IS the show.)*
   2.)*
 - **The A/B.** Soulless one-shot vs the debated composition. The ear hears the
   difference the patterns made.
+- **The band cooperating (the second money moment).** Before the critics ever
+  weigh in, two agents build a section together on a shared canvas — the riff lays
+  down the hook, the sitar answers it, then they refine. Cooperate, *then* critique:
+  the build and the argument, back to back. *(Built — the studio session; A/B it
+  against "composed in isolation" via `RMA_STUDIO`.)*
 
 ---
 
@@ -106,7 +111,8 @@ streamed debate fills the wait — the wait IS the show.)*
 | 7 | Multi-agent debate | "The agents argue to converge." | Phase 2 |
 | 8 | Arbitration + bounded termination | "Debate needs a referee and a clock." | Phase 2 |
 | 9 | Hard guardrail vs soft judgment | The thesis, one slide. | built (core) |
-| 10 | (stretch) Multimodal judge | "The AI grew ears." | stretch |
+| 10 | Cooperative collaboration (blackboard) | "The band builds a section together on a shared canvas — cooperate, then critique." | built (studio) |
+| 11 | (stretch) Multimodal judge | "The AI grew ears." | stretch |
 
 ---
 
@@ -460,6 +466,38 @@ convincing than a hypothetical.)*
   "it's bad on EVERY instrument" reframed it from timbre to gesture. The real cause was a slow
   linear glide dwelling on the micro-pitches; the fix was a fast, eased pull anchored on the target —
   one constant plus a curve, no new soundfont or renderer. *Line:* "I was wrong twice; the WAV wasn't."
+
+### Phase 2, the studio session — bounded cooperative collaboration — 2026-07-13
+
+- **A SECOND named multi-agent pattern — the mirror of the debate.** Beside the critique loop
+  (adversarial: critics argue, a referee rules) the band now COOPERATES: the two creative voices build
+  each section together on a shared blackboard (a `SectionCanvas`) — the leader proposes, the follower
+  answers what it hears, then bounded refines. *Line:* "Same guarantees — bounded, refereed by code —
+  opposite social dynamic: the critics argue to JUDGE, the band listens to CREATE." The talk now has two
+  money moments: the band cooperates (build), then the critics debate (argue).
+- **Code is the bandleader and the clock — never the agents.** WHO leads a section is a code rule keyed to
+  its kind (the riff opens a groove, the sitar opens an alaap), and WHEN the session stops is a fixed turn
+  budget — so the collaboration is stage-repeatable and always terminates. *Line:* "Real jams are emergent;
+  a live demo can't be. We make 'who leads' an explicit convention in code and keep the collaborative FEEL —
+  what the audience hears is the cross-voice RESPONSE, not a random opener." This is orchestrated L2/L3, not
+  the autonomous L4 where agents pick their own turn order and quit when they feel like it.
+- **The whole COLLABORATION is unit-tested with ZERO LLM calls.** The loop is pure and the note-writing is
+  injected, exactly like the Flow's `Stages` — so turn order, termination, cross-section memory, and even the
+  reprise of a returning hook are verified free. *Line:* "You can unit-test a multi-agent collaboration —
+  who leads, when it stops, what each voice remembers — without spending a cent."
+- **The critique loop nearly ATE the collaboration (the sharpest lesson).** First wiring: the initial
+  generation was cooperative, but a surgical revise regenerated the flagged voice in ISOLATION — so on a
+  piece the Producer sent back twice, the lead the audience finally heard was composed BLIND, the
+  collaboration silently overwritten. *Line:* "It's not enough to collaborate ONCE; if your revise step
+  throws away the shared context, the critique loop quietly un-does the very thing you built." The fix made
+  the shared canvas FIRST-CLASS Flow state, so a revise is just another turn on the same canvas — the
+  regenerated voice still hears the other. *Lesson:* cross-voice state has to LIVE somewhere durable, not be
+  a transient the first pass discards. (Found by an actual live render, not by reasoning — hear-it-to-fix-it.)
+- **One prompt, two modes — the A/B is free.** "No canvas / proposing" degrades cleanly to "compose solo /
+  open the section," so the identical generator serves both the studio and the standalone path, and the
+  studio is opt-in (`RMA_STUDIO=1`) with parallel still the default — so on stage you can flip between "the
+  band composed in isolation" and "the band composed together" and let the room hear what collaboration
+  actually changed.
 
 ## Anticipated Q&A
 

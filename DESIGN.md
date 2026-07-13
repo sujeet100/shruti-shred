@@ -569,12 +569,43 @@ Replicating a sitar meend in a MIDI + SoundFont(FluidSynth) pipeline (subagent r
   feature we still can't produce).
 - **Triage bite** — make a weak Rasik idiom score actually FORCE a revise (worthwhile now that the
   generator can produce idiomatic phrasing, so a revise has something better to become).
-- **★ NEW HEADLINE FEATURE — bounded cooperative collaboration** (decided 2026-07-12; BUILD IN A NEW
-  SESSION). See the dedicated design section below. This is the talk's second named pattern.
+- **★ HEADLINE FEATURE — bounded cooperative collaboration — ✅ BUILT (2026-07-13).** The studio session
+  (steps 1–5) is done and green (321 pure tests); opt-in behind `RMA_STUDIO=1`, the parallel path still the
+  default. See the dedicated design section below for the as-built breakdown. The talk's second named pattern.
 
-## Next headline feature — bounded cooperative collaboration ("the band composes on a canvas")
+## Headline feature — bounded cooperative collaboration ("the band composes on a canvas")
 
-*Decided 2026-07-12 (Sujit's idea; Claude + GPT independently converged). To be BUILT IN A NEW SESSION.*
+*Decided 2026-07-12 (Sujit's idea; Claude + GPT independently converged). **BUILT 2026-07-13** — opt-in
+behind `RMA_STUDIO=1`, the parallel generate-in-isolation path still the default until it's heard on stage.*
+
+**AS BUILT (steps 1–5, all pure-tested; one step-4 live render confirmed it end-to-end):**
+1. **The cooperative loop** — `crew/studio.py::run_studio`: a PURE driver over the bandleader+clock that
+   walks each section's schedule, filling a `SectionCanvas`, with the note-writing INJECTED as a
+   `contribute` callback (the same seam as the Flow's `Stages`, so the whole loop tests with no LLM).
+   `active_roles`/`section_turns` honour which voices actually play (a solo alaap, a silent breakdown).
+2. **Canvas-aware generators** — `crew/lead.py`/`crew/riff.py` render a `{move}`+`{canvas}` block so a
+   voice ANSWERS what the other just played (respond) or reworks against the ensemble (refine); one prompt
+   serves both the studio and the standalone path ("no canvas / propose" ⇒ compose solo). `studio_lead_fn`/
+   `studio_riff_fn` are the canvas-aware per-section calls.
+3. **The LLM-backed shell** — `crew/studio_session.py::make_contributor`/`compose_studio`: bridges the loop
+   to the generators, PRESERVES riff-slot recurrence (a returning hook reprises without an LLM call), and
+   assembles the filled canvases into the band's `(lead_layers, rhythm, events)` shape.
+4. **Flow wiring** — `_generate` routes to `compose_studio` when `RMA_STUDIO=1` (else parallel); both return
+   the same shape so assembly/critics/Conductor/render are untouched. `RMA_CANVAS_PASSES` tunes the fast-mode.
+5. **Canvas-aware revise** — the step-4 live render exposed that a surgical revise regenerated the flagged
+   voice in ISOLATION, silently OVERWRITING the collaboration (the lead you hear was composed blind). Fix:
+   retain the canvases in `ComposeState`, and `regenerate_layer` reworks the flagged voice CANVAS-AWARE (a
+   refine turn that still sees the other voice's line). The collaboration now survives the critique loop.
+   *Lesson (talk-gold): the cross-voice state must LIVE in durable Flow state, or the revise un-does the
+   collaboration.* The parallel path still revises standalone (no canvas to be aware of).
+
+**Deferred (not needed for the pattern):** `SectionIntent` AUTHORING (the leader declaring
+energy/tension/groove as a semantic layer the deterministic voices read) — the follower currently answers
+the LINE, which is musically legitimate; wire intent-authoring when the drums/bass/dynamics should read it.
+A live re-render ON the canvas-aware revise (to HEAR it) is still open — the mechanism is proven by tests.
+
+*(Original pre-build design notes below, kept for the record; the AS BUILT block above supersedes the open
+items — leader/follower table, canvas shape, pass count — which are now settled in code.)*
 
 **Why.** The talk needs a SECOND named multi-agent pattern beside the critique loop, and real
 collaboration is rarely showcased (most demos are plain workflows — Sujit's differentiator). Musically,
