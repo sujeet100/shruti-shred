@@ -7,19 +7,31 @@ and the **`Composition`** (the audio/score). It never reaches into agent interna
 ## Run it
 
 ```bash
-# offline replay — zero LLM cost (the default; safe to run freely)
 uv run python -m ui.server          # -> http://127.0.0.1:8500
-
-# LIVE — actually calls the crew (Gemini billing is on; opt in explicitly)
-RMA_UI_LIVE=1 uv run python -m ui.server
 ```
 
-Open a browser at the printed URL and press **Compose**. In replay mode the button plays
-an embedded, contract-accurate event stream + a matching Composition, so the whole show
-runs with no key and no cost. In LIVE mode the button POSTs the text box to
-`crew.flow.compose_flow` and renders the real `state.events` / `state.composition` through
-the **same** code path. If a live call fails on stage, the UI falls back to the replay, so
-a dead key never blanks the screen.
+Open the printed URL and press **Compose**. Two independent switches drive the show, and
+you can flip either at any time (including mid-run):
+
+- **Source — `Demo | Live`** (in the input bar). *Demo* plays the embedded,
+  contract-accurate event stream + a matching Composition, so the whole show runs with no
+  key and no cost. *Live* POSTs the text box to `crew.flow.compose_flow` and renders the
+  real `state.events` / `state.composition` through the **same** code path. The Live
+  segment is only selectable when the server sees a `GEMINI_API_KEY` (it turns hot-magenta
+  when armed — Gemini billing is on). The default is always the cost-safe **Demo**; pass
+  `RMA_UI_LIVE=1 uv run python -m ui.server` to make Live the default toggle position. If a
+  live call fails on stage, the UI falls back to Demo, so a dead key never blanks the screen.
+- **Walkthrough — `Auto | Step`** (under the sentence line). *Auto* plays the event stream
+  on a paced timer (the classic show, auto-plays the finished WAV at the end). *Step* freezes
+  on each event and advances only when you press **NEXT ▸** (**◂ BACK** rewinds) — or the
+  keyboard: **→ / Space** = next, **←** = back. A live run first collects the whole stream,
+  then you walk the audience through it one beat at a time. The finished song reveals at the
+  last step with **Play** enabled but paused, so you time the reveal yourself.
+
+A run is one `DebateEvent` stream (Demo or Live) played back in whichever mode is selected —
+so **Demo + Step** lets you rehearse the audience walkthrough for free, then flip to
+**Live + Step** on stage. This matches `UI_CONTRACT.md` §9 option 1 (collect the stream,
+then pace it in the UI); no backend streaming is needed.
 
 ## Files
 
@@ -40,9 +52,10 @@ a dead key never blanks the screen.
 The player plays the **FluidSynth-rendered WAV** (the real distortion-guitar/sitar sound
 from `src/render.py` + `MuseScore_General.sf3`) through an `<audio>` element — not an
 in-browser synth. Live mode plays `state.wav_path`; replay plays a real `out/*.wav`. The
-piano-roll visualiser reads the `Composition` and follows the WAV's clock. The finished
-song auto-plays when the run ends. (The published Artifact embeds a short mono clip so it
-still has the true sound with no server.)
+piano-roll visualiser reads the `Composition` and follows the WAV's clock. In **Auto** the
+finished song auto-plays when the run ends; in **Step** it reveals paused at the last event
+so you press Play on cue. (The published Artifact embeds a short mono clip so it still has
+the true sound with no server.)
 
 ## What's real vs. still a mock
 
@@ -56,5 +69,6 @@ still has the true sound with no server.)
 
 ## Dev knob
 
-`window.SHRUTI_SPEED` (default 1) scales the event pacing at runtime — set it low to slow
+`window.SHRUTI_SPEED` (default 1) scales the **Auto** pacing at runtime — set it low to slow
 the walkthrough for a talk, or high to fast-forward. Set it in the console or an init script.
+(In **Step** mode pacing is entirely manual, so this knob has no effect there.)

@@ -258,6 +258,41 @@
   .sentence .cursor { color: var(--temple-gold); animation: blink 1s steps(2) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
 
+  /* ---- Segmented mode toggles (Source: Live|Demo, Playback: Auto|Step) ---- */
+  .seg { display: inline-flex; border: 2px solid var(--stage-line); border-radius: 3px; overflow: hidden; }
+  .seg button {
+    font-family: var(--font-pixel); font-size: 8px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--ink-dim); background: var(--stage-deep); border: 0;
+    padding: 8px 12px; cursor: pointer; transition: background .12s, color .12s;
+  }
+  .seg button + button { border-left: 2px solid var(--stage-line); }
+  .seg button:hover:not([disabled]):not(.on) { color: var(--ink); }
+  .seg button.on { color: #14101c; background: var(--temple-gold); }
+  .seg button[disabled] { opacity: .3; cursor: not-allowed; }
+  /* the LIVE segment is hot-magenta when armed — Gemini billing is on, never accidental */
+  .seg.src button[data-src="live"].on { color: #fff; background: var(--neon-magenta); }
+
+  /* ---- Walkthrough transport (under the sentence line) ---- */
+  .director-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 9px 18px; background: var(--stage-black);
+    border-bottom: var(--edge) solid var(--stage-line);
+  }
+  .db-label {
+    font-family: var(--font-pixel); font-size: 7px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .director-bar .progress { font-family: var(--font-mono); font-size: 16px; color: var(--ink-dim); margin-left: auto; }
+  .director-bar .progress b { color: var(--temple-gold); }
+  .director-bar .kbd-hint { font-family: var(--font-body); font-size: 13px; color: var(--ink-faint); transition: opacity .15s; }
+  /* arrows come from VT323 (Press Start 2P has no triangle/arrow glyphs) */
+  .director-bar .btn .ar { font-family: var(--font-body); font-size: 17px; line-height: 1; vertical-align: -1px; }
+
+  /* ---- Run options row (source toggle in the input bar) ---- */
+  .runbar { display: flex; align-items: center; gap: 10px; margin-top: 11px; flex-wrap: wrap; }
+  .runbar .run-note { font-family: var(--font-body); font-size: 14px; color: var(--ink-faint); letter-spacing: .02em; }
+  .runbar .run-note.hot { color: var(--neon-magenta); }
+
   /* ---- Panels: log + player ---- */
   .panels { display: grid; grid-template-columns: 1fr 1fr; }
   .panel { padding: 14px 16px; min-height: 220px; }
@@ -404,6 +439,19 @@
       <span class="cursor">▌</span>
     </div>
 
+    <!-- WALKTHROUGH TRANSPORT — Auto plays paced; Step waits for a click per event -->
+    <div class="director-bar">
+      <span class="db-label">walkthrough</span>
+      <div class="seg pb" id="pbToggle" role="group" aria-label="playback mode">
+        <button data-pb="auto" class="on">Auto</button>
+        <button data-pb="step">Step</button>
+      </div>
+      <button class="btn" id="backBtn" disabled><span class="ar">←</span> BACK</button>
+      <button class="btn" id="nextBtn" disabled>NEXT <span class="ar">→</span></button>
+      <span class="kbd-hint" id="kbdHint">→/space next · ← back</span>
+      <span class="progress" id="progress">—</span>
+    </div>
+
     <!-- PANELS -->
     <div class="panels">
       <div class="panel log">
@@ -434,6 +482,14 @@
                value="a dark doom fusion in Darbari, key of D"
                aria-label="Describe the song to compose"/>
         <button class="compose" id="composeBtn">COMPOSE</button>
+      </div>
+      <div class="runbar">
+        <span class="db-label">source</span>
+        <div class="seg src" id="srcToggle" role="group" aria-label="run source">
+          <button data-src="demo" class="on">Demo</button>
+          <button data-src="live">Live</button>
+        </div>
+        <span class="run-note" id="runNote">demo · zero cost</span>
       </div>
       <div class="picks">
         <span class="pl">raga</span>
@@ -808,6 +864,13 @@
     logTag: document.getElementById("logTag"),
     prompt: document.getElementById("prompt"),
     composeBtn: document.getElementById("composeBtn"),
+    pbToggle: document.getElementById("pbToggle"),
+    srcToggle: document.getElementById("srcToggle"),
+    runNote: document.getElementById("runNote"),
+    backBtn: document.getElementById("backBtn"),
+    nextBtn: document.getElementById("nextBtn"),
+    kbdHint: document.getElementById("kbdHint"),
+    progress: document.getElementById("progress"),
     playBtn: document.getElementById("playBtn"),
     stopBtn: document.getElementById("stopBtn"),
     time: document.getElementById("time"),
@@ -891,37 +954,122 @@
     dom.sWhat.textContent = e.text;
   }
 
-  let runToken = 0;
   let speed = 1;
   // window.SHRUTI_SPEED is an optional runtime override (a dev/stage pacing knob).
   const sleep = (ms) => new Promise(r => setTimeout(r, ms / (window.SHRUTI_SPEED || speed)));
 
-  async function playStream(events, composition, audio) {
-    const myToken = ++runToken;
+  // A run is a single DebateEvent stream (from Live or Demo) played back two ways:
+  //   AUTO — a paced timer walks the events (the classic show).
+  //   STEP — the presenter advances one event per NEXT click (BACK rewinds).
+  // Both share the same per-event render (choreograph + sentence + log). `token`
+  // supersedes any in-flight auto-loop when a new run starts or the mode flips.
+  const director = {
+    events: [], comp: null, audio: null,
+    i: -1,            // index of the event currently on screen (-1 = none yet)
+    mode: "auto",     // "auto" | "step"
+    token: 0,         // bump to abandon a running auto-loop
+    active: false,    // a stream is loaded
+  };
+
+  // Render event k. `append` just adds its log line (forward play); otherwise the log is
+  // rebuilt 0..k (rewinding needs a clean slate). Choreography always reflects k alone.
+  function showEvent(k, append) {
+    const e = director.events[k];
+    if (!append) {
+      dom.logfeed.innerHTML = "";
+      for (let j = 0; j <= k; j++) logEvent(director.events[j]);
+    } else {
+      logEvent(e);
+    }
+    choreograph(e);
+    setSentence(e);
+    director.i = k;
+    updateDirectorUI();
+  }
+
+  function startRun(events, comp, audio) {
+    director.events = events; director.comp = comp; director.audio = audio;
+    director.i = -1; director.active = true;
+    const token = ++director.token;               // supersede any prior run
     stopAudio();
     dom.logfeed.innerHTML = "";
     hideMoment();
-    setStatus("composing", "status running");
-    dom.composeBtn.disabled = true;
     dom.logTag.textContent = `— ${events.length} events`;
-
-    for (const e of events) {
-      if (myToken !== runToken) return;            // a newer run superseded us
-      choreograph(e);
-      setSentence(e);
-      logEvent(e);
-      await sleep(PACE[e.type] || 1200);
+    if (director.mode === "step") {
+      dom.composeBtn.disabled = false;            // manual mode: recompose any time
+      stepTo(0);                                  // present the first beat; wait for NEXT
+    } else {
+      dom.composeBtn.disabled = true;
+      setStatus("composing", "status running");
+      autoLoop(token);
     }
-    if (myToken !== runToken) return;
-    // finish
+  }
+
+  async function autoLoop(token) {
+    for (let k = director.i + 1; k < director.events.length; k++) {
+      if (token !== director.token || director.mode !== "auto") return;   // superseded / switched
+      showEvent(k, true);
+      await sleep(PACE[director.events[k].type] || 1200);
+    }
+    if (token === director.token) finishRun(true);   // reached the end: reveal + auto-play
+  }
+
+  // The single entry for a manual step (used by NEXT/BACK and the keyboard).
+  function stepTo(k) {
+    k = Math.max(0, Math.min(k, director.events.length - 1));
+    const rewind = k <= director.i;              // going back (or restaging) rebuilds the log
+    showEvent(k, !rewind);
+    setStatus(`step ${k + 1} / ${director.events.length}`, "status running");
+    if (k === director.events.length - 1) finishRun(false);   // reveal the song; presenter presses Play
+  }
+
+  // The payoff: reveal the finished score + audio. Auto-play only in AUTO mode — in STEP the
+  // presenter chooses when to hit Play (the reveal is theirs to time).
+  function finishRun(autoplay) {
     clearActive();
     setActive("Conductor");
     setStatus("done", "status done");
     dom.composeBtn.disabled = false;
-    loadComposition(composition, audio);
-    // "renders to audio": play the finished WAV automatically. The Compose click
-    // primed the <audio>, so this gesture-free start is permitted.
-    if (composition && audio) startAudio();
+    loadComposition(director.comp, director.audio);
+    if (autoplay && director.comp && director.audio) startAudio();
+  }
+
+  function nextStep() { if (director.active && director.mode === "step") stepTo(director.i + 1); }
+  function prevStep() { if (director.active && director.mode === "step") stepTo(director.i - 1); }
+
+  // Flip playback mode — works mid-run: Auto→Step freezes on the current beat; Step→Auto
+  // resumes the paced walk from where you are.
+  function setPlaybackMode(mode) {
+    if ((mode !== "auto" && mode !== "step") || director.mode === mode) return;
+    director.mode = mode;
+    setSegOn(dom.pbToggle, "pb", mode);
+    if (director.active) {
+      const token = ++director.token;            // stop any running auto-loop
+      const atEnd = director.i >= director.events.length - 1;
+      if (mode === "auto") {
+        dom.composeBtn.disabled = !atEnd;
+        if (!atEnd) { setStatus("composing", "status running"); autoLoop(token); }
+      } else {
+        dom.composeBtn.disabled = false;
+        if (director.i < 0) stepTo(0);
+        else if (!atEnd) setStatus(`step ${director.i + 1} / ${director.events.length}`, "status running");
+      }
+    }
+    updateDirectorUI();
+  }
+
+  function updateDirectorUI() {
+    const n = director.events.length;
+    const at = director.active && n ? Math.max(director.i + 1, 1) : 0;
+    dom.progress.innerHTML = at ? `event <b>${at}</b> / ${n}` : "—";
+    const stepping = director.mode === "step" && director.active;
+    dom.backBtn.disabled = !stepping || director.i <= 0;
+    dom.nextBtn.disabled = !stepping || director.i >= n - 1;
+    dom.kbdHint.style.opacity = stepping ? "1" : ".3";
+  }
+
+  function setSegOn(seg, attr, val) {
+    seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset[attr] === val));
   }
 
   // Map each event to stage choreography (the mascots taking turns IS the show).
@@ -1074,6 +1222,42 @@
   dom.composeBtn.addEventListener("click", runCompose);
   dom.prompt.addEventListener("keydown", (e) => { if (e.key === "Enter") runCompose(); });
 
+  // ---- Mode toggles: Source (Live|Demo) + Playback (Auto|Step) --------------- //
+  const LIVE_CAPABLE = !!window.SHRUTI_LIVE_CAPABLE;            // server saw a GEMINI_API_KEY
+  let source = (window.SHRUTI_LIVE && LIVE_CAPABLE) ? "live" : "demo";
+
+  function setSource(src) {
+    if (src === "live" && !LIVE_CAPABLE) return;                // gated: no key, no live
+    source = src;
+    setSegOn(dom.srcToggle, "src", src);
+    const live = src === "live";
+    dom.runNote.textContent = live ? "live · gemini billing ON — real money per run" : "demo · zero cost";
+    dom.runNote.classList.toggle("hot", live);
+  }
+
+  dom.srcToggle.querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => setSource(b.dataset.src)));
+  if (!LIVE_CAPABLE) {
+    const liveBtn = dom.srcToggle.querySelector('[data-src="live"]');
+    liveBtn.disabled = true;
+    liveBtn.title = "set GEMINI_API_KEY and run `uv run python -m ui.server` to unlock live";
+  }
+  setSource(source);
+
+  dom.pbToggle.querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => setPlaybackMode(b.dataset.pb)));
+  dom.nextBtn.addEventListener("click", nextStep);
+  dom.backBtn.addEventListener("click", prevStep);
+
+  // Keyboard for the step-through: →/Space = next, ← = back (ignored while typing a query).
+  document.addEventListener("keydown", (ev) => {
+    if (director.mode !== "step" || !director.active) return;
+    if (document.activeElement === dom.prompt) return;
+    if (ev.key === "ArrowRight" || ev.key === " " || ev.key === "Spacebar") { ev.preventDefault(); nextStep(); }
+    else if (ev.key === "ArrowLeft") { ev.preventDefault(); prevStep(); }
+  });
+  updateDirectorUI();
+
   // Where the demo WAV comes from: the server injects a URL; the artifact embeds a clip.
   function resolveDemoAudio() {
     if (window.SHRUTI_AUDIO) return window.SHRUTI_AUDIO;
@@ -1084,26 +1268,31 @@
     const query = dom.prompt.value.trim() || "a metal fusion";
     let events = DEMO_EVENTS, comp = DEMO_COMPOSITION, audio = resolveDemoAudio();
     // Prime the <audio> inside this click so the finished song can auto-play (autoplay policy).
-    if (audio) {
+    // Only AUTO auto-plays; STEP reveals when the presenter presses Play, so skip the prime.
+    if (audio && director.mode === "auto") {
       audioEl.src = audio; audioEl.muted = true;
       audioEl.play().then(() => { audioEl.pause(); audioEl.currentTime = 0; audioEl.muted = false; })
                     .catch(() => { audioEl.muted = false; });
     }
-    if (LIVE) {
+    if (source === "live") {
+      dom.composeBtn.disabled = true;
+      setStatus("calling the crew…", "status running");
+      dom.sWho.textContent = "System"; dom.sWho.style.color = "var(--role-system)";
+      dom.sWhat.textContent = "running the live crew — interpret → compose → critique → conductor…";
       try {
-        setStatus("calling the crew", "status running");
         const res = await fetch("/api/compose", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ query }) });
+        if (!res.ok) throw new Error("live " + res.status);
         const data = await res.json();
+        if (!data.events || !data.events.length) throw new Error("empty stream");
         events = data.events; comp = data.composition; audio = data.audio || audio;
       } catch (err) {
-        console.warn("live compose failed, falling back to replay", err);
+        console.warn("live compose failed, falling back to demo", err);
+        setStatus("live failed — demo", "status running");
       }
     }
-    playStream(events, comp, audio);
+    startRun(events, comp, audio);
   }
 
-  // detect the live backend (set by the server-wrapped build); default false for the artifact
-  const LIVE = (typeof window.SHRUTI_LIVE !== "undefined") ? !!window.SHRUTI_LIVE : false;
   // the artifact build replaces this token with a base64 WAV data URI; empty otherwise
   const EMBEDDED_AUDIO = "__EMBED_AUDIO__";
 

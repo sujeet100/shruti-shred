@@ -9,10 +9,14 @@ It does two things and nothing else:
                        DebateEvent stream + Composition as JSON, exactly the shape the UI
                        already consumes from its embedded replay (UI_CONTRACT.md §2/§7).
 
-LIVE mode is OFF by default (Gemini billing is live — see CLAUDE.md "Cost discipline"):
-the page runs its embedded, zero-cost replay. Flip it on for the talk with
-`RMA_UI_LIVE=1 uv run python -m ui.server`, which sets `window.SHRUTI_LIVE = true` so the
-Compose button calls the crew. The UI falls back to the replay if a live call fails, so a
+LIVE is opt-in per run from the UI itself (a Source toggle: Live ⇄ Demo). The server
+advertises two facts to the page via the skeleton and /api/health:
+  * SHRUTI_LIVE_CAPABLE — a GEMINI_API_KEY is present, so live CAN run (the toggle unlocks).
+  * SHRUTI_LIVE         — the toggle's DEFAULT position (Live only if RMA_UI_LIVE=1 AND a
+                          key exists; otherwise Demo, the zero-cost embedded replay).
+So the default is always the cost-safe Demo unless you explicitly opt in with
+`RMA_UI_LIVE=1`, but a presenter with a key can still flip Live on from the page. /api/compose
+runs the REAL pipeline; with no key it returns 503 and the UI falls back to the replay, so a
 dead key on stage never blanks the screen.
 
 Run:  uv run python -m ui.server   ->  http://127.0.0.1:8500
@@ -38,7 +42,7 @@ _SKELETON = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Shruti Shred — श्रुति श्रेड</title>
 <style>*{{margin:0;padding:0}}html,body{{background:#08070d}}</style>
-<script>window.SHRUTI_LIVE = {live}; window.SHRUTI_AUDIO = "{audio}";</script>
+<script>window.SHRUTI_LIVE = {live}; window.SHRUTI_LIVE_CAPABLE = {capable}; window.SHRUTI_AUDIO = "{audio}";</script>
 </head>
 <body>
 {content}
@@ -47,9 +51,15 @@ _SKELETON = """<!doctype html>
 """
 
 
-def _live_enabled() -> bool:
-    """LIVE only when explicitly opted in AND a key is present — never by accident."""
-    return os.getenv("RMA_UI_LIVE") == "1" and bool(os.getenv("GEMINI_API_KEY"))
+def _live_capable() -> bool:
+    """A GEMINI_API_KEY is present, so a live run is possible at all (the toggle unlocks)."""
+    return bool(os.getenv("GEMINI_API_KEY"))
+
+
+def _live_default() -> bool:
+    """The Source toggle's DEFAULT position: Live only when explicitly opted in AND a key
+    exists — never live by accident. Otherwise the cost-safe embedded Demo."""
+    return os.getenv("RMA_UI_LIVE") == "1" and _live_capable()
 
 
 def font_face_css() -> str:
@@ -79,7 +89,8 @@ def _demo_audio_url() -> str:
 def _page() -> bytes:
     content = _APP_HTML.read_text(encoding="utf-8").replace("/*__PIXEL_FONTS__*/", font_face_css())
     html = _SKELETON.format(
-        live="true" if _live_enabled() else "false",
+        live="true" if _live_default() else "false",
+        capable="true" if _live_capable() else "false",
         audio=_demo_audio_url(),
         content=content,
     )
@@ -93,6 +104,8 @@ def _run_live(query: str) -> dict:
     from crew.flow import compose_flow
 
     load_env()
+    if not _live_capable():
+        raise RuntimeError("no GEMINI_API_KEY — set it in .env to run live")
     state = compose_flow(query)
     return {
         "events": [e.model_dump(mode="json") for e in state.events],
@@ -116,7 +129,8 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path == "/favicon.ico":
             self._send(204, b"", "image/x-icon")
         elif self.path == "/api/health":
-            self._send(200, json.dumps({"live": _live_enabled()}).encode(), "application/json")
+            health = {"live_capable": _live_capable(), "live_default": _live_default()}
+            self._send(200, json.dumps(health).encode(), "application/json")
         elif self.path.startswith("/audio/"):
             self._serve_audio(self.path[len("/audio/"):])
         else:
@@ -173,8 +187,17 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def serve(host: str = "127.0.0.1", port: int = 8500) -> None:
+    # Load .env at the entry point (not import time) so capability detection sees the key
+    # even when it lives only in .env. Light path: crew.config has no crewai import.
+    from crew.config import load_env
+    load_env()
     server = ThreadingHTTPServer((host, port), _Handler)
-    mode = "LIVE (calls the crew)" if _live_enabled() else "replay (offline, zero cost)"
+    if _live_default():
+        mode = "LIVE by default (calls the crew)"
+    elif _live_capable():
+        mode = "Demo by default — Live toggle UNLOCKED (a key is present)"
+    else:
+        mode = "Demo only — no GEMINI_API_KEY, so Live is locked"
     print(f"Shruti Shred UI — {mode}")
     print(f"  http://{host}:{port}")
     try:
