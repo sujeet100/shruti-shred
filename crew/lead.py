@@ -66,7 +66,7 @@ _LEAD_ROLE: Final = "lead"                 # the layer role this generator fills
 _ROLE_GENERATOR: Final = "generator"       # DebateEvent role for a generator step
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[1]
-_SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "MuseScore_General.sf3"
+_SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
 _OUT_DIR: Final[Path] = _ROOT / "out"
 
 # The exact JSON shape we want back, injected as an input so CrewAI's {placeholder}

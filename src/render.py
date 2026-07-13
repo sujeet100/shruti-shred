@@ -54,6 +54,7 @@ on a chorded rhythm channel bends the whole chord together — correct for a pow
 import subprocess
 from midiutil import MIDIFile
 from raga import SWARAS
+from soundfont import TABLA_KEYS
 
 # GM percussion voices (channel 9). The metal kit the groove engine draws from (a
 # subgenre's drum vocabulary may only name kit keys), plus two conga voices that
@@ -209,13 +210,40 @@ def build_midi(comp: dict, path: str) -> None:
         mf.addTempo(i, 0, comp["bpm"])
     sa = comp["sa"]
     for i, layer in enumerate(layers):
-        # Percussion layers (the metal kit and the tabla) carry hits, not pitched
-        # notes, and both live on GM channel 9.
+        # A tabla routed to a real tabla soundfont (it carries a `bank`) plays its stroke
+        # keys as pitched notes on its own melodic channel — NOT GM percussion. Bank-select
+        # + program first, then each bol's hit becomes a note at its mapped tabla key.
+        if layer.get("role") == "tabla" and layer.get("bank") is not None:
+            ch = layer["channel"]
+            mf.addControllerEvent(i, ch, 0, 0, layer["bank"] // 128)
+            mf.addControllerEvent(i, ch, 0, 32, layer["bank"] % 128)
+            if "program" in layer:
+                mf.addProgramChange(i, ch, 0, layer["program"])
+            # Tune the dayan to Sa (MIDI RPN 00 02 coarse tuning; 64 = no shift): the strokes
+            # are fixed near C, so we pitch-shift the whole tabla channel into the piece's key.
+            ct = layer.get("coarse_tune", 0)
+            if ct:
+                mf.addControllerEvent(i, ch, 0, 101, 0)   # RPN MSB
+                mf.addControllerEvent(i, ch, 0, 100, 2)    # RPN LSB = coarse tuning
+                mf.addControllerEvent(i, ch, 0, 6, 64 + ct)  # data entry MSB (semitones)
+            for h in layer["hits"]:
+                mf.addNote(i, ch, TABLA_KEYS[h["drum"]], h["start"], h.get("dur", 0.2), h.get("vel", 100))
+            continue
+        # Percussion layers (the metal kit and the GM-conga tabla fallback) carry hits, not
+        # pitched notes, and both live on GM channel 9.
         if layer.get("role") in ("drums", "tabla"):
             for h in layer["hits"]:
                 mf.addNote(i, 9, DRUMS[h["drum"]], h["start"], h.get("dur", 0.2), h.get("vel", 100))
             continue
         ch = layer["channel"]
+        # Bank Select (CC0 MSB + CC32 LSB) BEFORE the program change: routes this channel
+        # to a stacked specialized soundfont (e.g. the guitars to a real distorted bank).
+        # Absent on base-GM voices. Emitted first so the following program change resolves
+        # inside the selected bank (FluidSynth reads bank-select, then program change).
+        if layer.get("bank") is not None:
+            msb, lsb = layer["bank"] // 128, layer["bank"] % 128
+            mf.addControllerEvent(i, ch, 0, 0, msb)
+            mf.addControllerEvent(i, ch, 0, 32, lsb)
         if "program" in layer:
             mf.addProgramChange(i, ch, 0, layer["program"])
         # Stereo placement (CC10): metal mixes pan the two rhythm-guitar tracks hard
@@ -271,10 +299,28 @@ def build_midi(comp: dict, path: str) -> None:
         mf.writeFile(f)
 
 
-def render(comp: dict, mid_path: str, wav_path: str, soundfont: str, gain: float = 1.2) -> str:
+def render(
+    comp: dict,
+    mid_path: str,
+    wav_path: str,
+    soundfont: str,
+    gain: float = 1.2,
+    extra_soundfonts: list[tuple[str, int]] | None = None,
+) -> str:
+    """Render the composition to WAV via FluidSynth.
+
+    `soundfont` is the GM base. `extra_soundfonts` is an optional list of
+    `(path, bank_offset)` specialized banks stacked on top (each via FluidSynth's `-b`
+    positional flag); a layer's Bank Select then routes it to one of them. When any extra
+    is stacked, bank-select mode is set to 'mma' so high SF2 banks are addressable.
+    """
     build_midi(comp, mid_path)
-    subprocess.run(
-        ["fluidsynth", "-ni", "-g", str(gain), "-F", wav_path, "-r", "44100", soundfont, mid_path],
-        check=True, capture_output=True,
-    )
+    cmd = ["fluidsynth", "-ni", "-g", str(gain)]
+    if extra_soundfonts:
+        cmd += ["-o", "synth.midi-bank-select=mma"]
+    cmd += ["-F", wav_path, "-r", "44100", soundfont]
+    for path, bank_offset in extra_soundfonts or []:
+        cmd += ["-b", str(bank_offset), path]
+    cmd.append(mid_path)
+    subprocess.run(cmd, check=True, capture_output=True)
     return wav_path

@@ -36,7 +36,7 @@ from crew.groove import groove_layer, tabla_layer
 from raga import validate_composition
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[1]
-_SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "MuseScore_General.sf3"
+_SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
 _OUT_DIR: Final[Path] = _ROOT / "out"
 
 

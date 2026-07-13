@@ -244,7 +244,7 @@ def assemble_composition(arr: Arrangement, layers: list[Layer]) -> Composition:
 # --------------------------------------------------------------------------- #
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[1]
-_SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "MuseScore_General.sf3"
+_SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
 _OUT_DIR: Final[Path] = _ROOT / "out"
 
 
@@ -258,11 +258,18 @@ def render_composition(comp: Composition, *, out_dir: Path, name: str,
     writes the .mid, and shells out to fluidsynth. Returns the WAV path.
     """
     from render import render  # lazy: keep midiutil/fluidsynth off the import path
+    from soundfont import present_extras, route_layers
+
     out_dir.mkdir(parents=True, exist_ok=True)
     payload = comp.model_dump(exclude_none=True)
+    # Route voices to their dedicated banks (guitars -> Dethmetal, sitar/tabla -> Indian
+    # Ensemble; each a no-op if that soundfont is absent) and stack every present extra
+    # soundfont over the GM base.
+    route_layers(payload["layers"], sa=payload["sa"])
+    extra_soundfonts = [(str(e.path), e.bank_offset) for e in present_extras()]
     mid_path = out_dir / f"{name}.mid"
     wav_path = out_dir / f"{name}.wav"
-    render(payload, str(mid_path), str(wav_path), str(soundfont))
+    render(payload, str(mid_path), str(wav_path), str(soundfont), extra_soundfonts=extra_soundfonts)
     return wav_path
 
 

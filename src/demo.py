@@ -17,7 +17,7 @@ from raga import validate_composition  # noqa: E402
 from render import render  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SF = os.path.join(ROOT, "soundfonts", "MuseScore_General.sf3")
+SF = os.path.join(ROOT, "soundfonts", "GeneralUser-GS.sf2")
 
 BEATS_PER_BAR = 3.5          # 7/8
 EIGHTH = 0.5

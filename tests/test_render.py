@@ -142,6 +142,49 @@ def test_build_midi_renders_chords_and_techniques():
     os.remove(path)
 
 
+def test_build_midi_emits_bank_select_for_a_banked_layer():
+    # A layer carrying `bank` gets Bank Select (CC0=controller 0, CC32=controller 32)
+    # emitted before its program change so it routes to a stacked soundfont.
+    comp = {
+        "raga": "darbari", "sa": 50, "bpm": 120,
+        "tala": {"name": "teentaal", "beats_per_bar": 4},
+        "layers": [{
+            "role": "rhythm", "instrument": "dist_guitar", "program": 0, "channel": 0,
+            "bank": 126,
+            "notes": [{"swara": "S", "oct": 0, "start": 0.0, "dur": 0.5, "vel": 100}],
+        }],
+    }
+    scratch = os.environ.get("TMPDIR", "/tmp")
+    path = os.path.join(scratch, "rma_test_bank.mid")
+    build_midi(comp, path)
+    data = open(path, "rb").read()
+    os.remove(path)
+    # Control Change on channel 0 is status 0xB0; controllers 0x00 (MSB) and 0x20 (LSB).
+    assert b"\xb0\x00" in data, "bank-select MSB (CC0) not emitted"
+    assert b"\xb0\x20" in data, "bank-select LSB (CC32) not emitted"
+
+
+def test_build_midi_plays_a_routed_tabla_as_melodic_notes():
+    # A tabla layer carrying a `bank` (routed to a real tabla soundfont) is emitted as
+    # pitched notes on its own melodic channel (8) — bank-select there, NOT GM percussion.
+    comp = {
+        "raga": "darbari", "sa": 62, "bpm": 90,
+        "tala": {"name": "teentaal", "beats_per_bar": 4},
+        "layers": [{
+            "role": "tabla", "channel": 8, "bank": 50, "program": 0,
+            "hits": [{"drum": "tabla_hi", "start": 0.0, "vel": 90},
+                     {"drum": "tabla_lo", "start": 1.0, "vel": 90}],
+        }],
+    }
+    scratch = os.environ.get("TMPDIR", "/tmp")
+    path = os.path.join(scratch, "rma_test_tabla.mid")
+    build_midi(comp, path)
+    data = open(path, "rb").read()
+    os.remove(path)
+    assert b"\xb8\x00" in data, "bank-select MSB (CC0) on channel 8 not emitted"
+    assert b"\x98" in data, "no note-on on channel 8 (melodic tabla not played)"
+
+
 def test_constants_are_sane():
     assert 0 < PALM_MUTE_DUR < 1 and 0 < PALM_MUTE_VEL <= 1
     assert SLIDE_IN_ST < 0 and BEND_ST > 0

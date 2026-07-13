@@ -235,9 +235,23 @@ checklist.
 - **Python version:** pin to a crewai-supported version (`uv python pin 3.13` — 3.14 wheels may
   lag for crewai's dep tree). Re-verify the render there (render side is version-agnostic).
 - Render/sound check: `uv run python src/demo.py` → writes `out/*.wav`.
-- Render engine: **FluidSynth** + `soundfonts/MuseScore_General.sf3`
-  (Distortion Guitar = GM program 30 — the same patch Songsterr uses). FluidSynth is a system
+- Render engine: **FluidSynth** + `soundfonts/GeneralUser-GS.sf2` (GeneralUser GS 2.0.3,
+  License v2.0; Distortion Guitar = GM program 30, Sitar = GM #105). Swapped from
+  `MuseScore_General.sf3` (MIT) on 2026-07-13 — an all-round upgrade for guitars/bass/drums
+  with a proper GM sitar; our GM program numbers map transparently (drop-in). Soundfont path
+  is set per module (`_SOUNDFONT`); fetched by `setup.sh` (gitignored). FluidSynth is a system
   binary (brew), NOT a Python dep.
+- **Stacked (split) soundfonts** (`src/soundfont.py`): the renderer can layer specialized
+  banks over the GM base (FluidSynth `-b` bank-offset + MIDI Bank Select per channel, `mma`
+  mode) so a voice pulls from a dedicated soundfont; a missing extra degrades to the base.
+  Live: the rhythm/lead guitars route to **Dethmetal** (dedicated distorted guitar, bank 126;
+  license UNVERIFIED — demo-only), and the **sitar + tabla** route to the **Indian Ensemble**
+  (bank offset 50; E-mu, attribution license, MANUAL fetch — polyphone gates it, see `setup.sh`).
+  That soundfont is pitched an OCTAVE LOW, so the sitar (preset 2) is transposed +1 octave; the
+  tabla (preset 0, melodic channel) is **tuned to the piece's Sa** via RPN coarse-tuning. The
+  **drone stays on GM strings** (better than the tamboura). Routing is data in `soundfont.py`
+  (`route_guitars`/`route_indian`/`route_layers`, `present_extras`); each degrades to the GM
+  base when its file is absent.
 - Deps: `MIDIUtil` (installed). **`crewai` added in Phase 2** (`uv add crewai python-dotenv`).
 - **Secrets:** API keys in `.env` (**gitignored**; commit a `.env.example` template), loaded via
   `python-dotenv`. Never commit `.env`.
