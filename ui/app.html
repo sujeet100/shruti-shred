@@ -85,7 +85,7 @@
     background: linear-gradient(180deg, #1a1330, var(--stage-deep));
   }
   .brand { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-  .logo-deva { line-height: 0; filter: drop-shadow(0 3px 0 rgba(0,0,0,.5)) drop-shadow(0 0 16px rgba(242,181,60,.3)); }
+  .logo-deva { line-height: 0; filter: drop-shadow(0 2px 0 rgba(0,0,0,.5)) drop-shadow(0 0 14px rgba(160,80,255,.5)); }
   .logo-latin { display: flex; align-items: baseline; gap: 12px; padding-bottom: 2px; }
   #logoLatin { font-family: var(--font-pixel); font-size: 13px; color: var(--ink); letter-spacing: 1px; }
   .tagline {
@@ -111,10 +111,10 @@
   .status.done .dot { background: var(--drone-cyan); box-shadow: 0 0 10px var(--drone-cyan); }
   @keyframes rec { 50% { opacity: .25; } }
 
-  /* ---- The stage (the "room") ---- */
+  /* ---- The stage (the studio floor) ---- */
   .stage {
     position: relative;
-    height: clamp(290px, 40vw, 400px);
+    height: clamp(360px, 46vw, 480px);
     overflow: hidden;
     background:
       /* dithered twilight raga sky over a metal-dark floor */
@@ -139,6 +139,29 @@
     box-shadow: inset 0 3px 0 rgba(242,181,60,.06);
   }
 
+  /* rooms — grouped zones that read the workflow; each lights when its people work */
+  .zone {
+    position: absolute; z-index: 0; border-radius: 4px;
+    border: 2px solid rgba(96,86,120,.30);
+    background: linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.14));
+    box-shadow: inset 0 0 34px rgba(0,0,0,.38);
+    transition: border-color .4s, box-shadow .4s;
+  }
+  .zlabel {
+    position: absolute; top: -8px; left: 9px; padding: 0 5px; background: var(--stage-black);
+    font-family: var(--font-pixel); font-size: 7px; letter-spacing: 1px; color: var(--ink-faint);
+    transition: color .4s;
+  }
+  .zone.glow .zlabel { color: var(--ink); }
+  .zone.glow[data-role="composer"]  { border-color: var(--temple-gold);  box-shadow: inset 0 0 40px rgba(242,181,60,.18); }
+  .zone.glow[data-role="generator"] { border-color: var(--saffron);      box-shadow: inset 0 0 40px rgba(217,112,42,.18); }
+  .zone.glow[data-role="critic"]    { border-color: var(--neon-magenta); box-shadow: inset 0 0 40px rgba(255,46,136,.16); }
+  .zone.glow[data-role="conductor"] { border-color: var(--drone-cyan);   box-shadow: inset 0 0 40px rgba(56,224,207,.16); }
+  .zone.glow[data-role="system"]    { border-color: var(--role-system); }
+
+  .furniture { position: absolute; pointer-events: none; }
+  .furniture svg { display: block; }
+
   /* the moving temple-gold spotlight — the signature element */
   .spotlight {
     position: absolute; width: 190px; height: 300px;
@@ -160,6 +183,15 @@
     filter: saturate(.7) brightness(.62);
   }
   .mascot .sprite { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+  /* the sprite wrapper carries the facing flip + a dark pixel outline (Thimbleweed-style) */
+  .mascot .face {
+    position: relative; transition: transform .3s;
+    filter: drop-shadow(1px 0 0 #0b0812) drop-shadow(-1px 0 0 #0b0812)
+            drop-shadow(0 1px 0 #0b0812) drop-shadow(0 -1px 0 #0b0812);
+  }
+  .mascot.flip .face { transform: scaleX(-1); }
+  /* seated folk (writers' table / control console) get their name ABOVE the head */
+  .mascot.seated .nameplate { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 6px; }
   .mascot .nameplate {
     position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
     margin-top: 7px; white-space: nowrap;
@@ -429,31 +461,48 @@
   //  PERSONAS — one mascot per stable `agent` (UI_CONTRACT §5.5).            //
   //  x/y are stage coords in %. `spec` drives the parametric pixel sprite.   //
   // ======================================================================= //
+  // The stage is a RECORDING STUDIO laid out as rooms, so the arrangement itself reads
+  // the workflow: the composers face each other at a table (they DISCUSS), the band plays
+  // in the live room (they COLLABORATE), the critics sit behind a console (they JUDGE), and
+  // the Conductor presides on a riser (he RULES). `zone` groups a persona; `face` turns a
+  // sprite toward its partner; `seated` hides the legs behind the table/console.
   const PERSONAS = {
-    // Back row (intake + creation) sits higher/further back; the critics form the
-    // lit front row; the Conductor stands apart on the right; System is a corner badge.
-    Interpreter: { role:"system",    name:"Interpreter", x:8,  y:58,
+    Interpreter: { role:"system",    name:"Interpreter", zone:"intake",  x:10, y:52, face:"r",
       spec:{ skin:"#e6b98a", coat:"#2f7d76", hair:"#241a2e", prop:"headphones", accent:"#38e0cf" } },
-    Pandit:      { role:"composer",  name:"Pandit",      x:25, y:62,
-      spec:{ skin:"#e0b083", coat:"#efe7d2", hair:"#cfc7b8", beard:true, tilak:true, prop:"tanpura", accent:"#f2b53c" } },
-    Riffsmith:   { role:"composer",  name:"Riffsmith",   x:40, y:58,
-      spec:{ skin:"#d9a679", coat:"#161320", hair:"#0d0a14", longhair:true, prop:"flyingv", accent:"#ff2e88" } },
-    Lead:        { role:"generator", name:"Lead",        x:56, y:62,
+    // Writers' room — Pandit ⇄ Riffsmith face each other across a table (no instruments; they argue the chart)
+    Pandit:      { role:"composer",  name:"Pandit",      zone:"writers", x:27, y:56, face:"r", seated:true,
+      spec:{ skin:"#e0b083", coat:"#efe7d2", hair:"#cfc7b8", beard:true, tilak:true, accent:"#f2b53c" } },
+    Riffsmith:   { role:"composer",  name:"Riffsmith",   zone:"writers", x:42, y:56, face:"l", seated:true,
+      spec:{ skin:"#d9a679", coat:"#161320", hair:"#0d0a14", longhair:true, accent:"#ff2e88" } },
+    // Live room — Lead & Riff play, facing each other, amp + mic between them
+    Lead:        { role:"generator", name:"Lead",        zone:"live",    x:61, y:56, face:"r",
       spec:{ skin:"#e0b083", coat:"#b8462a", hair:"#1c1526", topknot:true, prop:"sitar", accent:"#d9702a" } },
-    Riff:        { role:"generator", name:"Riff",        x:71, y:58,
+    Riff:        { role:"generator", name:"Riff",        zone:"live",    x:76, y:56, face:"l",
       spec:{ skin:"#d9a679", coat:"#20222e", hair:"#141019", cap:true, prop:"guitar", accent:"#d9702a" } },
-    Ustad:       { role:"critic",    name:"Ustad",       x:16, y:93,
-      spec:{ skin:"#dcae80", coat:"#26202f", hair:"#8a8072", beard:true, glasses:true, prop:"rulebook", accent:"#38e0cf", pose:"point" } },
-    Rasik:       { role:"critic",    name:"Rasik",       x:40, y:93,
-      spec:{ skin:"#e0b083", coat:"#5a1f36", hair:"#241a2e", eyesClosed:true, prop:"rose", accent:"#ff2e88", pose:"wah" } },
-    Producer:    { role:"critic",    name:"Producer",    x:64, y:93,
-      spec:{ skin:"#d9a679", coat:"#1d2740", hair:"#141019", beanie:true, prop:"mixer", accent:"#ff2e88" } },
-    Conductor:   { role:"conductor", name:"Conductor",   x:88, y:84,
+    // Control room — the three critics sit behind a long mixing console, facing the room
+    Ustad:       { role:"critic",    name:"Ustad",       zone:"control", x:24, y:92, seated:true,
+      spec:{ skin:"#dcae80", coat:"#26202f", hair:"#8a8072", beard:true, glasses:true, accent:"#38e0cf" } },
+    Rasik:       { role:"critic",    name:"Rasik",       zone:"control", x:44, y:92, seated:true,
+      spec:{ skin:"#e0b083", coat:"#5a1f36", hair:"#241a2e", eyesClosed:true, accent:"#ff2e88" } },
+    Producer:    { role:"critic",    name:"Producer",    zone:"control", x:64, y:92, seated:true,
+      spec:{ skin:"#d9a679", coat:"#1d2740", hair:"#141019", beanie:true, accent:"#ff2e88" } },
+    // The Conductor presides on a riser to the right
+    Conductor:   { role:"conductor", name:"Conductor",   zone:"podium",  x:91, y:72, face:"l",
       spec:{ skin:"#e0b083", coat:"#123a3f", hair:"#e9e3d4", prop:"baton", accent:"#38e0cf", pose:"baton" } },
-    // System / Flow — plumbing, a badge not a character (rendered as a small CRT).
-    System:      { role:"system",    name:"System",      x:94, y:24,
+    // System / Flow — plumbing, a badge not a character (a rack CRT in the corner)
+    System:      { role:"system",    name:"System",      zone:"rack",    x:91, y:22,
       spec:{ device:"crt", accent:"#7d7690" } },
   };
+
+  // The rooms behind the personas (x/y/w/h in stage %). Drawn first, each with a pixel
+  // label and a role-tinted glow that lights while that room's people are working.
+  const ZONES = [
+    { id:"intake",  label:"INTAKE",        role:"system",    x:3,  y:24, w:15, h:40 },
+    { id:"writers", label:"WRITERS ROOM",  role:"composer",  x:20, y:22, w:29, h:41 },
+    { id:"live",    label:"LIVE ROOM",     role:"generator", x:53, y:22, w:31, h:41 },
+    { id:"control", label:"CONTROL ROOM",  role:"critic",    x:6,  y:73, w:75, h:25 },
+    { id:"podium",  label:"",              role:"conductor", x:85, y:52, w:13, h:33 },
+  ];
   const AGENT_ALIAS = { Flow:"System" };   // Flow narrates through the System badge
   const personaKey = (a) => AGENT_ALIAS[a] || (PERSONAS[a] ? a : "System");
 
@@ -469,10 +518,10 @@
     const skin = s.skin, coat = s.coat, hair = s.hair, ac = s.accent || "#f2b53c";
     const skinSh = shade(skin, -22), coatSh = shade(coat, -18), coatHi = shade(coat, 14);
     let r = "";
-    // ground shadow
-    r += P(4,29,16,2,"rgba(0,0,0,.45)");
-    // legs
-    r += P(8,25,3,5,"#15121d") + P(13,25,3,5,"#15121d") + P(8,29,3,1,OUT) + P(13,29,3,1,OUT);
+    if (!s.seated) {
+      r += P(4,29,16,2,"rgba(0,0,0,.4)");                    // ground shadow
+      r += P(8,25,3,5,"#15121d") + P(13,25,3,5,"#15121d") + P(8,29,3,1,OUT) + P(13,29,3,1,OUT);  // legs
+    }
     // body / coat (a robe drops lower for the Pandit/classical)
     const bodyTop = 15, bodyH = s.coat==="#efe7d2" ? 12 : 10;
     r += P(6,bodyTop,12,bodyH,coat);
@@ -521,7 +570,9 @@
       r += P(9,9,3,1,"#e8e2d0") + P(13,9,3,1,"#e8e2d0") + P(12,9,1,1,"#e8e2d0");
     }
     if (s.tilak) r += P(11,7,1,2,"#c0392b");                // a tilak on the brow
+    r += P(9,8,2,1,shade(s.hair,-8)) + P(13,8,2,1,shade(s.hair,-8));   // brows (a bit of expression)
     if (s.beard) r += P(9,12,6,2,shade(s.hair,-6)) + P(9,11,1,2,shade(s.hair,-6)) + P(14,11,1,2,shade(s.hair,-6));
+    else r += P(11,12,2,1,shade(s.skin,-32));               // mouth
     return r;
   }
 
@@ -558,12 +609,21 @@
       case "flyingv":  // Flying-V guitar
         r += P(16,17,7,2,"#161320") + P(20,14,3,3,ac) + P(20,19,3,3,shade(ac,-20));
         r += P(15,17,2,2,"#c9c2b0"); break;
-      case "sitar":    // sitar — round gourd + long neck
-        r += P(2,18,7,7,"#8a4a1a") + P(2,18,7,1,"#b0651f") + P(5,4,2,15,"#6a3a14");
-        r += P(4,20,3,3,ac); break;
-      case "guitar":   // rhythm guitar, slung low
-        r += P(15,19,8,4,"#20222e") + P(15,19,8,1,shade("#20222e",30)) + P(13,20,2,2,"#c9c2b0");
-        r += P(21,20,2,2,ac); break;
+      case "sitar": {  // worn across the body — big round gourd at the hip, long fretted neck
+        const wood = "#8a4a1a";
+        r += P(1,19,9,8,wood) + P(1,19,9,1,"#b0651f") + P(2,26,7,1,shade(wood,-20));   // gourd
+        r += P(9,22,3,2,shade(wood,-10));                                              // joint
+        r += P(11,3,2,21,"#6a3a14") + P(11,3,1,21,shade("#6a3a14",18));                // long neck
+        r += P(11,7,2,1,ac) + P(11,11,2,1,ac) + P(11,15,2,1,ac);                       // strings glint
+        r += P(10,2,4,2,"#4a2810"); break;                                             // pegbox
+      }
+      case "guitar": {  // an electric slung across the body
+        const body = "#20222e";
+        r += P(13,18,10,7,body) + P(13,18,10,1,shade(body,34)) + P(14,24,8,1,shade(body,-14)); // body
+        r += P(20,20,2,3,ac);                                                          // pickup accent
+        r += P(2,20,12,2,"#3a2c1e") + P(2,20,12,1,"#5a4630");                          // neck across body
+        r += P(0,19,3,3,"#141019"); break;                                            // headstock
+      }
       case "rulebook": // the rule of law
         r += P(1,17,5,7,"#2a2138") + P(1,17,5,1,ac) + P(2,19,3,1,"#e8e2d0") + P(2,21,3,1,"#e8e2d0"); break;
       case "rose":     // a connoisseur's rose
@@ -595,6 +655,63 @@
       ${drawPerson(spec)}
     </div>`;
   }
+
+  // ======================================================================= //
+  //  STUDIO FURNITURE — the props that make each room's ACTIVITY legible:     //
+  //  the writers' table, the mixing console, amps, a mic, a riser. Each is an  //
+  //  SVG that scales to its container width (aspect preserved, pixelated).    //
+  // ======================================================================= //
+  function fsvg(vb, inner) {
+    return `<svg viewBox="0 0 ${vb}" preserveAspectRatio="xMidYMax meet" shape-rendering="crispEdges" `
+      + `xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;image-rendering:pixelated">${inner}</svg>`;
+  }
+  function fTable() {   // writers' table (wide + short so the legs stay clear of the console labels)
+    let r = P(0,8,150,8,"#6b3f1c") + P(0,8,150,2,"#8a5426") + P(0,14,150,2,"#4a2a12");   // slab
+    r += P(13,16,7,24,"#4a2a12") + P(130,16,7,24,"#4a2a12");                              // legs
+    r += P(44,1,22,7,"#efe7d2") + P(46,3,18,1,"#c9b58a") + P(46,5,16,1,"#c9b58a");        // papers
+    r += P(82,2,9,6,"#d9702a") + P(82,2,9,2,"#e88a44") + P(90,4,3,3,"#d9702a");           // chai
+    r += P(112,0,3,8,"#c9c2b0") + P(112,-4,3,5,"#f2b53c");                                // candle + flame
+    return fsvg("150 40", r);
+  }
+  function fConsole() {  // the mixing desk: body, slanted panel, faders, knobs, a VU strip
+    let r = P(0,14,240,30,"#141019") + P(0,14,240,3,"#241f30");
+    r += P(0,6,240,10,"#1b1626") + P(0,6,240,2,"#33475e");
+    for (let x=10; x<234; x+=15) r += P(x,9,2,5,"#3a3550") + P(x,10,2,1,"#8c8399");   // faders
+    for (let x=7; x<236; x+=12) r += P(x,18,3,3,"#2a2540");                            // knobs
+    const vu = ["#38e0cf","#f2b53c","#ff2e88"];
+    for (let i=0;i<18;i++) r += P(8+i*13,24,9,2, vu[i%3]);                             // VU strip
+    return fsvg("240 46", r);
+  }
+  function fAmp() {     // a 4x12 guitar cab
+    let r = P(2,4,36,38,"#161320") + P(2,4,36,2,"#2a2540") + P(2,4,2,38,"#2a2540");
+    for (let yy=9; yy<40; yy+=16) for (let xx=8; xx<34; xx+=15)
+      r += `<circle cx="${xx+4}" cy="${yy+4}" r="6" fill="#0a0813" stroke="#33303f" stroke-width="1"/>`;
+    r += P(14,0,12,4,"#241f30");
+    return fsvg("40 44", r);
+  }
+  function fMic() {     // a mic on a stand
+    let r = P(5,10,2,50,"#3a3550") + P(1,58,10,2,"#2a2540");
+    r += `<circle cx="6" cy="7" r="5" fill="#1b1626" stroke="#4a4560" stroke-width="1"/>`;
+    return fsvg("12 62", r);
+  }
+  function fRiser() {   // the conductor's platform
+    return fsvg("60 22", P(0,6,60,14,"#1b1626") + P(0,6,60,2,"#2a3550") + P(3,20,54,2,"#0d0a14"));
+  }
+  function fScreen() {  // the interpreter's listening screen (a waveform)
+    let r = P(2,4,44,26,"#0e1420") + P(4,6,40,20,"#0a0f18");
+    const hs = [4,8,12,7,10,5,9,6];
+    for (let i=0;i<13;i++){ const hh=hs[i%hs.length]; r += P(6+i*3,16-(hh>>1),2,hh,"#38e0cf"); }
+    r += P(18,30,12,4,"#1a1626");
+    return fsvg("48 40", r);
+  }
+  const FURNITURE = [
+    { id:"screen",  z:1, x:4,  y:30,  w:11,  svg:fScreen() },
+    { id:"table",   z:6, x:20, y:46,  w:29,  svg:fTable() },
+    { id:"amp",     z:1, x:52, y:44,  w:9,   svg:fAmp() },
+    { id:"mic",     z:1, x:69, y:38,  w:3.2, svg:fMic() },
+    { id:"console", z:6, x:6,  y:84,  w:75,  svg:fConsole() },
+    { id:"riser",   z:1, x:85, y:79,  w:13,  svg:fRiser() },
+  ];
 
   // ======================================================================= //
   //  PIXEL TEXT — no pixel FONT is available offline, and there is no good    //
@@ -645,14 +762,33 @@
   //  Build the stage                                                        //
   // ======================================================================= //
   const stage = document.getElementById("stage");
-  const els = {};
+  const els = {}, zoneEls = {};
+
+  // rooms behind everyone
+  for (const z of ZONES) {
+    const d = document.createElement("div");
+    d.className = "zone"; d.dataset.role = z.role; d.dataset.zone = z.id;
+    d.style.left = z.x + "%"; d.style.top = z.y + "%"; d.style.width = z.w + "%"; d.style.height = z.h + "%";
+    if (z.label) d.innerHTML = `<span class="zlabel">${z.label}</span>`;
+    stage.appendChild(d);
+    zoneEls[z.id] = d;
+  }
+  // furniture (the props that read each room's activity)
+  for (const f of FURNITURE) {
+    const d = document.createElement("div");
+    d.className = "furniture";
+    d.style.left = f.x + "%"; d.style.top = f.y + "%"; d.style.width = f.w + "%"; d.style.zIndex = f.z;
+    d.innerHTML = f.svg;
+    stage.appendChild(d);
+  }
+  // the band
   for (const [key, p] of Object.entries(PERSONAS)) {
     const m = document.createElement("div");
-    m.className = "mascot" + (p.x > 55 ? " right" : "");
+    m.className = "mascot" + (p.x > 55 ? " right" : "") + (p.face === "r" ? " flip" : "") + (p.seated ? " seated" : "");
     m.style.left = p.x + "%"; m.style.top = p.y + "%";
     m.innerHTML =
       `<div class="bubble" id="bub-${key}"></div>` +
-      `<div class="bob">${mascotSVG(p.spec)}</div>` +
+      `<div class="bob"><div class="face">${mascotSVG(p.spec)}</div></div>` +
       `<div class="nameplate"></div>`;
     stage.appendChild(m);
     m.querySelector(".nameplate").textContent = p.name;
@@ -687,9 +823,9 @@
   function renderLogo() {
     const narrow = window.innerWidth < 600;
     pxInto(dom.logoDeva, { text: "श्रुति श्रेड", shaped: true, font: DEVA_FONT, weight: "700",
-      fontPx: narrow ? 20 : 26, scale: narrow ? 2 : 3,
-      gradient: [[0, "#ffe7a6"], [0.5, "#f2b53c"], [1, "#c26320"]], outline: "#241206",
-      padTop: narrow ? 18 : 24, padBot: narrow ? 10 : 13 });
+      fontPx: narrow ? 13 : 16, scale: 2,                     // smaller than before
+      gradient: [[0, "#efd6ff"], [0.5, "#b26bff"], [1, "#7a2fd6"]], outline: "#180a2b",  // neon violet
+      padTop: narrow ? 11 : 13, padBot: narrow ? 7 : 8 });
     dom.logoLatin.textContent = "SHRUTI SHRED";
   }
   function pxPlay(word) { dom.playBtn.textContent = word; }
@@ -704,11 +840,12 @@
     activeKey = key;
     const m = els[key]; if (!m) return;
     m.classList.add("active");
-    // move the spotlight to this mascot
+    // move the spotlight to this mascot and light their room
     const p = PERSONAS[key];
     stage.classList.add("lit");
     dom.spotlight.style.left = p.x + "%";
-    dom.spotlight.style.top = (p.y - 62) + "%";
+    dom.spotlight.style.top = (p.y - 58) + "%";
+    glowActiveZone(p.zone);
     if (opts.say) {
       const bub = document.getElementById("bub-" + key);
       if (bub) { bub.textContent = opts.say; m.classList.add("speaking"); }
@@ -716,7 +853,10 @@
   }
   function clearActive() {
     if (activeKey && els[activeKey]) els[activeKey].classList.remove("active","speaking");
-    activeKey = null; stage.classList.remove("lit");
+    activeKey = null; stage.classList.remove("lit"); glowActiveZone(null);
+  }
+  function glowActiveZone(zoneId) {
+    for (const id in zoneEls) zoneEls[id].classList.toggle("glow", id === zoneId);
   }
 
   function showMoment(kind, label) {
