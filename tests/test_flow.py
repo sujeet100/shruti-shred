@@ -83,10 +83,10 @@ def _fake_stages(rulings: list[ConductorRuling], *, counts: dict):
         counts["arbitrate"] = counts.get("arbitrate", 0) + 1
         return next(ruling_iter), [_ev("arbitrate")]
 
-    def regenerate(_arr, lead, rhythm, ruling):
+    def regenerate(_arr, lead, rhythm, ruling, canvases):
         counts["regenerate"] = counts.get("regenerate", 0) + 1
         counts.setdefault("revise_layers", []).append(ruling.layer)
-        return lead, rhythm, [_ev("regenerate")]
+        return lead, rhythm, [_ev("regenerate")], canvases
 
     def render(_comp):
         counts["render"] = counts.get("render", 0) + 1
@@ -95,7 +95,7 @@ def _fake_stages(rulings: list[ConductorRuling], *, counts: dict):
     return Stages(
         interpret=interpret,
         compose=lambda brief: (arr, [_ev("compose")]),
-        generate=lambda arr: ([Layer(role="lead")], Layer(role="rhythm"), [_ev("generate")]),
+        generate=lambda arr: ([Layer(role="lead")], Layer(role="rhythm"), [_ev("generate")], []),
         assemble=lambda arr, lead, rhythm: comp,
         critique=critique, arbitrate=arbitrate, regenerate=regenerate, render=render)
 
@@ -164,6 +164,68 @@ def test_events_accumulate_across_the_pipeline():
     # the opening pass, the revise, and the second pass all left events
     assert "interpret" in agents and "compose" in agents and "generate" in agents
     assert agents.count("critique") == 2 and agents.count("regenerate") == 1
+
+
+# --- generation-path selection: studio (opt-in) vs parallel (default) ----------
+
+def test_studio_enabled_reads_the_env_flag():
+    from crew.config import studio_enabled
+    for on in ("1", "true", "YES", "on"):
+        os.environ["RMA_STUDIO"] = on
+        assert studio_enabled() is True, on
+    for off in ("0", "", "no", "false"):
+        os.environ["RMA_STUDIO"] = off
+        assert studio_enabled() is False, off
+    os.environ.pop("RMA_STUDIO", None)
+    assert studio_enabled() is False                 # unset -> off (parallel is the default)
+
+
+def test_canvas_passes_default_override_and_fallback():
+    from crew.config import CANVAS_PASSES, canvas_passes
+    os.environ.pop("RMA_CANVAS_PASSES", None)
+    assert canvas_passes() == CANVAS_PASSES
+    os.environ["RMA_CANVAS_PASSES"] = "1"
+    assert canvas_passes() == 1
+    os.environ["RMA_CANVAS_PASSES"] = "-4"           # clamped to >= 1
+    assert canvas_passes() == 1
+    os.environ["RMA_CANVAS_PASSES"] = "junk"          # non-int -> default, never crash a run
+    assert canvas_passes() == CANVAS_PASSES
+    os.environ.pop("RMA_CANVAS_PASSES", None)
+
+
+def test_generate_routes_to_the_studio_when_enabled():
+    import crew.flow as flow
+    import crew.studio_session as ss
+    marks: list = []
+    original = ss.compose_studio
+    ss.compose_studio = lambda arr, **kw: marks.append(("studio", kw.get("passes"))) or ([], None, [], [])
+    os.environ["RMA_STUDIO"] = "1"
+    os.environ["RMA_CANVAS_PASSES"] = "2"
+    try:
+        result = flow._generate(_arr())
+        assert marks == [("studio", 2)]              # routed to the studio, passes threaded
+        assert result == ([], None, [], [])
+    finally:
+        ss.compose_studio = original
+        os.environ.pop("RMA_STUDIO", None)
+        os.environ.pop("RMA_CANVAS_PASSES", None)
+
+
+def test_generate_routes_to_parallel_by_default():
+    import crew.flow as flow
+    import crew.lead as lead_mod
+    import crew.riff as riff_mod
+    marks: list = []
+    ol, orr = lead_mod.compose_lead, riff_mod.compose_riff
+    lead_mod.compose_lead = lambda arr: marks.append("lead") or ([], [])
+    riff_mod.compose_riff = lambda arr: marks.append("riff") or (None, [])
+    os.environ.pop("RMA_STUDIO", None)               # default: studio OFF
+    try:
+        flow._generate(_arr())
+        assert marks == ["lead", "riff"]             # the parallel generate-in-isolation path
+    finally:
+        lead_mod.compose_lead = ol
+        riff_mod.compose_riff = orr
 
 
 if __name__ == "__main__":

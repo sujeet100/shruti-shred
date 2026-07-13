@@ -122,6 +122,35 @@ def has_api_key() -> bool:
     return bool(os.getenv("GEMINI_API_KEY"))
 
 
+def _env_flag(name: str) -> bool:
+    """True iff env var `name` is set to a truthy value (1/true/yes/on)."""
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def studio_enabled() -> bool:
+    """True iff the COOPERATIVE studio session is the generation path; env `RMA_STUDIO`.
+
+    Opt-in — default OFF, so the Flow keeps the parallel generate-in-isolation path until
+    the studio output has been heard on stage. Flip it on (or make it the default here)
+    once confirmed; nothing else in the pipeline changes, both paths return the same shape.
+    """
+    return _env_flag("RMA_STUDIO")
+
+
+def canvas_passes() -> int:
+    """Turns per section in the studio session; env `RMA_CANVAS_PASSES` overrides
+    CANVAS_PASSES. Clamped to >= 1 (a fast / live-safe run passes a smaller value; 1 is
+    leader-only). A non-integer value falls back to the default rather than crashing a run.
+    """
+    raw = os.getenv("RMA_CANVAS_PASSES")
+    if raw is None:
+        return CANVAS_PASSES
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return CANVAS_PASSES
+
+
 def build_llm(model: str, temperature: float, effort: str | None = None):
     """Construct a CrewAI LLM (lazy import: no crewai cost until called).
 

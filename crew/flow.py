@@ -45,6 +45,7 @@ from crew.contracts import (
     Layer,
     ProducerVerdict,
     RasikVerdict,
+    SectionCanvas,
     UstadVerdict,
 )
 
@@ -78,7 +79,11 @@ def revise_arrangement(arr: Arrangement, ruling: ConductorRuling) -> Arrangement
 
 type Interpret = Callable[[str], tuple[CompositionBrief, list[DebateEvent]]]
 type Compose = Callable[[CompositionBrief], tuple[Arrangement, list[DebateEvent]]]
-type Generate = Callable[[Arrangement], tuple[list[Layer], Optional[Layer], list[DebateEvent]]]
+# generate/regenerate also carry the studio's per-section canvases (empty for the parallel
+# path), retained in Flow state so a surgical revise can stay CANVAS-AWARE.
+type Generate = Callable[
+    [Arrangement],
+    tuple[list[Layer], Optional[Layer], list[DebateEvent], list[SectionCanvas]]]
 type Assemble = Callable[[Arrangement, list[Layer], Optional[Layer]], Composition]
 type Critique = Callable[
     [Composition, Arrangement],
@@ -87,8 +92,8 @@ type Arbitrate = Callable[
     [UstadVerdict, RasikVerdict, ProducerVerdict, Composition],
     tuple[ConductorRuling, list[DebateEvent]]]
 type Regenerate = Callable[
-    [Arrangement, list[Layer], Optional[Layer], ConductorRuling],
-    tuple[list[Layer], Optional[Layer], list[DebateEvent]]]
+    [Arrangement, list[Layer], Optional[Layer], ConductorRuling, list[SectionCanvas]],
+    tuple[list[Layer], Optional[Layer], list[DebateEvent], list[SectionCanvas]]]
 type Render = Callable[[Composition], Optional[str]]
 
 
@@ -117,12 +122,30 @@ def _compose(brief: CompositionBrief) -> tuple[Arrangement, list[DebateEvent]]:
     return compose(brief)
 
 
-def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[DebateEvent]]:
+def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[DebateEvent],
+                                          list[SectionCanvas]]:
+    """Generate the two creative voices — one of two paths, selected by config:
+
+      * COOPERATIVE (`RMA_STUDIO=1`): Lead and Riff compose TOGETHER on a shared canvas,
+        each answering what the other just played (the studio session — DESIGN.md's second
+        named pattern);
+      * PARALLEL (default): each composes in isolation against the shared chart.
+
+    Both return (lead_layers, rhythm, events, canvases), so the rest of the Flow — assembly,
+    critics, Conductor, render — is identical either way. `canvases` is empty for the parallel
+    path and the per-section SectionCanvas list for the studio; the Flow keeps it in state so
+    a surgical revise can regenerate the flagged voice CANVAS-AWARE (the collaboration
+    survives the critique loop), while the parallel path revises standalone.
+    """
+    from crew.config import canvas_passes, studio_enabled
+    if studio_enabled():
+        from crew.studio_session import compose_studio
+        return compose_studio(arr, passes=canvas_passes())
     from crew.lead import compose_lead
     from crew.riff import compose_riff
     lead_layers, e1 = compose_lead(arr)
     rhythm, e2 = compose_riff(arr)
-    return lead_layers, rhythm, [*e1, *e2]
+    return lead_layers, rhythm, [*e1, *e2], []
 
 
 def _assemble(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer]) -> Composition:
@@ -152,20 +175,26 @@ def _arbitrate(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdi
 
 
 def _regenerate(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer],
-                ruling: ConductorRuling) -> tuple[list[Layer], Optional[Layer], list[DebateEvent]]:
-    """Regenerate ONLY the flagged creative voice, steered by the directive. The
-    derivable voices (drone/bass/drums/tabla) re-derive at reassembly, so they stay
-    consistent. A ruling targeting a non-creative voice has nothing to regenerate."""
+                ruling: ConductorRuling, canvases: list[SectionCanvas]
+                ) -> tuple[list[Layer], Optional[Layer], list[DebateEvent], list[SectionCanvas]]:
+    """Regenerate ONLY the flagged creative voice, steered by the directive. If the studio
+    produced canvases (the cooperative path), regenerate CANVAS-AWARE — the voice still sees
+    the other's line, so the collaboration survives the revise; otherwise (the parallel path)
+    do the standalone surgical fix. The derivable voices (drone/bass/drums/tabla) re-derive at
+    reassembly either way. A ruling targeting a non-creative voice has nothing to regenerate."""
+    revised = revise_arrangement(arr, ruling)
+    if canvases:
+        from crew.studio_session import regenerate_layer
+        return regenerate_layer(revised, canvases, ruling.layer)
     from crew.lead import compose_lead
     from crew.riff import compose_riff
-    revised = revise_arrangement(arr, ruling)
     if ruling.layer == "rhythm":
         new_rhythm, events = compose_riff(revised)
-        return lead_layers, new_rhythm, events
+        return lead_layers, new_rhythm, events, canvases
     if ruling.layer == "lead":
         new_lead, events = compose_lead(revised)
-        return new_lead, rhythm, events
-    return lead_layers, rhythm, []
+        return new_lead, rhythm, events, canvases
+    return lead_layers, rhythm, [], canvases
 
 
 def _render(comp: Composition, *, soundfont: Path, out_dir: Path, name: str) -> Optional[str]:
@@ -196,6 +225,7 @@ class ComposeState(BaseModel):
     arrangement: Optional[Arrangement] = None
     lead_layers: list[Layer] = Field(default_factory=list)
     rhythm: Optional[Layer] = None
+    canvases: list[SectionCanvas] = Field(default_factory=list)   # studio canvases (empty if parallel) — kept so a revise stays canvas-aware
     composition: Optional[Composition] = None
     ustad: Optional[UstadVerdict] = None
     rasik: Optional[RasikVerdict] = None
@@ -238,10 +268,11 @@ class ComposeFlow(Flow[ComposeState]):
         st = self.state
         brief, e1 = self._stages.interpret(st.query)
         arr, e2 = self._stages.compose(brief)
-        lead_layers, rhythm, e3 = self._stages.generate(arr)
+        lead_layers, rhythm, e3, canvases = self._stages.generate(arr)
         st.arrangement = arr
         st.lead_layers = lead_layers
         st.rhythm = rhythm
+        st.canvases = canvases
         st.composition = self._stages.assemble(arr, lead_layers, rhythm)
         st.events.extend([*e1, *e2, *e3])
 
@@ -257,10 +288,11 @@ class ComposeFlow(Flow[ComposeState]):
         """
         st = self.state
         assert st.arrangement is not None and st.ruling is not None
-        lead_layers, rhythm, events = self._stages.regenerate(
-            st.arrangement, st.lead_layers, st.rhythm, st.ruling)
+        lead_layers, rhythm, events, canvases = self._stages.regenerate(
+            st.arrangement, st.lead_layers, st.rhythm, st.ruling, st.canvases)
         st.lead_layers = lead_layers
         st.rhythm = rhythm
+        st.canvases = canvases
         st.composition = self._stages.assemble(st.arrangement, lead_layers, rhythm)
         st.events.extend(events)
         return "recritique"
@@ -329,15 +361,26 @@ def compose_flow(query: str, *, stages: Optional[Stages] = None,
 # --------------------------------------------------------------------------- #
 
 def _demo_arrangement() -> Arrangement:
+    """A 3-section fusion arc that SHOWCASES the cooperative studio: a riff-LED opener
+    (the Riff proposes the main hook, the Lead answers it), a lead-LED taan (the Lead
+    proposes, the Riff beds it), and a RETURN of the main riff (a reprise — the hook comes
+    back and the Lead answers it fresh). Both creative voices are active in every section so
+    the collaboration actually happens; the shared 'main' slot makes the third section a
+    reprise rather than a new riff."""
     from crew.contracts import ArrangementDraft, Section, SectionKind, build_arrangement
+    band = ["rhythm", "lead", "drums", "drone"]
     draft = ArrangementDraft(
         raga="darbari", subgenre="progressive", tala="teentaal", bpm=120,
         motif=["S", "R", "g", "R", "g", "m", "P"],
         sections=[
-            Section(kind=SectionKind.RIFF, bars=1, layers=["rhythm", "drums", "drone"],
-                    foreground="rhythm", intent="the main riff", transition="lift into the taan"),
-            Section(kind=SectionKind.TAAN, bars=1, layers=["lead", "rhythm", "drums", "drone"],
-                    foreground="lead", intent="a harmonized taan to the climax"),
+            Section(kind=SectionKind.RIFF, bars=1, layers=band, foreground="rhythm",
+                    riff_slot="main", intent="the main riff — heavy and root-driven",
+                    transition="lift into the taan"),
+            Section(kind=SectionKind.TAAN, bars=1, layers=band, foreground="lead",
+                    intent="a harmonized taan climbing to the climax",
+                    transition="crash back to the main riff"),
+            Section(kind=SectionKind.RIFF, bars=1, layers=band, foreground="rhythm",
+                    riff_slot="main", intent="the main riff returns as the outro hook"),
         ])
     return build_arrangement(draft, CompositionBrief(mood="dark"))
 
