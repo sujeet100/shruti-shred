@@ -48,6 +48,15 @@ RASIK_OVERALL_FLOOR: float = 3.0
 # loop — not organic consensus — is what guarantees termination on stage.
 COMPOSER_TURNS: int = 3
 
+# The studio session's clock — bounded COOPERATIVE collaboration (the talk's
+# SECOND named pattern, beside the critique loop). How many turns the two creative
+# voices (Lead + Riff) take on a section's shared canvas before CODE stops them:
+# the leader PROPOSES, the follower RESPONDS, then bounded REFINE turns. Small by
+# design (gains plateau, and live cost is ~2 agents x passes per section) and
+# always terminating — the bandleader's clock, never organic consensus. A fast /
+# live-safe run passes a smaller value (see crew/studio.collaboration_schedule).
+CANVAS_PASSES: int = 3
+
 # One bounded retry per turn (CLAUDE.md: "one bounded retry, not a loop"). If a
 # composer's draft is illegal, the guardrail hands back the precise error and the
 # turn is re-run this many times before we give up. Billing is live — keep it low.

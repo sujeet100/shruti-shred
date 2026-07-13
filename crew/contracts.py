@@ -801,6 +801,129 @@ class RiffPattern(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Contract 1.6: The collaboration canvas — the shared BLACKBOARD               #
+#                                                                             #
+# The talk's SECOND named multi-agent pattern (beside the critique loop):      #
+# bounded COOPERATIVE collaboration. Today each voice is generated in          #
+# ISOLATION (which is why the Producer even scores independence/balance); here #
+# the two creative voices (Lead + Riff) build a section on ONE shared surface  #
+# — a leader SEEDS it, the follower ANSWERS what it hears, and a bounded number #
+# of REFINE turns follow. This model is the "blackboard": the working state     #
+# every pass reads and writes back. WHO leads and WHEN to stop are decided in   #
+# CODE (crew/studio.py — the "bandleader + clock"), never by the agents, so the #
+# collaboration stays visible and terminating (not autonomous L4). The          #
+# Drone/Bass/Drums/Tabla stay deterministic and arrange themselves AROUND the   #
+# finished canvas, so only these two voices are ever LLM.                       #
+# --------------------------------------------------------------------------- #
+
+# The two LLM voices that collaborate, named by their LAYER role — the same
+# strings Section.layers / VOICES / ConductorRuling.layer already use — so the
+# canvas speaks the system's existing vocabulary rather than inventing its own.
+CreativeRole = Literal["lead", "rhythm"]
+
+
+class CanvasMove(str, Enum):
+    """What a voice DOES on its turn at the canvas — a closed set so the schedule
+    (crew/studio.py) and the event stream share one vocabulary.
+    """
+    PROPOSE = "propose"   # the leader seeds the section on the empty canvas
+    RESPOND = "respond"   # the follower answers the leader's line
+    REFINE = "refine"     # a voice reworks its own line given the full ensemble
+
+
+# The section's higher-level musical intent, as closed VOCABULARIES (Literal — friendly
+# to Gemini controlled generation, and a fixed set the follower and the deterministic
+# voices can both read). These are the SEMANTIC layer of the blackboard: notes say HOW,
+# these say WHAT the section is trying to do.
+PhraseShape = Literal["question", "answer", "statement", "development", "climax", "resolution"]
+Tension = Literal["rising", "falling", "steady", "suspended"]
+Groove = Literal["straight", "syncopated", "gallop", "halftime", "free"]
+
+
+class SectionIntent(BaseModel):
+    """The section's shared musical INTENT — what the section is TRYING to do, above
+    the level of notes. This is the "semantic ownership" layer of the blackboard.
+
+    Authored by the LEADER when it proposes, and read by (a) the FOLLOWER — which
+    answers the declared intent instead of reverse-engineering it from a note list —
+    and (b) the DETERMINISTIC voices, so `energy`/`groove`/`tension` finally shape the
+    drums, bass and dynamics (the piece's arc spine, previously only implicit in the
+    notes). The note lines (`SectionCanvas.lead`/`.riff`) REALISE this intent.
+
+    Ownership rule (enforced by the loop, crew/studio.py, not the schema): the leader
+    AUTHORS this; a follower may PROPOSE an amendment on a refine turn, never silently
+    overwrite it — which is what keeps a shared mutable surface coherent.
+
+    Only known-SYMBOL checks live here (so parsing stays robust); RAGA-LEGALITY of
+    `motif`/`target_resolution` is enforced by the authoring guardrail, exactly as the
+    composer's motif and the generators' notes are (see `motif_illegal_in_raga`).
+    """
+    motif: list[str] = Field(default_factory=list)   # the motif CELL this section foregrounds — a quote/variation of the piece motif; EMPTY = inherit the shared arr.motif (so the two can't drift)
+    phrase_shape: PhraseShape                         # the dialogic/structural role (question/answer/...)
+    energy: int = Field(ge=1, le=10)                  # target intensity — the arc's explicit spine
+    tension: Tension                                  # where the section's tension is heading
+    target_resolution: str                            # the swara (nyas) the section leans toward
+    groove: Groove                                    # the rhythmic feel the riff + drums lock to
+    rhythm_pattern: list[float] = Field(default_factory=list)  # optional shared rhythmic cell (durations in beats) both voices accent
+
+    @field_validator("motif")
+    @classmethod
+    def _known_motif_symbols(cls, v: list[str]) -> list[str]:
+        _check_motif_symbols(v)
+        return v
+
+    @field_validator("target_resolution")
+    @classmethod
+    def _known_resolution(cls, v: str) -> str:
+        if v not in SWARAS:
+            raise ValueError(f"unknown target_resolution swara '{v}' (expected one of {' '.join(SWARAS)})")
+        return v
+
+    @field_validator("rhythm_pattern")
+    @classmethod
+    def _positive_beats(cls, v: list[float]) -> list[float]:
+        bad = [b for b in v if b <= 0]
+        if bad:
+            raise ValueError(f"rhythm_pattern durations must be positive beats, got {bad}")
+        return v
+
+
+class SectionCanvas(BaseModel):
+    """The shared blackboard for ONE section — its shared INTENT plus each creative
+    voice's CURRENT line, and who leads.
+
+    The studio loop (crew/studio.py) seeds this, lets the follower respond, then
+    (bounded) refines; the finished canvas is what the deterministic voices arrange
+    around. `intent` is the semantic layer the leader authors (None until it does);
+    `lead`/`riff` are the note lines that realise it — each starts empty and fills in
+    as its voice plays, so a `None` line means "hasn't played yet", itself meaningful
+    (an alaap's riff may stay silent). `log` is a human trace of the session for the
+    event stream and the talk. Mutated IN PLACE during a session (Pydantic models are
+    mutable by default) — transient working state, not a frozen value object.
+    """
+    index: int                                     # the section's position in the form
+    kind: SectionKind
+    start: float                                   # the section's window on the beat grid
+    end: float
+    leader: CreativeRole
+    follower: CreativeRole
+    intent: Optional[SectionIntent] = None         # the shared semantic layer (None until the leader authors it)
+    lead: Optional[LeadPhrase] = None              # the lead's current line (None until it plays)
+    riff: Optional[RiffPattern] = None             # the riff's current line (None until it plays)
+    log: list[str] = Field(default_factory=list)   # who contributed what, in order
+
+    @property
+    def window(self) -> float:
+        """The section's length in beats — what a voice aims to fill."""
+        return self.end - self.start
+
+    def line_for(self, role: CreativeRole) -> LeadPhrase | RiffPattern | None:
+        """The voice's current line on the canvas, or None if it hasn't played yet.
+        Lets the loop read 'the leader's line' / 'the follower's line' generically."""
+        return self.lead if role == "lead" else self.riff
+
+
+# --------------------------------------------------------------------------- #
 # Contract 1.75: Critic verdicts                                              #
 #                                                                             #
 # Ustad (legality) judges a finished Composition. The lesson lives in the type #
