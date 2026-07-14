@@ -26,6 +26,10 @@ Fields per subgenre:
   bpm          [min, max] tempo range
   feel         one-line rhythmic character of the riff
   subdivision  how the riff divides the beat (drives note density/timing)
+  groove_brief an OPERATIONAL directive — concrete rhythm to PLAY, not a mood. This is the
+               fix for "a vague brief collapses into sparse whole notes": it tells the
+               generators what actually happens rhythmically (chugs, turnarounds, fills),
+               so even a slow subgenre stays alive rather than empty.
   register     [low, high] octave offsets from Sa for the rhythm guitar
                (negative = lower/downtuned; Sa=60=C4, so -3 ~ C1)
   techniques   guitar techniques the MetalRiff generator may use
@@ -53,6 +57,10 @@ SUBGENRES = {
         "bpm": [100, 180],
         "feel": "shifting and syncopated; metric modulation, odd meters welcome",
         "subdivision": "mixed 8ths/16ths and triplets, syncopated accents",
+        "groove_brief": "Shift the feel across sections: mix 8ths, 16ths and triplets, displace "
+                        "accents off the beat, and let the odd-meter vibhags reshape the groove. "
+                        "Contrast the heavy riffing with a clean arpeggiated passage, then a "
+                        "16th turnaround back into the sam.",
         "register": [-2, 0],   # widest range of the four — uses the mid octave too
         "techniques": ["palm_mute", "power_chords", "clean_arpeggio", "tapping", "syncopation"],
         "drums": {
@@ -74,6 +82,9 @@ SUBGENRES = {
         "bpm": [160, 210],
         "feel": "relentless downpicked gallop, aggressive and forward-driving",
         "subdivision": "galloping 8th/16th figures, tight downpicking",
+        "groove_brief": "Relentless downpicked 8th/16th gallop locked to the kick — keep the right "
+                        "hand driving. Punctuate with a tight 16th fill or a rest-stab into the "
+                        "sam. Aggressive and forward, never laid-back.",
         "register": [-2, -1],
         "techniques": ["palm_mute", "downpicking", "gallop", "power_chords"],
         "drums": {
@@ -92,8 +103,15 @@ SUBGENRES = {
     "doom": {
         "display": "Doom",
         "bpm": [60, 90],
-        "feel": "slow, crushing, half-time; long sustained power chords",
-        "subdivision": "whole/half notes, sparse and heavy",
+        "feel": "slow and crushing, half-time — sustained power chords ANCHORED by palm-muted "
+                "chugs (heavy, not empty)",
+        "subdivision": "long sustained chords punctuated by 8th-note chugs, with a 16th-note "
+                       "turnaround into each sam",
+        "groove_brief": "Slow and crushing, but NOT empty. Anchor the long sustained power chords "
+                        "with palm-muted 8th-note chugs in the gaps, and drive one 16th-note "
+                        "turnaround into each sam. The kit can play a busier (near double-time) "
+                        "feel under the half-time riff for momentum. Weight comes from the low "
+                        "sustain PLUS the chug — never from silence.",
         "register": [-3, -2],   # very low, downtuned
         "techniques": ["power_chords", "sustain", "bends", "sparse_palm_mute"],
         "drums": {
@@ -114,6 +132,9 @@ SUBGENRES = {
         "bpm": [140, 240],
         "feel": "brutal and blasting; tremolo-picked, chromatic, low",
         "subdivision": "tremolo 16ths and chromatic runs",
+        "groove_brief": "Brutal tremolo-picked 16ths and chromatic runs over constant "
+                        "double-kick/blast — dense and violent. Break the wall only with a sudden "
+                        "half-time breakdown stab, then slam back into the blast.",
         "register": [-3, -2],   # very low, downtuned
         "techniques": ["tremolo", "palm_mute", "power_chords", "chromatic", "pinch_harmonic"],
         "drums": {
@@ -149,6 +170,9 @@ def check_subgenre_consistency(name: str) -> list[str]:
     rlo, rhi = s["register"]
     if rlo > rhi:
         problems.append(f"register {s['register']} has low > high")
+
+    if not str(s.get("groove_brief", "")).strip():
+        problems.append("groove_brief is missing or empty — every subgenre needs an operational brief")
 
     d = s["drums"]
     unknown = [v for v in d["voices"] if v not in DRUMS]

@@ -174,6 +174,9 @@ generate_lead:
 
     TALA POSITION — LAND ON THE SAM: {tala_position}
 
+    GAT STRUCTURE CHECK (mukhada only):
+    {repair}
+
     THE RAGA — use ONLY these swaras; the pakad and chalan below are your raw material:
     {raga_block}
 
@@ -213,8 +216,13 @@ generate_lead:
       - outro: take the seed one last time and resolve it down to a held Sa.
 
     SHAPE IT TO ITS GAT ROLE ({form_role}) — its job in the whole composition:
-      - mukhada: this is the GAT HOOK. State the motif as a clear, memorable melodic head that
-        RESOLVES to the sam; when it returns later, restate it RECOGNISABLY (vary it, never replace).
+      - mukhada: this is the GAT HOOK, and you are writing EXACTLY ONE avartan (one tala cycle) of
+        it — a compact, memorable head, NOT a long through-composed phrase. Two rules make it a hook:
+        (1) LAND ON THE SAM — the cycle resolves onto matra 1, ideally the vadi or Sa; (2) LOOP
+        SEAMLESSLY — write it so the LAST note leads melodically into the FIRST (the opening sam
+        note), so each repeat feels like it LANDS rather than restarts. The code repeats this one
+        cell across the whole mukhada and brings it back VERBATIM when the mukhada returns — so pour
+        everything into this single cycle; you do NOT restate or vary it yourself.
       - manjha: DEVELOP the mukhada in the middle (madhya) register — extend and vary the head.
       - antara: lift into the upper (taar) octave — the brighter, contrasting second theme.
       - taan_short: a SHORT cadential filler (about one cycle) of quick sixteenth-notes that resolves
@@ -227,6 +235,16 @@ generate_lead:
     FAST RUNS ARE SIXTEENTHS, EARNED: build a taan from sixteenth-notes (dur 0.25), but do NOT fill
     every beat with them — use an eighth-note pickup, then a burst of sixteenths, then a held or
     resolving note, so the speed lands rather than blurs. Every phrase resolves onto the sam.
+
+    NYAS AND SPACE — a gat BREATHES; do not pause after every one or two notes, and do not fill
+    every beat either:
+      - LAND THE SAM: matra 1 of each cycle is the resting point — arrive on a strong note (the
+        vadi, Sa, or a m->S resolution) and let it RING or REST there (a nyas), rather than moving
+        straight on.
+      - Use 1-2 true RESTS per avartan (set "rest": true on a note) for real silence — the space the
+        tabla and the gat share — instead of lengthening a note to fake a pause.
+      - Rest on the raga's resting notes (Sa / Ma / Pa where the raga has them); save the wall-to-wall
+        motion for the taan.
 
     WHAT YOU ALREADY PLAYED (the lead's memory of the piece so far, octave in parentheses,
     ~ marks a meend):
@@ -260,6 +278,16 @@ generate_lead:
         (e.g. da diri da ra) — its rhythmic signature — and restate that SAME bol pattern each time
         the mukhada RETURNS. Vary the manjha/antara by bol-bant (redistribute/displace the bols)
         while keeping the melodic DNA. Use chikari sparingly, to answer the tabla or close a phrase.
+
+    MURKI / KHATKA — light decorative flicks, ONLY if the raga facts list them (most do NOT; the
+    grave and meend-driven ragas use andolan/meend instead, so DON'T flag an ornament there):
+      - Set a note's "ornament" to "murki" (delicate, fast) or "khatka" (sharper, heavier). The code
+        builds the little cluster from the raga's own neighbouring swaras — you just choose WHERE and
+        WHICH, you do not spell the cluster out.
+      - Place them on a HELD note (they need ~half a beat to speak), and FAVOUR the komal swaras the
+        raga colours (e.g. komal g and komal r in the descent) — that is where they sound idiomatic.
+      - A garnish, not a habit: a couple per phrase at most. They decorate a resting/cadential note,
+        they don't replace developing the line.
 
     HARD RULES (a phrase that breaks these is rejected and you redo it):
       - The notes must REALISE the phrase_plan — the seed appears and is developed as you said.
@@ -296,6 +324,7 @@ generate_riff:
 
     THE SUBGENRE — {subgenre}: {subgenre_feel}
       subdivision (how the riff divides the beat): {subdivision}
+      OPERATIONAL BRIEF — what to actually PLAY (not a mood): {groove_brief}
       techniques you may imply: {techniques}
       tempo: {bpm} bpm
 
@@ -342,9 +371,10 @@ generate_riff:
       - reserve bend for a sustained phrase-ending or a transition, not mid-chug.
 
     HOW TO WRITE IT:
-      - IT LOOPS: this one cycle repeats back-to-back, returning to your first note on
-        the next sam. Write a figure that sounds complete on its own AND seamless on
-        repeat — shape the end so it leads back toward the root, not a jarring jump.
+      - IT LOOPS AND LANDS: this one cycle repeats back-to-back, returning to your first
+        note/chord on the next sam. Write it so the LAST note/chord RESOLVES into the FIRST —
+        a catchy riff feels like it LANDS on the downbeat, not like it restarts. Shape the end
+        as a turnaround leading back to the root, never a jarring jump.
       - Center on Sa (the root) and the raga's low, dark swaras; a riff is RHYTHMIC and
         root-driven, not a melody. A few raga notes for colour, never a scale run.
       - Match the subdivision: long crushing notes for a slow doom feel, short 8th/16th

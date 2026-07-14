@@ -628,6 +628,9 @@ class Note(BaseModel):
     meend_oct: Optional[int] = None              # target's ABSOLUTE octave (None = the note's own octave)
     chord: Optional[list[str]] = None            # extra raga swaras sounded WITH the root (stacked up)
     technique: Optional[RiffTechnique] = None    # a rhythm-guitar articulation the renderer maps
+    andolan: Optional[bool] = None               # a slow, shallow pitch OSCILLATION on this held note
+                                                 # (Darbari komal g/d, Bhairav komal r/d) — code sets it
+                                                 # deterministically on the raga's andolan swaras
 
     @field_validator("swara")
     @classmethod
@@ -716,6 +719,14 @@ def parse_composition(comp: dict) -> tuple[Optional[Composition], list[str]]:
 # ARTICULATION (crew/lead.py `apply_strokes`), never as pitch — orthogonal to `dur`, no renderer change.
 Bol = Literal["da", "ra", "diri", "darada", "chikari"]
 
+# A light DECORATIVE ornament the sitar flicks on a note — a small crushed neighbour-cluster
+# wrapping the main note. `murki` is delicate and fast; `khatka` the same shape but sharper and
+# heavier (source-verified: the distinction is WEIGHT, not the notes). Unlike andolan (a raga
+# FACT code applies), these are an expressive CHOICE the LLM places; code realises the cluster
+# from the raga's own scale neighbours (legal by construction) and gates it to ragas that use
+# them (only Bhairavi, of our five). Sources + verification in DESIGN.md "Murki/khatka".
+Ornament = Literal["murki", "khatka"]
+
 
 class LeadNote(BaseModel):
     """One note in a Lead phrase — a swara with a duration, no absolute start.
@@ -728,6 +739,13 @@ class LeadNote(BaseModel):
     is the target, and `meend_oct` its LOCAL octave (same frame as the note's `oct`,
     register-shifted at placement) — leave `meend_oct` None to glide WITHIN the note's
     octave, or set it to glide ACROSS octaves (mandra<->taar), core raga idiom.
+
+    `rest` marks a SILENT beat (nyas / breathing space): it occupies its `dur` but sounds
+    nothing (the code skips placing it), so a gat can rest on the sam or leave a gap for the
+    tabla instead of the lead lengthening notes to fake a pause. When `rest` is true,
+    `swara`/`grace`/`meend`/`bol` are ignored; set `swara` to any legal symbol (e.g. "S").
+    The same field the Riff already carries (`RiffNote.rest`), added to the lead so a gat
+    mukhada can breathe.
     """
     swara: str
     oct: int = 0
@@ -737,6 +755,8 @@ class LeadNote(BaseModel):
     meend_swara: Optional[str] = None
     meend_oct: Optional[int] = None
     bol: Optional[Bol] = None            # the mizrab stroke (da/ra/diri/chikari) — sitar articulation
+    rest: bool = False                   # a SILENT beat (nyas/space) — occupies dur, sounds nothing
+    ornament: Optional[Ornament] = None  # a murki/khatka flick — code realises the neighbour-cluster
 
     @field_validator("swara")
     @classmethod
@@ -762,6 +782,14 @@ class LeadNote(BaseModel):
     @classmethod
     def _norm_bol(cls, v):
         # absorb nullish sentinels so a blank doesn't trip the Literal; an unknown bol still fails.
+        if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
+            return None
+        return str(v).strip().lower()
+
+    @field_validator("ornament", mode="before")
+    @classmethod
+    def _norm_ornament(cls, v):
+        # same nullish absorption as bol; an unknown ornament still fails the Literal (retryable).
         if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
             return None
         return str(v).strip().lower()

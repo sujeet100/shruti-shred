@@ -110,7 +110,8 @@ def _render_subgenre(arr: Arrangement) -> str:
     """The subgenre's intended feel — the target the mood_fit criterion judges against."""
     s = SUBGENRES[arr.subgenre]
     return (f"  {s['display']} at ~{arr.bpm} bpm — feel: {s['feel']}; character: {s['character']}; "
-            f"subdivision: {s['subdivision']}")
+            f"subdivision: {s['subdivision']}\n"
+            f"  operational brief (what the groove should DO): {s['groove_brief']}")
 
 
 def _render_riff_line(comp: Composition, arr: Arrangement) -> str:

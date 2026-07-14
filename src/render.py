@@ -50,8 +50,17 @@ A note may also carry an optional "technique": "palm_mute" (a short, slightly so
 chug), "hammer_on"/"pull_off" (a softer legato attack), or "slide"/"bend" (a pitch-
 wheel gesture into/up from the note). Because pitch-bend is channel-wide, a slide/bend
 on a chorded rhythm channel bends the whole chord together — correct for a power chord.
+
+Andolan (oscillation): a held note may carry "andolan": true — a slow, shallow pitch
+sway (a fraction of a semitone, ~2.4 Hz) rendered on the pitch wheel. It is the komal
+note that DEFINES ragas like Darbari (komal g/d) and Bhairav (komal r/d); a straight,
+un-oscillated komal there sounds like a different raga. Set deterministically by the lead
+generator on the raga's own andolan swaras (never by the LLM). Like meend it is a wheel
+gesture, so it lives on a monophonic melodic channel and is mutually exclusive with a
+meend on the same note.
 """
 
+import math
 import subprocess
 from midiutil import MIDIFile
 from raga import SWARAS
@@ -87,6 +96,16 @@ MEEND_GLIDE_BASE_MS = 60     # base glide time
 MEEND_GLIDE_PER_ST_MS = 25   # + this per semitone of interval (wider bends read as slower)
 MEEND_GLIDE_MIN_MS = 80      # never faster than this (else it stops reading as a glide)
 MEEND_GLIDE_MAX_MS = 220     # never slower than this (else it's a swoop again)
+
+# Andolan — the SLOW, SHALLOW pitch oscillation that IS the komal note in ragas like Darbari
+# (komal g/d) and Bhairav (komal r/d): the note "sways" a fraction of a semitone rather than
+# gliding to a target. Kept slow (a gentle sway, not a fast vibrato/gamak) and shallow (a
+# sruti-width waver, not a full bend). Rendered as a sine on the pitch wheel over WHOLE cycles,
+# so it starts and ends at 0 and never bleeds into the next note. Rate is real-time (ms) so
+# tempo doesn't stretch it. Depth is scaled to the armed bend range in `_wheel`.
+ANDOLAN_DEPTH_ST = 0.4       # semitones of sway either side of the note (shallow — a sruti waver)
+ANDOLAN_PERIOD_MS = 420      # one oscillation ~0.42s (~2.4 Hz) — slow enough to read as andolan
+ANDOLAN_STEPS_PER_CYCLE = 16 # wheel events per cycle — dense enough that the sine has no zipper
 
 # Rhythm-guitar technique shaping (see _apply_technique / _render_slide / _render_bend).
 PALM_MUTE_DUR = 0.5      # a chug is short — clip the note to half its written length
@@ -137,8 +156,11 @@ def _apply_technique(technique, dur: float, vel: int) -> tuple[float, int]:
 
 
 def _bends(n: dict) -> bool:
-    """Does this note move the pitch wheel — a meend glide or a slide/bend technique?"""
-    return n.get("meend_swara") is not None or n.get("technique") in ("slide", "bend")
+    """Does this note move the pitch wheel — a meend glide, a slide/bend technique, or an
+    andolan oscillation? Any of these needs the channel's wide bend range armed up front."""
+    return (n.get("meend_swara") is not None
+            or n.get("technique") in ("slide", "bend")
+            or bool(n.get("andolan")))
 
 
 def _meend_glide_beats(interval: int, dur: float, bpm: float) -> float:
@@ -202,6 +224,31 @@ def _render_bend(mf: MIDIFile, track: int, ch: int, start: float, dur: float) ->
         t = start + glide * k / steps
         mf.addPitchWheelEvent(track, ch, round(t, 4), _wheel(BEND_ST * k / steps))
     mf.addPitchWheelEvent(track, ch, round(start + dur, 4), 0)
+
+
+def _andolan_wheel(start: float, dur: float, bpm: float) -> list[tuple[float, int]]:
+    """Pure: the (time, wheel) ramp for an andolan — a slow, shallow sine sway on the pitch
+    wheel, spanning the note. The number of cycles is chosen so a WHOLE number of oscillations
+    fits the note (start and end land on 0 — no bleed into the next note); the rate is held
+    near ANDOLAN_PERIOD_MS in real time so tempo doesn't stretch the sway into a swoop. A note
+    too short for even one slow cycle gets no andolan (it can't read as a sway)."""
+    dur_ms = dur * 60000.0 / bpm
+    cycles = int(round(dur_ms / ANDOLAN_PERIOD_MS))
+    if cycles < 1:
+        return []                                        # too short to sway — leave it clean
+    steps = cycles * ANDOLAN_STEPS_PER_CYCLE
+    ramp: list[tuple[float, int]] = []
+    for k in range(steps + 1):
+        frac = k / steps
+        sway = math.sin(2.0 * math.pi * cycles * frac)   # whole cycles: sin is 0 at frac 0 and 1
+        ramp.append((round(start + dur * frac, 4), _wheel(ANDOLAN_DEPTH_ST * sway)))
+    return ramp
+
+
+def _render_andolan(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
+                    bpm: float) -> None:
+    for t, val in _andolan_wheel(start, dur, bpm):
+        mf.addPitchWheelEvent(track, ch, t, val)
 
 
 def build_midi(comp: dict, path: str) -> None:
@@ -289,13 +336,16 @@ def build_midi(comp: dict, path: str) -> None:
             for csw in n.get("chord") or []:
                 tone = _stack_above(sounding, sa + SWARAS[csw] + 12 * oct)
                 mf.addNote(i, ch, tone, n["start"], dur, vel)
-            # Pitch-wheel gestures: a meend glide to a target swara, or a riff slide/bend.
+            # Pitch-wheel gestures (mutually exclusive per note): a meend glide to a target
+            # swara, a riff slide/bend, or a slow andolan sway on a held komal note.
             if target is not None:
                 _render_meend(mf, i, ch, n["start"], dur, pitch, target, bpm)
             elif n.get("technique") == "slide":
                 _render_slide(mf, i, ch, n["start"], dur)
             elif n.get("technique") == "bend":
                 _render_bend(mf, i, ch, n["start"], dur)
+            elif n.get("andolan"):
+                _render_andolan(mf, i, ch, n["start"], dur, bpm)
     with open(path, "wb") as f:
         mf.writeFile(f)
 

@@ -216,7 +216,8 @@ def _render_subgenre_line(key: str) -> str:
     lo, hi = s["bpm"]
     reg_lo, reg_hi = s["register"]
     return (f"  - {key}: {s['display']} — {lo}-{hi} bpm; {s['feel']}; "
-            f"register octaves [{reg_lo}, {reg_hi}] (lower = heavier)")
+            f"register octaves [{reg_lo}, {reg_hi}] (lower = heavier)\n"
+            f"      how it grooves: {s['groove_brief']}")
 
 
 def _render_subgenres(brief: CompositionBrief) -> str:

@@ -380,6 +380,13 @@ def test_riff_inputs_for_defaults_to_solo_without_a_canvas():
     assert inputs["move"] == "propose" and "OPEN" in inputs["canvas"]
 
 
+def test_riff_inputs_for_carries_the_operational_groove_brief():
+    # the operational brief reaches the riff prompt, so doom means "chugs + turnaround", not silence
+    arr = _arr(("rhythm", "drone"))                      # doom
+    inputs = _RiffContext(arr).inputs_for(section_spans(arr)[0], [])
+    assert "chug" in inputs["groove_brief"] and "turnaround" in inputs["groove_brief"]
+
+
 def test_studio_riff_fn_builds_a_callable_without_an_llm():
     arr = _arr(("rhythm", "lead", "drone"))
     assert callable(studio_riff_fn(arr))

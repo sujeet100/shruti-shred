@@ -1009,3 +1009,75 @@ as thousands of pitch-bends — so judge `fusion.WAV` (FluidSynth + soundfonts),
 
 **Deferred (still queued from before):** gayaki-ang density/meend/sustain (step 6 orig) folds into
 2+3; the sitar-decay articulation-aware fix; Ustad pitch+time-legality talk point (now = fix #4).
+
+#### GAT OVERHAUL build log (2026-07-14, this session — pure tests green, live render pending)
+
+**Fixes 1+2 (mukhada cache/loop + rest) — DONE.** The core gat bug: the lead composed ONE
+through-composed phrase across the whole mukhada window (no repeatable hook) and REGENERATED the
+return (which drifted). Now `generate_lead` writes a `mukhada` as EXACTLY ONE avartan
+(`_one_cycle_span` coerces bars→1), CACHES the cell, and REUSES it verbatim on every return (a
+reprise event, no second LLM call); `_place_lead_section` LOOPS the cell across the section's bars.
+This is the riff-slot cache pattern applied to the gat — *code owns the recurrence, the LLM composes
+one cell*. `LeadNote.rest` added (skipped in placement, ignored by the guardrail/strokes) + a
+NYAS/SPACE prompt block. Sujit's calls: the mukhada loops IDENTICALLY (a returning head, not a
+developing phrase); and a LOOP-SEAM rule went into BOTH the lead and riff prompts — the last
+note/chord must resolve into the first so the cycle *lands* on the sam rather than restarting.
+
+**Fix 3 (andolan) — DONE.** The slow, shallow pitch SWAY that defines a komal note in some ragas.
+`Note.andolan` flag → renderer `_andolan_wheel` (a slow sine on the pitch wheel, ~2.4 Hz, 0.4 st,
+fitted to WHOLE cycles so it starts/ends at 0 — no bleed; `_bends` arms the range). Code sets the
+flag in `_placed_note` on the raga's own `andolan` swaras, on HELD notes only, mutually exclusive
+with a meend on the same note. Data-driven: fires for Darbari (g,d) and Bhairav (r,d); the
+`andolan: []` ragas get nothing. The pattern: *andolan is a raga FACT — data + deterministic code,
+never the LLM (it can't hear audio); the renderer stays raga-agnostic and just draws the flag.*
+
+#### Murki/khatka — the CONTRASTING ornament (source-verified 2026-07-14) — DONE
+
+Diagnosis #6 said "andolan on Bhairavi," but the source-verified data says Bhairavi's andolan is `[]`
+— it leans on **murki/khatka**, a different gesture. Flagged the discrepancy, trusted the data,
+verified murki/khatka against ≥2 Hindustani sources (Tanarang, chandrakantha/David Courtney,
+raag-hindustani, ITC-SRA via Wikipedia; no Carnatic source relied on):
+
+- **Murki** = a light, delicate, fast neighbour-cluster wrapping a note (a turn/trill). **Khatka** =
+  the same shape but SHARPER and HEAVIER, distinct surrounding notes, no slide.
+- **Key finding (high confidence):** the murki↔khatka distinction is **WEIGHT/ACCENT, not the notes**
+  — the same cluster is a murki, khatka, or zamzama by how forcefully it's delivered. A notes-only
+  distinction is explicitly *not* supported, so we encode ONE shape and differ by velocity/duration.
+- **Per-raga (of our five):** ONLY **Bhairavi** uses them, on the komal g / komal r descent (`m g r S`).
+  Darbari/Bhairav/Malkauns use andolan; Bhimpalasi uses meend + kan. Flags carried forward: the
+  khatka slide-vs-no-slide split is real (we take the discrete/no-slide reading for MIDI); the exact
+  Bhairavi `m g r S` example was single-source (illustrative, not canonical).
+
+**Encoding — the counterpoint to andolan.** Andolan is a raga FACT code applies; murki/khatka are an
+expressive CHOICE the LLM places (like `bol`/`grace`). `LeadNote.ornament` (`murki`|`khatka`) is
+LLM-set; `apply_ornaments` (pure, runs before `apply_strokes`) realises the cluster from the raga's
+OWN scale neighbours (`scale_step_up` ±1 → legal by construction: upper + lower neighbour crushed,
+then the main note sustains), a khatka louder + eating more of the note than a murki. A new raga fact
+`ornaments` GATES it — a raga that doesn't list them (all but Bhairavi) has the flag stripped and
+plays plain, so a light Bhairavi flick can't leak into grave Darbari. *Talk beat: two ornaments, two
+ownership models — andolan a fact code owns, murki/khatka a choice the LLM makes and code keeps legal.*
+
+#### Fix 4 — the gat verifier + TARGETED repair (2026-07-14) — DONE
+
+The talk point made real: **legality has two grammars — pitch AND time.** `validate_composition`
+owns pitch legality; `crew/gat_verifier.py` (pure) is the TIME counterpart for the mukhada head —
+three checkable structural invariants the pitch guardrail can't see: it FILLS ~one avartan (loops as
+a cycle, not a fragment), it CADENCES to a resting swara (Sa/vadi/samvadi → lands on the sam and
+loops), and it is NOT rhythmically flat (the diagnosed failure — a gat of even quarters). Scope
+discipline held: it checks structure (checkable), never gat/taan taste (that stays Rasik/Producer).
+
+Why it matters: the aesthetic critics run LATE (after the whole piece assembles), so today a weak
+hook poisons everything and nothing repairs it. This runs EARLY — right after the head is generated,
+before it's cached and looped — so `generate_lead._generate_mukhada_cell` can RE-ROLL a weak hook
+(bounded, best-of-N). **Repair strategy (Sujit's call): a TARGETED feedback re-roll, NOT code note-
+surgery** — the exact violations are fed back into the regeneration (`_render_repair` → the `{repair}`
+prompt block) so the LLM re-composes the head to fix precisely what failed. Code decides WHAT is
+wrong (deterministic verify); the LLM fixes it (composition). We explicitly rejected having code
+edit the notes (pad-to-avartan / append-Sa / mechanical un-flatten) — that would cross the "code
+never composes" line; keeping repair as an LLM re-roll keeps every pitch/rhythm decision with the
+composer. Talk beat: the verify/repair split is the critique loop in miniature, one voice, early and
+local. Pure tests: `tests/test_gat_verifier.py`, repair loop in `tests/test_lead.py`.
+
+**Still to do this campaign:** fix #5 (operational brief — steer the composers to concrete rhythm
+instead of a vague mood); then ONE batched full-band live render to hear the looping mukhada + rests
++ andolan + murki + the gat verify/repair in context.

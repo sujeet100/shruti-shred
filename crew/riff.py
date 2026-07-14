@@ -245,6 +245,7 @@ class _RiffContext:
             "subgenre": s["display"],
             "subgenre_feel": s["feel"],
             "subdivision": s["subdivision"],
+            "groove_brief": s["groove_brief"],
             "techniques": ", ".join(s["techniques"]),
             "bpm": arr.bpm,
             "tala": TALAS[arr.tala]["display"],

@@ -44,8 +44,10 @@ from crew.lead import (  # noqa: E402
     _render_canvas_for_lead,
     _render_previous,
     _voice_line,
+    apply_ornaments,
     apply_strokes,
     generate_lead,
+    is_mukhada,
     lead_layers_from,
     place_phrase,
     studio_lead_fn,
@@ -77,17 +79,20 @@ def _phrase(*swaras: str, dur: float = 2.0) -> LeadPhrase:
 
 
 def _fake(phrases: list[LeadPhrase]):
-    """A fake gen_fn that replays canned phrases and records the spans + memory it saw."""
+    """A fake gen_fn that replays canned phrases and records the spans + memory + feedback it saw."""
     calls: list = []
     seen_memory: list = []
+    seen_feedback: list = []
     it = iter(phrases)
 
-    def fn(span, arr, memory):
+    def fn(span, arr, memory, *, feedback=None):
         calls.append(span)
         seen_memory.append(memory)
+        seen_feedback.append(feedback)
         return next(it)
 
     fn.seen_memory = seen_memory
+    fn.seen_feedback = seen_feedback
     return fn, calls
 
 
@@ -229,7 +234,7 @@ def test_memory_passed_to_gen_fn_is_a_copy():
     received: list[int] = []
     phrases = iter([_phrase("S"), _phrase("m")])
 
-    def fn(span, a, memory):
+    def fn(span, a, memory, *, feedback=None):
         received.append(len(memory))
         memory.clear()                      # mutate the COPY we were handed
         return next(phrases)
@@ -383,6 +388,15 @@ def test_lead_inputs_for_defaults_to_solo_without_a_canvas():
     assert inputs["move"] == "propose" and "OPEN" in inputs["canvas"]
 
 
+def test_lead_inputs_for_renders_repair_feedback():
+    arr = _arr(("lead", "drone"))
+    span = section_spans(arr)[0]
+    ctx = _LeadContext(arr)
+    assert "first attempt" in ctx.inputs_for(span, [])["repair"]            # no feedback -> benign
+    fixed = ctx.inputs_for(span, [], feedback=["the mukhada is rhythmically flat"])["repair"]
+    assert "FAILED" in fixed and "flat" in fixed                            # the flaw is named back
+
+
 def test_studio_lead_fn_builds_a_callable_without_an_llm():
     arr = _arr(("lead", "rhythm", "drone"), kind=SectionKind.RIFF)
     assert callable(studio_lead_fn(arr))
@@ -527,6 +541,268 @@ def test_leadnote_coerces_nullish_meend_swara_to_none():
         assert False, "expected ValueError"
     except Exception as e:  # noqa: BLE001
         assert "unknown meend target" in str(e).lower()
+
+
+# --- the gat HEAD (mukhada): a cached, looping ~1-avartan cell -----------------
+
+def _gat_arr(*specs: tuple[SectionKind, int, str], raga: str = "malkauns") -> Arrangement:
+    """A chart whose sections carry a gat `form_role`. specs = (kind, bars, form_role); every
+    section plays lead+drone. Kind ALAAP voices as solo sitar -> one clean lead layer to assert on."""
+    sections = [Section(kind=k, bars=b, layers=["lead", "drone"], foreground="lead", form_role=fr)
+                for (k, b, fr) in specs]
+    draft = ArrangementDraft(raga=raga, subgenre="doom", tala="teentaal", bpm=72,
+                             motif=["d", "n", "S", "m"], sections=sections)
+    return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def _good_head() -> LeadPhrase:
+    # a mukhada that PASSES the gat verifier: fills the 16-beat teentaal avartan, lands on Sa,
+    # varied durations. Used wherever a test needs a clean head so the verify+repair is a no-op.
+    return LeadPhrase(phrase_plan=_plan("S"),
+                      notes=[LeadNote(swara="S", dur=6.0), LeadNote(swara="m", dur=4.0),
+                             LeadNote(swara="g", dur=3.0), LeadNote(swara="S", dur=3.0)])
+
+
+def _flat_head() -> LeadPhrase:
+    # lands on Sa and fills the cycle, but every note is the same length -> 1 violation (flat)
+    return LeadPhrase(phrase_plan=_plan("S"),
+                      notes=[LeadNote(swara="S", dur=4.0), LeadNote(swara="m", dur=4.0),
+                             LeadNote(swara="g", dur=4.0), LeadNote(swara="S", dur=4.0)])
+
+
+def _worse_head() -> LeadPhrase:
+    # a fragment, ends off a resting swara (n), and flat -> multiple violations
+    return LeadPhrase(phrase_plan=_plan("S"),
+                      notes=[LeadNote(swara="n", dur=2.0), LeadNote(swara="n", dur=2.0),
+                             LeadNote(swara="n", dur=2.0)])
+
+
+def test_is_mukhada_reads_the_form_role():
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"), (SectionKind.ALAAP, 1, "manjha"))
+    assert is_mukhada(arr.sections[0]) is True
+    assert is_mukhada(arr.sections[1]) is False
+
+
+def test_generate_lead_writes_the_mukhada_as_ONE_avartan():
+    # the LLM is asked for exactly one cycle (bars coerced to 1), not the whole multi-bar window
+    arr = _gat_arr((SectionKind.ALAAP, 3, "mukhada"))
+    fn, calls = _fake([_good_head()])
+    generate_lead(arr, gen_fn=fn)
+    assert calls[0].section.bars == 1                       # a one-avartan gen window
+    assert calls[0].length == arr.beats_per_bar             # ...spanning a single cycle
+
+
+def test_generate_lead_loops_the_mukhada_cell_across_its_bars():
+    # code repeats the one-cycle cell across every bar so each avartan re-lands on the sam
+    arr = _gat_arr((SectionKind.ALAAP, 2, "mukhada"))       # teentaal -> 16-beat cycles
+    fn, _ = _fake([_good_head()])                           # a clean 16-beat head
+    layers, _ = generate_lead(arr, gen_fn=fn)
+    notes = sorted(layers[0].notes, key=lambda n: n.start)
+    assert len(notes) == 8                                  # the 4-note cell placed in both bars
+    bar0 = [n.swara for n in notes if n.start < 16.0]
+    bar1 = [n.swara for n in notes if n.start >= 16.0]
+    assert bar0 == bar1 == ["S", "m", "g", "S"]             # looped verbatim, each avartan on the sam
+    assert min(n.start for n in notes if n.start >= 16.0) == 16.0
+
+
+def test_generate_lead_reuses_the_cached_mukhada_on_return():
+    # mukhada -> manjha -> mukhada: the RETURN reuses the cached head, so gen_fn fires only twice
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"),
+                   (SectionKind.ALAAP, 1, "manjha"),
+                   (SectionKind.ALAAP, 1, "mukhada"))
+    fn, calls = _fake([_good_head(), _phrase("d", "n")])     # only TWO phrases: proves the 3rd reused
+    layers, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 2                                    # the returning mukhada did NOT call gen_fn
+    reprises = [e for e in events if e.data.get("reprise")]
+    assert len(reprises) == 1 and reprises[0].agent == "Lead"
+
+
+def test_returning_mukhada_is_verbatim_the_head():
+    # the whole point: the return is IDENTICAL to the head (not a regenerated near-miss)
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"),
+                   (SectionKind.ALAAP, 1, "mukhada"))
+    fn, _ = _fake([_good_head()])                            # one head; the return reuses it
+    layers, _ = generate_lead(arr, gen_fn=fn)
+    notes = sorted(layers[0].notes, key=lambda n: n.start)
+    head = [n.swara for n in notes if n.start < 16.0]
+    ret = [n.swara for n in notes if n.start >= 16.0]
+    assert head == ret == ["S", "m", "g", "S"]
+
+
+def test_non_mukhada_roles_are_not_looped():
+    # a manjha is composed once across its whole window (not a looped cell)
+    arr = _gat_arr((SectionKind.ALAAP, 2, "manjha"))
+    fn, calls = _fake([_phrase("d", "n", dur=2.0)])
+    layers, _ = generate_lead(arr, gen_fn=fn)
+    assert calls[0].section.bars == 2                        # full multi-bar window, not coerced
+    assert len(layers[0].notes) == 2                         # placed once, not looped per bar
+
+
+# --- gat verifier repair: a weak mukhada is RE-ROLLED before it's cached (fix #4) -
+
+def test_generate_lead_rerolls_a_weak_mukhada_and_keeps_the_clean_one():
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"))
+    fn, calls = _fake([_flat_head(), _good_head()])         # first weak, the re-roll lands clean
+    layers, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 2                                   # the hook was re-rolled once
+    swaras = [n.swara for n in sorted(layers[0].notes, key=lambda n: n.start)]
+    assert swaras == ["S", "m", "g", "S"]                   # the CLEAN head is what got placed
+    rr = [e for e in events if e.data.get("gat_verify")]
+    assert len(rr) == 1 and rr[0].data["tries"] == 2 and rr[0].data["violations"] == []
+
+
+def test_generate_lead_keeps_best_of_n_when_every_hook_is_weak():
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"))
+    fn, calls = _fake([_worse_head(), _flat_head()])        # both weak; the flat one flags FEWER
+    layers, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 2
+    rr = next(e for e in events if e.data.get("gat_verify"))
+    assert rr.data["violations"]                            # kept the best-of-N, but it still flags
+    assert len(layers[0].notes) == 4                        # the flat head (fewer viol), not the fragment
+
+
+def test_generate_lead_accepts_a_clean_mukhada_without_rerolling():
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"))
+    fn, calls = _fake([_good_head()])
+    layers, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 1                                   # clean on the first try -> no re-roll
+    assert not any(e.data.get("gat_verify") for e in events)
+
+
+def test_reroll_feeds_the_violations_back_to_the_generator():
+    # the repair is TARGETED, not blind: the failed head's violations reach the next attempt
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"))
+    fn, _ = _fake([_flat_head(), _good_head()])
+    generate_lead(arr, gen_fn=fn)
+    assert fn.seen_feedback[0] is None                       # first attempt: no feedback
+    assert fn.seen_feedback[1] and any("flat" in v for v in fn.seen_feedback[1])  # re-roll sees the flaw
+
+
+def test_non_mukhada_generation_gets_no_repair_feedback():
+    arr = _gat_arr((SectionKind.ALAAP, 1, "manjha"))
+    fn, _ = _fake([_phrase("d", "n")])
+    generate_lead(arr, gen_fn=fn)
+    assert fn.seen_feedback == [None]                        # a manjha is never in the repair loop
+
+
+# --- rest / nyas: a SILENT beat the lead can rest on ---------------------------
+
+def test_leadnote_accepts_a_rest():
+    n = LeadNote(swara="S", dur=1.0, rest=True)
+    assert n.rest is True
+
+
+def test_place_phrase_skips_a_rest_but_keeps_its_time():
+    # the rest occupies its duration (the next note lands after it) but sounds nothing
+    notes = [LeadNote(swara="S", dur=2.0), LeadNote(swara="S", dur=2.0, rest=True),
+             LeadNote(swara="m", dur=2.0)]
+    placed = place_phrase(notes, start=0.0, end=16.0, register=0)
+    assert [(n.swara, n.start) for n in placed] == [("S", 0.0), ("m", 4.0)]  # rest silent, time held
+
+
+def test_apply_strokes_passes_a_rest_through_untouched():
+    rest = LeadNote(swara="S", dur=1.0, rest=True)
+    assert apply_strokes([rest]) == [rest]
+
+
+def test_guardrail_ignores_a_rests_placeholder_swara():
+    # 'P' is illegal in Malkauns, but on a REST it sounds nothing, so the guardrail must not flag it
+    phrase = LeadPhrase(phrase_plan=_plan(),
+                        notes=[LeadNote(swara="d", dur=1.0),
+                               LeadNote(swara="P", dur=1.0, rest=True)])
+    ok, value = _lead_guardrail("malkauns")(_FakeOutput(phrase))
+    assert ok is True and isinstance(value, LeadPhrase)
+
+
+def test_render_previous_marks_a_rest_as_a_dash():
+    memory = [LeadMemo("mukhada", LeadPhrase(phrase_plan=_plan("S"),
+                                             notes=[LeadNote(swara="S", dur=1.0),
+                                                    LeadNote(swara="S", dur=1.0, rest=True)]))]
+    assert "S -" in _render_previous(memory)
+
+
+# --- andolan: code flags the raga's oscillating komal swaras on HELD notes ------
+
+def test_place_phrase_flags_andolan_on_a_held_raga_swara():
+    notes = [LeadNote(swara="g", dur=2.0), LeadNote(swara="m", dur=2.0)]
+    placed = place_phrase(notes, start=0.0, end=16.0, register=0, andolan_swaras=frozenset({"g"}))
+    assert placed[0].andolan is True          # a held andolan swara sways
+    assert placed[1].andolan is None          # m is not one the raga oscillates
+
+
+def test_place_phrase_no_andolan_on_a_short_note():
+    placed = place_phrase([LeadNote(swara="g", dur=0.25)], start=0.0, end=16.0, register=0,
+                          andolan_swaras=frozenset({"g"}))
+    assert placed[0].andolan is None          # too short to read as a slow sway
+
+
+def test_place_phrase_andolan_and_meend_are_mutually_exclusive():
+    # a note that glides (meend) must not also andolan — both drive the one pitch wheel
+    placed = place_phrase([LeadNote(swara="g", dur=2.0, meend_swara="m")], start=0.0, end=16.0,
+                          register=0, andolan_swaras=frozenset({"g"}))
+    assert placed[0].meend_swara == "m" and placed[0].andolan is None
+
+
+def test_place_phrase_no_andolan_without_a_raga_set():
+    # the default (empty) set -> nothing sways (the Bhairavi/Malkauns path, andolan == [])
+    placed = place_phrase([LeadNote(swara="g", dur=2.0)], start=0.0, end=16.0, register=0)
+    assert placed[0].andolan is None
+
+
+def test_lead_layers_from_applies_the_ragas_andolan_swaras():
+    arr = _arr(("lead", "drone"), raga="darbari")      # darbari sways komal g and d
+    layers = lead_layers_from({0: _phrase("g", "m", dur=2.0)}, arr)
+    g = next(n for n in layers[0].notes if n.swara == "g")
+    m = next(n for n in layers[0].notes if n.swara == "m")
+    assert g.andolan is True and m.andolan is None
+
+
+# --- murki/khatka: an LLM-CHOSEN ornament, realised legally from raga neighbours -
+
+def test_apply_ornaments_realises_a_murki_as_a_neighbour_cluster():
+    # a murki on komal g in Bhairavi: upper (m) + lower (r) neighbour crushed, then the note
+    out = apply_ornaments([LeadNote(swara="g", dur=2.0, ornament="murki")], "bhairavi")
+    assert [n.swara for n in out] == ["m", "r", "g"]        # neighbours (legal), then the main note
+    assert round(sum(n.dur for n in out), 4) == 2.0         # total duration preserved
+    assert out[-1].ornament is None                          # the ornament is consumed
+
+
+def test_khatka_is_heavier_and_eats_more_of_the_note_than_a_murki():
+    murki = apply_ornaments([LeadNote(swara="g", dur=2.0, vel=90, ornament="murki")], "bhairavi")
+    khatka = apply_ornaments([LeadNote(swara="g", dur=2.0, vel=90, ornament="khatka")], "bhairavi")
+    assert murki[0].vel < 90 < khatka[0].vel                 # murki softer, khatka accented
+    assert khatka[-1].dur < murki[-1].dur                    # khatka's cluster eats more of the note
+
+
+def test_apply_ornaments_strips_the_flag_on_a_raga_that_does_not_use_them():
+    # malkauns uses meend/andolan, NOT murki/khatka -> flag dropped, the note plays plain
+    out = apply_ornaments([LeadNote(swara="g", dur=2.0, ornament="murki")], "malkauns")
+    assert len(out) == 1 and out[0].swara == "g" and out[0].ornament is None
+
+
+def test_apply_ornaments_skips_a_note_too_short_to_wrap():
+    out = apply_ornaments([LeadNote(swara="g", dur=0.25, ornament="murki")], "bhairavi")
+    assert len(out) == 1 and out[0].ornament is None
+
+
+def test_apply_ornaments_passes_plain_notes_through():
+    n = LeadNote(swara="g", dur=2.0)
+    assert apply_ornaments([n], "bhairavi") == [n]
+
+
+def test_lead_layers_from_realises_ornaments_end_to_end():
+    arr = _arr(("lead", "drone"), raga="bhairavi")     # bhairavi uses murki/khatka
+    phrase = LeadPhrase(phrase_plan=_plan("g"),
+                        notes=[LeadNote(swara="g", oct=0, dur=2.0, ornament="murki")])
+    layers = lead_layers_from({0: phrase}, arr)
+    swaras = [n.swara for n in sorted(layers[0].notes, key=lambda n: n.start)]
+    assert swaras == ["m", "r", "g"]                    # the cluster then the main note, all placed
+
+
+def test_leadnote_accepts_and_normalises_an_ornament():
+    assert LeadNote(swara="g", dur=1.0, ornament="murki").ornament == "murki"
+    for junk in (None, "null", "none", ""):
+        assert LeadNote(swara="g", dur=1.0, ornament=junk).ornament is None
 
 
 if __name__ == "__main__":

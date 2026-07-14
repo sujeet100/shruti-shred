@@ -55,6 +55,15 @@ def test_raga_pakad_and_chalan_are_legal():
             assert set(phrase) <= allowed, f"{name}: phrase {phrase} leaves the raga"
 
 
+def test_raga_ornaments_fact_is_a_known_closed_set():
+    # `ornaments` names the light decorations a raga idiomatically uses (murki/khatka). Source-
+    # verified: of our five, ONLY Bhairavi carries them; the grave/meend ragas use andolan instead.
+    for name, r in RAGAS.items():
+        assert set(r.get("ornaments", [])) <= {"murki", "khatka"}, f"{name}: unknown ornament"
+    assert set(RAGAS["bhairavi"]["ornaments"]) == {"murki", "khatka"}
+    assert RAGAS["darbari"]["ornaments"] == [] and RAGAS["malkauns"]["ornaments"] == []
+
+
 def test_tala_consistency():
     for name in TALAS:
         assert check_tala_consistency(name) == [], f"{name}: {check_tala_consistency(name)}"
@@ -63,6 +72,20 @@ def test_tala_consistency():
 def test_subgenre_consistency():
     for name in SUBGENRES:
         assert check_subgenre_consistency(name) == [], f"{name}: {check_subgenre_consistency(name)}"
+
+
+def test_every_subgenre_has_an_operational_groove_brief():
+    # the fix for "a vague brief collapses into sparse whole notes": each subgenre carries a
+    # concrete rhythmic directive, and the consistency check refuses a missing/empty one.
+    for name, s in SUBGENRES.items():
+        assert s.get("groove_brief", "").strip(), f"{name}: missing groove_brief"
+    hollow = {**SUBGENRES["doom"], "groove_brief": "  "}
+    orig = SUBGENRES["doom"]
+    SUBGENRES["doom"] = hollow
+    try:
+        assert any("groove_brief" in p for p in check_subgenre_consistency("doom"))
+    finally:
+        SUBGENRES["doom"] = orig
 
 
 def test_ornaments_are_validated():

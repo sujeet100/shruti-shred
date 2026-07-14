@@ -17,10 +17,12 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from render import (  # noqa: E402
+    ANDOLAN_DEPTH_ST,
     BEND_ST,
     PALM_MUTE_DUR,
     PALM_MUTE_VEL,
     SLIDE_IN_ST,
+    _andolan_wheel,
     _apply_technique,
     _bends,
     _meend_wheel,
@@ -115,6 +117,43 @@ def test_bends_flags_glides_and_pitch_techniques():
     assert _bends({"swara": "S", "technique": "bend"}) is True
     assert _bends({"swara": "S", "technique": "palm_mute"}) is False
     assert _bends({"swara": "S"}) is False
+
+
+def test_bends_flags_andolan_so_the_channel_arms_its_range():
+    # andolan moves the wheel too, so the channel must arm the wide bend range for it
+    assert _bends({"swara": "g", "andolan": True}) is True
+    assert _bends({"swara": "g", "andolan": None}) is False
+
+
+# --- _andolan_wheel: a slow, shallow sway that starts and ends at 0 -------------
+
+def test_andolan_starts_and_ends_at_zero():
+    # whole cycles -> the sine returns to centre, so nothing bleeds into the next note
+    events = _andolan_wheel(0.0, 4.0, bpm=120)
+    assert events[0][1] == 0 and events[-1][1] == 0
+
+
+def test_andolan_stays_within_its_shallow_depth():
+    events = _andolan_wheel(0.0, 4.0, bpm=120)
+    cap = abs(_wheel(ANDOLAN_DEPTH_ST))
+    assert all(abs(v) <= cap for _, v in events)
+    assert max(abs(v) for _, v in events) > 0          # it actually sways
+
+
+def test_andolan_sways_both_ways():
+    # a real oscillation goes both sharp and flat of the note, not just one side
+    vals = [v for _, v in _andolan_wheel(0.0, 4.0, bpm=120)]
+    assert max(vals) > 0 and min(vals) < 0
+
+
+def test_andolan_none_when_note_too_short_for_a_cycle():
+    # a sub-cycle note can't read as a slow sway -> no andolan
+    assert _andolan_wheel(0.0, 0.1, bpm=120) == []
+
+
+def test_andolan_span_covers_the_note():
+    events = _andolan_wheel(2.0, 4.0, bpm=120)
+    assert events[0][0] == 2.0 and events[-1][0] == 6.0   # spans start..start+dur
 
 
 # --- build_midi smoke: chords + techniques render without crashing --------------

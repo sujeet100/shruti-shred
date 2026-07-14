@@ -37,6 +37,9 @@ SWARAS = {
 #   vadi/samvadi  most / second-most prominent swara
 #   jati          how many swaras in ascent/descent (e.g. sampurna = all 7)
 #   andolan       swaras that oscillate — idiomatic gesture, not just in-scale
+#   ornaments     light decorative ornaments the raga idiomatically uses (murki/khatka) —
+#                 an expressive CHOICE the composer places, gated per-raga (source-verified;
+#                 of our five only Bhairavi uses them; the grave/meend ragas use andolan)
 #   pakad         signature phrase(s): the raga's fingerprint. Each phrase is a
 #                 list of swaras. Used as a generation seed AND as a Rasik
 #                 critique criterion ("is the pakad actually present?").
@@ -64,6 +67,7 @@ RAGAS = {
         # The oscillated komal Re and komal Dha ARE Bhairav — a straight,
         # un-oscillated r/d sounds like a different raga. Rasik checks for this.
         "andolan": ["r", "d"],
+        "ornaments": [],    # a grave raga — andolan, not light murki/khatka
         "pakad": [
             ["G", "m", "d", "d", "P"],
             ["G", "m", "r", "r", "S"],
@@ -97,6 +101,11 @@ RAGAS = {
         "samvadi": "S",   # Shadj
         "jati": "sampurna-sampurna",
         "andolan": [],    # Bhairavi leans on murki/khatka ornament, not andolan
+        # Source-verified (Tanarang, chandrakantha, raag-hindustani, ITC-SRA): of our five
+        # ragas ONLY Bhairavi idiomatically uses murki/khatka, concentrated on the komal
+        # g / komal r descent (m g r S). They differ by WEIGHT (murki light, khatka sharper),
+        # not by note pattern — see DESIGN.md "Murki/khatka".
+        "ornaments": ["murki", "khatka"],
         "pakad": [
             ["g", "S", "r", "S"],
             ["g", "m", "P", "d", "m", "g", "m", "r", "S"],
@@ -129,6 +138,7 @@ RAGAS = {
         "samvadi": "S",   # Shadj
         "jati": "audhav-sampurna",   # 5 up, 7 down
         "andolan": [],
+        "ornaments": [],    # a romantic raga on meend + kan-swar, not signature murki/khatka
         "pakad": [
             ["n", "S", "g", "m", "P"],
             ["m", "g", "R", "S"],
@@ -161,6 +171,7 @@ RAGAS = {
         # The heavy, slow andolan on komal Ga and komal Dha IS Darbari — a
         # straight g/d turns it into plain Asavari/Adana. Rasik must hear this.
         "andolan": ["g", "d"],
+        "ornaments": [],    # the grave Kanada — heavy andolan, not light murki/khatka
         # Source-verified kan (grace-note) conventions: komal Ga is approached
         # with a Re-kan ascending, a Ma-kan descending; komal Dha with a Pa-kan
         # ascending, a Ni-kan descending. Generators attach these as `grace`.
@@ -198,6 +209,7 @@ RAGAS = {
         "samvadi": "S",   # Shadj
         "jati": "audhav-audhav",   # 5 up, 5 down
         "andolan": [],    # Malkauns lives on meend (glides), not oscillation
+        "ornaments": [],  # sources exclude light murki/khatka here — meend/gamak/andolan instead
         "pakad": [
             ["d", "n", "S", "m"],
             ["g", "m", "g", "S"],
