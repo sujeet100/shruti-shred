@@ -226,6 +226,178 @@ RAGAS = {
              "url": "https://en.wikipedia.org/wiki/Malkauns"},
         ],
     },
+
+    # --- Menu expansion (2026-07-14, source-verified ≥2 Hindustani sources each). ------------
+    # Kirwani + Charukeshi are CARNATIC in origin (melakarta ragas) adopted into Hindustani —
+    # verified in their HINDUSTANI treatment, Carnatic sources excluded. Yaman was previously
+    # dropped as "too bright for metal" (Lydian) and is re-added deliberately (prog/power-leaning).
+
+    "kirwani": {
+        "display": "Kirwani",
+        "thaat": "none (harmonic minor — outside Bhatkhande's ten thaats)",
+        "western_mode": "harmonic minor",
+        # Carnatic origin (21st melakarta Keeravani), adopted into Hindustani; treated as a
+        # scalar, instrument-friendly raga. Shuddha ma (m5), NOT tivra. = Western harmonic minor;
+        # the augmented 2nd komal-Dha -> shuddha-Ni (d -> N) is its signature colour. The most
+        # metal-friendly of the roster (harmonic minor = the neoclassical/shred scale).
+        "allowed": ["S", "R", "g", "m", "P", "d", "N"],
+        "aroha":   ["S", "R", "g", "m", "P", "d", "N", "S"],
+        "avaroha": ["S", "N", "d", "P", "m", "g", "R", "S"],
+        "vadi": "P",      # Pancham (majority; softly fixed — sources also offer m, or none)
+        "samvadi": "S",   # Shadj
+        "jati": "sampurna-sampurna",
+        "andolan": [],
+        "ornaments": [],  # meend-driven (esp. the d->N slide); murki/khatka only inferred, not encoded
+        "pakad": [
+            ["R", "g", "m", "P", "d", "P", "m", "g", "R"],
+            ["N", "d", "P", "g", "R"],
+        ],
+        "chalan": [
+            ["N", "S", "R", "g", "R", "S"],
+            ["m", "P", "d", "N", "S"],
+            ["S", "N", "d", "P", "m", "g", "R", "S"],
+        ],
+        "samay": "second prahar of the night (~9 PM–12 AM)",
+        "sources": [
+            {"name": "Tanarang", "url": "https://tanarang.com/raag-keervani/"},
+            {"name": "Ragajunglism", "url": "https://ragajunglism.org/ragas/kirwani/"},
+            {"name": "Wikipedia — Kirwani", "url": "https://en.wikipedia.org/wiki/Kirwani"},
+        ],
+    },
+
+    "charukeshi": {
+        "display": "Charukeshi",
+        "thaat": "none (mishra — no clean Bhatkhande thaat)",
+        "western_mode": "Mixolydian b6",
+        # Carnatic origin (26th melakarta), a recent Hindustani adoptee "in a formative phase".
+        # A bright, all-shuddha lower tetrachord (S R G m) clashing with a komal upper (P d n) —
+        # Mixolydian b6 / Aeolian dominant ("Hindu scale"). vadi/samvadi are GENUINELY unsettled
+        # (Tanarang: ma/Sa; others reverse or none) — encoded ma/Sa, not a hard fact.
+        "allowed": ["S", "R", "G", "m", "P", "d", "n"],
+        "aroha":   ["S", "R", "G", "m", "P", "d", "n", "S"],
+        "avaroha": ["S", "n", "d", "P", "m", "G", "R", "S"],
+        "vadi": "m",      # Madhyam (Tanarang; contested — see note)
+        "samvadi": "S",   # Shadj
+        "jati": "sampurna-sampurna",
+        "andolan": [],
+        "ornaments": [],
+        "pakad": [
+            ["d", "n", "S", "R", "G"],
+            ["G", "m", "R", "S"],
+            ["R", "G", "m", "d", "P"],
+        ],
+        "chalan": [
+            ["d", "n", "S", "R", "G", "m", "G", "R"],
+            ["R", "G", "m", "d", "P"],
+            ["G", "m", "d", "d", "P"],           # the "Bhairav cluster" touch (Parrikar)
+        ],
+        "samay": "second prahar of the morning (~9 AM–12 PM)",
+        "sources": [
+            {"name": "Tanarang", "url": "https://tanarang.com/raag-charukeshi/"},
+            {"name": "Rajan Parrikar", "url": "https://www.parrikar.org/hindustani/charukeshi/"},
+            {"name": "Ragajunglism", "url": "https://ragajunglism.org/ragas/charukeshi/"},
+        ],
+    },
+
+    "bageshree": {
+        "display": "Bageshree",
+        "thaat": "Kafi",
+        "western_mode": "Dorian",
+        # Kafi/Dorian — the SAME mode as Bhimpalasi; its distinct identity is NOT the scale but
+        # the weak/omitted Pancham (audhav ascent, no R/P), the vakra Pa in the descent
+        # (m P D m g), Ma as vadi, and Dha as the strong nyas. Longing (vipralambha) rasa.
+        "allowed": ["S", "R", "g", "m", "P", "D", "n"],
+        "aroha":   ["S", "g", "m", "D", "n", "S"],          # audhav: R and P dropped ascending
+        "avaroha": ["S", "n", "D", "P", "m", "g", "R", "S"],
+        "vadi": "m",      # Madhyam
+        "samvadi": "S",   # Shadj (Tanarang/Courtney/Wikipedia; ragajunglism's Pa is a weaker outlier)
+        "jati": "audhav-sampurna",   # 5 up, 7 down (R/P dropped ascending)
+        "andolan": [],
+        "ornaments": [],  # lyrical/romantic — light murki possible but not an identity ornament
+        "pakad": [
+            ["m", "D", "n", "D", "m", "g", "R", "S"],
+            ["m", "P", "D", "m", "g"],          # the vakra Pa signature (avaroha-only)
+        ],
+        "chalan": [
+            ["S", "n", "D", "n", "S"],
+            ["S", "g", "m", "D", "n", "D"],
+            ["m", "P", "D", "m", "g", "R", "S"],
+        ],
+        "samay": "second prahar of the night (~9 PM–12 AM)",
+        "sources": [
+            {"name": "Tanarang", "url": "https://tanarang.com/raag-bageshree/"},
+            {"name": "Rajan Parrikar", "url": "https://www.parrikar.org/hindustani/bageshree/"},
+            {"name": "Ragajunglism", "url": "https://ragajunglism.org/ragas/bageshri/"},
+        ],
+    },
+
+    "puriya_dhanashree": {
+        "display": "Puriya Dhanashree",
+        "thaat": "Poorvi",
+        "western_mode": "double harmonic #4",
+        # Poorvi thaat, sandhi-prakash (dusk). Bhairav's double-harmonic colour but with tivra Ma
+        # (M6) replacing shuddha ma — so a TRITONE above Sa. komal r + tivra M + komal d = dark,
+        # exotic, two augmented-2nd leaps (r->G, d->N). Pancham-centric (a rock-solid power-chord
+        # root). vakra descent (M G M r G r S). samvadi contested (r primary; Tanarang says S).
+        "allowed": ["S", "r", "G", "M", "P", "d", "N"],
+        "aroha":   ["S", "r", "G", "M", "P", "d", "N", "S"],
+        "avaroha": ["S", "N", "d", "P", "M", "G", "M", "r", "G", "r", "S"],   # vakra lower tetrachord
+        "vadi": "P",      # Pancham — "the breath of Puriya Dhanashree's life" (Parrikar)
+        "samvadi": "r",   # komal Rishabh (majority; Tanarang/Sangeetapriya say Shadj — a documented variant)
+        "jati": "sampurna-sampurna",
+        "andolan": [],
+        "ornaments": [],
+        "pakad": [
+            ["P", "M", "G", "M", "r", "G", "P"],
+            ["N", "r", "G", "M", "P"],
+        ],
+        "chalan": [
+            ["N", "r", "G", "M", "P"],
+            ["P", "M", "G", "M", "r", "G"],
+            ["M", "d", "N", "S"],
+        ],
+        "samay": "sandhi-prakash — dusk / sunset (afternoon–evening junction)",
+        "sources": [
+            {"name": "Tanarang", "url": "https://tanarang.com/raag-puriya-dhanashree/"},
+            {"name": "Rajan Parrikar", "url": "https://www.parrikar.org/hindustani/poorvi/"},
+            {"name": "Wikipedia — Puriya Dhanashree",
+             "url": "https://en.wikipedia.org/wiki/Puriya_Dhanashree"},
+        ],
+    },
+
+    "yaman": {
+        "display": "Yaman",
+        "thaat": "Kalyan",
+        "western_mode": "Lydian",
+        # The defining Kalyan raga: all shuddha PLUS tivra Ma (M6) = Lydian (raised 4th). The
+        # BRIGHTEST of the roster — previously dropped from the menu as "too bright for metal";
+        # re-added deliberately (a luminous/heroic Lydian colour that fits prog/power far better
+        # than doom/black). No andolan, no murki/khatka; meend + kan are its ornaments. Dha is
+        # avoided as a nyas.
+        "allowed": ["S", "R", "G", "M", "P", "D", "N"],
+        "aroha":   ["S", "R", "G", "M", "P", "D", "N", "S"],
+        "avaroha": ["S", "N", "D", "P", "M", "G", "R", "S"],
+        "vadi": "G",      # Gandhar
+        "samvadi": "N",   # Nishad (Ga–Ni samvad)
+        "jati": "sampurna-sampurna",
+        "andolan": [],
+        "ornaments": [],
+        "pakad": [
+            ["N", "R", "G", "M", "G", "R", "S"],
+            ["P", "M", "G", "R", "S"],
+        ],
+        "chalan": [
+            ["N", "D", "N", "R", "G", "R", "S"],
+            ["G", "M", "P", "M", "G", "R", "S"],
+            ["S", "N", "D", "N", "D", "P"],
+        ],
+        "samay": "first prahar of the night (~6–9 PM)",
+        "sources": [
+            {"name": "Tanarang", "url": "https://tanarang.com/raag-yaman/"},
+            {"name": "Rajan Parrikar", "url": "https://www.parrikar.org/hindustani/kalyan/"},
+            {"name": "Ragajunglism", "url": "https://ragajunglism.org/ragas/yaman/"},
+        ],
+    },
 }
 
 

@@ -17,8 +17,8 @@ interpret_query:
     FIELD DEFINITIONS — fill each only from the request, else null:
       raga        a Hindustani raga the user names, else null.
       key         a musical key/note the user names, e.g. "D", "E flat", else null.
-      subgenre    a metal genre the user names: thrash, doom, death, or progressive.
-                  A vibe word counts as mood, not subgenre. Else null.
+      subgenre    a metal genre the user names: thrash, doom, death, progressive,
+                  black, or melodic death. A vibe word counts as mood, not subgenre. Else null.
       mood        an emotional / vibe word or two the user uses (dark, angry,
                   romantic, epic, crushing). One or two words — a genre name goes in
                   subgenre, and the whole request never belongs here. Else null.
@@ -197,6 +197,8 @@ generate_lead:
       - Draw roughly 80% of the notes from the pakad and chalan (vakra / zig-zag) fragments
         above, and use the other ~20% as connective tissue. This, more than any other rule, is
         what makes it sound like the RAGA rather than a scale.
+      - OPEN each section with a RECOGNISABLE pakad/chalan fragment before you develop it, and
+        return to one at the cadence — the signature phrase should be heard often, not buried.
       - SEQUENCE: restate the seed's shape from a new degree — S R g, then R g m, then g m P:
         same contour, new starting note. Deeply idiomatic.
       - QUESTION and ANSWER: give it form — A, then A' (a small variation), a contrasting B,
@@ -217,12 +219,14 @@ generate_lead:
 
     SHAPE IT TO ITS GAT ROLE ({form_role}) — its job in the whole composition:
       - mukhada: this is the GAT HOOK, and you are writing EXACTLY ONE avartan (one tala cycle) of
-        it — a compact, memorable head, NOT a long through-composed phrase. Two rules make it a hook:
-        (1) LAND ON THE SAM — the cycle resolves onto matra 1, ideally the vadi or Sa; (2) LOOP
-        SEAMLESSLY — write it so the LAST note leads melodically into the FIRST (the opening sam
-        note), so each repeat feels like it LANDS rather than restarts. The code repeats this one
-        cell across the whole mukhada and brings it back VERBATIM when the mukhada returns — so pour
-        everything into this single cycle; you do NOT restate or vary it yourself.
+        it — a compact, memorable head, NOT a long through-composed phrase. Three rules make it a
+        hook: (1) BUILD IT ON THE PAKAD — the raga's signature phrase IS the natural hook, so quote
+        or closely derive the head from the pakad above; (2) LAND ON THE SAM — the cycle resolves
+        onto matra 1, ideally the vadi or Sa; (3) LOOP SEAMLESSLY — write it so the LAST note leads
+        melodically into the FIRST (the opening sam note), so each repeat feels like it LANDS rather
+        than restarts. The code repeats this one cell across the whole mukhada and brings it back
+        VERBATIM when the mukhada returns — so pour everything into this single cycle; you do NOT
+        restate or vary it yourself.
       - manjha: DEVELOP the mukhada in the middle (madhya) register — extend and vary the head.
       - antara: lift into the upper (taar) octave — the brighter, contrasting second theme.
       - taan_short: a SHORT cadential filler (about one cycle) of quick sixteenth-notes that resolves
@@ -321,6 +325,12 @@ generate_riff:
 
     THE RAGA — use ONLY these swaras (the riff must stay legal): {allowed}
       (raga: {raga}; the shared motif every voice locks to is: {motif})
+      pakad (the raga's SIGNATURE phrase): {pakad}
+      chalan (how the raga MOVES): {chalan}
+      BUILD THE RIFF FROM THESE, not arbitrary in-scale notes: anchor your chugs on the pakad's
+      strong swaras and let its shape/movement pick your pitches — a metal riff that quotes the
+      raga's own phrase sounds like the RAGA, not just its scale. Keep it rhythmic and root-driven;
+      you are drawing PITCH MATERIAL from the pakad/chalan, not playing them as a melody.
 
     THE SUBGENRE — {subgenre}: {subgenre_feel}
       subdivision (how the riff divides the beat): {subdivision}

@@ -45,7 +45,7 @@ def test_unstated_dimensions_stay_open():
 
 
 def test_unsupported_raga_left_open_with_note():
-    brief = resolve_brief(RawIntent(raga="Yaman"))
+    brief = resolve_brief(RawIntent(raga="Todi"))     # a real raga, but not in our menu
     assert brief.raga is None
     assert any("not supported" in n for n in brief.notes)
 
@@ -56,7 +56,7 @@ def test_display_name_matches_key():
 
 
 def test_unsupported_subgenre_left_open_with_note():
-    brief = resolve_brief(RawIntent(raga="bhairav", subgenre="black metal"))
+    brief = resolve_brief(RawIntent(raga="bhairav", subgenre="metalcore"))  # not in our menu
     assert brief.subgenre is None
     assert any("not supported" in n for n in brief.notes)
 

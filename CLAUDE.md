@@ -221,12 +221,20 @@ Patterns with Python*); Refactoring Guru; PEP 544; Pydantic / ruff docs.*
 abstraction only when a second implementation or a real test seam demands it. SRP serves clarity, not a
 checklist.
 
-## Menu (locked)
+## Menu (expanded 2026-07-14; all raga data source-verified ≥2 Hindustani sources)
 
 - **Ragas (by metal-friendly mode):** Bhairavi (Phrygian), Bhimpalasi (Dorian),
-  Darbari Kanada (Aeolian), Bhairav (double-harmonic), Malkauns (dark pentatonic).
-  *Yaman dropped — Lydian, too bright for metal.*
-- **Subgenres:** progressive, thrash, doom, death.
+  Darbari Kanada (Aeolian), Bhairav (double-harmonic), Malkauns (dark pentatonic),
+  **Kirwani (harmonic minor)**, **Charukeshi (Mixolydian ♭6)**, **Bageshree (Dorian)**,
+  **Puriya Dhanashree (double-harmonic ♯4)**, **Yaman (Lydian)**.
+  - **Yaman was re-added** despite the old "too bright for metal" note — it is the brightest
+    (Lydian), so it leans prog/power, not doom/black. Keep the caveat in mind.
+  - **Kirwani & Charukeshi are CARNATIC in origin** (melakarta ragas adopted into Hindustani) —
+    encoded in their verified HINDUSTANI form; treat any Carnatic source as a red flag.
+  - Bageshree shares Dorian with Bhimpalasi; its identity is the weak/omitted Pa + vakra + Ma-vadi,
+    not the scale — don't let the two collapse in generation.
+- **Subgenres:** progressive, thrash, doom, death, **heavy** (Heavy Metal), **melodic_death**
+  (Melodic Death), **black** (Black).
 
 ## Run
 

@@ -149,6 +149,80 @@ SUBGENRES = {
         "character": "Blasting and chromatic; komal-heavy ragas fit its darkness, and a fast "
                      "Ektaal or Teentaal carries the blast.",
     },
+
+    "heavy": {
+        "display": "Heavy Metal",
+        "bpm": [110, 180],
+        "feel": "driving mid-tempo power chords and galloping riffs; anthemic, NWOBHM",
+        "subdivision": "steady 8ths and galloping 8th/16th figures, palm-muted",
+        "groove_brief": "Classic heavy-metal drive: palm-muted power-chord riffs and gallops at a "
+                        "steady mid-tempo, with twin-guitar HARMONIZED leads (thirds). Anthemic and "
+                        "headbangable — a strong, memorable riff and a solid backbeat, not extremity. "
+                        "Punctuate with a tom fill into the chorus.",
+        "register": [-2, -1],
+        "techniques": ["palm_mute", "power_chords", "gallop", "harmonized_leads", "bends"],
+        "drums": {
+            "voices": ["kick", "snare", "hhat", "ohat", "ride", "crash",
+                       "tom_hi", "tom_mid", "tom_lo"],
+            "feel": "driving backbeat with a galloping kick, tom fills into sections",
+            "double_kick": True,     # a gallop, used — not wall-to-wall
+            "blast_beats": False,
+            "density": "medium",
+            "backbeat": "hard 2 & 4 with a galloping kick underneath",
+        },
+        "raga_affinity": ["kirwani", "yaman"],   # neoclassical harmonic-minor + heroic Lydian
+        "character": "Anthemic and driving; twin-guitar harmonies over a galloping backbeat. A "
+                     "mid-tempo Teentaal/Keherwa; the heroic Yaman and neoclassical Kirwani fit.",
+    },
+
+    "melodic_death": {
+        "display": "Melodic Death",
+        "bpm": [150, 220],
+        "feel": "melodic tremolo riffs with harmonized twin-guitar leads over a death-metal drive",
+        "subdivision": "tremolo 16ths and galloping 8ths, with harmonized melodic runs",
+        "groove_brief": "Gothenburg drive: melodic tremolo-picked riffs and galloping 8ths over "
+                        "double-kick, with HARMONIZED twin-guitar leads (thirds/sixths) carrying the "
+                        "melody. Heavy but tuneful — a memorable melodic hook, not just a chug. Drop "
+                        "to a half-time melodic chorus, then back to the gallop.",
+        "register": [-2, -1],
+        "techniques": ["tremolo", "palm_mute", "power_chords", "gallop", "melodic_lead"],
+        "drums": {
+            "voices": ["kick", "snare", "hhat", "crash", "ride", "china",
+                       "tom_lo", "tom_mid"],
+            "feel": "driving double-kick with blast bursts, dynamic between gallop and half-time",
+            "double_kick": True,
+            "blast_beats": True,     # in bursts, not the identity
+            "density": "dense",
+            "backbeat": "hard 2 & 4 with double-kick under; drops to half-time for melodic choruses",
+        },
+        "raga_affinity": ["kirwani", "charukeshi"],   # harmonic minor / Aeolian dominant
+        "character": "Melodic and driving; harmonized leads over blast/gallop. Harmonic-minor "
+                     "Kirwani and Charukeshi give it its melancholy; a brisk Teentaal carries it.",
+    },
+
+    "black": {
+        "display": "Black",
+        "bpm": [150, 220],
+        "feel": "cold, fast tremolo-picked walls of sound; trebly, raw, atmospheric",
+        "subdivision": "constant tremolo 16ths sustained through the chord changes",
+        "groove_brief": "Cold, relentless tremolo-picked 16ths forming a WALL of sound — let the "
+                        "harmony change UNDER the tremolo rather than stopping it. Blast beats and "
+                        "fast double-kick drive it; stay trebly and higher (leave the sub-low chug to "
+                        "death). Break the wall only for a slow, dissonant, ringing passage.",
+        "register": [-2, 0],   # higher / trebly — distinct from death's sub-low tuning
+        "techniques": ["tremolo", "power_chords", "palm_mute", "dissonance"],
+        "drums": {
+            "voices": ["kick", "snare", "hhat", "crash", "china", "ride", "tom_lo"],
+            "feel": "relentless blast beats over fast double-kick, cold and cymbal-heavy",
+            "double_kick": True,
+            "blast_beats": True,
+            "density": "very dense",
+            "backbeat": "blast — snare/kick alternating at high subdivision, snare near every beat",
+        },
+        "raga_affinity": ["bhairav", "puriya_dhanashree"],   # exotic, komal-heavy, tritone-dark
+        "character": "Cold and relentless; tremolo walls over blast beats. A driving Teentaal/Ektaal "
+                     "or a raw free feel; the exotic komal-heavy ragas suit its darkness.",
+    },
 }
 
 

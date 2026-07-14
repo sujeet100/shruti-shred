@@ -29,6 +29,11 @@ MODES = {
     "Aeolian":                             {0, 2, 3, 5, 7, 8, 10},
     "double harmonic (Byzantine)":         {0, 1, 4, 5, 7, 8, 11},
     "dark/minor pentatonic (no Re, no Pa)": {0, 3, 5, 8, 10},
+    # menu expansion (2026-07-14)
+    "Lydian":                              {0, 2, 4, 6, 7, 9, 11},   # Yaman
+    "harmonic minor":                      {0, 2, 3, 5, 7, 8, 11},   # Kirwani
+    "Mixolydian b6":                       {0, 2, 4, 5, 7, 8, 10},   # Charukeshi (Aeolian dominant)
+    "double harmonic #4":                  {0, 1, 4, 6, 7, 8, 11},   # Puriya Dhanashree (Poorvi + tritone)
 }
 
 

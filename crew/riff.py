@@ -236,11 +236,14 @@ class _RiffContext:
 
     def __init__(self, arr: Arrangement) -> None:
         s = SUBGENRES[arr.subgenre]
+        r = RAGAS[arr.raga]
         accents = ", ".join(f"beat {a.beat:g} ({a.kind})"
                             for a in arr.accent_grid if a.kind in _ACCENT_KINDS)
         self._static: dict[str, Any] = {
-            "raga": RAGAS[arr.raga]["display"],
-            "allowed": " ".join(RAGAS[arr.raga]["allowed"]),
+            "raga": r["display"],
+            "allowed": " ".join(r["allowed"]),
+            "pakad": " | ".join(" ".join(p) for p in r["pakad"]),
+            "chalan": " | ".join(" ".join(p) for p in r["chalan"]),
             "motif": " ".join(arr.motif),
             "subgenre": s["display"],
             "subgenre_feel": s["feel"],
