@@ -712,3 +712,60 @@ returns on the timeline) instead of a fresh `propose`. Fewer LLM calls (~3 riffs
 **Note:** default fallback (same kind -> same slot) is a deliberate BEHAVIOR CHANGE — two `RIFF`
 sections now replay one riff (a hook) rather than two independently-developed figures. Composers get
 contrast by assigning explicit slots or using distinct kinds (`BREAKDOWN` is already its own kind).
+
+## NEXT CAMPAIGN — song-quality improvements (GPT feedback triage, 2026-07-14)
+
+*Sujit shared a fresh GPT review of the prompt/architecture (chord progressions for structure,
+clean electric guitars + arpeggios, better taans, more authentic raga feel). To be BUILT IN A NEW
+SESSION, one reviewable step at a time. GPT reviewed a single prompt BLIND to the codebase, so much
+of its list is ALREADY built — the value is the few genuinely-new levers below.*
+
+**Already built (GPT was blind to these — do NOT re-do):** richer raga data
+(aroha/avaroha/vadi/samvadi/pakad/chalan/thaat/samay), composition MEMORY, the lead's `phrase_plan`
+(taan development), riff recurrence via `riff_slot`, meend realism, and the Producer as the 3rd
+critic (Rasik's two jobs already split).
+
+**Push back on (do NOT adopt as-is):**
+- **"Drop the ~80% pakad/chalan rule"** — CONFLICTS with the shipped `phrase_plan` (step 9), built +
+  live-validated precisely because the lead ran straight scales. The transformation vocabulary
+  (sequence/invert/fragment) is the anti-formulaic mechanism; do NOT loosen the ratio.
+- **"Add a SongBlueprint planner agent"** — the COMPOSERS are the arrangers (the Arrangement IS the
+  blueprint); a planner agent bloats the lean roster. Kernel of truth: the energy curve isn't
+  first-class — so WIRE UP the already-designed-but-unwired `SectionIntent.energy` spine instead.
+
+**Genuinely-new levers, ranked (impact × fit × talk value):**
+1. **Harmony layer with modes** (Sujit's own top question — chords for structure). A harmony
+   DECISION the composers make per section: `drone` (Sa–Pa / Sa–Ma, for alaap/taan), `modal_pedal`
+   (one tonic pedal + changing legal upper voicings — the raga-metal default), and a short
+   `raga_compatible_progression` reserved for CHORUSES only. NEVER force Western V–I (it kills the
+   raga's melodic gravity — a musical-accuracy red line and a talk point). `Note.chord` +
+   `_stack_above` already give legal-by-construction voicings; what's missing is the time-varying
+   plan + the mode selector. Feeds a Producer `harmony_flow` criterion.
+2. **Clean electric guitar + arpeggios** (Sujit's question). No clean voice today (every guitar is
+   distorted); the Dethmetal soundfont already HAS a clean preset that `route_guitars` never
+   addresses (zero sample cost). Arpeggiation = a new render mode that walks a voicing into a note
+   sequence; pairs with #1 (arpeggiate the active voicing; thin out under a taan). The textural
+   contrast the Producer's `balance` wants but can't currently find.
+3. **Best-of-N generation + rank** — the only genuinely NEW agentic PATTERN (generate 2–3 candidate
+   leads/taans/riffs, rank CHEAPLY via the deterministic validator + `metrics.py`, NOT N× critic
+   calls). Real quality gain, talk-friendly — but it'd be a THIRD named pattern beside the critique
+   loop + the collaboration; decide deliberately (pattern-overload vs. escalating sophistication).
+4. **More ornaments — `andolan` first.** Data is ALREADY encoded per-raga; there is NO andolan
+   renderer, so the model is told to oscillate notes it can't. Highest authenticity-per-effort, and
+   Rasik's standing ask. Gesture = a slow, shallow pitch oscillation on the flagged komal swaras.
+   Then gamak/murki/khatka. (GPT is right: ornaments-as-gestures beat adding more notes.)
+5. **Tala position to the LEAD + taan taxonomy** (a real gap GPT caught). The riff gets tala / cycle
+   / accents; the lead gets NONE, yet its prompt says "land on the sam" without saying where the sam
+   is. Hand the lead cycle_beats + sam offset within the section + beats-to-next-sam. Then a
+   taan-type taxonomy (sargam/aakar/gamak/vakra/tihai) + sitar↔guitar call-and-response.
+6. **Richer raga fields** — add `nyas_swaras`, a real `rasa` (Rasik conflates it with `samay`
+   today), and weak/forbidden movements; feed them to Rasik as grounding (aligns with the adopted
+   "precompute facts for Rasik to JUDGE, not measure").
+7. **Riff variants** (A / A_prime / halftime / stripped / octave_double) — a CODE transform of a base
+   slot's pattern; extends the `riff_slot` recurrence so the identity survives while the figure
+   evolves.
+
+**Recommended first step (Sujit confirms in the new session):** #1 harmony modes + #2 clean guitar as
+one campaign — it directly answers the chord-progression question and is the biggest structural lever;
+scope it carefully (source-check the raga-compatible progressions). Cheaper/safer alternative: #4
+andolan + #5 tala-aware taans (highest authenticity per unit effort).
