@@ -267,6 +267,23 @@ def _render_previous(memory: list[LeadMemo]) -> str:
                      for memo in memory)
 
 
+def _render_tala_position(span: SectionSpan, cycle_beats: float) -> str:
+    """Where the sam falls INSIDE this section's window, so the lead can LAND on it. Pure.
+
+    Sections are laid end-to-end on cycle boundaries, so a section starts on a sam and ends on
+    one; the cycle downbeats inside the phrase are at local beats 0, C, 2C, ... This is the tala
+    timing the lead used to lack — it was told to 'resolve on the sam' with no idea where the sam
+    actually was (GPT's catch), so a taan could never reliably land."""
+    bars = span.section.bars
+    window = span.length
+    sams = ", ".join(f"{i * cycle_beats:g}" for i in range(bars))
+    return (f"one cycle = {cycle_beats:g} beats; your phrase spans {bars} cycle(s) "
+            f"({window:g} beats). The sam (cycle downbeat) falls at beat(s) {sams} within your "
+            f"phrase, and the phrase ENDS on the closing sam (beat {window:g}). Shape your "
+            f"durations so a RESOLVING note lands on a sam — above all the final resolution, "
+            f"which must arrive on the closing sam.")
+
+
 def _riff_line_token(note: RiffNote) -> str:
     """One RiffNote as the LEAD sees it on the shared canvas — swara with its local octave
     and any power chord (+X) — enough for the lead to answer the riff's pitches and weight."""
@@ -308,11 +325,14 @@ class _LeadContext:
 
     def __init__(self, arr: Arrangement) -> None:
         from subgenres import SUBGENRES
+        from talas import TALAS
+        self._cycle_beats: float = arr.beats_per_bar
         self._static: dict[str, Any] = {
             "raga_block": _render_raga_facts(arr.raga),
             "motif": " ".join(arr.motif),
             "subgenre_feel": SUBGENRES[arr.subgenre]["feel"],
             "bpm": arr.bpm,
+            "tala": TALAS[arr.tala]["display"],
             "output_schema": _OUTPUT_SCHEMA,
         }
 
@@ -323,8 +343,10 @@ class _LeadContext:
         return {
             **self._static,
             "section_kind": section.kind.value,
+            "form_role": section.form_role or "free (no gat role set)",
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "window_beats": f"{span.length:g}",
+            "tala_position": _render_tala_position(span, self._cycle_beats),
             "previous": _render_previous(memory),
             "move": move.value,
             "canvas": _render_canvas_for_lead(canvas, move),
@@ -554,7 +576,7 @@ def _lead_demo_arrangement() -> Arrangement:
         raga="darbari", subgenre="thrash", tala="teentaal", bpm=180,
         motif=["S", "R", "g", "R", "g", "m", "P"],
         sections=[Section(kind=SectionKind.TAAN, bars=1, layers=["lead", "drone"],
-                          foreground="lead",
+                          foreground="lead", form_role="taan_long",
                           intent="a fast virtuosic taan climbing toward the taar")],
     )
     return build_arrangement(draft, CompositionBrief(mood="dark"))

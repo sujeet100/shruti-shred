@@ -33,7 +33,7 @@ import sys
 from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, get_args
 
 import yaml
 from crewai import Agent, Crew, Process, Task
@@ -55,6 +55,7 @@ from crew.contracts import (
     DebateEvent,
     EventStream,
     EventType,
+    FormRole,
     SectionKind,
     build_arrangement,
     motif_illegal_in_raga,
@@ -96,6 +97,21 @@ _SECTION_DESC: Final[dict[str, str]] = {
     "outro": "cadential resolution",
 }
 
+# One-line meaning per gat FORM role. Keyed by the FormRole value so a new role without a
+# description fails loud in `_render_form_roles` (KeyError) rather than shipping undocumented.
+_FORM_DESC: Final[dict[str, str]] = {
+    "intro": "opening — reveal the raga over the drone before the gat (often an alaap)",
+    "mukhada": "the GAT HOOK — the recurring melodic+rhythmic head that resolves to the sam; "
+               "STATE it early, then RETURN to it (mark the return 'mukhada' too)",
+    "manjha": "development (majh/manjha) — extend the mukhada in the middle register",
+    "antara": "the second theme — lifts into the higher (taar) octave",
+    "taan_short": "a short cadential taan filler (half/one cycle) that resolves into the next mukhada",
+    "taan_long": "the ONE developed taan/solo — the peak; place it after the antara or before the final mukhada",
+    "breakdown": "a heavy, sparse rhythmic climax",
+    "tihai": "a phrase stated thrice, landing on the sam — a cadence",
+    "outro": "settle back down to a held Sa",
+}
+
 # One-line meaning per LAYER role (the voices). Keyed by role so a new ROLE without
 # a description fails loud in `_render_layers`. Note tabla + drums may coexist.
 _LAYER_DESC: Final[dict[str, str]] = {
@@ -115,12 +131,13 @@ _OUTPUT_SCHEMA: Final = """{
     "subgenre": "doom",
     "tala": "teentaal",
     "bpm": 72,
+    "anchor": "gat_first",
     "motif": ["d", "n", "S", "m"],
     "sections": [
-      {"kind": "alaap", "bars": 2, "layers": ["lead", "tabla", "drone"], "foreground": "lead", "intent": "unfold the raga slowly over soft tabla", "transition": "tabla drops out; a 2-beat silence before the riff"},
-      {"kind": "riff", "bars": 4, "layers": ["rhythm", "drums", "tabla", "drone"], "foreground": "rhythm", "riff_slot": "main", "intent": "the main hook — tabla theka under the heavy downtuned groove", "transition": "a shared tihai lands on the sam into the breakdown"},
-      {"kind": "breakdown", "bars": 2, "layers": ["rhythm", "drums", "drone"], "foreground": "rhythm", "riff_slot": "breakdown", "intent": "half-time crush on the komal notes", "transition": "feedback swells; the main riff returns"},
-      {"kind": "riff", "bars": 4, "layers": ["rhythm", "drums", "drone"], "foreground": "rhythm", "riff_slot": "main", "intent": "bring the main riff back as the closing hook", "transition": "ring out"}
+      {"kind": "alaap", "form_role": "intro", "bars": 2, "layers": ["lead", "tabla", "drone"], "foreground": "lead", "intent": "unfold the raga slowly over soft tabla", "transition": "tabla settles into the theka"},
+      {"kind": "melody", "form_role": "mukhada", "bars": 4, "layers": ["lead", "rhythm", "drums", "tabla", "drone"], "foreground": "lead", "riff_slot": "main", "intent": "state the gat hook on the sitar; the riff answers it as a rhythmic reduction", "transition": "a shared tihai lands on the sam into the breakdown"},
+      {"kind": "breakdown", "form_role": "breakdown", "bars": 2, "layers": ["rhythm", "drums", "drone"], "foreground": "rhythm", "riff_slot": "breakdown", "intent": "half-time crush on the komal notes", "transition": "feedback swells; the mukhada returns"},
+      {"kind": "riff", "form_role": "mukhada", "bars": 4, "layers": ["lead", "rhythm", "drums", "drone"], "foreground": "rhythm", "riff_slot": "main", "intent": "bring the mukhada hook back, full band", "transition": "ring out"}
     ],
     "registers": {"lead": 0, "rhythm": -3, "drone": -3}
   },
@@ -128,7 +145,9 @@ _OUTPUT_SCHEMA: Final = """{
   "agree": false
 }
 "reasoning" comes FIRST. "registers" is OPTIONAL — omit it to use sensible defaults. "intent" and "transition" are short free-text hints and may be empty.
-Every rhythm section needs a "riff_slot" naming which riff it plays — a small library like "main"/"chorus"/"breakdown". Sections that SHARE a slot replay the SAME riff, so REUSE "main" wherever the main riff returns (the hook), and give the chorus/breakdown their OWN slots to contrast (note the third section above reuses "main" — that is the hook coming back). Lead-only sections need no slot."""
+"anchor" is the ONE idea the whole piece derives from: "gat_first" (the sitar mukhada is the source; the riff is a rhythmic reduction of it) or "riff_first" (the riff is the source; the mukhada quotes its accented notes).
+Set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (above, the last section is the mukhada coming back). Reserve at most ONE "taan_long" for the peak.
+Every rhythm section needs a "riff_slot" naming which riff it plays — "main"/"chorus"/"breakdown". Sections that SHARE a slot replay the SAME riff, so REUSE "main" wherever the mukhada/main riff returns, and give the chorus/breakdown their OWN slots to contrast. Lead-only sections need no slot."""
 
 
 # --------------------------------------------------------------------------- #
@@ -210,6 +229,12 @@ def _render_section_kinds() -> str:
     return "\n".join(f"  - {kind.value}: {_SECTION_DESC[kind.value]}" for kind in SectionKind)
 
 
+def _render_form_roles() -> str:
+    # Iterate the FormRole Literal itself so a role added there without a description
+    # fails loud here (KeyError), never ships undocumented.
+    return "\n".join(f"  - {role}: {_FORM_DESC[role]}" for role in get_args(FormRole))
+
+
 def _render_layers() -> str:
     return "\n".join(f"  - {role}: {_LAYER_DESC[role]}" for role in sorted(ROLES))
 
@@ -227,10 +252,11 @@ def _render_transcript(transcript: list[tuple[str, str]]) -> str:
 
 
 def _section_line(s) -> str:
-    """One section in the draft summary — kind, length, voices, foreground, and (for a
-    rhythm section) its riff slot, so the counterpart can align on the same riff library."""
+    """One section in the draft summary — its form role, kind, length, voices, foreground, and
+    (for a rhythm section) its riff slot, so the counterpart can align on the same gat + riffs."""
+    role = f"{s.form_role}:" if s.form_role else ""
     slot = f", riff={s.riff_slot}" if s.riff_slot else ""
-    return f"{s.kind.value}[{s.bars}b, {'+'.join(s.layers)}, fg={s.foreground}{slot}]"
+    return f"{role}{s.kind.value}[{s.bars}b, {'+'.join(s.layers)}, fg={s.foreground}{slot}]"
 
 
 def _render_draft(draft: ArrangementDraft | None) -> str:
@@ -238,22 +264,25 @@ def _render_draft(draft: ArrangementDraft | None) -> str:
         return "  (no draft yet — propose one)"
     sections = "; ".join(_section_line(s) for s in draft.sections)
     registers = f"\n  registers: {draft.registers}" if draft.registers else ""
-    return (f"  raga={draft.raga}, subgenre={draft.subgenre}, tala={draft.tala}, bpm={draft.bpm}\n"
+    return (f"  raga={draft.raga}, subgenre={draft.subgenre}, tala={draft.tala}, "
+            f"bpm={draft.bpm}, anchor={draft.anchor}\n"
             f"  motif: {' '.join(draft.motif)}\n"
             f"  sections: {sections}{registers}")
 
 
 def _render_arrangement(arr: Arrangement) -> str:
-    form = " -> ".join(s.kind.value for s in arr.sections)
+    # Show the gat form (form_role where set, else the render kind) so the arc reads at a glance.
+    form = " -> ".join(s.form_role or s.kind.value for s in arr.sections)
     return (f"{arr.raga} x {arr.subgenre} in {arr.tala} @ {arr.bpm}bpm (Sa={arr.sa}); "
-            f"motif {' '.join(arr.motif)}; form: {form}")
+            f"anchor {arr.anchor}; motif {' '.join(arr.motif)}; form: {form}")
 
 
 def _draft_summary(draft: ArrangementDraft) -> dict[str, Any]:
     """A compact draft snapshot for the DebateEvent payload the UI renders."""
     return {"raga": draft.raga, "subgenre": draft.subgenre, "tala": draft.tala,
-            "bpm": draft.bpm, "motif": draft.motif,
-            "sections": [s.kind.value for s in draft.sections]}
+            "bpm": draft.bpm, "anchor": draft.anchor, "motif": draft.motif,
+            "sections": [s.kind.value for s in draft.sections],
+            "form": [s.form_role for s in draft.sections]}
 
 
 class _PromptContext:
@@ -272,6 +301,7 @@ class _PromptContext:
             "tala_context": _render_talas(),
             "subgenre_context": _render_subgenres(brief),
             "section_kinds": _render_section_kinds(),
+            "form_roles": _render_form_roles(),
             "layer_roles": _render_layers(),
             "seed_context": _render_pakad_seeds(brief),
             "output_schema": _OUTPUT_SCHEMA,
@@ -306,10 +336,14 @@ def _turn_from_output(output: Any) -> ComposerTurn | None:
 
 def _validate_turn(output: Any):
     """Task guardrail — the domain rules kept out of the schema: (1) the composer's motif
-    must be legal in its raga, and (2) every rhythm section must NAME a riff_slot (so the
-    reuse that makes the main riff a hook is deliberate). `output_pydantic` already
-    guarantees the SHAPE; this checks the raga grammar and the song-form rule and, on a
-    violation, returns the precise error so CrewAI re-runs the turn (a bounded retry).
+    must be legal in its raga, (2) every rhythm section must NAME a riff_slot (so the reuse
+    that makes the main riff a hook is deliberate), and (3) the GAT FORM must hold — every
+    section carries a form_role, a MUKHADA is stated AND returns, and at most one section is
+    a long taan. Code guards only this checkable STRUCTURE; the melodic realisation (what the
+    mukhada IS, how the riff reduces from it) stays the composers' creative call.
+    `output_pydantic` already guarantees the SHAPE; this checks the raga grammar and the
+    song-form rules and, on a violation, returns the precise error so CrewAI re-runs the
+    turn (a bounded retry).
 
     Contract: returns (True, ComposerTurn) or (False, error-message). CrewAI inspects
     this guardrail's RETURN ANNOTATION and requires the literal object tuple[bool, Any];
@@ -333,6 +367,21 @@ def _validate_turn(output: Any):
                        "('main'/'chorus'/'breakdown'); sections that share a slot replay the "
                        "same riff, so reuse 'main' wherever the main riff returns. Add a "
                        f"riff_slot to section(s): {', '.join(unslotted)}. Fix and resend.")
+    # Gat form: every section declares its place in the form, and the MUKHADA (the gat hook)
+    # is stated AND returns — a recurring hook is what turns a loop into a song.
+    roleless = [f"#{i + 1} {s.kind.value}" for i, s in enumerate(turn.draft.sections)
+                if not s.form_role]
+    if roleless:
+        return (False, "Every section needs a form_role naming its place in the gat form "
+                       "(intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). "
+                       f"Add one to section(s): {', '.join(roleless)}. Fix and resend.")
+    if sum(s.form_role == "mukhada" for s in turn.draft.sections) < 2:
+        return (False, "The gat needs a MUKHADA that RETURNS: mark the recurring hook 'mukhada' "
+                       "where it is first stated AND again where it comes back (at least two "
+                       "sections). Add the mukhada return and resend.")
+    if sum(s.form_role == "taan_long" for s in turn.draft.sections) > 1:
+        return (False, "Reserve ONE developed taan/solo for the peak: at most one section may be "
+                       "'taan_long' (use 'taan_short' for cadential fillers). Fix and resend.")
     return (True, turn)
 
 

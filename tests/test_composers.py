@@ -26,17 +26,23 @@ from crew.contracts import (  # noqa: E402
     EventType,
     Section,
     SectionKind,
+    build_arrangement,
 )
 from talas import TALAS  # noqa: E402
 
 
 def _draft(raga="malkauns", subgenre="doom", tala="teentaal", bpm=72,
-           motif=("d", "n", "S", "m")) -> ArrangementDraft:
+           motif=("d", "n", "S", "m"), anchor="gat_first") -> ArrangementDraft:
+    # A minimal but VALID gat: a mukhada that RETURNS (stated, developed, brought back).
     return ArrangementDraft(
-        raga=raga, subgenre=subgenre, tala=tala, bpm=bpm, motif=list(motif),
-        sections=[Section(kind=SectionKind.RIFF, bars=4,
-                          layers=["rhythm", "drums", "drone"], foreground="rhythm",
-                          riff_slot="main")])
+        raga=raga, subgenre=subgenre, tala=tala, bpm=bpm, motif=list(motif), anchor=anchor,
+        sections=[
+            Section(kind=SectionKind.RIFF, bars=4, layers=["rhythm", "drums", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.MELODY, bars=2, layers=["lead", "drone"],
+                    foreground="lead", form_role="manjha"),
+            Section(kind=SectionKind.RIFF, bars=4, layers=["rhythm", "drums", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada")])
 
 
 def _turn(agree=False, note="x", **draft_over) -> ComposerTurn:
@@ -161,13 +167,69 @@ def test_guardrail_rejects_a_rhythm_section_without_a_slot():
 
 
 def test_guardrail_allows_a_lead_only_section_without_a_slot():
-    # a section with no rhythm layer needs no slot
+    # a lead-only section needs no riff_slot; the rest still forms a valid gat (mukhada returns)
     draft = ArrangementDraft(
         raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
-        sections=[Section(kind=SectionKind.ALAAP, bars=2, layers=["lead", "drone"],
-                          foreground="lead")])
+        sections=[
+            Section(kind=SectionKind.ALAAP, bars=2, layers=["lead", "drone"],
+                    foreground="lead", form_role="intro"),
+            Section(kind=SectionKind.RIFF, bars=4, layers=["rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.RIFF, bars=4, layers=["rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada")])
     ok, value = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
     assert ok is True and isinstance(value, ComposerTurn)
+
+
+def _gat_sections(*roles: str) -> list[Section]:
+    """Sections carrying the given form_roles; rhythm-bearing ones get a slot so only the
+    form_role rule under test is what fails (not the riff_slot rule)."""
+    return [Section(kind=SectionKind.RIFF, bars=2, layers=["rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role=role) for role in roles]
+
+
+def test_guardrail_requires_a_form_role_on_every_section():
+    # a valid gat except one section is left without a form_role -> bounced
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=[
+            Section(kind=SectionKind.RIFF, bars=2, layers=["rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.RIFF, bars=2, layers=["rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main"),  # no form_role
+        ])
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "form_role" in msg
+
+
+def test_guardrail_requires_the_mukhada_to_return():
+    # every section has a form_role, but the mukhada is stated only once -> no hook return
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=_gat_sections("mukhada", "breakdown"))
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "mukhada" in msg.lower()
+
+
+def test_guardrail_accepts_a_returning_mukhada():
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=_gat_sections("mukhada", "manjha", "mukhada"))
+    ok, value = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is True and isinstance(value, ComposerTurn)
+
+
+def test_guardrail_rejects_more_than_one_long_taan():
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=_gat_sections("mukhada", "taan_long", "taan_long", "mukhada"))
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "taan_long" in msg
+
+
+def test_anchor_defaults_to_gat_first_and_round_trips_to_the_arrangement():
+    assert build_arrangement(_draft(), CompositionBrief(mood="dark")).anchor == "gat_first"
+    assert build_arrangement(_draft(anchor="riff_first"), CompositionBrief()).anchor == "riff_first"
 
 
 def test_reasoning_monologue_is_carried_into_the_turn_event():

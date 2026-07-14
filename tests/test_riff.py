@@ -138,6 +138,21 @@ def test_short_pattern_is_filled_to_the_cycle_for_a_seamless_loop():
     assert placed[3].start == 4.0                      # the second bar re-lands on the sam
 
 
+def test_rest_leaves_a_silent_gap_in_the_cycle():
+    # a note, a rest, a note: the rest advances time but sounds nothing (space for the tabla/gat)
+    notes = [RiffNote(swara="S", dur=1.0), RiffNote(swara="S", dur=1.0, rest=True),
+             RiffNote(swara="g", dur=1.0)]
+    placed = place_riff(notes, start=0.0, bars=1, cycle_beats=4.0, register=0, accent_beats=set())
+    assert [n.start for n in placed] == [0.0, 2.0]     # nothing sounds at beat 1 — the rest gap
+
+
+def test_trailing_rest_is_kept_as_silence_into_the_sam():
+    notes = [RiffNote(swara="S", dur=1.0), RiffNote(swara="S", dur=1.0, rest=True)]
+    placed = place_riff(notes, start=0.0, bars=1, cycle_beats=4.0, register=0, accent_beats=set())
+    assert len(placed) == 1                            # only the sounding note is placed
+    assert placed[0].start + placed[0].dur == 1.0      # NOT stretched over the trailing rest
+
+
 def test_accent_beats_are_the_sam_and_tali():
     beats = _accent_beats(_arr(("rhythm", "drone")))   # teentaal: sam beat 0, tali beats 4, 12
     assert beats == {0.0, 4.0, 12.0}

@@ -237,6 +237,26 @@ class SectionKind(str, Enum):
     OUTRO = "outro"          # cadential resolution
 
 
+# The gat/song FORMAL role of a section — what it DOES in the composition's form, kept
+# ORTHOGONAL to `kind` (kind = how to RENDER a block; form_role = its place in the gat).
+# A gat-led piece STATES a `mukhada` (the recurring melodic+rhythmic head that resolves to
+# the sam), develops it through `manjha` and a higher-register `antara`, brings the mukhada
+# BACK (the SAME role recurring IS the return — no separate symbol), and reserves ONE
+# `taan_long` for the peak; `taan_short` is a cadential filler, `tihai` a thrice-repeated
+# cadence landing on the sam. A closed set (Literal), friendly to Gemini controlled generation.
+FormRole = Literal[
+    "intro", "mukhada", "manjha", "antara",
+    "taan_short", "taan_long", "breakdown", "tihai", "outro",
+]
+
+# Which idea SEEDS the composition — the shared anchor both creative voices derive from, so
+# one idea (not two colliding ones) runs through the piece. `gat_first`: the sitar mukhada is
+# the source and the riff is its rhythmic reduction; `riff_first`: the riff is the source and
+# the mukhada quotes its accented notes. A first-class DECISION the composers make (agents map
+# to decisions, not instruments), not something code invents.
+CompositionAnchor = Literal["gat_first", "riff_first"]
+
+
 class Section(BaseModel):
     """One block of the form: what kind, how long, who plays, who leads.
 
@@ -253,6 +273,11 @@ class Section(BaseModel):
     distinct riffs. Identity lives in the slot ("code owns the recurrence"), not in the LLM
     remembering to reprise; `None` falls back to the `kind`, so same-kind sections reuse one
     riff by default.
+
+    `form_role` names the section's place in the GAT FORM (mukhada/manjha/antara/...), kept
+    orthogonal to `kind`. It is `Optional` in the schema (so fixtures/demos need not set it),
+    but the composer guardrail REQUIRES it and enforces the gat invariant (a mukhada that
+    returns) — the same optional-in-schema / required-in-guardrail split as `riff_slot`.
     """
     kind: SectionKind
     bars: int = Field(ge=1)          # length in tala cycles
@@ -263,6 +288,8 @@ class Section(BaseModel):
     riff_slot: Optional[str] = None  # which named riff plays here ("main"/"chorus"/"breakdown");
                                      # sections sharing a slot REPLAY the same riff (recurrence).
                                      # None -> falls back to the section kind.
+    form_role: Optional[FormRole] = None  # its place in the gat form (mukhada/manjha/antara/...);
+                                          # required by the composer guardrail, not the schema.
 
     @field_validator("riff_slot", mode="before")
     @classmethod
@@ -272,6 +299,15 @@ class Section(BaseModel):
             return None
         s = str(v).strip().lower()
         return s or None
+
+    @field_validator("form_role", mode="before")
+    @classmethod
+    def _norm_form_role(cls, v):
+        # absorb the nullish sentinels an LLM emits for "unset" so a blank doesn't trip the
+        # Literal; a genuinely-unknown role still fails the Literal (fed back as a retry).
+        if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
+            return None
+        return str(v).strip().lower()
 
     @field_validator("layers")
     @classmethod
@@ -295,8 +331,8 @@ class ArrangementDraft(BaseModel):
     """What a composer EMITS each turn — the composition, not the facts.
 
     The LLM is the composer: it makes the creative calls — raga/subgenre/tala/tempo,
-    the section form, and the `motif` (the piece's melodic seed) — plus optional
-    `registers` when it wants to voice the parts itself. Code never invents the
+    the section form, the `anchor` (which idea seeds the piece), and the `motif` (the
+    piece's melodic seed) — plus optional `registers` when it wants to voice the parts itself. Code never invents the
     music; it only DERIVES verified facts later (the tala's accent grid) and
     GUARDS the hard lines HERE at the boundary: the raga/subgenre/tala must be
     supported, and the motif must be LEGAL in the raga (its swaras in the raga's
@@ -308,6 +344,7 @@ class ArrangementDraft(BaseModel):
     subgenre: str
     tala: str
     bpm: int = Field(gt=0)
+    anchor: CompositionAnchor = "gat_first"  # which idea seeds the piece (gat_first | riff_first)
     motif: list[str] = Field(min_length=1)   # the composer's melodic seed (legal in the raga)
     sections: list[Section] = Field(min_length=1)
     registers: Optional[dict[str, int]] = None   # optional: composer voices the parts itself
@@ -392,6 +429,7 @@ class Arrangement(BaseModel):
     tala: str
     sa: int
     bpm: int = Field(gt=0)
+    anchor: CompositionAnchor = "gat_first"         # which idea seeds the piece (carried from the draft)
     beats_per_bar: float                            # one tala cycle, in quarter-note beats
     sections: list[Section] = Field(min_length=1)
     accent_grid: list[Accent] = Field(min_length=1)
@@ -545,6 +583,7 @@ def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arran
     matras = TALAS[draft.tala]["matras"]
     return Arrangement(
         raga=raga, subgenre=subgenre, tala=draft.tala, sa=sa, bpm=bpm,
+        anchor=draft.anchor,
         beats_per_bar=float(matras),
         sections=draft.sections,
         accent_grid=accent_grid(draft.tala),
@@ -757,19 +796,30 @@ class LeadPhrase(BaseModel):
 
 class RiffNote(BaseModel):
     """One note of a metal riff — a swara with a duration. A riff doesn't kan/meend,
-    but it DOES voice power chords and articulate the chug: `chord` stacks extra raga
-    swaras above the root (each legal in the raga — a fifth `["P"]`, a root-octave power
-    chord `["S"]`, an extended voicing `["g","n"]`), and `technique` names an
-    articulation the renderer maps (palm_mute, slide, bend, hammer_on, pull_off). `oct`
-    is LOCAL to the rhythm register; `vel` defaults loud; timing is a `dur` the code
-    lays on the tala grid. Chord legality is the generator's guardrail, not enforced
-    here, so `output_pydantic` can always parse a well-formed note."""
+    but it DOES voice chords and articulate the chug.
+
+    `chord` stacks extra raga SWARAS above the root, each seated at the lowest octave over
+    it and each legal in the raga (STRICT_RAGA — the distorted-guitar voicing stays inside
+    the grammar; the guardrail enforces it). A chord tone is a raga swara stacked above the
+    root, NOT a fixed interval: add the note's OWN swara for a true octave (root+octave —
+    the power-chord weight), and `["P"]` is Pa (a genuine perfect FIFTH only above the tonic
+    Sa; above another root it is whatever raga interval Pa sits at). `["g","n"]` is a stacked
+    raga-colour voicing. `technique` names an articulation the renderer maps (palm_mute,
+    slide, bend, hammer_on, pull_off).
+
+    `rest` marks a SILENT beat: it occupies its `dur` but sounds nothing (the code skips
+    placing it), so a riff can leave SPACE — rests, not wall-to-wall notes — for the tabla and
+    the gat to speak. When `rest` is true, `swara`/`chord`/`technique` are ignored; set `swara`
+    to any legal symbol (e.g. "S"). `oct` is LOCAL to the rhythm register; `vel` defaults loud;
+    timing is a `dur` the code lays on the tala grid. Chord legality is the generator's
+    guardrail, not enforced here, so `output_pydantic` can always parse a well-formed note."""
     swara: str
     oct: int = 0
     dur: float = Field(gt=0)
     vel: int = Field(default=110, ge=1, le=127)
     chord: Optional[list[str]] = None
     technique: Optional[RiffTechnique] = None
+    rest: bool = False
 
     @field_validator("swara")
     @classmethod

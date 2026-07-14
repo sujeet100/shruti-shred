@@ -42,9 +42,10 @@ validated — sliding through microtones between two legal swaras is what a meen
 is, not a grammar violation.
 
 Riff chords + techniques (the rhythm guitar): a note may carry an optional "chord"
-list of extra swaras — each sounded WITH the root, stacked at the lowest octave
-above it, so `["S"]` is a root-octave power chord, `["P"]` a fifth, `["g","n"]` a
-stacked raga-colour voicing. Chord tones are validated by the grammar like the root.
+list of extra swaras — each a raga swara sounded WITH the root, stacked at the lowest
+octave above it (a swara stacked up, NOT a fixed interval): the note's OWN swara gives a
+root+octave power chord, `["P"]` adds Pa (a true fifth only above the tonic Sa), `["g","n"]`
+a raga-colour voicing. Chord tones are validated by the grammar like the root.
 A note may also carry an optional "technique": "palm_mute" (a short, slightly softer
 chug), "hammer_on"/"pull_off" (a softer legato attack), or "slide"/"bend" (a pitch-
 wheel gesture into/up from the note). Because pitch-bend is channel-wide, a slide/bend
@@ -114,9 +115,9 @@ def _stack_above(root_pitch: int, tone_pitch: int) -> int:
     """Raise `tone_pitch` by whole octaves until it sounds strictly ABOVE `root_pitch`.
 
     The one rule behind chord voicing: every chord tone is seated at the lowest octave
-    over the root, so `["S"]` becomes the root's octave (a power chord), `["P"]` the
-    fifth just above, `["g","n"]` a stacked raga-colour voicing — all in-raga by
-    construction, since the caller only passes legal swaras. Pure.
+    over the root, so the root's OWN swara becomes its octave (a power chord), `["P"]` seats
+    Pa just above (a true fifth only when the root is Sa), `["g","n"]` a stacked raga-colour
+    voicing — all in-raga by construction, since the caller only passes legal swaras. Pure.
     """
     while tone_pitch <= root_pitch:
         tone_pitch += 12

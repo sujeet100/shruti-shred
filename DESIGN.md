@@ -769,3 +769,158 @@ critic (Rasik's two jobs already split).
 one campaign — it directly answers the chord-progression question and is the biggest structural lever;
 scope it carefully (source-check the raga-compatible progressions). Cheaper/safer alternative: #4
 andolan + #5 tala-aware taans (highest authenticity per unit effort).
+
+## GAT-LED SONG CAMPAIGN (Sujit's direction + a 2nd GPT review, 2026-07-14) — IN PROGRESS
+
+*Sujit listened to `out/fusion.mid` (~4:32) and heard the real problem: it is a **riff loop with a
+sitar floating on top**, not a **gat-led composition**. He wants the sitar GAT to be the source —
+`mukhada → manjha → antara` with the mukhada as a returning hook — plus short taans as fillers, one
+long taan/solo for the peak, richer riff/taan rhythm, and layers that build. A second GPT review
+agreed and proposed: make the gat the source, a shared `anchor` (gat_first default; riff_first
+supported), a **riff family** (A/A′/stripped/double), separate short-filler vs long-development
+taans, and layer-by-function. This supersedes the ranked list above as the active plan.*
+
+**Which critic judges what (settled this session — do NOT blur it):** the "sitar isn't faithful /
+gat isn't authentic" complaint is **Rasik's** axis (raga authenticity + idiom), and "does the gat
+work as a song" is the **Producer's** (structure/hook/arc). Ustad must NOT become a taste critic on
+the gat/taans — that would collapse the three orthogonal critics (its whole signature is owning NO
+aesthetic verdict). The one principled way Ustad may grow: extend *legality* from raga-grammar
+(pitch) to **tala-grammar (time)** — taan lands on sam, mukhada resolves to sam, cycle complete —
+all checkable facts, code-owned. Talk point: **legality has two grammars, pitch and time.**
+
+**Build order (one reviewable step each; the working agreement):**
+1. **Gat form spine + anchor — ✅ DONE (this session).** Added `FormRole` (intro/mukhada/manjha/
+   antara/taan_short/taan_long/breakdown/tihai/outro) as a closed `Literal`, an **orthogonal**
+   `Section.form_role` (kind = how to render; form_role = its place in the gat), and a first-class
+   `anchor = gat_first | riff_first` on the draft, carried onto the `Arrangement`. `form_role` is
+   `Optional` in the schema but **required by the composer guardrail** (the same optional-in-schema /
+   required-in-guardrail split as `riff_slot`, so the ~50 unrelated fixtures didn't churn). The
+   guardrail now enforces the gat STRUCTURE — every section has a form_role, a **mukhada is stated
+   AND returns** (≥2), at most one `taan_long` — while the melodic realisation (what the mukhada IS,
+   how the riff reduces from it) stays the composers' creative call. The pattern: **"code decides the
+   checkable, the LLM decides the rest" applied to song FORM, not note legality.** Prompt teaches the
+   gat arc + anchor. Pure tests green (composers 18/18; full suite 21 files green). Live composer
+   confirmation still pending.
+2. **Riff family — ✅ DONE (this session).** `crew/riff_family.py` (pure): four transforms of a
+   slot's base cycle — `base` (A), `prime` (A′: same pitches, palm-mut chug + slide turnaround),
+   `stripped` (half the attacks, sustained — room under a taan), `double` (octave power chord on
+   every note — the climactic hit) — all **legal by construction** (each reuses the base's own
+   swaras, or adds a note's OWN swara for the octave), so no new guardrail. `variant_for_bar` is
+   the CODE policy: no form_role → `base` (a form-less demo/fixture is placed literally, so the
+   whole existing suite stayed green); a taan section → `stripped`; the final rhythm section's last
+   bar → `double`; every 3rd bar of a section ≥3 bars → `prime` (no >2 identical cycles). Wired via
+   `rhythm_layer_from` → `develop_section` (placement factored into a per-bar `_place_cycles`
+   primitive; `place_riff` kept as the literal-repeat wrapper). The talk lesson extends step 1's
+   "code owns the recurrence" to "code owns the VARIATION too." Pure tests: `test_riff_family.py`
+   (14) + full suite 22 files green. Cross-recurrence priming (a returning section differing from
+   its first statement) is a noted easy extension; today variety comes from within-section
+   development + the climactic final double + distinct slots.
+3. **Energy + layer-by-function — ✅ DONE (this session).** `crew/dynamics.py` (pure):
+   `apply_dynamics` is a post-assembly MIX pass, run as the last step of `band_layers` (the single
+   assembly chokepoint for BOTH the parallel and studio paths, confirmed via `flow._assemble`).
+   Two jobs, per section, driven by step 1's `form_role`: (1) an ENERGY ARC — each section's energy
+   (`_ENERGY` table: intro/outro low, mukhada/manjha mid, antara high, `taan_long` = 1.0 peak, final
+   non-outro floored to 0.85 so it lands strong — pairs with the riff `double`) scales velocity so
+   the piece BUILDS; (2) LAYER-BY-FUNCTION — the section's `foreground` sits at gain 1.0 and the
+   rest make room, with the **mix fix**: the rhythm guitar ducks to 0.55 under a lead-foreground
+   section so the sitar cuts through. The drone is EXEMPT (a constant anchor spanning the whole
+   piece). Gated on `form_role` (a form-less chart is untouched → the whole suite stayed green).
+   Scales both `Note.vel` and `DrumHit.vel`. Pure tests: `test_dynamics.py` (10) + full suite 23
+   files green. **Not yet built here:** drum-DENSITY-by-energy (velocity build only for now),
+   dropping the double-track entirely under a lead section (velocity duck only), and reading
+   `SectionIntent.energy` as an override on the studio path (form_role-derived energy is the
+   universal spine; the override is an easy add). Constants (`_DUCK_RHYTHM_UNDER_LEAD`, the energy
+   table) are tuning knobs to revisit after a live render.
+4. **Taan taxonomy + tala-aware lead — ✅ DONE (this session).** The lead was TALA-BLIND (told to
+   "resolve on the sam" with no idea where the sam was — GPT's catch). Now `_LeadContext` feeds it
+   the tala + `_render_tala_position` (cycle_beats, the sam offsets inside its window, and that the
+   phrase ends on the closing sam — sections are cycle-aligned, so start and end are sams), plus the
+   section's `form_role`. The `generate_lead` prompt gains a "TALA POSITION — LAND ON THE SAM" block,
+   a "SHAPE IT TO ITS GAT ROLE" block (mukhada = state/return the hook resolving to sam; manjha =
+   develop in madhya; antara = lift to taar; **taan_short** = a ~1-cycle cadential filler resolving
+   into the next mukhada; **taan_long** = the developed peak, space→16th burst→resolve), and a "FAST
+   RUNS ARE SIXTEENTHS, EARNED" rule (dur 0.25, pickup→burst→held, not every beat). Pure — the lead
+   loop tests unchanged (43/43), full suite 23 files green. **Not done here (noted):** no CODE
+   enforcement that a resolving note lands exactly on the sam (informed prompt only — snapping
+   durations would distort the phrase); voicing is still by `kind`, not `form_role` (a taan_short
+   as a solo-sitar flourish vs. a harmonized third is a possible refinement).
+4b. **Riff richness — ✅ DONE (this session; Sujit chose `strict_raga`).** Shipped: (a) fixed the
+   `["P"]`-is-a-fifth MISLABELLING everywhere (contract `RiffNote`, `generate_riff` prompt, `render.py`
+   comments + `_stack_above` docstring) — a chord tone is now described as "a raga swara stacked at
+   the lowest octave above the root; add the note's OWN swara for a root+octave power chord; `["P"]`
+   is Pa, a true fifth only above Sa"; STRICT_RAGA kept (no out-of-raga fifth). (b) A **`rest`** flag
+   on `RiffNote` — a silent beat that occupies its `dur` but is never placed (so NO renderer change),
+   letting a riff leave SPACE; `_sequence_cycle` skips rests and does not stretch a note over a
+   trailing rest (silence into the sam); the guardrail exempts rests; the family transforms guard
+   them (`double`/`prime` skip rests). (c) `generate_riff` now receives `form_role` and gains a
+   SHAPE-IT-TO-ITS-GAT-ROLE block (mukhada = low-string hook + space; antara = open/wider; breakdown
+   = sparse tihai hits; taan = thin out), a RHYTHM block (primary + contrast cell — gallop / 16th-chug
+   / 3-3-2 / rest-stab — ≥1 rest per cycle, a turnaround to the sam), and a TECHNIQUE BUDGET (chugs =
+   core, ~1 slide/cycle, 1–2 hammer-ons, bends at cadences only). Pure tests: `test_riff` (34,
+   +rests), `test_riff_family` (16, +rest guards); full suite 23 files green. **Deferred:** the
+   generator still writes ONE cycle (step 2's placement-side family provides the A/A′/turnaround
+   development — a generator-side multi-cycle phrase was judged redundant with it); no scoped
+   `power_chord_priority` (Sujit chose strict_raga).
+   ---
+   *Original triage (kept for context):* Sujit: current riffs are too simple/repetitive; wants power chords,
+   sliding power chords, Megadeth-style hammer-ons, palm-muted low-string chugging, gallop, occasional
+   bends, interesting RHYTHM, and DISTINCT riffs/chords for chorus vs bridge. Much of the *mechanism*
+   exists (the schema already carries `chord`+`technique`; step 2 gives A/A′/stripped/double; distinct
+   `riff_slot`s already contrast chorus/breakdown) — the gaps are (a) the GENERATOR still writes ONE
+   cycle (GPT: have it write a **2–4 cycle phrase** with A/A′/turnaround-to-sam built in, complementing
+   step 2's placement-side variation), (b) no **technique budget** (chugs = core texture; ~1 slide per
+   phrase; 1–2 hammer-ons; bends only at cadences; ≥1 intentional rest per cycle — so it doesn't
+   randomly decorate), (c) no **rhythm-cell** vocabulary (primary + contrast: gallop / 16th-chug+rest /
+   3-3-2 / slide→sustain / hammer→chug / half-time hits), and (d) **section-role articulation** (verse/
+   mukhada = low-string hook with space for the gat; chorus = wider OPEN power chords, less palm-mute,
+   higher register; bridge = deliberately different feel — half-time/syncopated/technical; breakdown =
+   simplified tihai-cell hits; final = the hook in its biggest form). Mostly prompt work on
+   `generate_riff` + a small rhythm-cell/technique-budget scaffold; the section-role articulation keys
+   off `form_role` (step 1) like the lead now does. **⚠ DESIGN FORK for Sujit (musical-accuracy
+   non-negotiable):** GPT correctly points out **`["P"]` is NOT "a fifth" above every root** — it is
+   only Pa (the fifth of the tonic Sa); our contract/prompt currently MISLABEL `["P"]` as "a fifth"
+   and `["S"]` as "root+octave" (true only when the root is Sa). A real metal power chord is an
+   INTERVAL (root + perfect-fifth + octave), not a raga scale degree. GPT proposes representing power
+   chords as VOICINGS (`power5`) the renderer builds by interval, plus a `harmony_policy`:
+   **`strict_raga`** (all sounding tones stay in the raga — our current hard line, Ustad-legal) vs.
+   **`power_chord_priority`** (allow the neutral perfect fifth as a non-melodic distorted-guitar
+   voicing even when out-of-raga, keeping roots + all melodic material raga-correct). `power_chord_priority`
+   **breaks our raga-legality guardrail** (Ustad would flag the out-of-raga fifth) — so it is a genuine
+   musical-philosophy decision, NOT to be adopted silently: is a power chord's fifth a *melodic* tone
+   subject to raga law, or a *timbral* thickening exempt from it? Default recommendation: keep
+   `strict_raga` (fix the MISLABELLING regardless — describe `chord` as "raga swaras stacked above the
+   root", not "a fifth"), and only consider a scoped `power_chord_priority` (fifth-only, guitar-only,
+   Ustad taught to treat it as a voicing) if Sujit wants the authentic metal fifth. Overlaps with step 2
+   (extend the family), step 5 (bols/rhythm cells), and the harmony-modes lever from the earlier triage.
+5. **Sitar bols / mizrab-bol phrasing (NEW — Sujit + GPT, 2026-07-14).** Make the gat sound
+   *composed*, not MIDI-over-a-loop, by generating rhythm as **mizrab bols** (Da/Ra/Dir/Dra, chikari
+   strikes, rests) with MIXED subdivisions (single/pair/four-stroke-16ths/explicit triplet) and a
+   **recurring bol identity for the mukhada** that returns at each reprise (bol-bant/displacement for
+   manjha/antara). Key distinction GPT flagged: **bols ≠ subdivision** (DaRaDa is three strokes, a
+   triplet only when placed in triplet timing) — keep them separate. **Design decision to make when
+   we build it:** our generators are duration-only ("LLM aims durations, code lays them on the grid")
+   — durations ALREADY encode subdivision (0.5+0.5 = DaRa, 0.25×4 = DaRaDaRa, 1/3s = triplet), so we
+   likely add a **`bol` + articulation layer on the note** (driving attack/velocity/timbre + a
+   distinct chikari sound in the renderer) rather than GPT's full explicit-onset-grid rewrite —
+   preserving the timing invariant. **Musical-accuracy gate:** the bol/baaj vocabulary must be
+   source-verified (≥2 reliable Hindustani sources; GPT cited Pandit Arvind Parikh + a sitar-baaj
+   study — verify before encoding). Renderer must make bols audibly distinct or the notation change
+   won't be heard. This also feeds the riff-as-rhythmic-reduction anchor (the riff locks to the gat's
+   bol rhythm).
+6. **Gayaki ang — Imdadkhani / Vilayat Khan / Shahid Parvez (NEW — Sujit, 2026-07-14).** The sitar
+   should SING (khayal-vocal style): long connected meend, sustained legato, andolan on komal/nyas
+   swaras, vakra dwelling phrasing, kan/murki/khatka. Maps to: **Rasik** gayaki-idiom criteria (the
+   authenticity judgment), **lead-generator** style so it can ACT on the critique, an
+   **articulation-aware sustain fix** (see below), and finally an **andolan renderer** (data encoded,
+   no gesture — DESIGN.md lever #4). **Source-verify** the gharana idiom before encoding as data.
+7. *(optional)* **Ustad gains tala/time legality** — the pitch+time-grammar talk point above.
+
+**Audio observations (deterministic render fixes — no agent hears audio, so critics can't catch
+these; the "audio production is code" insight):**
+- **Sitar sustain/decay** — a plucked sitar sample decays on long holds; the distortion guitar
+  sustains far longer, so held sitar notes go weak. Fix is **articulation-aware**: fast gat/jhala
+  passages re-articulate (re-pluck, as a real sitarist sustains), but gayaki meend lines must stay
+  sustained (expression swell / layer, NOT re-plucked — re-plucking would destroy the vocal legato).
+  Pairs with steps 5–6.
+- **Rhythm guitar buries the lead** — two hard-panned full-gain tracks sum to a wall; folded into
+  step 3 (foreground-dominates).

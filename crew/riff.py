@@ -56,6 +56,7 @@ from crew.generators import (
     render_composition,
     section_spans,
 )
+from crew.riff_family import develop_section
 from raga import RAGAS, validate_composition
 from subgenres import SUBGENRES
 from talas import TALAS
@@ -70,21 +71,26 @@ _SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
 _OUT_DIR: Final[Path] = _ROOT / "out"
 
 _OUTPUT_SCHEMA: Final = """{
-  "reasoning": "which raga swaras and part of the motif the riff is built on, and how it lands the accents",
+  "reasoning": "which raga swaras and part of the motif the riff is built on, its primary + contrast rhythm cell, and how it lands the sam",
   "notes": [
     {"swara": "S", "oct": 0, "dur": 0.5, "vel": 118, "chord": ["S"], "technique": "palm_mute"},
-    {"swara": "S", "oct": 0, "dur": 0.5, "technique": "palm_mute"},
-    {"swara": "g", "oct": 0, "dur": 0.5},
-    {"swara": "S", "oct": 0, "dur": 0.5, "chord": ["P"], "technique": "slide"}
+    {"swara": "S", "oct": 0, "dur": 0.25, "technique": "palm_mute"},
+    {"swara": "S", "oct": 0, "dur": 0.25, "technique": "palm_mute"},
+    {"swara": "g", "oct": 0, "dur": 0.5, "technique": "hammer_on"},
+    {"rest": true, "swara": "S", "dur": 0.5},
+    {"swara": "S", "oct": 0, "dur": 1.0, "chord": ["S"], "technique": "bend"}
   ]
 }
-"reasoning" comes FIRST. This is ONE tala cycle; the arrangement repeats it across the
-section's bars. "oct" is your octave (0 = home/low; -1 lower). "vel" is optional.
-Durations are in beats (0.25 = 16th, 0.5 = 8th, 1 = quarter) and should sum to about one cycle.
-"chord" (optional) = extra raga swaras sounded WITH the root, stacked above it: ["S"] = a
-root-octave POWER CHORD, ["P"] = a fifth, ["g","n"] = an extended raga voicing. Every chord
-swara MUST be one of the raga's allowed swaras. "technique" (optional) = one of
-palm_mute (a tight chug), slide, bend, hammer_on, pull_off — omit for a plain picked note."""
+"reasoning" comes FIRST. This is ONE tala cycle; the arrangement repeats AND develops it across the
+section (A, A', a stripped or heaviest variant), so write one strong, COMPLETE cycle. "oct" is your
+octave (0 = home/low; -1 lower). "vel" is optional. Durations are in beats (0.25 = 16th, 0.5 = 8th,
+1 = quarter) and should sum to one full cycle, COUNTING rests.
+"chord" (optional) = extra raga swaras sounded WITH the root, each stacked at the lowest octave
+ABOVE it and each a LEGAL raga swara: add the note's OWN swara for root+octave power-chord weight
+(root "g" + ["g"]); ["P"] adds Pa — a true fifth ONLY above Sa, not above every root; ["g","n"] a
+raga-colour voicing. "technique" (optional) = palm_mute (a tight chug — the core texture), slide,
+bend, hammer_on, pull_off; omit for a plain picked note. "rest" (optional) = a SILENT beat for
+SPACE — set rest:true with any swara (ignored); include at least one per cycle so the tabla and gat breathe."""
 
 
 # --------------------------------------------------------------------------- #
@@ -102,37 +108,53 @@ def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int) 
     """
     placed: list[Note] = []
     t = 0.0
+    last_was_rest = False
     for rn in pattern:
         if t >= cycle_beats:
             break
-        dur = min(rn.dur, cycle_beats - t)
-        placed.append(Note(swara=rn.swara, oct=register + rn.oct, start=round(t, 4),
-                           dur=round(dur, 4), vel=rn.vel,
-                           chord=rn.chord, technique=rn.technique))
+        if rn.rest:                                  # a silent beat — advance time, sound nothing
+            last_was_rest = True
+        else:
+            dur = min(rn.dur, cycle_beats - t)
+            placed.append(Note(swara=rn.swara, oct=register + rn.oct, start=round(t, 4),
+                               dur=round(dur, 4), vel=rn.vel,
+                               chord=rn.chord, technique=rn.technique))
+            last_was_rest = False
         t += rn.dur
-    if placed:
+    # Fill a SHORT cycle so the loop has no accidental gap — UNLESS the pattern ends on a rest,
+    # which is an INTENTIONAL silence into the sam (a rest-stab); then the gap is kept.
+    if placed and not last_was_rest:
         last = placed[-1]
-        if last.start + last.dur < cycle_beats:      # short cycle -> sustain into the loop
+        if last.start + last.dur < cycle_beats:
             placed[-1] = last.model_copy(update={"dur": round(cycle_beats - last.start, 4)})
     return placed
 
 
-def place_riff(pattern: list[RiffNote], *, start: float, bars: int, cycle_beats: float,
-               register: int, accent_beats: set[float]) -> list[Note]:
-    """Repeat a one-cycle riff across `bars` from `start`, locking each bar to the sam.
-
-    Notes whose onset (within the cycle) lands on an accented matra (sam/tali) are
-    punched up — this is how CODE locks the riff to the tala's accent grid so riff
-    and kick interlock, rather than trusting the LLM to have counted beats. Pure.
-    """
-    cycle = _sequence_cycle(pattern, cycle_beats, register)
+def _place_cycles(cycles: list[list[RiffNote]], *, start: float, cycle_beats: float,
+                  register: int, accent_beats: set[float]) -> list[Note]:
+    """Place a per-bar SEQUENCE of cycles (one RiffNote list per bar), sequencing each onto its
+    bar from `start` and locking it to the accent grid. Notes whose onset (within the cycle)
+    lands on an accented matra (sam/tali) are punched up — this is how CODE locks the riff to
+    the tala so riff and kick interlock, rather than trusting the LLM to have counted beats.
+    The primitive behind BOTH the literal repeat (`place_riff`) and the developed riff family
+    (`rhythm_layer_from` -> `develop_section`). Pure."""
     notes: list[Note] = []
-    for bar in range(bars):
+    for bar, cycle_notes in enumerate(cycles):
+        cycle = _sequence_cycle(cycle_notes, cycle_beats, register)
         offset = start + bar * cycle_beats
         for n in cycle:
             vel = min(127, round(n.vel * _RIFF_ACCENT_BOOST)) if n.start in accent_beats else n.vel
             notes.append(n.model_copy(update={"start": round(n.start + offset, 4), "vel": vel}))
     return notes
+
+
+def place_riff(pattern: list[RiffNote], *, start: float, bars: int, cycle_beats: float,
+               register: int, accent_beats: set[float]) -> list[Note]:
+    """Repeat ONE cycle across `bars` from `start`, locking each bar to the sam — the LITERAL
+    (no-variation) placement. `rhythm_layer_from` uses the developed placement (the riff family)
+    instead; this stays as the primitive the accent/loop tests target. Pure."""
+    return _place_cycles([pattern] * bars, start=start, cycle_beats=cycle_beats,
+                         register=register, accent_beats=accent_beats)
 
 
 def _accent_beats(arr: Arrangement) -> set[float]:
@@ -238,6 +260,7 @@ class _RiffContext:
         return {
             **self._static,
             "section_kind": section.kind.value,
+            "form_role": section.form_role or "free (no gat role set)",
             "riff_slot": slot_for(section),
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "bars": section.bars,
@@ -270,10 +293,12 @@ def _riff_guardrail(raga: str):
         pattern = _pattern_from_output(output)
         if pattern is None:
             return (False, "Return a single valid RiffPattern JSON object and nothing else.")
-        # Every sounding pitch faces the grammar — the root AND each chord tone stacked
-        # on it — so a power chord / extended voicing stays legal by construction.
-        swaras = [n.swara for n in pattern.notes]
-        swaras += [c for n in pattern.notes for c in (n.chord or [])]
+        # Every SOUNDING pitch faces the grammar — the root AND each chord tone stacked
+        # on it — so a power chord / extended voicing stays legal by construction. Rests
+        # sound nothing, so they are exempt (their swara is an ignored placeholder).
+        sounded = [n for n in pattern.notes if not n.rest]
+        swaras = [n.swara for n in sounded]
+        swaras += [c for n in sounded for c in (n.chord or [])]
         illegal = motif_illegal_in_raga(swaras, raga)
         if illegal:
             allowed = " ".join(RAGAS[raga]["allowed"])
@@ -343,18 +368,27 @@ def _reprise_event(span: SectionSpan, slot: str) -> DebateEvent:
 
 def rhythm_layer_from(patterns: dict[int, RiffPattern], arr: Arrangement) -> Layer | None:
     """Assemble the single rhythm layer from already-generated per-section riffs (section
-    index -> the cycle that plays there). Repeats and accent-locks each cycle across the
-    section's bars exactly as the fan-out does; a section with no riff is skipped. Returns
-    None when nothing plays. Pure — so the studio, which fills the canvases, reuses it."""
+    index -> the base cycle that plays there).
+
+    Each section's base cycle is DEVELOPED across its bars into the riff family
+    (`develop_section`) — so a recurring riff varies (chugged A', thinned under a taan, doubled
+    to land the ending) instead of looping unchanged — then placed and accent-locked. A chart
+    with no declared gat form is placed literally (variant "base"). A section with no riff is
+    skipped. Returns None when nothing plays. Pure — so the studio reuses it."""
     accents = _accent_beats(arr)
+    spans = section_spans(arr)
+    playing = [s.index for s in spans if patterns.get(s.index) is not None]
+    final_rhythm = playing[-1] if playing else None      # the last section that actually plays a riff
+    register = arr.registers[_RHYTHM_ROLE]
     notes: list[Note] = []
-    for span in section_spans(arr):
+    for span in spans:
         pattern = patterns.get(span.index)
         if pattern is None:
             continue
-        notes.extend(place_riff(pattern.notes, start=span.start, bars=span.section.bars,
-                                cycle_beats=arr.beats_per_bar,
-                                register=arr.registers[_RHYTHM_ROLE], accent_beats=accents))
+        cycles = develop_section(pattern.notes, span.section,
+                                 is_final_rhythm=(span.index == final_rhythm))
+        notes.extend(_place_cycles(cycles, start=span.start, cycle_beats=arr.beats_per_bar,
+                                   register=register, accent_beats=accents))
     if not notes:
         return None
     voice = VOICES[_RHYTHM_ROLE]
