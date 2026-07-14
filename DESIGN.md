@@ -892,7 +892,28 @@ all checkable facts, code-owned. Talk point: **legality has two grammars, pitch 
    root", not "a fifth"), and only consider a scoped `power_chord_priority` (fifth-only, guitar-only,
    Ustad taught to treat it as a voicing) if Sujit wants the authentic metal fifth. Overlaps with step 2
    (extend the family), step 5 (bols/rhythm cells), and the harmony-modes lever from the earlier triage.
-5. **Sitar bols / mizrab-bol phrasing (NEW — Sujit + GPT, 2026-07-14).** Make the gat sound
+5. **Sitar bols / mizrab-bol phrasing — ✅ DONE (this session).** A `Bol` closed set on `LeadNote`
+   (`da`/`ra`/`diri`/`darada`/`chikari`) + `crew/lead.py apply_strokes` realises each stroke as
+   sitar ARTICULATION before placement (PURE, no renderer or `Note`-contract change — our GM sitar
+   can't do true stroke timbre, so velocity is the honest lever): `da` strong, `ra` softer, `diri`
+   a da+ra DOUBLE-stroke (note split in 2), `darada` a da+ra+da TRIPLE-stroke (split in 3, for
+   triplets), `chikari` a bright high-Sa drone-string accent (its melodic swara IGNORED → taar Sa;
+   the guardrail skips it). Splits preserve total duration (timing intact) and re-articulate (which
+   also fights the sitar decay). `generate_lead` gains a MIZRAB BOLS block: bol ≠ subdivision, the
+   MUKHADA carries a recurring bol IDENTITY that returns with it, manjha/antara vary by bol-bant.
+   `_local_token` now shows bols in the lead's memory so a return can restate the same pattern.
+   Pure tests: `test_lead` (50, +bols); full suite 23 files green.
+   **Sources (verification tier — the musical-accuracy rule):** VERIFIED to ≥2 reliable Hindustani
+   sources — da, ra, diri, chikari, and "a bol is a STROKE not a subdivision" — via Pandit Arvind
+   Parikh *Bandish on the Instruments* (panditarvindparikh.org / nadsadhna.com), omenad.net, India
+   Instruments (india-instruments.com), kksongs.org, corroborated by chandrakantha.com (David
+   Courtney). **`darada`** (da-ra-da, a triplet) — the syllable is attested single-published-source
+   (Parikh) and CONFIRMED by Sujit as a practitioner; encoded on that basis, tier flagged here.
+   NOT encoded (couldn't reach ≥2 sources): `dra` and the other Parikh compounds' mechanics, a
+   distinct "sustain/rest" bol (handled structurally via `rest`), the 14th-matra Vilayat Khan start.
+   **Deferred:** the masitkhani/razakhani fixed thekas (style, not a fixed pattern — GPT + omenad
+   agree); gayaki density is step 6. *(Original triage note follows.)*
+   Make the gat sound
    *composed*, not MIDI-over-a-loop, by generating rhythm as **mizrab bols** (Da/Ra/Dir/Dra, chikari
    strikes, rests) with MIXED subdivisions (single/pair/four-stroke-16ths/explicit triplet) and a
    **recurring bol identity for the mukhada** that returns at each reprise (bol-bant/displacement for

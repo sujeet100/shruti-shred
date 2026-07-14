@@ -248,6 +248,19 @@ generate_lead:
         the note's own octave.
       Grace and meend swaras must also be legal swaras of this raga.
 
+    MIZRAB BOLS — the sitar's right-hand strokes. Attach a "bol" to your notes to give the gat a
+    RHYTHMIC personality, not just a melody:
+      - "da" a strong stroke, "ra" a softer return, "diri" a fast da+ra DOUBLE-stroke (a pair, for
+        quick ornamental motion), "darada" a da+ra+da TRIPLE-stroke (a triplet), "chikari" a bright
+        high-Sa accent that PUNCTUATES a phrase-end or a gap (its swara is ignored — it sounds the
+        drone strings). Use diri for pairs and darada for triplet groupings in a taan.
+      - A bol is a STROKE, not a subdivision: the rhythm is your durations; the bol is the
+        articulation on top. Mix them — do not stamp the same bol on every note.
+      - THE MUKHADA HAS A BOL IDENTITY: give it a short, recognizable recurring stroke pattern
+        (e.g. da diri da ra) — its rhythmic signature — and restate that SAME bol pattern each time
+        the mukhada RETURNS. Vary the manjha/antara by bol-bant (redistribute/displace the bols)
+        while keeping the melodic DNA. Use chikari sparingly, to answer the tabla or close a phrase.
+
     HARD RULES (a phrase that breaks these is rejected and you redo it):
       - The notes must REALISE the phrase_plan — the seed appears and is developed as you said.
       - Use only the raga's allowed swaras above — for the seed, each note, its grace, and its

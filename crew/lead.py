@@ -82,19 +82,22 @@ _OUTPUT_SCHEMA: Final = """{
     "climax_and_sam": "peaks in the taar octave, then resolves down to land on the sam"
   },
   "notes": [
-    {"swara": "d", "oct": -1, "dur": 2.0, "vel": 80},
-    {"swara": "g", "oct": 0, "dur": 1.5, "grace": ["S"], "meend_swara": "m"},
-    {"swara": "m", "oct": 0, "dur": 4.0, "meend_swara": "S", "meend_oct": 1}
+    {"swara": "d", "oct": -1, "dur": 2.0, "vel": 80, "bol": "da"},
+    {"swara": "g", "oct": 0, "dur": 0.5, "grace": ["S"], "bol": "diri"},
+    {"swara": "m", "oct": 0, "dur": 4.0, "meend_swara": "S", "meend_oct": 1, "bol": "da"},
+    {"swara": "S", "oct": 1, "dur": 0.5, "bol": "chikari"}
   ]
 }
 Decide "phrase_plan" FIRST, then write "notes" that REALIZE it. "contour" is one of
 ascending / descending / arch / wave / landing / explosion. "transformations" (in the
 order they happen) are drawn from repeat, sequence_up, sequence_down, invert, fragment,
 accelerate, answer, resolve, octave_shift, rhythmic_compression. In the notes: "oct" is
-your octave (0 = home; -1 mandra/lower, +1 taar/upper); "vel", "grace", "meend_swara" and
-"meend_oct" are optional. "meend_swara" is a swara to glide to; add "meend_oct" (same frame
-as a note's "oct") ONLY to glide ACROSS octaves — omit it to glide within the note's own
-octave. Durations are in beats and must be positive."""
+your octave (0 = home; -1 mandra/lower, +1 taar/upper); "vel", "grace", "meend_swara",
+"meend_oct" and "bol" are optional. "meend_swara" is a swara to glide to; add "meend_oct" (same
+frame as a note's "oct") ONLY to glide ACROSS octaves — omit it to glide within the note's own
+octave. "bol" is the sitar mizrab STROKE (articulation, NOT a rhythm): "da" strong, "ra" softer,
+"diri" a fast double-stroke (a pair), "darada" a triple-stroke (a triplet), "chikari" a bright
+high-Sa punctuation accent (its swara is ignored). Durations are in beats and must be positive."""
 
 
 # --------------------------------------------------------------------------- #
@@ -149,6 +152,69 @@ def _place_meend_oct(ln: LeadNote, register: int) -> int | None:
     if ln.meend_swara is None or ln.meend_oct is None:
         return None
     return register + ln.meend_oct
+
+
+# --------------------------------------------------------------------------- #
+# Mizrab bols — realise the sitar's right-hand STROKE as articulation. Pure.   #
+# A bol is a stroke, not a pitch or a duration (source-verified; see DESIGN.md #
+# step 5), and our GM sitar can't voice true stroke timbre, so code renders it #
+# with the honest lever we have — velocity, a double-stroke, a bright accent — #
+# BEFORE placement, preserving each note's total duration so timing is intact. #
+# --------------------------------------------------------------------------- #
+
+_BOL_DA_VEL: Final = 1.12        # da — the strong stroke, accented
+_BOL_RA_VEL: Final = 0.82        # ra — the softer return
+_STROKE_STRONG: Final = 1.05     # a `da` within a compound (diri/darada) — a touch strong
+_STROKE_SOFT: Final = 0.80       # a `ra` within a compound — softer
+_CHIKARI_VEL: Final = 1.10       # chikari — a bright accent
+_CHIKARI_OCT: Final = 1          # ...on the taar-Sa drone strings (at least the upper octave)
+
+
+def _scaled_vel(vel: int, scale: float) -> int:
+    return max(1, min(127, round(vel * scale)))
+
+
+def apply_strokes(notes: list[LeadNote]) -> list[LeadNote]:
+    """Realise each note's mizrab `bol` as sitar articulation — PURE, before placement.
+
+    `da` is a strong stroke, `ra` a softer return, `diri` a fast da+ra DOUBLE-stroke (the note
+    split in two — a PAIR), `darada` a da+ra+da TRIPLE-stroke (split in three — a TRIPLET), each of
+    which also re-articulates (countering the sitar's decay), and `chikari` a bright high-Sa
+    drone-string accent (its melodic swara is IGNORED — the chikari strings sound taar Sa). A note
+    with no bol passes through. Each note's total duration is preserved (the split pieces sum to the
+    original), so placement and timing are untouched, and the bol is consumed (cleared) here — the
+    render `Note` never needs a bol field."""
+    out: list[LeadNote] = []
+    for n in notes:
+        if n.bol == "da":
+            out.append(n.model_copy(update={"vel": _scaled_vel(n.vel, _BOL_DA_VEL), "bol": None}))
+        elif n.bol == "ra":
+            out.append(n.model_copy(update={"vel": _scaled_vel(n.vel, _BOL_RA_VEL), "bol": None}))
+        elif n.bol in ("diri", "darada"):              # a compound = 2 (diri) or 3 (darada) strokes
+            out.extend(_split_strokes(n, 2 if n.bol == "diri" else 3))
+        elif n.bol == "chikari":                       # the bright high-Sa drone-string accent
+            out.append(n.model_copy(update={"swara": "S", "oct": max(n.oct, _CHIKARI_OCT),
+                                            "vel": _scaled_vel(n.vel, _CHIKARI_VEL), "grace": None,
+                                            "meend_swara": None, "meend_oct": None, "bol": None}))
+        else:
+            out.append(n)
+    return out
+
+
+def _split_strokes(n: LeadNote, count: int) -> list[LeadNote]:
+    """Split one note into `count` equal fast strokes (diri = 2 da-ra, darada = 3 da-ra-da),
+    accenting on the da's (odd strokes) and softening the ra's. Grace stays on the FIRST stroke,
+    meend is dropped (a compound is too fast to glide), and the pieces sum to the original dur."""
+    piece = round(n.dur / count, 4)
+    out: list[LeadNote] = []
+    for i in range(count):
+        dur = round(n.dur - piece * (count - 1), 4) if i == count - 1 else piece  # last takes the remainder
+        scale = _STROKE_STRONG if i % 2 == 0 else _STROKE_SOFT                     # da, ra, da, ...
+        out.append(n.model_copy(update={
+            "dur": dur, "vel": _scaled_vel(n.vel, scale),
+            "grace": n.grace if i == 0 else None,
+            "meend_swara": None, "meend_oct": None, "bol": None}))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -253,10 +319,15 @@ class LeadMemo:
 
 
 def _local_token(note: LeadNote) -> str:
-    """One realized note as the model wrote it — swara with its LOCAL octave (a `~`
-    marks a meend), the frame the next phrase should build in."""
+    """One realized note as the model wrote it — swara with its LOCAL octave, its mizrab bol
+    (`/da`) and a `~` for a meend — the frame (and the bol IDENTITY) the next phrase builds on,
+    so a returning mukhada can restate the SAME bol pattern."""
     tok = note.swara if note.oct == 0 else f"{note.swara}({note.oct:+d})"
-    return tok + "~" if note.meend_swara is not None else tok
+    if note.bol:
+        tok += f"/{note.bol}"
+    if note.meend_swara is not None:
+        tok += "~"
+    return tok
 
 
 def _render_previous(memory: list[LeadMemo]) -> str:
@@ -375,6 +446,8 @@ def _phrase_swaras(phrase: LeadPhrase) -> list[str]:
     seed blind spot; a seed the raga forbids fails the guardrail like any other)."""
     swaras: list[str] = list(phrase.phrase_plan.seed)
     for note in phrase.notes:
+        if note.bol == "chikari":          # chikari sounds taar Sa (always legal); its written swara is ignored
+            continue
         swaras.append(note.swara)
         swaras.extend(note.grace or [])
         if note.meend_swara is not None:
@@ -491,7 +564,7 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement) -> list[L
         phrase = phrases.get(span.index)
         if phrase is None:
             continue
-        line = place_phrase(phrase.notes, start=span.start, end=span.end,
+        line = place_phrase(apply_strokes(phrase.notes), start=span.start, end=span.end,
                             register=arr.registers[_LEAD_ROLE])
         sitar_line, guitar_line = _voice_line(line, _voicing_for(span.section.kind), arr.raga)
         sitar_notes.extend(sitar_line)

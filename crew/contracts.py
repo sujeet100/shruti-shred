@@ -707,6 +707,16 @@ def parse_composition(comp: dict) -> tuple[Optional[Composition], list[str]]:
 # `oct` is LOCAL to the voice's register (0 = home; +1 to climb for a climax). #
 # --------------------------------------------------------------------------- #
 
+# The sitar's right-hand mizrab (plectrum) STROKE — a closed set (Hindustani only; sources +
+# verification tier recorded in DESIGN.md, step 5): `da` the strong stroke (inward/upward), `ra`
+# the softer return, `diri` a fast da+ra DOUBLE-stroke (a PAIR), `darada` a da+ra+da TRIPLE-stroke
+# (a TRIPLET), `chikari` a bright high-Sa drone-string accent (punctuation, not a melody pitch). A
+# bol is a STROKE, not a subdivision — it carries no duration; rhythm comes from where it is placed,
+# and a compound simply names 2 (diri) or 3 (darada) strokes. Code realises a bol as sitar
+# ARTICULATION (crew/lead.py `apply_strokes`), never as pitch — orthogonal to `dur`, no renderer change.
+Bol = Literal["da", "ra", "diri", "darada", "chikari"]
+
+
 class LeadNote(BaseModel):
     """One note in a Lead phrase — a swara with a duration, no absolute start.
 
@@ -726,6 +736,7 @@ class LeadNote(BaseModel):
     grace: Optional[list[str]] = None
     meend_swara: Optional[str] = None
     meend_oct: Optional[int] = None
+    bol: Optional[Bol] = None            # the mizrab stroke (da/ra/diri/chikari) — sitar articulation
 
     @field_validator("swara")
     @classmethod
@@ -746,6 +757,14 @@ class LeadNote(BaseModel):
     @classmethod
     def _known_meend(cls, v):
         return _clean_meend_swara(v)
+
+    @field_validator("bol", mode="before")
+    @classmethod
+    def _norm_bol(cls, v):
+        # absorb nullish sentinels so a blank doesn't trip the Literal; an unknown bol still fails.
+        if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
+            return None
+        return str(v).strip().lower()
 
 
 # A phrase's overall shape, and the transformations that develop its seed — closed sets

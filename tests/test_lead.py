@@ -44,6 +44,7 @@ from crew.lead import (  # noqa: E402
     _render_canvas_for_lead,
     _render_previous,
     _voice_line,
+    apply_strokes,
     generate_lead,
     lead_layers_from,
     place_phrase,
@@ -388,6 +389,58 @@ def test_studio_lead_fn_builds_a_callable_without_an_llm():
 
 
 # --- the legality guardrail: the hard line -------------------------------------
+
+# --- mizrab bols: apply_strokes realises the stroke as articulation ------------
+
+def test_da_accents_and_ra_softens():
+    da, ra = apply_strokes([LeadNote(swara="S", dur=1.0, vel=90, bol="da"),
+                            LeadNote(swara="g", dur=1.0, vel=90, bol="ra")])
+    assert da.vel > 90 and ra.vel < 90
+    assert da.bol is None and ra.bol is None            # the bol is consumed
+
+
+def test_diri_splits_into_a_double_stroke():
+    out = apply_strokes([LeadNote(swara="m", dur=1.0, vel=90, bol="diri")])
+    assert len(out) == 2
+    assert out[0].dur + out[1].dur == 1.0               # total duration preserved
+    assert out[0].vel > out[1].vel                       # da stronger than the ra
+    assert all(n.swara == "m" for n in out)
+
+
+def test_darada_splits_into_a_triplet():
+    out = apply_strokes([LeadNote(swara="m", dur=1.5, vel=90, bol="darada")])
+    assert len(out) == 3                                 # da-ra-da = three strokes
+    assert round(sum(n.dur for n in out), 4) == 1.5      # total preserved
+    assert out[0].vel > out[1].vel and out[2].vel > out[1].vel   # accents on the da's
+
+
+def test_chikari_sounds_taar_sa_without_ornament():
+    out = apply_strokes([LeadNote(swara="d", oct=0, dur=0.5, vel=90, bol="chikari",
+                                  meend_swara="n", grace=["S"])])
+    assert len(out) == 1
+    assert out[0].swara == "S" and out[0].oct >= 1       # written swara ignored -> high Sa
+    assert out[0].meend_swara is None and out[0].grace is None
+
+
+def test_no_bol_passes_through_unchanged():
+    n = LeadNote(swara="S", dur=1.0, vel=90)
+    assert apply_strokes([n]) == [n]
+
+
+def test_strokes_preserve_total_duration_for_placement():
+    notes = [LeadNote(swara="S", dur=1.0, bol="diri"), LeadNote(swara="g", dur=2.0, bol="darada")]
+    assert round(sum(n.dur for n in apply_strokes(notes)), 4) == 3.0
+
+
+def test_guardrail_ignores_a_chikari_notes_written_swara():
+    # 'R' is illegal in Malkauns, but on a chikari note it is IGNORED (chikari sounds taar Sa),
+    # so the legality guardrail must not flag it
+    phrase = LeadPhrase(phrase_plan=_plan(),
+                        notes=[LeadNote(swara="d", dur=1.0),
+                               LeadNote(swara="R", dur=0.5, bol="chikari")])
+    ok, value = _lead_guardrail("malkauns")(_FakeOutput(phrase))
+    assert ok is True and isinstance(value, LeadPhrase)
+
 
 def test_guardrail_passes_a_legal_phrase():
     ok, value = _lead_guardrail("malkauns")(_FakeOutput(_phrase("d", "n", "S", "m")))
