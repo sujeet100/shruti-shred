@@ -97,6 +97,15 @@ def _page() -> bytes:
     return html.encode("utf-8")
 
 
+def _live_ctx():
+    """The tracing context for a live run — writes a traces/ file so the portal can show it
+    (RMA_TRACE=0 opts out). Lazily imported so the light path never pulls in tracing."""
+    from contextlib import nullcontext
+
+    from crew.tracing import traced, tracing_enabled
+    return traced("ui-live") if tracing_enabled() else nullcontext()
+
+
 def _run_live(query: str) -> dict:
     """Run the whole crew and return the UI payload. Imported lazily so the light
     path (serving the page / offline replay) never pulls in crewai or a network client."""
@@ -106,12 +115,63 @@ def _run_live(query: str) -> dict:
     load_env()
     if not _live_capable():
         raise RuntimeError("no GEMINI_API_KEY — set it in .env to run live")
-    state = compose_flow(query)
+    with _live_ctx():
+        state = compose_flow(query)
     return {
         "events": [e.model_dump(mode="json") for e in state.events],
         "composition": state.composition.model_dump(mode="json") if state.composition else None,
         "wav_path": state.wav_path,
         "audio": f"/audio/{Path(state.wav_path).name}" if state.wav_path else None,
+    }
+
+
+_STREAM_END = object()   # sentinel: the worker thread finished
+
+
+def _compose_events(query: str):
+    """Yield each DebateEvent (as a JSON dict) AS the crew produces it, then a final
+    {'done': True, composition, audio}. The flow runs in a worker thread that publishes to a
+    live sink -> a Queue; this generator (on the request thread) drains the queue, so events
+    surface live instead of only at the end. On failure it yields {'error': ...}."""
+    import queue
+    import threading
+
+    from crew.config import load_env
+    from crew.flow import compose_flow
+    from crew.live import live_sink
+
+    load_env()
+    if not _live_capable():
+        yield {"error": "no GEMINI_API_KEY — set it in .env to run live"}
+        return
+
+    q: queue.Queue = queue.Queue()
+    box: dict = {}
+
+    def worker() -> None:
+        try:
+            with _live_ctx(), live_sink(lambda e: q.put(e.model_dump(mode="json"))):
+                box["state"] = compose_flow(query)
+        except Exception as exc:  # noqa: BLE001 — surface any live failure to the client
+            box["error"] = str(exc)
+        finally:
+            q.put(_STREAM_END)
+
+    threading.Thread(target=worker, daemon=True).start()
+    while True:
+        item = q.get()
+        if item is _STREAM_END:
+            break
+        yield item
+
+    if "error" in box:
+        yield {"error": box["error"]}
+        return
+    state = box.get("state")
+    yield {
+        "done": True,
+        "composition": state.composition.model_dump(mode="json") if state and state.composition else None,
+        "audio": f"/audio/{Path(state.wav_path).name}" if state and state.wav_path else None,
     }
 
 
@@ -170,17 +230,41 @@ class _Handler(BaseHTTPRequestHandler):
         except BrokenPipeError:
             pass
 
-    def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/api/compose":
-            self._send(404, b"not found", "text/plain")
-            return
+    def _read_query(self) -> str:
         length = int(self.headers.get("Content-Length", 0))
         try:
-            query = json.loads(self.rfile.read(length) or b"{}").get("query", "")
-            payload = _run_live(query)
-            self._send(200, json.dumps(payload).encode(), "application/json")
-        except Exception as exc:  # a live failure -> 503; the UI falls back to replay
-            self._send(503, json.dumps({"error": str(exc)}).encode(), "application/json")
+            return json.loads(self.rfile.read(length) or b"{}").get("query", "")
+        except (ValueError, AttributeError):
+            return ""
+
+    def do_POST(self) -> None:  # noqa: N802
+        if self.path == "/api/compose":
+            query = self._read_query()
+            try:
+                payload = _run_live(query)
+                self._send(200, json.dumps(payload).encode(), "application/json")
+            except Exception as exc:  # a live failure -> 503; the UI falls back to replay
+                self._send(503, json.dumps({"error": str(exc)}).encode(), "application/json")
+        elif self.path == "/api/compose/stream":
+            self._compose_stream(self._read_query())
+        else:
+            self._send(404, b"not found", "text/plain")
+
+    def _compose_stream(self, query: str) -> None:
+        """Stream the run as newline-delimited JSON — one event per line as it happens, then a
+        final {'done': ...}. Flushed per line so the browser renders progress live; the
+        request thread stays open for the whole run (ThreadingHTTPServer serves others)."""
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        try:
+            for item in _compose_events(query):
+                self.wfile.write((json.dumps(item) + "\n").encode())
+                self.wfile.flush()
+        except BrokenPipeError:
+            pass   # the client navigated away mid-stream
 
     def log_message(self, *_args) -> None:  # keep the console quiet
         pass

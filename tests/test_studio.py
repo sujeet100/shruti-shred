@@ -368,6 +368,21 @@ def test_run_studio_fast_mode_one_pass_is_leader_only():
     assert [(role, move) for role, move, _ in calls] == [("rhythm", CanvasMove.PROPOSE)]
 
 
+def test_run_studio_publishes_events_to_a_live_sink():
+    # With a live sink installed, run_studio streams exactly the events it returns, in order —
+    # this is what lets the UI show the collaboration AS IT HAPPENS, not only at the end.
+    from crew.live import live_sink
+    arr = _arr([
+        _section(SectionKind.RIFF, ["rhythm", "lead", "drums"], "rhythm"),
+        _section(SectionKind.TAAN, ["lead", "rhythm", "drums"], "lead"),
+    ])
+    _, contribute = _recorder()
+    captured: list = []
+    with live_sink(captured.append):
+        result = run_studio(arr, contribute=contribute, passes=3)
+    assert captured == result.events                 # everything streamed, same order
+
+
 def test_run_studio_emits_a_framing_event_per_section():
     arr = _arr([
         _section(SectionKind.RIFF, ["rhythm", "lead"], "rhythm"),

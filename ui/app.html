@@ -1264,6 +1264,62 @@
     return (typeof EMBEDDED_AUDIO === "string" && EMBEDDED_AUDIO.indexOf("data:") === 0) ? EMBEDDED_AUDIO : null;
   }
 
+  // ======================================================================= //
+  //  LIVE STREAMING — the crew's events arrive over NDJSON and render AS     //
+  //  THEY HAPPEN (real progress), instead of the whole run landing at once.  //
+  // ======================================================================= //
+  function liveStart() {
+    director.events = []; director.comp = null; director.audio = null;
+    director.i = -1; director.active = true; director.mode = "live";
+    ++director.token;                              // supersede any prior run
+    stopAudio();
+    dom.logfeed.innerHTML = "";
+    hideMoment();
+    dom.logTag.textContent = "— streaming…";
+    dom.composeBtn.disabled = true;
+    setStatus("composing (live)", "status running");
+  }
+  function liveEvent(e) {
+    director.events.push(e);
+    showEvent(director.events.length - 1, true);   // append-render this beat immediately
+    dom.logTag.textContent = `— ${director.events.length} events`;
+  }
+  function liveFinish(comp, audio) {
+    director.comp = comp; director.audio = audio;
+    finishRun(true);                               // reveal the score + play
+  }
+
+  // POST the query, then read the NDJSON body chunk-by-chunk: each line is one event
+  // (render it live), and a final {done:…} line carries the composition + audio URL.
+  async function streamCompose(query) {
+    const res = await fetch("/api/compose/stream", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query })
+    });
+    if (!res.ok || !res.body) throw new Error("stream " + res.status);
+    liveStart();
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", comp = null, audio = null, err = null, got = false;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+        if (!line) continue;
+        let obj; try { obj = JSON.parse(line); } catch (_) { continue; }
+        if (obj.error) { err = obj.error; }
+        else if (obj.done) { comp = obj.composition; audio = obj.audio; }
+        else { liveEvent(obj); got = true; }
+      }
+    }
+    if (err) throw new Error(err);
+    if (!got) throw new Error("empty stream");
+    liveFinish(comp, audio);
+  }
+
   async function runCompose() {
     const query = dom.prompt.value.trim() || "a metal fusion";
     let events = DEMO_EVENTS, comp = DEMO_COMPOSITION, audio = resolveDemoAudio();
@@ -1280,11 +1336,8 @@
       dom.sWho.textContent = "System"; dom.sWho.style.color = "var(--role-system)";
       dom.sWhat.textContent = "running the live crew — interpret → compose → critique → conductor…";
       try {
-        const res = await fetch("/api/compose", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ query }) });
-        if (!res.ok) throw new Error("live " + res.status);
-        const data = await res.json();
-        if (!data.events || !data.events.length) throw new Error("empty stream");
-        events = data.events; comp = data.composition; audio = data.audio || audio;
+        await streamCompose(query);      // streams events live and drives the whole run + reveal
+        return;
       } catch (err) {
         console.warn("live compose failed, falling back to demo", err);
         setStatus("live failed — demo", "status running");

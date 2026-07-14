@@ -48,6 +48,7 @@ from crew.contracts import (
     SectionCanvas,
     UstadVerdict,
 )
+from crew.live import publish, publish_all
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 _SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
@@ -144,7 +145,9 @@ def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[Deba
     from crew.lead import compose_lead
     from crew.riff import compose_riff
     lead_layers, e1 = compose_lead(arr)
-    rhythm, e2 = compose_riff(arr)
+    publish_all(e1)                                   # the studio path streams per-turn; the
+    rhythm, e2 = compose_riff(arr)                    # parallel path streams two coarse bundles
+    publish_all(e2)
     return lead_layers, rhythm, [*e1, *e2], []
 
 
@@ -267,8 +270,12 @@ class ComposeFlow(Flow[ComposeState]):
         """interpret the query, arrange the chart, generate the creative voices, assemble."""
         st = self.state
         brief, e1 = self._stages.interpret(st.query)
+        publish_all(e1)                               # stream each phase as it completes
+        publish(_flow_event("Composers negotiating the chart…"))
         arr, e2 = self._stages.compose(brief)
-        lead_layers, rhythm, e3, canvases = self._stages.generate(arr)
+        publish_all(e2)
+        publish(_flow_event("The band is composing on the shared canvas…"))
+        lead_layers, rhythm, e3, canvases = self._stages.generate(arr)   # streams its own events
         st.arrangement = arr
         st.lead_layers = lead_layers
         st.rhythm = rhythm
@@ -294,6 +301,7 @@ class ComposeFlow(Flow[ComposeState]):
         st.rhythm = rhythm
         st.canvases = canvases
         st.composition = self._stages.assemble(st.arrangement, lead_layers, rhythm)
+        publish_all(events)
         st.events.extend(events)
         return "recritique"
 
@@ -303,10 +311,12 @@ class ComposeFlow(Flow[ComposeState]):
         authenticity), Producer (composition quality — reads the chart too)."""
         st = self.state
         assert st.composition is not None and st.arrangement is not None
+        publish(_flow_event("The critics are judging the piece…"))
         ustad, rasik, producer, events = self._stages.critique(st.composition, st.arrangement)
         st.ustad = ustad
         st.rasik = rasik
         st.producer = producer
+        publish_all(events)
         st.events.extend(events)
 
     @listen(critique)
@@ -318,6 +328,7 @@ class ComposeFlow(Flow[ComposeState]):
                 and st.producer is not None and st.composition is not None)
         ruling, events = self._stages.arbitrate(st.ustad, st.rasik, st.producer, st.composition)
         st.ruling = ruling
+        publish_all(events)
         st.events.extend(events)
 
     @router(arbitrate)
@@ -328,12 +339,15 @@ class ComposeFlow(Flow[ComposeState]):
         if st.ruling.directive == "accept":
             return "done"
         if st.round >= self._max_rounds:
-            st.events.append(_flow_event(
-                f"Revise cap ({self._max_rounds}) reached — accepting the last version."))
+            capped = _flow_event(f"Revise cap ({self._max_rounds}) reached — accepting the last version.")
+            st.events.append(capped)
+            publish(capped)
             return "done"
         st.round += 1
-        st.events.append(_flow_event(
-            f"Revise round {st.round}: regenerating '{st.ruling.layer}' per the Conductor."))
+        revising = _flow_event(
+            f"Revise round {st.round}: regenerating '{st.ruling.layer}' per the Conductor.")
+        st.events.append(revising)
+        publish(revising)
         return "revise"
 
     @listen("done")
@@ -341,6 +355,7 @@ class ComposeFlow(Flow[ComposeState]):
         """Render the accepted composition to a WAV (skipped if fluidsynth is absent)."""
         st = self.state
         assert st.composition is not None
+        publish(_flow_event("Rendering the audio…"))
         st.wav_path = self._stages.render(st.composition)
 
 

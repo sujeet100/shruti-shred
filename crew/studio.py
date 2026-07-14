@@ -44,6 +44,7 @@ from crew.contracts import (
     SectionKind,
 )
 from crew.generators import SectionSpan, section_spans
+from crew.live import publish, publish_all
 
 
 # --------------------------------------------------------------------------- #
@@ -218,8 +219,12 @@ def run_studio(arr: Arrangement, *, contribute: Contribute,
     for span in section_spans(arr):
         canvas = session_canvas(span)
         turns = section_turns(span.section, passes=passes)
-        events.append(_session_event(canvas, turns))
+        framing = _session_event(canvas, turns)
+        events.append(framing)
+        publish(framing)                             # stream the session announcement live
         for turn in turns:
-            events.extend(contribute(turn.role, turn.move, canvas, list(canvases)))
+            turn_events = contribute(turn.role, turn.move, canvas, list(canvases))
+            events.extend(turn_events)
+            publish_all(turn_events)                 # stream each voice's contribution as it lands
         canvases.append(canvas)
     return StudioResult(canvases=canvases, events=events)
