@@ -945,3 +945,67 @@ these; the "audio production is code" insight):**
   Pairs with steps 5–6.
 - **Rhythm guitar buries the lead** — two hard-panned full-gain tracks sum to a wall; folded into
   step 3 (foreground-dominates).
+
+### ★ GAT OVERHAUL — the NEXT-SESSION campaign (diagnosed 2026-07-14 from a LIVE run)
+
+*Steps 1–5 + 4b are committed (`bf359da`, `4a2d21b`) and green, but the first full LIVE render
+(`out/fusion.wav`/`.mid`, trace `f20b9d65ddcb`) revealed the fixes touched the PERIPHERY and missed
+the HEART of the gat. Sujit's critique + a second GPT review CONVERGE. This subcampaign is the fix.
+Everything below is from the actual trace — start here, no re-analysis needed.*
+
+**The run:** Bhairavi × doom, jhaptaal (10 matras, 2+3+2+3), 70 bpm, anchor gat_first, motif
+`g m P d m g m r S` (= the encoded Bhairavi pakad ✓). Form the composer produced: intro(20) →
+mukhada(40) → manjha(40) → antara(40) → taan_long(20) → breakdown(30) → mukhada(40) → outro(20)
+matras. The high-level ARRANGEMENT was correct; the failure is in how the gat is REPRESENTED.
+
+**Root diagnosis (trace-confirmed, Sujit + GPT agree):**
+1. **THE core bug — the mukhada is a 40-matra through-composed phrase, not a looping ~10-matra
+   cell.** The lead composes ONE continuous phrase spanning the whole 4-avartan window, so there is
+   no recognizable, repeatable HOOK and no clear begin/end. A gat mukhada must be ~1 avartan
+   (10 matras) that RESOLVES to sam and REPEATS. (The riff already does this; the gat must too.)
+2. **`LeadNote` has NO `rest` field** (a real design bug — `RiffNote` got one in 4b, the lead did
+   not). Asked for space/nyas, the lead can only lengthen notes → "pauses after every 1–2 notes" and
+   no true nyas rests.
+3. **The mukhada RETURN is regenerated from text memory, not CACHED** — the riff-slot cache reuses
+   its cell verbatim; the lead doesn't, so the "return" needn't match the head. (Leads #1 and #5 both
+   START `g m P d m g m r S` but diverge.)
+4. **Rhythmically flat GAT:** the mukhada/manjha are ~all even quarter notes (lead #1: 27 of 38 notes
+   dur 1.0, almost all single da/ra, ~2 diri) → bland. The TAAN, by contrast, DID use the new work
+   (32 sixteenths, 19 eighths, 28 diri) — so bols/subdivision work; the gat just doesn't use them.
+5. **Vadi/nyas ignored:** vadi `m`, samvadi `S` are passed THROUGH, never dwelt on or cadenced to;
+   no sam landing each avartan. Legality ≠ raga identity — nothing enforces nyas / pakad-at-mukhada /
+   sam resolution / gat-head-vs-manjha-vs-antara distinction.
+6. **No andolan** on Bhairavi's komal `r`/`g`/`d` (no renderer) — the single biggest "doesn't feel
+   like Bhairavi" factor after the flat delivery.
+7. **`doom` default** reinforces "sparse/heavy whole notes" downstream; the brief was a vague mood.
+
+**CORRECTIONS to the raw reading (do not chase these):** the jhaptaal 10-beat loop + 70 bpm are
+INTENTIONAL and fine — NOT a cause. And `fusion.mid` uses external Bank Selects (Indian Ensemble
+bank 50, Dethmetal bank 126); in a GENERIC MIDI player those fall back to PIANO and the meend shows
+as thousands of pitch-bends — so judge `fusion.WAV` (FluidSynth + soundfonts), not the raw `.mid`.
+**OPEN QUESTION to confirm first next session:** did Sujit hear the `.wav` or the `.mid`? If the
+`.mid` in a generic player, re-weight the timbre/andolan fixes (composition faults 1–5 hold either way).
+
+**The fix plan (prioritised; 1+2 first — the difference between a melody-in-a-block and a gat hook):**
+1. **Mukhada as a cached, looping ~1-avartan cell** — the lead composes EXACTLY one cycle for a
+   `mukhada` section (pass window = beats_per_bar, not span.length); code LOOPS it across the
+   section's bars with a small final-cycle variation, and CACHES the cell to reuse verbatim for the
+   mukhada return (mirror the riff-slot cache / step-2 family). Prompt: a memorable 10-matra head
+   that resolves to sam.
+2. **`rest: bool` on `LeadNote`** (+ `place_phrase` skips it, like the riff) + nyas rules in
+   `generate_lead`: sam landing on matra 1 (strong `S` or `m→S`), sustain/rest on `m`/`S`/`P`, 1–2
+   intentional rests per avartan, stop the per-note pausing.
+3. **Andolan renderer** on the raga's `andolan` swaras (data already encoded; no gesture yet) — a
+   slow shallow pitch oscillation on flagged komal notes. Rasik's standing ask; highest
+   authenticity-per-effort for Bhairavi.
+4. **Rendered-score verifier + repair pass** (GPT #4; = the "Ustad gains tala/TIME legality" idea):
+   assert each avartan lands the sam, mukhada cycles are self-similar, the final mukhada matches the
+   head, accents follow 2+3+2+3, and ONLY the taan carries sustained 16ths — then REGENERATE a weak
+   hook (the critics run too late today; there is no repair for a bad mukhada).
+5. **Operational brief** (GPT #5): steer the composers to concrete rhythm (e.g. double-time kit under
+   the 70-bpm doom pulse, 8th-note chugs, one 16th turnaround per avartan, lead gat = a 10-matra
+   mukhada with nyas on Ma/Sa) instead of a vague mood; consider defaulting/encouraging progressive
+   over doom when the user wants rhythmic life.
+
+**Deferred (still queued from before):** gayaki-ang density/meend/sustain (step 6 orig) folds into
+2+3; the sitar-decay articulation-aware fix; Ustad pitch+time-legality talk point (now = fix #4).
