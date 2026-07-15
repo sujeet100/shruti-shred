@@ -22,7 +22,7 @@ the second gate, never the first.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Final, Literal, Optional
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
@@ -57,6 +57,13 @@ _NULLISH = {"", "null", "none", "n/a", "na", "unspecified", "unknown", "any",
             "not stated", "not specified", "none stated", "not applicable", "unstated"}
 
 
+# The playable tempo range — anything an LLM emits outside this is junk, not a choice
+# (slower than 40 isn't a groove, faster than 300 isn't playable): the extractor nulls it
+# (unstated), the composer draft REJECTS it (schema retry).
+_BPM_MIN: Final = 40
+_BPM_MAX: Final = 300
+
+
 class RawIntent(BaseModel):
     """What the Interpreter LLM extracts — loose, only what the user actually said.
 
@@ -88,10 +95,14 @@ class RawIntent(BaseModel):
     @field_validator("bpm", mode="before")
     @classmethod
     def _bad_bpm_to_none(cls, v):
+        # Junk includes IMPLAUSIBLE tempi, not just non-numbers: a live run saw the extractor
+        # emit bpm=2 for a query that stated no tempo (its own reasoning said "not stated"),
+        # and 2 bpm rendered a 53-minute WAV. Outside the playable range means "unstated".
         try:
-            return None if v is None or int(v) <= 0 else int(v)
+            bpm = None if v is None else int(v)
         except (TypeError, ValueError):
             return None
+        return bpm if bpm is not None and _BPM_MIN <= bpm <= _BPM_MAX else None
 
     @field_validator("instruments", mode="before")
     @classmethod
@@ -343,7 +354,7 @@ class ArrangementDraft(BaseModel):
     raga: str
     subgenre: str
     tala: str
-    bpm: int = Field(gt=0)
+    bpm: int = Field(ge=_BPM_MIN, le=_BPM_MAX)   # playable range — an absurd tempo is a schema retry
     anchor: CompositionAnchor = "gat_first"  # which idea seeds the piece (gat_first | riff_first)
     motif: list[str] = Field(min_length=1)   # the composer's melodic seed (legal in the raga)
     sections: list[Section] = Field(min_length=1)
@@ -544,7 +555,12 @@ def motif_from_pakad(raga: str) -> list[str]:
 # How far above the riff's floor the lead sits, in octaves — enough that the
 # melody clears the downtuned rhythm and they don't fight for the same register.
 _LEAD_OCTAVES_ABOVE_RIFF: int = 2
-_RHYTHM_FLOOR: int = -2   # lowest octave the rhythm guitar sits at (~D2); below this it reads as bass
+# Lowest ABSOLUTE octave any rhythm-guitar note may sound at (~D2 at the default Sa); below
+# this a distortion patch is a muddy sub-bass rumble that reads as (and collides with) the
+# bass. PUBLIC because riff placement clamps each note here too: the register default alone
+# proved insufficient — the riff LLM writes local `oct: -1` notes, which pushed roots to ~D1
+# (heard as mud in the first live gat render; 62% of riff onsets were below D2).
+RHYTHM_FLOOR: int = -2
 
 
 def voice_registers(subgenre: str) -> dict[str, int]:
@@ -560,7 +576,7 @@ def voice_registers(subgenre: str) -> dict[str, int]:
     # Keep the rhythm GUITAR out of sub-bass: at oct -3 (~D1, 37 Hz) a distortion patch
     # is a muddy rumble that reads as bass, not a guitar. Floor it at -2 (~D2) so the
     # bass (an octave below it) owns the sub and the guitar keeps its crunch.
-    rhythm = max(riff_floor, _RHYTHM_FLOOR)
+    rhythm = max(riff_floor, RHYTHM_FLOOR)
     return {"lead": lead, "rhythm": rhythm, "drone": riff_floor}
 
 
@@ -614,7 +630,8 @@ def _clean_meend_swara(v):
 # A rhythm-guitar playing technique the renderer maps to a MIDI gesture — the chug of
 # a palm-mute, a slide/bend on the pitch wheel, or a softer legato attack. A closed set,
 # so it validates at the boundary; shared by the riff contract and the render-time Note.
-RiffTechnique = Literal["palm_mute", "slide", "bend", "hammer_on", "pull_off"]
+RiffTechnique = Literal["palm_mute", "slide", "long_slide", "pick_scrape", "bend",
+                        "hammer_on", "pull_off"]
 
 
 class Note(BaseModel):
@@ -631,6 +648,10 @@ class Note(BaseModel):
     andolan: Optional[bool] = None               # a slow, shallow pitch OSCILLATION on this held note
                                                  # (Darbari komal g/d, Bhairav komal r/d) — code sets it
                                                  # deterministically on the raga's andolan swaras
+    fade: Optional[bool] = None                  # a RING-OUT: expression decays across the note like a
+                                                 # struck string dying away — code sets it on the intro's
+                                                 # final Sa so the resolution rings into the reserved
+                                                 # silence before the gat
 
     @field_validator("swara")
     @classmethod
@@ -674,6 +695,7 @@ class Layer(BaseModel):
     program: Optional[int] = None
     channel: Optional[int] = None
     pan: Optional[int] = None                     # MIDI CC10 stereo position, 0=L .. 64=C .. 127=R
+    detune_cents: Optional[int] = None            # channel fine-tune (RPN 0,1) — decorrelates a double-track
     notes: Optional[list[Note]] = None
     hits: Optional[list[DrumHit]] = None
 
@@ -818,6 +840,13 @@ class PhrasePlan(BaseModel):
     contour: LeadContour                # the phrase's overall shape
     transformations: list[PhraseMove]   # how the seed evolves, in order
     climax_and_sam: str                 # one line: where energy peaks and how it resolves/lands
+    # Taan architecture (a taan/solo section fills these too — optional so every other section,
+    # and every existing fixture, is untouched). Kept as free strings, not Literals: the prompt
+    # supplies the verified vocabulary, and a lenient field never burns a schema retry on a
+    # stray-but-harmless value (the plan steers the model; code never executes it).
+    taan_style: Optional[str] = None    # ONE dominant style for the whole taan (prompt lists the verified set)
+    register_plan: Optional[str] = None  # the arc: where it starts, where the single peak lands, the descent
+    rhythm_plan: Optional[str] = None    # the burst/space shape (e.g. "pickup, burst, held, burst, tihai")
 
     @field_validator("seed")
     @classmethod

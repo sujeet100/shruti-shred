@@ -90,6 +90,14 @@ Every LLM/crew call costs real money now. Keep spend minimal and deliberate:
   eval case — `uv run python -m crew.evals <index>` or `uv run python -m crew.evals "<ad-hoc
   query>"` — never the full golden set on a whim. Run ALL cases only for a deliberate
   regression pass, and **ask Sujit before running the entire eval suite.**
+- **Live renders: ASK SUJIT FIRST, every time (IMPORTANT — his explicit rule, 2026-07-15).**
+  A full-flow live render is the most expensive single action in the repo. Never kick one off
+  on your own judgment, never re-render to "confirm" a code-level fix that pure tests already
+  cover, and never chain render → find issue → fix → render again in one session — batch the
+  fixes, then ask. (This rule exists because a session burned several full renders back to back.)
+- **Live renders get a UNIQUE name** — `production_stages()` timestamps the render
+  (`fusion_YYYYMMDD_HHMMSS.{wav,mid,json}`) so a new run never overwrites an earlier one;
+  keep it that way, and never render to a name that already exists.
 - **Levers:** cached input (repeated data/prompts ~10% cost), bounded dialogue turns
   (`MAX_ROUNDS`), flash-lite for the cheap agents, small structured outputs. Watch
   `flow.usage_metrics`.
@@ -252,8 +260,12 @@ checklist.
 - **Stacked (split) soundfonts** (`src/soundfont.py`): the renderer can layer specialized
   banks over the GM base (FluidSynth `-b` bank-offset + MIDI Bank Select per channel, `mma`
   mode) so a voice pulls from a dedicated soundfont; a missing extra degrades to the base.
-  Live: the rhythm/lead guitars route to **Dethmetal** (dedicated distorted guitar, bank 126;
-  license UNVERIFIED — demo-only), and the **sitar + tabla** route to the **Indian Ensemble**
+  Live: the guitars route to **SGM V2.01** when present (bank offset 300 — Sujit picked its
+  tone by ear 2026-07-15; it is what Songsterr's FluidSynth player uses; GM-compatible, so the
+  two-tone L/R double-track survives; palm-muted chugs bank-select its bank-1 **"Muted
+  Dis.Gt"** articulation via the renderer's companion channel), degrading to **Dethmetal**
+  (dedicated distorted guitar, bank 126; license UNVERIFIED — demo-only) then the GM base;
+  the **sitar + tabla** route to the **Indian Ensemble**
   (bank offset 50; E-mu, attribution license, MANUAL fetch — polyphone gates it, see `setup.sh`).
   That soundfont is pitched an OCTAVE LOW, so the sitar (preset 2) is transposed +1 octave; the
   tabla (preset 0, melodic channel) is **tuned to the piece's Sa** via RPN coarse-tuning. The
@@ -450,5 +462,81 @@ and build order.
   top finding is to **reframe the debate as Rasik (soul) vs a Producer/impact voice**, and
   to stop relying on provider-native strict JSON (parse+retry ourselves). Full roadmap +
   adopt/adapt/reject verdicts live in DESIGN.md.
+- **GAT DEVELOPMENT — ✅ BUILT (2026-07-15;** full record: DESIGN.md "GAT DEVELOPMENT — BUILT"**):**
+  the A→D campaign from Sujit's live feedback + the Gemini review. (A) `verify_intro` — the alap
+  ends on a HELD Sa, Sa ≥30% by duration (chikari counts — the prompt teaches Sa re-emphasis via
+  chikari between phrases), ≥2 true rests + a nyas rest after Sa; the pre-mukhada pause is CODE
+  (`_intro_gen_span` shortens the gen window). (C) manjha composed KNOWING the cached head
+  (`{mukhada_head}` block) + `verify_manjha` (fills to the sam; last note ≤2 ladder steps from the
+  head's first swara; not flat); composer guardrail: manjha only after the first mukhada and
+  IMMEDIATELY followed by one, and lead-less sections ≤2 bars. (D) ONE sixteenth-note taan fill
+  (`verify_fill`) spliced by code into the middle statement of every ≥3-bar mukhada section. All
+  verified cells share `_generate_verified_cell` (bounded feedback re-roll, best-of-N).
+  **The riff finding (talk-gold):** the MIDI DISPROVED the tritone-stack hypothesis (110 octaves +
+  8 fifths, zero dissonant stacks) — the real mud was (1) riff roots at D1 (local `oct:-1` sank
+  below the register floor; now clamped per-note at `RHYTHM_FLOOR` in `_sequence_cycle`), which
+  also put the bass IN the riff's octave, (2) CLIPPING at gain 1.2 (now `_GAIN=0.5`, calibrated),
+  (3) bone-dry samples (now per-role CC91 reverb sends + a FluidSynth room), (4) both rhythm
+  sides on one Dethmetal patch (now `detune_cents=8` on the right take). Chords now seat
+  CONSONANT-under-distortion (`_seat_chord_tone`: octave/fifth/inverted-fourth/add9/tenth;
+  semitone/tritone/sixth/seventh degrade to octave weight) and `harmonize_riff_to_lead` thins any
+  riff note grinding (ic 1/6/11) under a sustained lead note to a soft chug — the riff yields, the
+  raga line is never re-pitched. Every render now saves the **Composition JSON** beside the WAV.
+- **DRUM MACHINE V2 — ✅ BUILT (2026-07-15;** design + research record: DESIGN.md "DRUM MACHINE
+  V2"**):** the kit is a real metal drummer, still deterministic (no agent). New
+  `crew/drum_patterns.py` (pure, research-grounded 16th-grid vocabulary: skank/D-beat, three
+  blasts, gallop cell, double-kick carpet, half-time, prog kick-drift) + `crew/groove.py`
+  orchestration: section ENERGY from kind+form_role (**ANTARA rides half-time on the RIDE**,
+  taan_long = climax crash wash, breakdown = china quarters), patterns tiled PER VIBHAG with the
+  tala in the kit's dynamics (sam crash+kick each phrase, tali leans in/bell, khali sits back),
+  A-A-A-B turnarounds, mini/seam/into-climax crescendo fills (kick carpet plays through),
+  band-entrance pickup roll + riff-matched STOP HITS, ghost notes + 4-level velocities +
+  deterministic jitter (black stays icy-flat; doom drags the backbeat). New GM `bell` voice;
+  death gained ride+bell. `groove_layer(arr, rhythm)` signature unchanged (band.py untouched).
+  test_groove 15→30; suite 490 green; no-LLM sound check `out/drum_machine_v2_demo.wav`.
+- **RIFF CAMPAIGN chunk 1 — ✅ BUILT (2026-07-15;** evidence + design: DESIGN.md "RIFF
+  CAMPAIGN chunk 1"**):** Sujit's "riffs sound light/happy, hollow, no chugs" diagnosed from
+  `out/fusion.json` EVIDENCE (79% pitch-change = melody-not-riff; bright add9/tenth stacks
+  outnumbering power weight; techniques emitted but inaudible in render; nothing sustained;
+  and the piece was YAMAN — brightest raga). New `crew/riff_texture.py`: **RiffMode**
+  (DRIVE/PADS/STABS, code-decided from form_role — the ANTARA/taans PAD: long ringing power
+  chords under the sitar) + **`verify_riff`** texture budgets (chug-ground share, pitch-change
+  cap, weighted sam, real silence, ring share, bright-colour ration) + **`verified_riff`**
+  bounded feedback re-roll wrapping BOTH composition roots (`_LLMRiff`, `studio_riff_fn`) at
+  the LLM boundary — pure loops/fakes untouched. Prompt reframed as rhythm-guitar ARRANGER
+  (chug ground default, power-weight default, strip-the-pitches test, {mode_brief}/{repair}).
+  New techniques **long_slide + pick_scrape** (schema→renderer wheel gestures→prompt→ration).
+  test_riff_texture (19) + placeholder-contract test.
+- **RIFF CAMPAIGN chunk 2 — ✅ BUILT (2026-07-15;** DESIGN.md "RIFF CAMPAIGN chunk 2"**):**
+  the techniques became AUDIBLE (render-internal, contract unchanged): palm-mute chugs route
+  to a GM muted-guitar companion channel (+ soft distorted body under; inherits pan/detune,
+  never the specialized bank), hammer_on/pull_off are real legato (a capped wheel pull from
+  the PREVIOUS note's pitch on connected unchorded notes), slides start from the previous
+  pitch (direction follows the line). test_render 25→28; suite 516 green; no-LLM sound check
+  `out/riff_texture_demo.wav` (muted companion + 162 wheel gestures verified in the MIDI).
+  **Next: ONE live render (ask Sujit first), then tune by ear (batched).**
+- **SONGSTERR INVESTIGATION + SGM — ✅ BUILT (2026-07-15;** full findings: DESIGN.md
+  "SONGSTERR INVESTIGATION"**):** Songsterr = pre-rendered Opus stems (offline Vir2/Kontakt
+  render — the "great sound") + an in-browser fallback that IS our stack (FluidSynth-WASM +
+  SGM, palm mute = bank-1 preset switch). Adopted: **SGM V2.01 stacked** (offset 300;
+  setup.sh, ~236MB) — **guitars prefer SGM** (Sujit's ear), chug companions bank-select
+  `Muted Dis.Gt` (301:28, no body layering), palm-mute gate now FIXED ~70ms wall-clock.
+  A/B piece (ORIGINAL riff, style-level — the song's tab NOT transcribed, copyright):
+  `out/slide_chug_ab.wav` vs Songsterr's Redneck Stomp playback. Suite 520 green.
+  **Tuning menu queued (by ear, next):** tail-loaded slides landing on the target's beat,
+  multi-fret slides as chromatic retriggered steps, per-string channels for chord slides,
+  RPN bend range 24.
+- **SOUND CONFIG LOCKED BY EAR (2026-07-15, Sujit's A/B):** `SGM_Plus_HQ.sf3` is the
+  **preferred BASE** for the whole band when present (`base_soundfont()`; setup.sh fetches
+  it, ~95MB, license UNVERIFIED demo-only) — guitars keep their own GM programs (no bank
+  routing), chugs bank-select its 1:28 "Muted Dis.Gt", **drums route to the POWER kit
+  (GS 16)**, bass plays its GM bass; Indian Ensemble still stacks for sitar/tabla; the
+  stacked SGM V2.01 is skipped when HQ is base (fallback chain otherwise unchanged).
+  Loudness = **peak-normalize post-render to `NORMALIZE_PEAK_DB` (−2.0 dBFS ≈ Songsterr
+  gain 1.0, Sujit's dial-back)** via ffmpeg in `render()`; synth gain stays at the
+  calibrated 0.5 (never re-raise it — gain 1.2 pins peaks/clips). Chug parity rules:
+  no PM velocity cut, companion CC7=127, distorted body under chugs at FULL vel.
+  Songsterr facts (DESIGN.md "SONGSTERR"): their client has NO mastering; premium sound
+  = offline Vir2/Kontakt stems; synth fallback = FluidSynth-WASM + this exact font.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break. **Then Phase 3** — the live UI/SSE over the `DebateEvent` stream.

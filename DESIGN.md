@@ -1155,3 +1155,380 @@ data, so the riff couldn't be inspected directly — Gemini diagnosed it from th
 **Git state at handoff:** committed — `2244132` (GAT overhaul), `e67270f` (menu expansion + pakad-to-riff +
 groove_brief). UNCOMMITTED but COMPLETE + green — the live-UI `RUNNING`/placeholder fix (`contracts.py`,
 `crew/flow.py`, `ui/app.html`, `UI_CONTRACT.md`), pending Sujit's live eyeball before commit.
+
+---
+
+## GAT DEVELOPMENT — BUILT (2026-07-15, this session)
+
+*The A→D campaign above is IMPLEMENTED (all pure tests green — 448 across 24 files). The symbolic
+analysis of `out/fusion.mid` (finally possible — and now automated: every render saves the
+Composition JSON beside the WAV) CONFIRMED Sujit's structural feedback and OVERTURNED the riff
+hypothesis. Build log + the evidence, so the next session knows what changed and WHY.*
+
+**The riff finding (talk-gold — evidence beat a converging review):** both Sujit's instinct and
+Gemini's review blamed TRITONE CHORD STACKS for the muddy riff. The MIDI disproved it: the 118
+chord stacks were 110 octaves + 8 true fifths — ZERO dissonant stacks. The real causes, measured:
+  1. **Register:** 62% of riff onsets had roots BELOW D2 — down to D1 (36.7 Hz, an octave under a
+     real metal guitar). `voice_registers` floored the REGISTER at -2, but the riff LLM's local
+     `oct:-1` sank notes past it. Fix: clamp each note's ABSOLUTE octave at `RHYTHM_FLOOR` in
+     `_sequence_cycle` (riff.py) — "a guitarist out of frets plays the open string".
+  2. **Bass collision:** at the old floor the bass (riff−1, floored −3) landed IN THE SAME OCTAVE
+     as the riff (both 26–42) — unison mud, not an octave under. The clamp fixes both at once.
+  3. **CLIPPING:** the WAV peaked at 0 dBFS (0.06% of samples pinned) — gain 1.2 with no limiter.
+     That harsh digital noise IS a big part of "the tone sounds like noise". Fix: `_GAIN = 0.5`
+     (calibrated on that same MIDI: 0.6 → −0.3 dBFS, 0.8 → clips again).
+  4. **Dry raw samples:** no reverb sends — Dethmetal played bone-dry. Fix: per-role CC91 sends
+     (`_REVERB_SEND` in render.py: lead 68 / drone 48 / tabla 52 / drums 38 / rhythm 30 / bass 12)
+     + a modest FluidSynth room (room-size 0.55, damp 0.35, level 0.7).
+  5. **Mono-ish double-track:** Dethmetal routes BOTH rhythm sides to the SAME patch (the GM
+     overdrive/distortion split vanishes) — fix: `detune_cents=8` on the right take (RPN fine-tune)
+     on top of the Haas offset.
+
+**Chord voicing (Sujit's ask, kept even though tritone stacks weren't the culprit):**
+`_stack_above` → `_seat_chord_tone` (render.py): a chord tone seats at a distortion-consonant
+interval — own swara = octave (power chord), P/fourth keep their seats (the fourth = the INVERTED
+power chord Sujit asked for), a second lifts to an ADD9, a third to a TENTH (colour above the
+octave — the Yaman brightness without low-register grind); semitone/tritone/sixths/sevenths have
+NO seat and degrade to octave weight. Riff prompt now teaches the vocabulary (["R"] = add9 etc.).
+
+**Cross-voice consonance (Sujit, mid-session):** `harmonize_riff_to_lead` (generators.py) — where
+a rhythm note overlaps a SUSTAINED (≥1 beat) lead note at interval class 1/6/11, it loses its
+chord, clips to a 0.5-beat palm-mute chug, and softens 10% — the clash turns percussive. The riff
+YIELDS; the raga line is never re-pitched. Runs before bass/double-track derive (band.py).
+
+**A. Intro/alap:** `verify_intro` (gat_verifier.py) — ends on a HELD Sa (≥2 beats), Sa ≥30% of
+sounding duration (chikari counts as Sa — Sujit: re-emphasize Sa with chikari/jod between phrases;
+prompt teaches it), ≥2 true rests of ≥1 beat, and a rest immediately after a Sa landing (nyas).
+The long pause before the mukhada is CODE: `_intro_gen_span` shortens the generation window by
+min(cycle, 0.35·window) and placement leaves the tail silent.
+
+**C. Manjha:** generated KNOWING the cached head — `LeadMemo` now carries `form_role`, the prompt
+gets a `{mukhada_head}` block naming the head's first swara — and `verify_manjha` checks: fills its
+window to the closing sam (0.85–1.15), last note within 2 ladder steps of the head's first swara
+(`_seam_violation`, shared), not rhythmically flat. COMPOSER guardrail now enforces the cycle:
+every manjha AFTER the first mukhada and IMMEDIATELY followed by a mukhada; plus Sujit's cap —
+any lead-less (riff-only) section ≤2 bars, so the gat never vanishes (the old render had an
+80-beat sitar gap).
+
+**D. Taan fills:** ONE extra LLM call after the head is cached (`_maybe_generate_fill`): a
+half-avartan sixteenth-note taan (`verify_fill`: all 16ths, one longer landing allowed, exact
+length, same return-seam rule) spliced by CODE into the middle statement of every mukhada section
+≥3 bars — head front half, taan back half, next statement re-enters on its sam. Never the first
+or last bar.
+
+**Shared machinery:** `_generate_mukhada_cell` generalised to `_generate_verified_cell(gen_span,
+arr, memory, gen_fn, verify)` — one bounded feedback re-roll loop serves mukhada / intro / manjha /
+fill (best-of-N kept); `_gat_repair_event` labels which cell was re-rolled.
+
+**Tooling:** `render_composition` writes `out/<name>.json` (the symbolic Composition) beside the
+WAV on every render — the free diagnosis this session had to reconstruct from raw MIDI bytes.
+
+**Verified live (end of session):** one batched `compose_flow("Yaman heavy metal fusion")` run —
+see the session summary / trace `gat-development-live` for the outcome.
+
+**ANTARA + TAAN architecture (added same session, from Sujit's follow-up + GPT/Gemini convergence):**
+- Sujit: "antara sounds random — it should start mid octave, go higher, come down to Sa; repeat the
+  motif." GPT/Gemini both diagnosed the same root: "lift into the upper octave" reads to an LLM as
+  "new tune, high notes" — it needs a TRAJECTORY (a melodic story), not a register constraint.
+- **Antara** = the second movement of the SAME gat: prompt now teaches the 4-step trajectory (quote
+  the head in madhya → develop/climb → single late taar peak → descend to madhya Sa, hand off to the
+  returning mukhada), and `verify_antara` checks the checkable: quotes the head's opening in its
+  first half (`_quote_present`, bounded-gap subsequence, octave-agnostic), opens ≤ madhya, reaches
+  taar, peak past 40% and not the final note, ends on madhya Sa. Same feedback re-roll.
+- **Taan (taan_long)** = the composition's peak, not "the scale quickly": `verify_taan` checks — grows
+  from the MOTIF (fuzzy quote), the shared earned-arc rules (`_arc_violations`, shared with antara),
+  lands on a resting swara (Sa/vadi/samvadi), has a real 16th BURST (≥4 consecutive ≤0.25), breathes
+  (a rest or ≥1-beat hold), mixes ≥3 distinct durations. `PhrasePlan` gains OPTIONAL
+  `taan_style`/`register_plan`/`rhythm_plan` (free strings — the prompt carries the vocabulary; a
+  lenient field never burns a schema retry) so the model plans the taan architecturally before notes.
+- Taan STYLE taxonomy: GPT proposed badhat-ang/chhoot/vakra/gamak-ang/layakari — per the musical-
+  accuracy rule this went to a source-verification pass BEFORE entering the prompt (the tritone
+  episode above is exactly why). Verdicts recorded below when in.
+- **Queued (next session):** the Producer rubric's antara-architecture criterion (GPT: contrast
+  without abandoning the motif / rises to taar / creates the peak / returns to the mukhada — a 10th
+  scored criterion + metrics grounding), so the CRITIC can also see the arc, not just the generator.
+- **Known gap (fine for now):** the verified gat cells (intro/manjha/antara/taan/fill) live in the
+  FAN-OUT path (`generate_lead`); the opt-in studio session (`RMA_STUDIO`, default OFF) bypasses
+  them — port the verify+re-roll into the studio loop before flipping the studio on.
+- **Taan taxonomy — research verdicts (2026-07-15, web pass; sources in the research trace):**
+  GPT's five "styles" partially corrected before encoding. VERIFIED types (all sitar-applicable):
+  **sapat** (straight run), **koot** (zig-zag — canonical exam-board name; "vakra" the informal
+  synonym), **mishra** (sapat+koot), **gamak** (forceful oscillation), **alankarik** (palta-pattern
+  built — "palta taan" as a NAME is unattested), **chhoot** (swift dash down from the taar; the
+  descent is the emphasized element). VOCAL-only (not encoded): bol/sargam/aakar/halak/jabda taans
+  (though the SITAR has its own "bol tan" = plectrum-stroke patterning — distinct thing, same name).
+  The sitar's fast-run idiom is the **toda** — diri DOUBLE-STROKES per note (our bol field already
+  renders diri) — "musicians resort to toda once tempo prohibits tan" (Slawek). Masitkhani facts
+  now 3-source verified: gat+mukhda begin matra 12, bols dir-da-dir-da-ra; Razakhani start is
+  VARIABLE (commonly matra 7, also sam/khali) — encode as variable if ever needed. **badhat(-ang) is NOT a taan type** — it is the gradual-development principle
+  (vistar) of the whole performance; encoded as the ARC rule, not a style. **layakari is a
+  PARAMETER** (notes-per-matra, dugun/tigun etc.) applied to taans, and the **tihai** is the
+  cadence device (phrase ×3 landing on the sam) — both framed that way in the prompt. Structural
+  conventions verified: a taan resolves ON THE SAM by rejoining the gat's mukhda; no source
+  prescribes a landing SWARA (our resting-swara check is a raga-grammar/nyas design choice, kept).
+  Sitar-specific: the instrumental taan is the **toda** (gat-toda; note chandrakantha's divergent
+  "toda = tihai" usage); jhala = the chikari-driven fast close. Masitkhani mukhda-from-matra-12 is
+  attested but NOT page-verified — flagged, do not encode as hard fact.
+- **Post-render catch (same session): the END-ANCHORED-CELL TRUNCATION bug.** The first live run
+  with the antara verifier showed "antara re-rolled -> clean" yet the PLACED midi ended the antara
+  on Re at exactly the window edge: the verified cell ended on Sa but OVERRAN its window, and
+  `place_phrase` truncated the cadence off. The verifier judged the cell; placement changed it.
+  Fix: every end-anchored cell now carries a window-fill bound (`_CELL_FILL_MIN 0.85` /
+  `_CELL_FILL_MAX 1.02` — the ceiling is ~1.0 because overrun is fatal to the cadence): manjha
+  (tightened from 1.15), antara, taan_long, the taan fill (from 1.1), and the intro (ceiling only —
+  shorter = more silence is fine; overrun would erase the code-reserved pause). Lesson (talk-gold):
+  a verifier must judge what the pipeline will actually PLACE — or bound the input so placement
+  cannot change what was approved.
+
+**SECOND FEEDBACK BATCH (same session, Sujit heard the 132bpm render) — ALL BUILT, pure tests
+green (475 across 24 files), NO live render yet (Sujit's rule: ask first):**
+- **Multiple taan fills:** long mukhada sections now cut ALL middle statements (1..bars-2, cap 3),
+  and up to 3 DISTINCT fill cells are written (each verified; later fills see the earlier ones in
+  memory to contrast) and ROTATED across the slots — several taan+mukhada phrases per piece, no
+  repeated lick.
+- **The AOCHAR (intro) — research-verified then encoded** (sources in the research trace; key:
+  The Raga Guide pp.2-8, chandrakantha, raga.hu, Deepak Raja, Skidmore/Thompson, ragajunglism):
+  the short pre-gat alap opens AROUND madhya Sa, dips into the MANDRA first, unfolds swaras
+  gradually (badhat), phrases end sustained on nyas swaras with chikari Sa-punctuation between,
+  and closes on the section's LONG final Sa; the gat's own mukhada (not a mohra) is what brings
+  the tabla in. `verify_intro` gains: opens ≤2 ladder steps from Sa (never taar), touches the
+  mandra, ≥3 separate Sa RETURNS (`_sa_returns`); composer guardrail: intro ≥3 avartans (2 was
+  heard as rushed). **The ring-out:** the verified final Sa is EXTENDED by code to ring through
+  the reserved gap with a CC11 decay (`Note.fade` + `_fade_ramp` — quadratic ease to a quiet
+  floor, snap back at note end): Sujit's "long Sa like a chord with sustain dropping volume".
+  Articulation, not composition.
+- **Form rules:** the mukhada AFTER a manjha needs ≥2 bars (the head re-establishes before the
+  interlude); at most ONE lead-less section in the whole form (the second bridge/breakdown is
+  gone); intro ≥3 bars.
+- **Cross-voice seeding (deferred no more):** the riff's mukhada-slot prompt now receives the
+  sitar's CACHED HEAD (swara+durations) and is framed as its RHYTHMIC REDUCTION — quote the
+  accented swaras on the low strings, chug on Sa between. Plumbing: the head rides the lead's
+  event stream (`mukhada_cell_from_events`) into `compose_riff(arr, mukhada=...)` — no signature
+  churn on compose_lead.
+- **Call-and-response solo:** TAAN sections no longer play sitar+guitar in constant harmony —
+  the voices TRADE avartans (sitar call, guitar response, alternating) and JOIN in a raga third
+  only for the final bar(s) (`_voice_taan_call_response`): the two voices arriving together IS
+  the climax.
+
+## DRUM MACHINE V2 — the metal drummer (2026-07-15, this session)
+
+*Sujit's feedback on the groove: pop-like patterns, one groove looped unchanged for whole
+sections, no fills or ghost notes, no antara change (half-time, ride instead of crash), no
+dramatic entrance — with Logic Pro's Drummer as the north star. A research pass over
+drum-education sources (Wikipedia's blast-beat/D-beat/gallop tabs, DRUM! Magazine, Drumeo,
+Hudson Music, Toontrack + Nail The Mix programming guides, Logic Drummer architecture docs)
+grounded a full rewrite. The drums remain deterministic CODE (derivable, no agent).*
+
+**Root cause:** the old engine knew three shapes (snare 2&4, half-time snare, 8th hats) and
+read almost none of the vocabulary the subgenre data already declared — `blast_beats: True`
+was never consulted, ride/china/ohat/toms went unused, and the tala accent grid drove only
+the tabla. "Groove = tala × subgenre intersection" existed in the docstring, not the code.
+
+**The build** (`crew/drum_patterns.py` = the pure pattern vocabulary; `crew/groove.py` = the
+orchestration; only `band.py`'s unchanged `groove_layer(arr, rhythm)` call sits above them):
+
+- **Pattern vocabulary (research-grounded 16th grids):** the kick-doubled heavy backbeat,
+  thrash skank + D-beat, traditional/hammer/bomb blasts, the Maiden gallop cell, the
+  double-kick carpet, half-time, and the prog "quadruple-meter backbeat" (steady hands, a
+  dotted-8th kick drift realigning at the window edge). Patterns tile PER VIBHAG, so odd
+  talas (Rupak 3+2+2, Jhaptaal 2+3+2+3) reshape the cells — the lurch IS the fusion.
+- **Section energy (the Logic Drummer lesson):** kind + gat form_role → VERSE / DRIVE /
+  CLIMAX / HALF, then a per-subgenre style table picks the pattern (death:
+  double16→blast→bomb; black: skank→blast→hammer; thrash: dbeat→skank→double16; heavy &
+  melodeath gallop; prog follows the riff). **form_role OVERRIDES kind:** the ANTARA rides
+  HALF-TIME (Sujit's explicit ask) and `taan_long` is the climax.
+- **Cymbal orchestration per section:** tight closed-hat verses; the drive timekeeper per
+  subgenre (death rides tight, melodeath/prog punch the bell, doom washes the crash);
+  climax = crash wash; breakdown = china quarters; ride-led sections land the sam on the
+  BELL — no crash washing over the antara's raga line. New GM voice `bell` (53); death
+  gained ride+bell (research: death blasts ride a tight ride). Cymbal fallback chains
+  degrade to whatever the kit has.
+- **The tala finally drives the kit:** crash+kick on every phrase-opening sam, the tali
+  cymbal leans in (+8, belled when riding), the khali vibhag sits back (−10). The phrase
+  (A-A-A-B unit) groups short cycles: a 16-beat Teentaal cycle is one phrase, Keherwa
+  groups two (`_phrase_cycles`).
+- **Variation & fills (fills are BOUNDARY properties, per Logic):** the phrase turnaround
+  adds ONE 16th kick pair into the sam + a hotter last backbeat; a mini-fill closes every
+  2nd phrase; crescendo snare→tom seam fills at section changes (2 beats, a full vibhag
+  into a CLIMAX) with the kick carpet playing through (the metal fill); an open-hat
+  wind-up thins the cymbal line before every fill.
+- **Entrances:** a kit entering after a kit-less section gets a 16th pickup roll (70→127)
+  carved into the previous section's last beat and an everything-at-127 downbeat; a riff
+  opening with 2–3 spaced accents gets matched STOP HITS instead (unison crash+kick per
+  accent, the groove holding back until vibhag 2).
+- **Humanity (velocity, not timing — extreme metal stays near-grid):** four velocity
+  levels; ghost snares in the idiomatic pockets (roomy grooves only, never crowding a
+  backbeat); the alternate-feet double-kick ladder (112/106/110/104); DETERMINISTIC jitter
+  (±4, keyed on position+drum — reproducible, test-stable; black metal stays icy at ±1);
+  doom backbeats drag ~15 ms behind the grid.
+- **Riff lock kept** (kick on the riff's on-beats); progressive now shadows EVERY riff
+  onset 16th-quantized — the Meshuggah/djent "follow".
+
+**Tests:** `tests/test_groove.py` 15→30 pure tests (per-subgenre pattern identity,
+antara-rides-half-time, khali dip, A-A-A-B grouping, crescendo/mid-section/into-climax
+fills, pickup + stop hits, ghosts, prog follow, determinism, velocity bounds, kit subsets
+for all 7 subgenres). Full pure suite: 490 green across 24 files. Deterministic sound
+check (fixed riff, NO LLM): `out/drum_machine_v2_demo.wav` — alaap → stop-hit entrance →
+drive → ride-led antara → crash-wash taan → breakdown.
+
+## RIFF CAMPAIGN chunk 1 — texture modes + the riff verifier (2026-07-15, this session)
+
+*Sujit's feedback: riffs sound light/happy not metal, no low-string chugs between notes
+(hollow), no audible slides/pull-offs/hammer-ons, and — his instinct — long sustained
+chords serve sitar fusion better than busy riffs. A GPT review said the same thing
+architecturally: the agent treats rhythm guitar as note sequences, when metal is
+articulation + rhythm + sustained energy + space ("Rhythm Guitar Arranger, not riff
+generator"). EVIDENCE FIRST (out/fusion.json, the render he judged): the piece was YAMAN
+(the brightest raga — part of "happy" is the menu pick) with bright chord stacks
+outnumbering power weight (36 add9/tenth colours vs 42 octave/fifths); a 79% consecutive
+pitch-change rate (a melody, not a riff — LoG/Megadeth sit ~30-50%); techniques WERE
+emitted (76% palm_mute, 30 slides, 36 legato) but are nearly inaudible in render — so
+half the fix is the RENDERER (chunk 2), not the prompt; and only 2 notes ≥ 2 beats
+(nothing blooms).*
+
+**Built (chunk 1 — modes, verifier, prompt):**
+- **`crew/riff_texture.py` (new, pure):** `RiffMode` — DRIVE (the chugging engine) /
+  PADS (sustained ringing power chords under the sitar — Sujit's texture instinct; antara,
+  taans, intro/outro) / STABS (sparse low syncopated chorded hits; breakdown, tihai) —
+  decided by CODE from form_role/kind (same pattern as the drums' GrooveEnergy).
+  `MODE_BRIEFS` render into the prompt; the numbers in the ask match the enforcement.
+- **`verify_riff` — the metal counterpart to the gat verifier:** checkable TEXTURE budgets,
+  never taste. DRIVE: ground share ≥35% on one pitch, pitch-change ≤55% ("this is a melody,
+  not a riff"), ≥1 true rest (≤35% silence), weighted sam (chord or ≥1 beat), bright-colour
+  ration ≤2 (the add9/tenth seats measured as the "light and happy" source). PADS: ring
+  share ≥55% of sounding time, ≥1 chord held 2+ beats and every long hold chorded,
+  sixteenths a minority. STABS: ≥20% true silence, oct ≤0, ≥half the hits weighted,
+  pitch-change ≤45%. All modes: durations ≈ fill the cycle, pick_scrape ≤1, long_slide ≤2.
+- **`verified_riff` — the bounded feedback re-roll at the LLM BOUNDARY:** unlike the lead's
+  gat cells (verified in the generate loop), the riff wraps its two composition roots —
+  `_LLMRiff` (solo path) and `studio_riff_fn` (canvas path + `regenerate_layer`) — so BOTH
+  live paths enforce one grammar while the pure loops stay about recurrence/placement and
+  injected test fakes bypass verification. 1 re-roll, exact violations fed back ({repair}
+  block), best-of-N — a weak riff plays; a live run never dies on texture. Re-rolls are
+  visible in traces (each retry is a traced crew call carrying the repair block).
+- **Prompt overhaul (`generate_riff` + the riff agent):** reframed as the rhythm-guitar
+  ARRANGER (decide where to chug/ring/move/rest); GROUND AND MOVEMENT block (chug ground as
+  default texture, movement earned, attack-vs-resonance, the strip-the-pitches test);
+  POWER WEIGHT AS DEFAULT with the bright-colour ration named; reasoning must name the
+  ground + where the cycle breathes; {riff_mode}/{mode_brief}/{repair} placeholders (a new
+  pure test asserts every placeholder has an input — interpolation misses only used to
+  surface live).
+- **Two sitar-fusion gestures (Sujit's ask):** `long_slide` (wide slow position shift, from
+  a fifth below over 40% of the note) and `pick_scrape` (a dive from an octave ABOVE down
+  onto a downbeat chord) — RiffTechnique + renderer wheel gestures (`_render_slide`
+  generalized) + prompt budget + verifier ration.
+
+**Tests:** new `tests/test_riff_texture.py` (19: mode mapping, per-mode budgets catching
+the measured failure shape, re-roll/feedback/best-of-N); test_riff 39→42 (mode+repair
+inputs, event mode, the placeholder contract); test_render +1. Suite: 513 green.
+
+**NEXT (chunk 2, approved direction):** make the technique vocabulary AUDIBLE — palm-mute
+chugs on a genuinely muted timbre (GM 28 Electric Guitar Muted on a layered channel),
+hammer_on/pull_off as true legato (the quick-pull meend gesture, not just a soft attack),
+slide from the PREVIOUS note's pitch over an audible window. Then ONE live render (ask
+Sujit) to hear modes + verifier + gestures together.
+
+## RIFF CAMPAIGN chunk 2 — the techniques become AUDIBLE (2026-07-15, this session)
+
+*The chunk-1 evidence showed the model was already writing 76% palm-mutes plus slides and
+legato — the renderer was swallowing them. Chunk 2 makes the vocabulary sound like what it
+says, all in `src/render.py`, contract unchanged (the routing is render-internal):*
+
+- **Palm-mute = a TIMBRE, not a shorter note:** chug notes of a rhythm take route to a
+  companion channel playing GM #29 Electric Guitar (muted) — a genuinely muted sample —
+  with a soft copy (`MUTE_BODY_VEL` 0.6) left on the distorted take underneath for body.
+  The companion (`_mute_channel`) claims the first free channel (never 9), inherits the
+  take's pan/detune/reverb so the chug sits in the same stereo spot, and deliberately does
+  NOT inherit a specialized bank — on a live Dethmetal render the chunk comes from the GM
+  muted patch while the body stays distorted. Degrades gracefully when no channel is free.
+- **hammer_on / pull_off = real legato:** besides the softer attack, the wheel now PULLS
+  from the PREVIOUS note's pitch (capped ±4 st, over the first 15% of the note — a finger,
+  not a slide), only when the previous note ends within 0.05 beats (a connected line) and
+  the note is unchorded. `_pull_offset` is the pure helper; `_bends` now arms the range
+  for legato notes.
+- **slide starts where the line just was:** the fixed −2 st blip became a pull from the
+  previous note's actual pitch (capped ±5 st, direction follows the line), falling back to
+  the old default when there is no connected previous note.
+
+**Tests:** test_render 25→28 (pure `_pull_offset` cases; byte-level: the companion channel
+gets program 28 and the chugs' note-ons while open notes stay on the take; a connected
+hammer-on emits wheel events). Suite: 516 green. Deterministic sound check (fixed riff, NO
+LLM): `out/riff_texture_demo.wav` — drive cycle with scrape-dive sam + muted chug ground +
+hammer/pull figure + slide + long_slide turnaround, then the PADS texture, then STABS;
+MIDI verified: muted companion on ch 2 (program 28), 162 wheel events.
+
+**NEXT:** ONE full-flow live render (ask Sujit) to hear modes + verifier + gestures in a
+real composition; then judge whether `MUTE_BODY_VEL`, the legato pull window, or the
+mode budgets need tuning BY EAR (batch any fixes, re-render once).
+
+## SONGSTERR INVESTIGATION + SGM ADOPTION (2026-07-15, this session)
+
+*Sujit benchmarked our riffs against Songsterr's playback (Obituary "Redneck Stomp" — the
+slide-chord/chug showcase) and asked how they do it. Findings are FIRST-HAND (their shipped
+player bundles + network capture by a research agent + our own bundle reading):*
+
+**How Songsterr actually sounds good — a two-tier architecture:**
+1. **The sound everyone praises is NOT synthesized in the browser.** Playback streams
+   PRE-RENDERED per-track Opus stems from their CDN (one stem per track — mute/solo is stem
+   mixing; only 100%/50% speeds pre-rendered, other speeds time-stretched client-side with a
+   SoundTouch-style stretcher). The stems are almost certainly rendered OFFLINE through Vir2
+   Electri6ity (a 28GB Kontakt guitar library) — their bundle contains a full articulation
+   compiler in a `vst` mode with Electri6ity's exact CC scheme (CC1 articulation morph with
+   palm-mute at amt=48, CC25 pick direction, CC32 string select, keyswitch legato/slides,
+   per-STRING channel allocation for coherent chord slides).
+2. **Their in-browser fallback synth IS our stack:** libFluidSynth 2.3.0 compiled to WASM +
+   the SGM soundfont ("SGM_Plus_HQ", 94.7MB sf3, also split into ~278 per-preset sf2s
+   fetched on demand). On this path a palm mute = a per-channel BANK/PROGRAM SWITCH to SGM's
+   GS bank-1 articulation presets ("Muted Dis.Gt" for distortion, "Overdrive_GT_PM", ...).
+   Their CDN blocks non-browser fetches (403), so we sourced SGM V2.01 from archive.org —
+   verified to contain bank1:28 "Muted Dis.Gt" + the POWER drum kit.
+
+**Adopted (built this session):**
+- **SGM V2.01 as a stacked extra** (`soundfont.py`, bank offset 300; setup.sh fetch,
+  ~236MB, RMA_SKIP_SGM=1 to skip). **Sujit picked SGM's guitar tone by ear** → when
+  present, `route_guitars` prefers SGM for ALL guitar voices: GM-compatible, so each take
+  keeps its own program (Overdriven L / Distortion R — the two-tone double-track survives
+  the swap). Priority SGM > Dethmetal > GM base. Sitar/tabla stay on the Indian Ensemble.
+- **The chug companion channel bank-selects SGM's `Muted Dis.Gt`** (`route_palm_mutes` →
+  `pm_bank`/`pm_program` on guitar layers; render `_mute_channel` honors it and SKIPS the
+  distorted body layer — the distortion is in the sample). GM-mute layering remains the
+  fallback.
+- **Fixed wall-clock palm-mute gate:** all engines converge on ~60-80ms (TuxGuitar 60,
+  alphaTab 80) — `PALM_MUTE_MS = 70`, capped at the written duration, replacing the old
+  tempo-relative dur×0.5.
+- **A/B piece (original composition, style-level only — the actual song is copyrighted so
+  its tab was NOT transcribed):** `out/slide_chug_ab.wav` — 12 measures of slide-chord/chug
+  groove at 92bpm through the full new chain (SGM both takes + PM companions on bank 301 +
+  double-tracking), verified in the MIDI. Compare against Songsterr's Redneck Stomp playback.
+
+**The transferable tuning menu the research surfaced (NOT yet built — next round, by ear):**
+tail-loaded slides (the slide occupies the END of the source note and lands ON the target's
+beat — ours slides at the target's start; "never slide from the note's start" is the
+TuxGuitar mistake); multi-fret slides as CHROMATIC RETRIGGERED steps (≤1/16th per fret, −2
+dynamics) instead of one long wheel glide — the same lesson as our meend fix; legato slide =
+no retrigger; per-STRING channels for chord slides (each chord tone gets its own wheel);
+RPN bend range 24 (we arm 12); if FluidSynth tone ever caps out, the Songsterr endgame is
+offline per-voice stem rendering through a better bank — architecture we already have.
+(520 pure tests green after this session's chunks.)
+
+## SONGSTERR MASTERING — there is none to copy (2026-07-15, bundle evidence)
+
+Sujit asked to replicate Songsterr's mastering (comp/EQ/gain). First-hand answer from
+their shipped code: **their client applies NO mastering.** Zero DynamicsCompressor /
+BiquadFilter / EQ nodes across the FluidSynth worker, the stem-streaming worker, AND the
+959KB main appClient bundle. The synth path's whole "mix" is: SGM_Plus_HQ + `synth.gain
+1.2` (+ FluidSynth reverb settings whose values are passed at runtime, not shipped as
+literals — likely defaults). The "bassy and heavy" of popular tabs lives in the OFFLINE
+Vir2/Kontakt stem renders (amp + processing baked in, parameters never shipped to the
+client — unknowable from outside). Consequences:
+- We now have their EXACT fallback font: `soundfonts/SGM_Plus_HQ.sf3` (94.7MB, public
+  URL, license = SGM freeware family / their build UNVERIFIED — demo-only), verified:
+  bank 1:28 "Muted Dis.Gt", POWER kit; renders fine on our brew FluidSynth (sf3 OK).
+- Their gain 1.2 on OUR mix pins peaks at 0.0dBFS (mean -12.6) — some clipping; their
+  own player runs the same hot gain, which is part of the "loud" impression.
+- The stem-tier weight is approximated with an ffmpeg master pass (bass shelf +4dB@110Hz,
+  3:1 comp, limiter 0.93) — `out/sujit_riff_sgmhq_mastered.wav`. If a variant wins by
+  ear, the chain can be wired as an optional post-render step (and/or SGM_Plus_HQ as
+  the preferred base font). Chug-parity fixes this session: PM velocity cut removed,
+  companion CC7=127, distorted body under chugs at FULL vel (MUTE_BODY_VEL=1.0),
+  PALM_MUTE_MS=80.

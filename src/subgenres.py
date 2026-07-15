@@ -64,7 +64,7 @@ SUBGENRES = {
         "register": [-2, 0],   # widest range of the four — uses the mid octave too
         "techniques": ["palm_mute", "power_chords", "clean_arpeggio", "tapping", "syncopation"],
         "drums": {
-            "voices": ["kick", "snare", "hhat", "ohat", "ride", "crash",
+            "voices": ["kick", "snare", "hhat", "ohat", "ride", "bell", "crash",
                        "tom_hi", "tom_mid", "tom_lo"],
             "feel": "dynamic and ghost-note driven, frequent tom fills, ride-led sections",
             "double_kick": True,     # used in bursts, not wall-to-wall
@@ -88,7 +88,7 @@ SUBGENRES = {
         "register": [-2, -1],
         "techniques": ["palm_mute", "downpicking", "gallop", "power_chords"],
         "drums": {
-            "voices": ["kick", "snare", "hhat", "crash", "ride", "tom_lo"],
+            "voices": ["kick", "snare", "hhat", "crash", "ride", "bell", "tom_lo"],
             "feel": "fast skank beat (snare on the offbeats), driving and precise",
             "double_kick": True,
             "blast_beats": False,    # the odd fill, but not the identity
@@ -115,7 +115,7 @@ SUBGENRES = {
         "register": [-3, -2],   # very low, downtuned
         "techniques": ["power_chords", "sustain", "bends", "sparse_palm_mute"],
         "drums": {
-            "voices": ["kick", "snare", "hhat", "crash", "ride", "china", "tom_lo"],
+            "voices": ["kick", "snare", "hhat", "crash", "ride", "bell", "china", "tom_lo"],
             "feel": "spacious half-time, huge slow backbeat, cymbal swells",
             "double_kick": False,
             "blast_beats": False,
@@ -138,8 +138,10 @@ SUBGENRES = {
         "register": [-3, -2],   # very low, downtuned
         "techniques": ["tremolo", "palm_mute", "power_chords", "chromatic", "pinch_harmonic"],
         "drums": {
-            "voices": ["kick", "snare", "hhat", "crash", "china", "tom_lo", "tom_mid"],
-            "feel": "blast beats over constant double-kick, dense and violent",
+            "voices": ["kick", "snare", "hhat", "ride", "bell", "crash", "china",
+                       "tom_lo", "tom_mid"],
+            "feel": "blast beats over constant double-kick, dense and violent — the blast "
+                    "rides a tight ride",
             "double_kick": True,
             "blast_beats": True,     # the defining feature
             "density": "very dense",
@@ -162,7 +164,7 @@ SUBGENRES = {
         "register": [-2, -1],
         "techniques": ["palm_mute", "power_chords", "gallop", "harmonized_leads", "bends"],
         "drums": {
-            "voices": ["kick", "snare", "hhat", "ohat", "ride", "crash",
+            "voices": ["kick", "snare", "hhat", "ohat", "ride", "bell", "crash",
                        "tom_hi", "tom_mid", "tom_lo"],
             "feel": "driving backbeat with a galloping kick, tom fills into sections",
             "double_kick": True,     # a gallop, used — not wall-to-wall
@@ -187,7 +189,7 @@ SUBGENRES = {
         "register": [-2, -1],
         "techniques": ["tremolo", "palm_mute", "power_chords", "gallop", "melodic_lead"],
         "drums": {
-            "voices": ["kick", "snare", "hhat", "crash", "ride", "china",
+            "voices": ["kick", "snare", "hhat", "crash", "ride", "bell", "china",
                        "tom_lo", "tom_mid"],
             "feel": "driving double-kick with blast bursts, dynamic between gallop and half-time",
             "double_kick": True,
@@ -212,7 +214,7 @@ SUBGENRES = {
         "register": [-2, 0],   # higher / trebly — distinct from death's sub-low tuning
         "techniques": ["tremolo", "power_chords", "palm_mute", "dissonance"],
         "drums": {
-            "voices": ["kick", "snare", "hhat", "crash", "china", "ride", "tom_lo"],
+            "voices": ["kick", "snare", "hhat", "crash", "china", "ride", "bell", "tom_lo"],
             "feel": "relentless blast beats over fast double-kick, cold and cymbal-heavy",
             "double_kick": True,
             "blast_beats": True,

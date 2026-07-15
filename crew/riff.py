@@ -10,7 +10,12 @@ with the kick (DESIGN.md: "the tala accent grid so riff and kick interlock").
 Same split as the Lead: the LLM supplies the music (which swaras, the rhythm, the
 subgenre feel); code owns the checkable — it lays the cycle on the beat grid in the
 downtuned rhythm register, accents the tala's stressed matras, and the legality
-guardrail refuses any out-of-raga swara for one bounded retry.
+guardrail refuses any out-of-raga swara for one bounded retry. On top of legality,
+every cycle passes the TEXTURE verifier (`crew/riff_texture.py`): the section's mode
+(drive / pads / stabs, decided by code from its gat role) sets budgets — chug ground,
+weight on the sam, real silence, the bright-colour ration — and a miss drives a bounded
+feedback re-roll at the LLM boundary (`verified_riff`), so a riff is idiomatic METAL
+before it is clever.
 
 The Bass is NOT here — it is a DETERMINISTIC shadow of the riff (`generators.bass_layer`),
 run right after this generator. See DESIGN.md, "The low end".
@@ -34,6 +39,7 @@ from pydantic import ValidationError
 
 from crew.config import GENERATOR_MAX_ITER, GENERATOR_RETRIES, generator_llm, load_env
 from crew.contracts import (
+    RHYTHM_FLOOR,
     Arrangement,
     CanvasMove,
     DebateEvent,
@@ -41,6 +47,7 @@ from crew.contracts import (
     EventType,
     Layer,
     LeadNote,
+    LeadPhrase,
     Note,
     RiffNote,
     RiffPattern,
@@ -57,12 +64,14 @@ from crew.generators import (
     section_spans,
 )
 from crew.riff_family import develop_section
+from crew.riff_texture import MODE_BRIEFS, riff_mode_for, verified_riff
 from raga import RAGAS, validate_composition
 from subgenres import SUBGENRES
 from talas import TALAS
 
 _RHYTHM_ROLE: Final = "rhythm"             # the layer role this generator fills
 _ROLE_GENERATOR: Final = "generator"
+_MUKHADA_ROLE: Final = "mukhada"           # the form_role whose riff reduces the sitar's head
 _ACCENT_KINDS: Final = ("sam", "tali")     # the matras a riff should punch
 _RIFF_ACCENT_BOOST: Final[float] = 1.12    # velocity multiplier on an accented onset
 
@@ -85,12 +94,19 @@ _OUTPUT_SCHEMA: Final = """{
 section (A, A', a stripped or heaviest variant), so write one strong, COMPLETE cycle. "oct" is your
 octave (0 = home/low; -1 lower). "vel" is optional. Durations are in beats (0.25 = 16th, 0.5 = 8th,
 1 = quarter) and should sum to one full cycle, COUNTING rests.
-"chord" (optional) = extra raga swaras sounded WITH the root, each stacked at the lowest octave
-ABOVE it and each a LEGAL raga swara: add the note's OWN swara for root+octave power-chord weight
-(root "g" + ["g"]); ["P"] adds Pa — a true fifth ONLY above Sa, not above every root; ["g","n"] a
-raga-colour voicing. "technique" (optional) = palm_mute (a tight chug — the core texture), slide,
-bend, hammer_on, pull_off; omit for a plain picked note. "rest" (optional) = a SILENT beat for
-SPACE — set rest:true with any swara (ignored); include at least one per cycle so the tabla and gat breathe."""
+"chord" (optional) = extra raga swaras sounded WITH the root, each a LEGAL raga swara. Code VOICES
+every chord tone at an interval that stays consonant under distortion: the note's OWN swara becomes
+a root+octave POWER CHORD (root "g" + ["g"]); a true fifth or fourth above the root keeps its seat
+(the fourth = an INVERTED power chord — e.g. Sa stacked on a Pa root); a second above the root is
+lifted to an ADD9 and a third to a TENTH (bright colour above the octave — great on a raga like
+Yaman); a tone that could only clash (a tritone or semitone over the root) becomes octave weight
+instead. So ask for colour freely — ["S"] on Sa = power chord, ["R"] = add9, ["G"] = a tenth,
+["P"] = the fifth — the voicing always comes out clean. "technique" (optional) = palm_mute (a tight
+chug — the core texture), slide (short fret-to-fret), long_slide (a wide slow position shift — a
+signature sitar-fusion move), pick_scrape (the pick dragged down the strings INTO a downbeat
+chord), bend, hammer_on, pull_off; omit for a plain picked note. "rest" (optional) = a SILENT beat
+for SPACE — set rest:true with any swara (ignored); include at least one per cycle so the tabla
+and gat breathe."""
 
 
 # --------------------------------------------------------------------------- #
@@ -105,6 +121,11 @@ def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int) 
     last note extended to the edge, so there is no silent gap at the downbeat where
     the loop repeats (a gap would limp every bar). The LLM is asked to fill the cycle
     exactly (see the prompt); this is the guarantee behind that ask.
+
+    Each note's ABSOLUTE octave is clamped at `RHYTHM_FLOOR`: the register default keeps
+    the layer out of sub-bass, but the LLM's local `oct: -1` could still push a root an
+    octave below it (~D1, 37 Hz — heard as bass-register mud on the first live gat render).
+    Like a guitarist out of frets below the low string, the note sounds AT the floor.
     """
     placed: list[Note] = []
     t = 0.0
@@ -116,8 +137,8 @@ def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int) 
             last_was_rest = True
         else:
             dur = min(rn.dur, cycle_beats - t)
-            placed.append(Note(swara=rn.swara, oct=register + rn.oct, start=round(t, 4),
-                               dur=round(dur, 4), vel=rn.vel,
+            placed.append(Note(swara=rn.swara, oct=max(register + rn.oct, RHYTHM_FLOOR),
+                               start=round(t, 4), dur=round(dur, 4), vel=rn.vel,
                                chord=rn.chord, technique=rn.technique))
             last_was_rest = False
         t += rn.dur
@@ -203,6 +224,23 @@ def _lead_line_token(note: LeadNote) -> str:
     return note.swara if note.oct == 0 else f"{note.swara}({note.oct:+d})"
 
 
+def _render_mukhada_line(mukhada: LeadPhrase | None, section) -> str:
+    """What the riff sees of the sitar's cached gat HEAD, for a mukhada-role section. Pure.
+
+    Cross-voice seeding (Sujit: the riff should almost PLAY the mukhada, with low chugs):
+    the head arrives swara-by-swara with durations, and the instruction frames the riff as
+    its RHYTHMIC REDUCTION — quote the accented swaras, chug between. Sections outside the
+    head get a benign line, so one prompt serves every section."""
+    if mukhada is None or section.form_role != _MUKHADA_ROLE:
+        return "  (this section is not the gat head — groove per your section role above)"
+    toks = " ".join("-" if n.rest else f"{n.swara}({n.dur:g})" for n in mukhada.notes)
+    return (f"  the sitar's mukhada, ONE avartan, swara(beats): {toks}\n"
+            f"  YOUR riff here is that head's RHYTHMIC REDUCTION — the band should hear the "
+            f"mukhada IN the riff: quote its accented swaras (above all what lands the sam and "
+            f"tali) as your low-string roots, and fill between them with palm-mute chugs on Sa. "
+            f"Almost play the head; keep the metal weight.")
+
+
 def _render_canvas_for_riff(canvas: SectionCanvas | None, move: CanvasMove) -> str:
     """What the riff SEES on this section's shared canvas, rendered for its MOVE. Pure.
 
@@ -230,11 +268,25 @@ def _render_canvas_for_riff(canvas: SectionCanvas | None, move: CanvasMove) -> s
     return "\n".join(lines)
 
 
+def _render_repair(feedback: list[str] | None) -> str:
+    """The texture verifier's violations, rendered for a targeted RE-ROLL. On a first
+    attempt (no feedback) it is a benign line, so one prompt serves both. Code never
+    edits the notes — the model recomposes the cycle to fix exactly what failed."""
+    if not feedback:
+        return "  (first take — nothing to repair)"
+    issues = "\n".join(f"    - {v}" for v in feedback)
+    return ("  your previous cycle FAILED the texture checks below — recompose it to fix "
+            "exactly these:\n" + issues)
+
+
 class _RiffContext:
     """Assembles a riff turn's prompt inputs. Piece-level facts render once; the
-    per-section fields and the realized-so-far MEMORY change per turn. Pure — no I/O."""
+    per-section fields and the realized-so-far MEMORY change per turn. Pure — no I/O.
+    `mukhada` (optional) is the sitar's cached gat head — a mukhada-role section's riff
+    is prompted as its rhythmic reduction (cross-voice seeding)."""
 
-    def __init__(self, arr: Arrangement) -> None:
+    def __init__(self, arr: Arrangement, mukhada: LeadPhrase | None = None) -> None:
+        self._mukhada = mukhada
         s = SUBGENRES[arr.subgenre]
         r = RAGAS[arr.raga]
         accents = ", ".join(f"beat {a.beat:g} ({a.kind})"
@@ -259,8 +311,10 @@ class _RiffContext:
 
     def inputs_for(self, span: SectionSpan, memory: list[RiffMemo], *,
                    canvas: SectionCanvas | None = None,
-                   move: CanvasMove = CanvasMove.PROPOSE) -> dict[str, Any]:
+                   move: CanvasMove = CanvasMove.PROPOSE,
+                   feedback: list[str] | None = None) -> dict[str, Any]:
         section = span.section
+        mode = riff_mode_for(section)
         return {
             **self._static,
             "section_kind": section.kind.value,
@@ -268,9 +322,13 @@ class _RiffContext:
             "riff_slot": slot_for(section),
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "bars": section.bars,
+            "riff_mode": mode.value,
+            "mode_brief": MODE_BRIEFS[mode],
             "previous": _render_previous(memory),
+            "mukhada_line": _render_mukhada_line(self._mukhada, section),
             "move": move.value,
             "canvas": _render_canvas_for_riff(canvas, move),
+            "repair": _render_repair(feedback),
         }
 
 
@@ -338,14 +396,22 @@ type RiffFn = Callable[[SectionSpan, Arrangement, list[RiffMemo]], RiffPattern]
 
 
 class _LLMRiff:
-    """The real (LLM-backed) `gen_fn` — holds the crew and the precomputed context."""
+    """The real (LLM-backed) `gen_fn` — holds the crew and the precomputed context.
 
-    def __init__(self, arr: Arrangement) -> None:
+    Every cycle is generated through `verified_riff`: the deterministic texture verifier
+    (mode budgets — chug ground, weight, space, colour ration) drives a bounded feedback
+    re-roll at THIS boundary, so the pure loops above stay about recurrence/placement and
+    injected test fakes bypass verification entirely."""
+
+    def __init__(self, arr: Arrangement, mukhada: LeadPhrase | None = None) -> None:
         self._crew = _RiffCrew()
-        self._context = _RiffContext(arr)
+        self._context = _RiffContext(arr, mukhada)
 
     def __call__(self, span: SectionSpan, arr: Arrangement, memory: list[RiffMemo]) -> RiffPattern:
-        return self._crew.run(arr.raga, self._context.inputs_for(span, memory))
+        return verified_riff(
+            lambda fb: self._crew.run(
+                arr.raga, self._context.inputs_for(span, memory, feedback=fb)),
+            span.section, arr.beats_per_bar)
 
 
 # --------------------------------------------------------------------------- #
@@ -355,8 +421,10 @@ class _LLMRiff:
 def _riff_event(span: SectionSpan, pattern: RiffPattern, slot: str) -> DebateEvent:
     return DebateEvent(
         type=EventType.PROPOSE, agent="Riff", role=_ROLE_GENERATOR,
-        text=f"{slot} riff: {span.section.bars}-bar, {len(pattern.notes)} notes/cycle",
-        data={"slot": slot, "reasoning": pattern.reasoning,
+        text=f"{slot} riff: {span.section.bars}-bar, {len(pattern.notes)} notes/cycle "
+             f"({riff_mode_for(span.section).value} mode)",
+        data={"slot": slot, "mode": riff_mode_for(span.section).value,
+              "reasoning": pattern.reasoning,
               "swaras": [n.swara for n in pattern.notes]})
 
 
@@ -436,9 +504,12 @@ def generate_riff(arr: Arrangement, *, gen_fn: RiffFn) -> tuple[Layer | None, li
     return layer, events
 
 
-def compose_riff(arr: Arrangement) -> tuple[Layer | None, list[DebateEvent]]:
-    """Run the real (LLM-backed) riff generation for a chart."""
-    return generate_riff(arr, gen_fn=_LLMRiff(arr))
+def compose_riff(arr: Arrangement,
+                 mukhada: LeadPhrase | None = None) -> tuple[Layer | None, list[DebateEvent]]:
+    """Run the real (LLM-backed) riff generation for a chart. `mukhada` (optional) is the
+    sitar's cached gat head — when given, the mukhada-role riff is prompted as its rhythmic
+    reduction, so the band hears the head IN the riff (cross-voice seeding)."""
+    return generate_riff(arr, gen_fn=_LLMRiff(arr, mukhada))
 
 
 # A canvas-aware per-section riff call, for the cooperative studio loop: (span, memory,
@@ -449,13 +520,18 @@ type StudioRiffFn = Callable[[SectionSpan, list[RiffMemo], SectionCanvas, Canvas
 def studio_riff_fn(arr: Arrangement) -> StudioRiffFn:
     """A CANVAS-AWARE riff generator for the studio loop — the per-section counterpart to
     `compose_riff`. Generates ONE section's riff given the shared canvas (the lead's line to
-    support) and the move (propose / respond / refine); crew + context built once, reused."""
+    support) and the move (propose / respond / refine); crew + context built once, reused.
+    Verified the same way as the solo path: `verified_riff` re-rolls a cycle that misses
+    its mode's texture budgets, so both composition roots enforce the same grammar."""
     crew = _RiffCrew()
     context = _RiffContext(arr)
 
     def gen(span: SectionSpan, memory: list[RiffMemo], canvas: SectionCanvas,
             move: CanvasMove) -> RiffPattern:
-        return crew.run(arr.raga, context.inputs_for(span, memory, canvas=canvas, move=move))
+        return verified_riff(
+            lambda fb: crew.run(arr.raga, context.inputs_for(
+                span, memory, canvas=canvas, move=move, feedback=fb)),
+            span.section, arr.beats_per_bar)
 
     return gen
 

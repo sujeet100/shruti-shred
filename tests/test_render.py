@@ -1,10 +1,11 @@
 """
-Tests for the renderer's DETERMINISTIC note geometry — chord stacking and technique
+Tests for the renderer's DETERMINISTIC note geometry — chord voicing and technique
 shaping — all pure (no fluidsynth, no audio). These are the two pieces of the
-riff-voicing feature that live in `src/render.py`: `_stack_above` (a chord tone seats
-at the lowest octave over the root) and `_apply_technique` (palm-mute chug / legato
-attack). A final smoke builds a MIDI with chords + techniques to prove the wiring
-holds; the actual SOUND of a slide/bend still needs Sujit's ear at the live render.
+riff-voicing feature that live in `src/render.py`: `_seat_chord_tone` (a chord tone
+seats at a distortion-CONSONANT interval over the root — octave / fifth / fourth /
+add9 / tenth — or has no seat and degrades to octave weight) and `_apply_technique`
+(palm-mute chug / legato attack). A final smoke builds a MIDI with chords + techniques
+to prove the wiring holds; the actual SOUND still needs Sujit's ear at the live render.
 
 Runs as a script (`uv run python tests/test_render.py`) or under pytest.
 """
@@ -19,64 +20,169 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 from render import (  # noqa: E402
     ANDOLAN_DEPTH_ST,
     BEND_ST,
-    PALM_MUTE_DUR,
-    PALM_MUTE_VEL,
+    PALM_MUTE_MS,
     SLIDE_IN_ST,
     _andolan_wheel,
     _apply_technique,
     _bends,
     _meend_wheel,
-    _stack_above,
+    _pull_offset,
+    _seat_chord_tone,
     _wheel,
     build_midi,
 )
 
 
-# --- _stack_above: a chord tone seats at the lowest octave over the root --------
+# --- _seat_chord_tone: consonant-under-distortion voicing ----------------------
 
-def test_power_chord_is_the_root_octave_above():
-    # ["S"] on an S root: the chord tone starts AT the root, so it lifts one octave.
-    assert _stack_above(60, 60) == 72
-
-
-def test_fifth_already_above_the_root_stays_put():
-    # ["P"] (7 semis) over S(60): already above, so it sounds as the fifth, unmoved.
-    assert _stack_above(60, 67) == 67
+def test_own_swara_seats_as_the_power_chord_octave():
+    # ["S"] on an S root: same pitch class -> the octave, whatever octave it was written in.
+    assert _seat_chord_tone(60, 60) == 72
+    assert _seat_chord_tone(60, 48) == 72
 
 
-def test_a_tone_below_the_root_is_lifted_over_it():
-    # ["S"] over a P(67) root: S(60) is below, so it climbs to the octave above P.
-    assert _stack_above(67, 60) == 72
+def test_perfect_fifth_and_fourth_keep_their_seats():
+    assert _seat_chord_tone(60, 67) == 67        # Sa root + Pa: the true fifth
+    assert _seat_chord_tone(67, 60) == 72        # Pa root + Sa: the INVERTED power chord (a fourth)
 
 
-def test_stacking_is_octave_by_octave_and_strictly_above():
-    assert _stack_above(80, 60) == 84            # 60 -> 72 -> 84, first strictly > 80
-    assert _stack_above(72, 72) == 84            # equal counts as "not above" -> lift
+def test_seconds_and_thirds_lift_above_the_octave():
+    assert _seat_chord_tone(60, 62) == 74        # major second -> add9
+    assert _seat_chord_tone(60, 63) == 75        # minor third  -> a minor tenth
+    assert _seat_chord_tone(60, 64) == 76        # major third  -> a major tenth
+
+
+def test_clashing_intervals_have_no_seat():
+    # semitone, tritone, sixths, sevenths: mud under distortion -> None (octave substitute).
+    for tone in (61, 66, 68, 69, 70, 71):
+        assert _seat_chord_tone(60, tone) is None
+
+
+# --- _fade_ramp: the ring-out — expression dies away, then snaps back -----------
+
+def test_fade_ramp_decays_to_the_floor_and_resets():
+    from render import _FADE_FLOOR, _fade_ramp
+    ramp = _fade_ramp(10.0, 8.0)
+    assert ramp[0] == (10.0, 127)                 # starts at full expression
+    assert ramp[-1] == (18.0, 127)                # ...and SNAPS BACK at the note's end
+    assert ramp[-2][1] == _FADE_FLOOR             # having decayed to the quiet floor
+    values = [v for _, v in ramp[:-1]]
+    assert values == sorted(values, reverse=True)  # monotonic decay — a dying string
 
 
 # --- _apply_technique: palm-mute chug + legato attack, pitch left alone ---------
 
-def test_palm_mute_shortens_and_softens():
-    dur, vel = _apply_technique("palm_mute", 1.0, 100)
-    assert dur == round(1.0 * PALM_MUTE_DUR, 4)
-    assert vel == int(100 * PALM_MUTE_VEL)
+def test_palm_mute_gates_but_keeps_its_punch():
+    dur, vel = _apply_technique("palm_mute", 1.0, 100, 120)
+    assert dur == round(PALM_MUTE_MS * 120 / 60000.0, 4)   # a fixed wall-clock gate
+    assert _apply_technique("palm_mute", 0.05, 100, 120)[0] == 0.05  # capped at written dur
+    assert vel == 100    # NO velocity cut — the muted timbre carries the softness
 
 
 def test_legato_softens_attack_only():
-    dur, vel = _apply_technique("hammer_on", 1.0, 100)
+    dur, vel = _apply_technique("hammer_on", 1.0, 100, 120)
     assert dur == 1.0 and vel < 100
-    assert _apply_technique("pull_off", 0.5, 90)[0] == 0.5
+    assert _apply_technique("pull_off", 0.5, 90, 120)[0] == 0.5
 
 
 def test_slide_and_bend_leave_note_geometry_untouched():
     # slide/bend are pitch-wheel gestures — they must not change dur or vel.
-    assert _apply_technique("slide", 1.0, 100) == (1.0, 100)
-    assert _apply_technique("bend", 0.5, 110) == (0.5, 110)
-    assert _apply_technique(None, 1.0, 100) == (1.0, 100)
+    assert _apply_technique("slide", 1.0, 100, 120) == (1.0, 100)
+    assert _apply_technique("bend", 0.5, 110, 120) == (0.5, 110)
+
+
+def test_long_slide_and_pick_scrape_are_wheel_gestures_too():
+    # the sitar-fusion gestures: geometry untouched, but the wheel gets armed for them.
+    assert _apply_technique("long_slide", 1.0, 100, 120) == (1.0, 100)
+    assert _apply_technique("pick_scrape", 0.5, 110, 120) == (0.5, 110)
+    assert _bends({"technique": "long_slide"}) and _bends({"technique": "pick_scrape"})
+
+
+def test_legato_arms_the_wheel_and_pulls_from_the_previous_pitch():
+    # hammer_on/pull_off are now real legato: the wheel arms for them, and the pull
+    # offset is the previous note's pitch relative to this one, capped.
+    assert _bends({"technique": "hammer_on"}) and _bends({"technique": "pull_off"})
+    assert _pull_offset(62, 60, 4) == 2.0        # pull-off from a tone above
+    assert _pull_offset(57, 60, 4) == -3.0       # hammer-on from below
+    assert _pull_offset(50, 60, 4) == -4.0       # wide travel is capped
+    assert _pull_offset(None, 60, 4) is None     # no previous note -> no gesture
+    assert _pull_offset(60, 60, 4) is None       # no travel -> no gesture
+
+
+def test_build_midi_routes_chugs_to_a_muted_guitar_channel():
+    # palm-muted rhythm notes sound on a companion channel playing GM muted guitar
+    # (program 28), with the open notes staying on the take's own channel.
+    comp = {
+        "raga": "malkauns", "sa": 50, "bpm": 120,
+        "tala": {"name": "teentaal", "beats_per_bar": 4},
+        "layers": [{
+            "role": "rhythm", "instrument": "gtr", "program": 29, "channel": 0, "pan": 20,
+            "notes": [
+                {"swara": "S", "oct": 0, "start": 0.0, "dur": 0.5, "technique": "palm_mute"},
+                {"swara": "S", "oct": 0, "start": 0.5, "dur": 0.5, "technique": "palm_mute"},
+                {"swara": "g", "oct": 0, "start": 1.0, "dur": 1.0},
+            ],
+        }],
+    }
+    scratch = os.environ.get("TMPDIR", "/tmp")
+    path = os.path.join(scratch, "rma_test_mute.mid")
+    build_midi(comp, path)
+    data = open(path, "rb").read()
+    os.remove(path)
+    # the companion lands on the first free channel (1 here): program change 0xC1 to 28,
+    # and note-ons 0x91 carry the chugs; the take (0x90) still sounds the open note.
+    assert b"\xc1\x1c" in data, "no muted-guitar program on the companion channel"
+    assert b"\x91" in data, "chugs not sounded on the companion channel"
+    assert b"\x90" in data, "open notes must stay on the take's channel"
+
+
+def test_build_midi_bank_selects_a_real_pm_patch_on_the_companion():
+    # a layer routed with pm_bank (SGM's muted-distortion articulation) bank-selects
+    # the companion channel there instead of the GM mute; 301 -> CC0=2, CC32=45.
+    comp = {
+        "raga": "malkauns", "sa": 50, "bpm": 120,
+        "tala": {"name": "teentaal", "beats_per_bar": 4},
+        "layers": [{
+            "role": "rhythm", "instrument": "gtr", "program": 29, "channel": 0,
+            "pm_bank": 301, "pm_program": 28,
+            "notes": [
+                {"swara": "S", "oct": 0, "start": 0.0, "dur": 0.5, "technique": "palm_mute"},
+            ],
+        }],
+    }
+    scratch = os.environ.get("TMPDIR", "/tmp")
+    path = os.path.join(scratch, "rma_test_pm_bank.mid")
+    build_midi(comp, path)
+    data = open(path, "rb").read()
+    os.remove(path)
+    assert b"\xb1\x00\x02" in data, "PM bank-select MSB missing on the companion"
+    assert b"\xb1\x20\x2d" in data, "PM bank-select LSB missing on the companion"
+    assert b"\xc1\x1c" in data, "PM program change missing on the companion"
+
+
+def test_build_midi_renders_a_legato_pull_on_the_wheel():
+    comp = {
+        "raga": "malkauns", "sa": 50, "bpm": 120,
+        "tala": {"name": "teentaal", "beats_per_bar": 4},
+        "layers": [{
+            "role": "rhythm", "instrument": "gtr", "program": 29, "channel": 0,
+            "notes": [
+                {"swara": "S", "oct": 0, "start": 0.0, "dur": 0.5},
+                {"swara": "g", "oct": 0, "start": 0.5, "dur": 0.5, "technique": "hammer_on"},
+            ],
+        }],
+    }
+    scratch = os.environ.get("TMPDIR", "/tmp")
+    path = os.path.join(scratch, "rma_test_legato.mid")
+    build_midi(comp, path)
+    data = open(path, "rb").read()
+    os.remove(path)
+    assert b"\xe0" in data, "a connected hammer-on must move the pitch wheel"
+    assert _apply_technique(None, 1.0, 100, 120) == (1.0, 100)
 
 
 def test_technique_velocity_never_drops_below_one():
-    assert _apply_technique("palm_mute", 1.0, 1)[1] >= 1
+    assert _apply_technique("palm_mute", 1.0, 1, 120)[1] >= 1
 
 
 # --- _meend_wheel: anchored on the target, a quick eased pull that settles in tune -----
@@ -225,7 +331,7 @@ def test_build_midi_plays_a_routed_tabla_as_melodic_notes():
 
 
 def test_constants_are_sane():
-    assert 0 < PALM_MUTE_DUR < 1 and 0 < PALM_MUTE_VEL <= 1
+    assert 30 <= PALM_MUTE_MS <= 120
     assert SLIDE_IN_ST < 0 and BEND_ST > 0
 
 

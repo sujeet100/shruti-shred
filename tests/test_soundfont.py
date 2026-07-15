@@ -41,26 +41,78 @@ def _layers() -> list[dict]:
     ]
 
 
-def test_routes_every_guitar_to_dethmetal_distorted_when_present():
+def test_sgm_wins_the_guitars_and_keeps_their_own_programs():
+    # SGM is GM-compatible: each guitar keeps ITS program (the two-tone double-track
+    # survives) and just bank-selects to SGM's offset. Sujit picked this tone by ear.
     layers = _layers()
-    sf.route_guitars(layers, dethmetal_present=True)
+    sf.route_guitars(layers, sgm_present=True, dethmetal_present=True)
+    for L in layers[:3]:
+        assert L["bank"] == sf.SGM.bank_offset
+    assert layers[0]["program"] == 29 and layers[1]["program"] == 30
+
+
+def test_routes_every_guitar_to_dethmetal_distorted_when_sgm_absent():
+    layers = _layers()
+    sf.route_guitars(layers, dethmetal_present=True, sgm_present=False)
     for L in layers[:3]:                          # the three guitar voices
         assert L["bank"] == 126 and L["program"] == 0
 
 
 def test_leaves_sitar_and_bass_on_the_base():
-    layers = _layers()
-    sf.route_guitars(layers, dethmetal_present=True)
-    sitar, bass = layers[3], layers[4]
-    assert "bank" not in sitar and sitar["program"] == 104
-    assert "bank" not in bass and bass["program"] == 33
+    for flags in ({"sgm_present": True}, {"dethmetal_present": True, "sgm_present": False}):
+        layers = _layers()
+        sf.route_guitars(layers, **flags)
+        sitar, bass = layers[3], layers[4]
+        assert "bank" not in sitar and sitar["program"] == 104
+        assert "bank" not in bass and bass["program"] == 33
 
 
-def test_no_op_when_dethmetal_absent_guitars_stay_gm():
+def test_no_op_when_both_banks_absent_guitars_stay_gm():
     layers = _layers()
-    sf.route_guitars(layers, dethmetal_present=False)
+    sf.route_guitars(layers, dethmetal_present=False, sgm_present=False)
     for L in layers:
         assert "bank" not in L                    # no routing -> GM overdrive/distortion
+    assert layers[0]["program"] == 29 and layers[1]["program"] == 30
+
+
+def test_route_palm_mutes_stamps_the_sgm_pm_bank_on_guitars_only():
+    layers = _layers()
+    sf.route_palm_mutes(layers, sgm_present=True, hq=False)
+    for L in layers[:3]:
+        assert L["pm_bank"] == 301 and L["pm_program"] == 28   # "Muted Dis.Gt"
+    assert "pm_bank" not in layers[3] and "pm_bank" not in layers[4]
+
+
+def test_route_palm_mutes_no_op_when_sgm_absent():
+    layers = _layers()
+    sf.route_palm_mutes(layers, sgm_present=False, hq=False)
+    assert all("pm_bank" not in L for L in layers)
+
+
+# --- SGM Plus HQ: the preferred base (Sujit's ear, 2026-07-15) -------------------
+
+def test_hq_wins_the_base_when_present():
+    assert sf.base_soundfont(hq=True) == sf.SGM_HQ
+    assert sf.base_soundfont(hq=False) == sf.BASE_SOUNDFONT
+
+
+def test_hq_base_routes_the_metal_kit_to_power():
+    layers = [{"role": "drums", "channel": 9}, {"role": "tabla", "channel": 9}]
+    sf.route_drum_kit(layers, hq=True)
+    assert layers[0]["program"] == 16          # POWER kit for the metal drums...
+    assert "program" not in layers[1]          # ...the tabla stays on the default kit
+    bare = [{"role": "drums", "channel": 9}]
+    sf.route_drum_kit(bare, hq=False)
+    assert "program" not in bare[0]            # no HQ base -> no kit switch
+
+
+def test_hq_base_keeps_guitars_on_their_gm_programs():
+    # with the HQ base the guitars need NO bank routing (the base IS the tone);
+    # only the palm-mute bank is stamped — the base's own bank 1 "Muted Dis.Gt".
+    layers = _layers()
+    sf.route_layers(layers, sa=62, hq=True)
+    for L in layers[:3]:
+        assert "bank" not in L and L["pm_bank"] == 1 and L["pm_program"] == 28
     assert layers[0]["program"] == 29 and layers[1]["program"] == 30
 
 

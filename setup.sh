@@ -53,7 +53,32 @@ else
   curl -fL --progress-bar -o "$DETH" "$DETH_URL" || echo "• Dethmetal download failed — guitars will use the GM base"
 fi
 
-# 4) Indian Ensemble — OPTIONAL classical bank (real tanpura drone + tabla + a multi-sampled
+# 4) SGM Plus HQ — the PREFERRED BASE when present (Sujit's ear, 2026-07-15): Songsterr's
+#    build of the SGM megafont (what their FluidSynth player loads), with the bank-1
+#    "Muted Dis.Gt" palm-mute articulation the chug companion channel uses. License =
+#    the SGM freeware family; THIS build UNVERIFIED — demo-only, like Dethmetal.
+#    Skip with RMA_SKIP_SGM_HQ=1; the render then uses GeneralUser + the stacked extras.
+SGM_HQ="$ROOT/soundfonts/SGM_Plus_HQ.sf3"
+SGM_HQ_URL="https://static.songsterr.com/midi-player-v0/SGM_Plus_HQ.sf3"
+if [ "${RMA_SKIP_SGM_HQ:-0}" = "1" ]; then
+  echo "• skipping SGM Plus HQ (RMA_SKIP_SGM_HQ=1) — base stays GeneralUser"
+elif [ -f "$SGM_HQ" ]; then
+  echo "✓ SGM Plus HQ present: $SGM_HQ"
+else
+  echo "→ downloading SGM_Plus_HQ.sf3 (~95MB, the preferred base; license unverified)..."
+  curl -fL --progress-bar -o "$SGM_HQ" "$SGM_HQ_URL" || echo "• SGM Plus HQ download failed — base stays GeneralUser"
+fi
+
+# 4b) SGM V2.01 — the freeware sibling, now only a FALLBACK guitar bank when Plus HQ is
+#     absent (large, ~236MB). Fetched only on request: RMA_FETCH_SGM=1.
+SGM="$ROOT/soundfonts/SGM-V2.01.sf2"
+SGM_URL="https://archive.org/download/SGM-V2.01/SGM-V2.01.sf2"
+if [ "${RMA_FETCH_SGM:-0}" = "1" ] && [ ! -f "$SGM" ]; then
+  echo "→ downloading SGM-V2.01.sf2 (~236MB, fallback guitar bank)..."
+  curl -fL --progress-bar -o "$SGM" "$SGM_URL" || echo "• SGM V2.01 download failed"
+fi
+
+# 5) Indian Ensemble — OPTIONAL classical bank (real tanpura drone + tabla + a multi-sampled
 #    sitar). CANNOT be downloaded automatically: the source (polyphone.io) gates it behind a
 #    (free) sign-in, so there is no stable direct URL. Fetch it MANUALLY, once:
 #      1. sign in at https://www.polyphone.io/en/soundfonts/instrument-sets/358-indian-ensemble

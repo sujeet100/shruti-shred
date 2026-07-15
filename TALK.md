@@ -499,6 +499,76 @@ convincing than a hypothetical.)*
   band composed in isolation" and "the band composed together" and let the room hear what collaboration
   actually changed.
 
+### Phase 2, gat development — evidence beats a converging review — 2026-07-15
+
+- **Two reviewers agreed on a plausible mechanism; the artifact disagreed.** Sujit's ear
+  and an independent Gemini review CONVERGED on "the riff is muddy because strict-raga
+  chord stacking builds tritone power chords" — a mechanism so plausible we planned the
+  session around it. Then we parsed the actual MIDI: 118 chord stacks, **110 octaves + 8
+  perfect fifths, zero tritones**. The real culprits were measurable and boring: riff
+  roots an octave below a real guitar (the LLM's local `oct:-1` sank past the register
+  floor — 62% of onsets below D2), the mix CLIPPING at 0 dBFS, and bone-dry samples with
+  no reverb send. *Lesson:* a critique loop that can't SEE the artifact converges on
+  plausibility, not truth — ground the diagnosis in the artifact before you build the
+  fix. (We now save the symbolic Composition JSON beside every WAV so this analysis is
+  free next time.) *Line:* "Two smart reviewers agreed — and the MIDI file outvoted
+  them both."
+
+- **Feel → checkable constraint, three more times.** "The alap should breathe and come
+  home to Sa", "the manjha should flow back into the head", "cut the mukhada and taan
+  into the gap" — none of these survive as prompt vibes. Each became a deterministic
+  verifier (`verify_intro` / `verify_manjha` / `verify_fill`) feeding the SAME bounded
+  re-roll loop the mukhada already used (`_generate_verified_cell`) — the LLM composes,
+  code measures, the re-roll tells it exactly what failed. The pause before the mukhada
+  is the purest case: an LLM cannot emit silence reliably, so CODE reserves the gap by
+  shortening the generation window. *Line:* "You can't prompt for silence — you have to
+  own the clock."
+
+- **The riff yields to the raga.** Cross-voice consonance (Sujit's ask): where the riff
+  grinds a semitone/tritone under a HELD melody note, code strips its chord and clips it
+  to a soft chug — turning the clash percussive. Crucially code never re-pitches: the
+  accompaniment yields, the raga line is sacred, and no note is composed by code.
+  *Line:* "Code edits the drummer's dynamics, never the singer's notes."
+
+- **The verifier approved a cadence; placement cut it off.** First live run of the antara
+  verifier: event says "re-rolled → clean" (the cell truly ended on Sa), but the rendered
+  MIDI ends the antara on Re, clipped at exactly the window edge — the cell OVERRAN its
+  window and the placement code truncated the approved ending. Two components, each correct
+  in isolation, disagreeing about the artifact. Fix: end-anchored cells get a hard
+  window-fill bound (ceiling ≈ 1.0 — overrun is fatal when the cadence IS the last note).
+  *Lesson:* verify what the pipeline will actually PLACE, or bound the input so no later
+  stage can change what was approved. *Line:* "The critic passed the take; the tape ran out."
+
+
+- **The drum machine never read its own data (drum machine v2).** The subgenre profiles
+  declared `blast_beats: True`, china/ride kits, gallop feels — and the groove engine
+  ignored all of it: snare on 2 & 4, quarter hats, kick on 1 & 3, looped verbatim for
+  whole sections. The audience-facing symptom was "the drums sound like a pop machine";
+  the diagnosis was that the CODE never consumed the knowledge the DATA already encoded.
+  The fix needed no agent: a research pass (real drum-education grids — skank, D-beat,
+  three blast variants, the gallop cell — plus Logic Drummer's architecture: energy per
+  section, fills as boundary properties, cymbal choice as a first-class input) became
+  ~10 deterministic pattern builders and a tala-aware assembler. *Lesson:* before adding
+  intelligence, check whether the system even USES the knowledge it has — "sounds
+  robotic" was a data-plumbing bug, not a missing-LLM bug. *Line:* "The kit had blast
+  beats in its spec — the drummer had just never read the spec."
+
+- **"The riffs sound happy" — measure before you prompt (riff texture v1).** Sujit's ear
+  said light/happy/hollow; a GPT review said "rewrite the prompt." The render's saved
+  Composition JSON said something more precise: the piece was Yaman (the brightest raga on
+  the menu — part of "happy" was the MENU PICK), the chord stacks were mostly bright
+  add9/tenth colours rather than power weight, the line changed pitch 79% of the time (a
+  melody wearing a riff's clothes — real metal riffs repeat one low note most of the time),
+  and the slides/hammer-ons everyone missed WERE in the data — 76% of notes were marked
+  palm-mute — but the renderer realized them so weakly they were inaudible. One complaint,
+  four distinct causes in four different layers (menu, voicing, generation, render), and
+  only the measurement could apportion blame. The generation fix reused the verify+re-roll
+  pattern from the gat cells: translate the feel into budgets (ground share, pitch-change
+  cap, colour ration, real silence) and re-roll with the exact violations. *Lesson:* when a
+  critique is aesthetic, decompose it against evidence before touching anything — the
+  prompt is rarely the only guilty layer. *Line:* "The model had written the slides all
+  along; the renderer was swallowing them."
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —

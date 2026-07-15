@@ -23,6 +23,26 @@ _SF_DIR: Path = Path(__file__).resolve().parents[1] / "soundfonts"
 # Finger Bass=33, Strings=48, Sitar=104 — our voices map to it transparently.
 BASE_SOUNDFONT: Path = _SF_DIR / "GeneralUser-GS.sf2"
 
+# SGM Plus HQ — Songsterr's own build of the SGM megafont (their FluidSynth player's
+# font; fetched from their public static URL by setup.sh; license = SGM freeware family,
+# this build UNVERIFIED — demo-only). Sujit A/B'd it against GeneralUser/Dethmetal/SGM
+# V2.01 on 2026-07-15 and picked it BY EAR — when present it is the PREFERRED BASE for
+# the whole band: GM-compatible programs, its bank 1:28 "Muted Dis.Gt" carries the
+# palm-mute chugs, and the Indian Ensemble still stacks on top for sitar/tabla.
+SGM_HQ: Path = _SF_DIR / "SGM_Plus_HQ.sf3"
+_SGM_HQ_PM_BANK: int = 1                  # internal bank 1 (no offset — it IS the base)
+_SGM_HQ_PM_PROGRAM: int = 28              # "Muted Dis.Gt"
+
+
+def hq_present(override: bool | None = None) -> bool:
+    """Is the preferred (SGM Plus HQ) base on disk? `override` is the test seam."""
+    return override if override is not None else SGM_HQ.exists()
+
+
+def base_soundfont(*, hq: bool | None = None) -> Path:
+    """The base soundfont the render should load — SGM Plus HQ when present."""
+    return SGM_HQ if hq_present(hq) else BASE_SOUNDFONT
+
 # FluidSynth bank-select mode used when extras are stacked: 'mma' makes the 14-bit bank
 # addressable as bank = (CC0 << 7) | CC32, so high SF2 banks (e.g. Dethmetal's 126) resolve.
 BANK_SELECT_MODE: str = "mma"
@@ -76,7 +96,18 @@ _DAYAN_NATURAL_KEY: int = 60
 # bol plays both together, which is exactly a `dha`. (Congas remain the fallback when absent.)
 TABLA_KEYS: dict[str, int] = {"tabla_hi": 60, "tabla_lo": 80}
 
-_EXTRAS: tuple[ExtraSoundfont, ...] = (DETHMETAL, INDIAN)
+# SGM V2.01 (Shan's GM megafont, freeware; fetched from archive.org — see setup.sh). This
+# is the soundfont FAMILY Songsterr's FluidSynth-WASM player uses ("SGM Plus HQ", split per
+# preset): its GS-style bank 1 holds ARTICULATION variants, and 1:28 "Muted Dis.Gt" is a
+# real palm-muted DISTORTED guitar multisample — the chug "chunk" is in the recording, not
+# a synthesis trick. The renderer routes palm-muted rhythm notes there (`pm_bank` below);
+# missing file degrades to the GM muted-guitar layering. Offset 300 keeps SGM's banks
+# (0, 1, ..., 128) clear of GeneralUser, Dethmetal (126) and Indian (50).
+SGM: ExtraSoundfont = ExtraSoundfont("sgm", _SF_DIR / "SGM-V2.01.sf2", bank_offset=300)
+_SGM_PM_BANK: int = 1 + 300               # internal bank 1 (the PM variants) + offset
+_SGM_MUTED_DIST: int = 28                 # preset 28 "Muted Dis.Gt" — the palm-muted distortion
+
+_EXTRAS: tuple[ExtraSoundfont, ...] = (DETHMETAL, INDIAN, SGM)
 
 # Voice `instrument` names (from crew.generators.VOICES) that should play through Dethmetal
 # when it is present. Sitar (also role "lead") is deliberately excluded — it stays on the base.
@@ -84,8 +115,15 @@ _GUITAR_INSTRUMENTS: frozenset[str] = frozenset({"overdrive_guitar", "dist_guita
 
 
 def present_extras() -> list[ExtraSoundfont]:
-    """The extra soundfonts actually on disk — so a missing file degrades to the base."""
-    return [e for e in _EXTRAS if e.path.exists()]
+    """The extra soundfonts actually on disk — so a missing file degrades to the base.
+
+    When SGM Plus HQ is the base, the stacked SGM V2.01 is SKIPPED: the HQ base already
+    supplies the guitar tone and the palm-mute bank, and loading a redundant 247MB
+    font would only slow every render."""
+    extras = [e for e in _EXTRAS if e.path.exists()]
+    if hq_present(None):
+        extras = [e for e in extras if e is not SGM]
+    return extras
 
 
 def fluidsynth_soundfont_args() -> list[str]:
@@ -110,13 +148,25 @@ def tabla_coarse_tune(sa: int) -> int:
     return ((sa - _DAYAN_NATURAL_KEY + 6) % 12) - 6
 
 
-def route_guitars(layers: list[dict], *, dethmetal_present: bool | None = None) -> None:
-    """Route the guitar layers to Dethmetal's distorted patch, IN PLACE, if it is present.
+def route_guitars(layers: list[dict], *, dethmetal_present: bool | None = None,
+                  sgm_present: bool | None = None) -> None:
+    """Route the guitar layers to the best distorted bank present, IN PLACE.
 
-    Sets each guitar layer's `bank`/`program` to Dethmetal's (bank 126, Distorted). No-op
-    when the file is absent, so the guitars fall back to the GM base's overdrive/distortion.
-    `dethmetal_present` overrides the on-disk check (an injectable seam for tests).
+    Preference (Sujit picked SGM's tone by ear, 2026-07-15 — it is what Songsterr plays):
+      1. SGM — GM-COMPATIBLE, so each guitar keeps its OWN program (Overdriven left take,
+         Distortion right take + lead) and just bank-selects to SGM's offset: the classic
+         two-tone double-track survives the swap.
+      2. Dethmetal's Distorted (all guitars on one patch, decorrelated by detune).
+      3. Nothing — the GM base's overdrive/distortion.
+    The `*_present` flags override the on-disk checks (injectable seams for tests).
     """
+    sgm = sgm_present if sgm_present is not None else (SGM in present_extras())
+    if sgm:
+        for layer in layers:
+            if layer.get("instrument") in _GUITAR_INSTRUMENTS:
+                layer["bank"] = SGM.bank_offset       # internal bank 0 + offset: same GM
+                                                      # programs, SGM's samples
+        return
     present = dethmetal_present if dethmetal_present is not None else (DETHMETAL in present_extras())
     if not present:
         return
@@ -152,7 +202,48 @@ def route_indian(layers: list[dict], *, sa: int, indian_present: bool | None = N
             layer["coarse_tune"] = tabla_coarse_tune(sa)   # tune the dayan to Sa (in key)
 
 
-def route_layers(layers: list[dict], *, sa: int) -> None:
-    """Apply all soundfont routing (guitars -> Dethmetal, sitar/tabla -> Indian Ensemble)."""
-    route_guitars(layers)
+def route_palm_mutes(layers: list[dict], *, sgm_present: bool | None = None,
+                     hq: bool | None = None) -> None:
+    """Give the guitar layers a PALM-MUTE bank, IN PLACE.
+
+    Sets `pm_bank`/`pm_program` on each guitar layer; the renderer's chug companion
+    channel bank-selects there, so palm-muted notes play a real muted-DISTORTION
+    sample (the Songsterr articulation trick) instead of the layered GM clean mute.
+    With the SGM Plus HQ BASE it is the base's own bank 1; else the stacked SGM V2.01
+    at its offset; no-op when neither is present (the renderer keeps its GM fallback).
+    """
+    if hq_present(hq):
+        bank, program = _SGM_HQ_PM_BANK, _SGM_HQ_PM_PROGRAM
+    else:
+        present = sgm_present if sgm_present is not None else (SGM in present_extras())
+        if not present:
+            return
+        bank, program = _SGM_PM_BANK, _SGM_MUTED_DIST
+    for layer in layers:
+        if layer.get("instrument") in _GUITAR_INSTRUMENTS:
+            layer["pm_bank"] = bank
+            layer["pm_program"] = program
+
+
+_POWER_KIT: int = 16   # GS drum kit 16 "POWER" — the rock/metal kit (SGM carries it)
+
+
+def route_drum_kit(layers: list[dict], *, hq: bool | None = None) -> None:
+    """Select the POWER kit for the metal drums, IN PLACE, when the HQ base carries
+    it. The tabla stays on the default kit (its GM-conga fallback voices live there)."""
+    if not hq_present(hq):
+        return
+    for layer in layers:
+        if layer.get("role") == "drums" and layer.get("program") is None:
+            layer["program"] = _POWER_KIT
+
+
+def route_layers(layers: list[dict], *, sa: int, hq: bool | None = None) -> None:
+    """Apply all soundfont routing. With the SGM Plus HQ base (Sujit's pick), the
+    guitars stay on their own GM programs (the base IS the tone) and the kit goes
+    POWER; otherwise guitars route to the stacked SGM V2.01 / Dethmetal as before."""
+    if not hq_present(hq):
+        route_guitars(layers)
+    route_palm_mutes(layers, hq=hq)
+    route_drum_kit(layers, hq=hq)
     route_indian(layers, sa=sa)

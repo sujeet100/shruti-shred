@@ -46,7 +46,7 @@ from crew.contracts import (
     SectionKind,
     build_arrangement,
 )
-from raga import drone_swaras, validate_composition
+from raga import SWARAS, drone_swaras, validate_composition
 
 
 # --------------------------------------------------------------------------- #
@@ -196,18 +196,83 @@ def bass_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
 
 
 # --------------------------------------------------------------------------- #
+# The riff-under-lead consonance guard — the riff YIELDS to the raga line.      #
+# Deterministic: code never re-pitches a note (it never composes); it thins the #
+# ACCOMPANIMENT so a clash reads as a percussive chug, not a sustained grind.   #
+# --------------------------------------------------------------------------- #
+
+# A lead note this long reads as a HELD tone the ear tunes to — a riff grinding a harsh
+# interval underneath it is heard as wrong; under a fast passing note it is not.
+_CLASH_SUSTAIN_MIN: Final[float] = 1.0
+# Interval classes (mod 12) that grind under distortion against a held melody note:
+# the semitone, the tritone, and the major seventh. Seconds/sevenths an octave out
+# (add9-style colour) are deliberately NOT in this set.
+_HARSH_ICS: Final[frozenset[int]] = frozenset({1, 6, 11})
+_CLASH_CHUG_BEATS: Final[float] = 0.5    # a clashing riff note is clipped to a chug this long
+_CLASH_VEL_SCALE: Final[float] = 0.9     # ...and softened a touch, under the melody
+
+
+def _note_pitch(note) -> int:
+    """A note's pitch relative to Sa (sa itself cancels out of any interval)."""
+    return SWARAS[note.swara] + 12 * note.oct
+
+
+def harmonize_riff_to_lead(rhythm: Layer | None, lead_layers: list[Layer]) -> Layer | None:
+    """Keep the riff CONSONANT under the melody. Pure — no LLM.
+
+    The generators write lead and riff independently (both raga-legal, so no note is
+    *illegal*), but a riff root a semitone/tritone under a HELD lead note grinds. The riff
+    yields — the raga line is sacred: any rhythm note overlapping a sustained lead note at
+    a harsh interval class loses its chord stack and is clipped to a short, slightly softer
+    palm-mute chug, so the clash becomes a percussive touch instead of a sustained grind.
+    Code owns the checkable (interval math); it never re-pitches a note. Runs BEFORE the
+    bass/double-track derive, so the whole rhythm section inherits the softened figure.
+    """
+    if rhythm is None or not rhythm.notes:
+        return rhythm
+    held = [(n.start, n.start + n.dur, _note_pitch(n))
+            for layer in lead_layers for n in (layer.notes or [])
+            if n.dur >= _CLASH_SUSTAIN_MIN]
+    if not held:
+        return rhythm
+    notes = [_dampened(n) if _clashes(n, held) else n for n in rhythm.notes]
+    return rhythm.model_copy(update={"notes": notes})
+
+
+def _clashes(note, held: list[tuple[float, float, int]]) -> bool:
+    """Does this riff note overlap a held lead note at a harsh interval class?"""
+    end = note.start + note.dur
+    pitch = _note_pitch(note)
+    return any(note.start < h_end and h_start < end and (pitch - h_pitch) % 12 in _HARSH_ICS
+               for h_start, h_end, h_pitch in held)
+
+
+def _dampened(note):
+    """The clash treatment: strip the chord stack, clip to a chug, soften a touch."""
+    return note.model_copy(update={
+        "chord": None,
+        "dur": round(min(note.dur, _CLASH_CHUG_BEATS), 4),
+        "vel": max(1, round(note.vel * _CLASH_VEL_SCALE)),
+        "technique": "palm_mute" if note.technique in (None, "palm_mute") else note.technique,
+    })
+
+
+# --------------------------------------------------------------------------- #
 # The double-tracked rhythm guitar — the hard-RIGHT half of the L/R wall. No LLM.#
 # --------------------------------------------------------------------------- #
 
 _DOUBLE_DT: Final[float] = 0.02          # ~10 ms at 120 bpm — a Haas offset that widens the pair
 _DOUBLE_VEL_SCALE: Final[float] = 0.93   # a touch quieter, so the sum is decorrelated, not mono
+_DOUBLE_DETUNE_CENTS: Final[int] = 8     # a hair sharp on the right take — two players, not a copy
 
 
 def double_track(rhythm: Layer | None) -> Layer | None:
     """The second rhythm-guitar track (hard right) — the riff on a DIFFERENT gain patch
-    (`rhythm_double`), nudged a hair late and softer. Two IDENTICAL hard-panned tracks
-    would sum back to mono-centre; the different tone + the tiny timing offset are what
-    make the pair read as a WIDE double-tracked wall. No LLM. None when there is no riff.
+    (`rhythm_double`), nudged a hair late, softer, and a few cents sharp. Two IDENTICAL
+    hard-panned tracks would sum back to mono-centre; the different tone + the tiny timing
+    offset + the detune are what make the pair read as a WIDE double-tracked wall (the
+    detune matters most when a specialized bank routes BOTH sides to the same patch).
+    No LLM. None when there is no riff.
     """
     if rhythm is None or not rhythm.notes:
         return None
@@ -216,7 +281,8 @@ def double_track(rhythm: Layer | None) -> Layer | None:
                                   "vel": max(1, round(n.vel * _DOUBLE_VEL_SCALE))})
              for n in rhythm.notes]
     return Layer(role="rhythm", instrument=voice.instrument, program=voice.program,
-                 channel=voice.channel, pan=voice.pan, notes=notes)
+                 channel=voice.channel, pan=voice.pan, detune_cents=_DOUBLE_DETUNE_CENTS,
+                 notes=notes)
 
 
 # --------------------------------------------------------------------------- #
@@ -258,9 +324,17 @@ def render_composition(comp: Composition, *, out_dir: Path, name: str,
     writes the .mid, and shells out to fluidsynth. Returns the WAV path.
     """
     from render import render  # lazy: keep midiutil/fluidsynth off the import path
-    from soundfont import present_extras, route_layers
+    from soundfont import base_soundfont, present_extras, route_layers
+
+    # The PREFERRED base (SGM Plus HQ — Sujit's ear, 2026-07-15) overrides the caller's
+    # font when present; absent, base_soundfont() IS the GM base the callers pass.
+    soundfont = base_soundfont()
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    # Save the SYMBOLIC composition beside the audio: the .mid is lossy (bank routing,
+    # octave fixes, seated chord pitches), so diagnosing a live run needs the actual
+    # contract — free to write now, free to inspect later (no re-run, no LLM).
+    (out_dir / f"{name}.json").write_text(comp.model_dump_json(exclude_none=True, indent=2))
     payload = comp.model_dump(exclude_none=True)
     # Route voices to their dedicated banks (guitars -> Dethmetal, sitar/tabla -> Indian
     # Ensemble; each a no-op if that soundfont is absent) and stack every present extra

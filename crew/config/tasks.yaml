@@ -174,7 +174,10 @@ generate_lead:
 
     TALA POSITION — LAND ON THE SAM: {tala_position}
 
-    GAT STRUCTURE CHECK (mukhada only):
+    THE GAT HEAD YOU ORBIT — the manjha and any taan fill must flow back INTO this:
+    {mukhada_head}
+
+    GAT STRUCTURE CHECK (verified cells — mukhada / intro / manjha / taan fill):
     {repair}
 
     THE RAGA — use ONLY these swaras; the pakad and chalan below are your raw material:
@@ -227,14 +230,55 @@ generate_lead:
         than restarts. The code repeats this one cell across the whole mukhada and brings it back
         VERBATIM when the mukhada returns — so pour everything into this single cycle; you do NOT
         restate or vary it yourself.
-      - manjha: DEVELOP the mukhada in the middle (madhya) register — extend and vary the head.
-      - antara: lift into the upper (taar) octave — the brighter, contrasting second theme.
-      - taan_short: a SHORT cadential filler (about one cycle) of quick sixteenth-notes that resolves
-        STRAIGHT into the next mukhada — a connective flourish, not a full solo.
-      - taan_long: the developed PEAK — begin with space, build a burst of sixteenth-notes to a
-        climax in the taar, then resolve down onto the sam. Reserve your highest intensity for here.
-      - intro / outro: sparse and open — set up, or settle onto a held Sa. tihai: one phrase stated
-        THREE times, landing on the sam.
+      - manjha: DEVELOP the mukhada in the middle (madhya) register — extend and vary the HEAD's
+        material (see THE GAT HEAD above), keeping its rhythmic skeleton recognisable. You are the
+        head's complement, not a new tune: carry the line all the way to the closing sam (fill your
+        whole window), and shape your FINAL notes as a stepwise lead-in to the head's first swara —
+        the mukhada re-enters immediately after you, and the seam must flow.
+      - antara: the SECOND MOVEMENT of the SAME gat — never a new tune. Its trajectory, in order:
+        (1) OPEN in the middle (madhya) octave by QUOTING the mukhada's opening (see THE GAT HEAD
+        above) — restate it or vary it lightly, an octave up is idiomatic; (2) DEVELOP that
+        material through sequential variations, climbing gradually; (3) enter the taar octave
+        (+1) and reach the composition's HIGHEST note ONCE, past the section's midpoint — the
+        emotional peak; (4) then DESCEND naturally and come to REST on madhya Sa, shaping your
+        final notes to hand off into the returning mukhada. Keep the pacing close to the
+        mukhada's so the two halves feel like one composition; a good third of your material
+        should be recognisably derived from the head.
+      - taan_short: a SHORT cadential filler of quick sixteenth-notes (dur 0.25) that resolves
+        STRAIGHT into the next mukhada — end on or within a step or two of the head's first swara
+        (see THE GAT HEAD above). A connective flourish, not a full solo.
+      - taan_long: THE CLIMAX of the whole composition — a taan is NOT "the scale, quickly";
+        it is ONE musical journey grown from the piece's MOTIF (restate it early, then develop
+        that one idea — sequence, fragment, compress; never unrelated fast phrases). Fill the
+        taan plan fields, choosing ONE dominant style for the whole taan:
+          * koot (vakra) — zig-zag movement along the raga's own chalan (the DEFAULT; deeply raga-true);
+          * gamak — every note shaken/repeated with force — heavy and weighty (a natural metal fit);
+          * alankarik — sequenced ornamental (palta) patterns at speed;
+          * chhoot — after the peak, a swift dashing descent from the taar;
+          * sapat — a straight run in note order (use as ONE dash, never the whole taan);
+          * mishra — sapat and koot mixed.
+        At the fastest passages think like a sitarist's TODA: articulate the run with diri
+        double-strokes (the bol field) rather than more notes.
+        The ARC is badhat: start in the madhya, expand the range gradually, reach the highest
+        note ONCE past the midpoint, then descend purposefully. Shape the rhythm as BURST AND
+        SPACE — a pickup, a sixteenth burst, a held nyas, a bigger burst — varying the
+        notes-per-beat (layakari) rather than one even wall; the classic cadence is a TIHAI
+        (one short phrase stated THREE times, the last landing exactly on the sam). END by
+        resolving on the sam onto a resting swara, leading into the returning mukhada — a
+        brilliant landing matters more than maximum speed.
+      - intro: the AOCHAR — the short alap that ESTABLISHES SA AS HOME and unfolds the raga
+        before the gat. Its verified shape, in order: (1) OPEN on or around madhya Sa (never
+        the taar) and let the first phrases DIP INTO THE MANDRA (below home) — the exposition
+        starts at home and explores downward first; (2) introduce the raga's swaras GRADUALLY
+        (a phrase adds at most a couple of new notes — badhat), building each phrase from the
+        pakad; (3) every phrase ends SUSTAINED on a resting swara and Sa keeps returning —
+        Sa carries at least a THIRD of the sounding time and the line comes home to Sa at
+        least three separate times; RE-EMPHASIZE Sa the traditional way, punctuating between
+        phrases with chikari strokes (bol "chikari"); (4) take a true REST right after each Sa
+        landing (the nyas breath) — long notes with meend, real silence between phrases, no
+        pulse, no hurry; (5) END on a long HELD Sa (2+ beats) — code lets it RING and fade
+        into the reserved silence before the gat's mukhada brings the tala in.
+      - outro: settle onto a held Sa. tihai: one phrase stated THREE times, landing on the sam.
 
     FAST RUNS ARE SIXTEENTHS, EARNED: build a taan from sixteenth-notes (dur 0.25), but do NOT fill
     every beat with them — use an eighth-note pickup, then a burst of sixteenths, then a held or
@@ -309,19 +353,27 @@ generate_lead:
 # JSON shape arrives via {output_schema}.
 generate_riff:
   description: |
-    You are the Riff — the metal rhythm guitar. Write ONE cycle of the tala's riff for
-    the section below. Emit notes as swaras with DURATIONS in beats; you do NOT set
-    start times — the arrangement lays your cycle on the grid and REPEATS it across
-    the section's {bars} bars, so write a tight figure that loops.
+    You are the Riff — the metal RHYTHM-GUITAR ARRANGER. You do not merely choose notes:
+    you decide where to CHUG, where a chord RINGS, where to move, and where to leave
+    SILENCE. Heaviness lives in articulation, rhythm, dynamics and space — the raga only
+    constrains which pitches you may touch. Write ONE cycle of the tala's riff for the
+    section below. Emit notes as swaras with DURATIONS in beats; you do NOT set start
+    times — the arrangement lays your cycle on the grid and REPEATS it across the
+    section's {bars} bars, so write a tight figure that loops.
 
-    METHOD — fill `reasoning` FIRST: which raga swaras (and which part of the motif)
-    the riff is built on, and how you land the accents on the sam and the clapped matras.
+    METHOD — fill `reasoning` FIRST: name your GROUND (the one low pitch you chug on and
+    keep returning to), which pakad fragment supplies the movement, where the cycle
+    breathes (the rests), and how you land the accents on the sam and the clapped matras.
 
     THE SECTION:
       kind: {section_kind}
       gat role: {form_role}
       creative intent: {section_intent}
       it repeats for {bars} bars (tala cycles).
+
+    THE TEXTURE MODE — {riff_mode}: how this section's guitar behaves (a deterministic
+    verifier enforces these budgets and sends a miss back to you with the exact failure):
+      {mode_brief}
 
     THE RAGA — use ONLY these swaras (the riff must stay legal): {allowed}
       (raga: {raga}; the shared motif every voice locks to is: {motif})
@@ -347,6 +399,9 @@ generate_riff:
     REFINE, you tighten your riff against the finished ensemble. Read the canvas:
     {canvas}
 
+    THE SITAR'S GAT HEAD — when this is a mukhada section, your riff REDUCES it:
+    {mukhada_line}
+
     THE RIFFS YOU ALREADY WROTE (the memory of the piece so far, octave in parentheses,
     +X = a power chord on that note):
     {previous}
@@ -366,18 +421,32 @@ generate_riff:
       - taan_short / taan_long: thin out and hold back — the melodic taan leads; support it.
       - intro / outro / tihai: sparse — set up or settle; a tihai is a figure stated thrice to the sam.
 
-    RHYTHM IS THE POINT (an even 8th-note wall is boring) — build the cycle from a PRIMARY cell
-    plus a CONTRAST cell, and leave gaps:
-      - primary cell: a gallop (long–short–short, e.g. 0.5 0.25 0.25) or a 16th-note chug run.
-      - contrast cell: a syncopated rest-stab, or a 3-3-2 grouping (0.75 0.75 0.5).
-      - RESTS: at least one intentional rest per cycle — tension comes from SILENCE, not from
-        filling every beat; the gap is where the tabla and gat answer.
-      - TURNAROUND: end the cycle leading back to the sam (a short 16th run or a slide into the root).
+    GROUND AND MOVEMENT (this is what makes a riff instead of a melody) — almost every
+    metal riff ALTERNATES two roles; write both, and know which each note is:
+      - GROUND: repeated palm-muted strokes on ONE low pitch (usually Sa). This is the
+        default texture — after every figure, COME BACK to it. A Lamb of God riff can sit
+        on one note; the groove carries it.
+      - MOVEMENT: a short 2-4 note figure from the pakad (a gallop long–short–short
+        0.5 0.25 0.25, a 3-3-2 grouping 0.75 0.75 0.5, a hammer-on answer) — then back
+        to the ground. Movement is earned, never continuous.
+      - ATTACK vs RESONANCE: follow a chug run with silence or a ringing chord before the
+        next gesture — that alternation IS the heaviness.
+      - RESTS: at least one intentional rest per cycle — the gap is where the tabla and
+        gat answer.
+      - TURNAROUND: end the cycle leading back to the sam (a short 16th run or a slide
+        into the root).
+      - THE TEST: strip every pitch away — if the bare rhythm is not interesting on its
+        own, rewrite the cycle before touching the pitches.
 
     TECHNIQUE BUDGET — techniques serve a FUNCTION; do not decorate every note:
-      - palm_mute is the CORE texture (the driving chug) — use it a lot on the low-string roots.
-      - about ONE sliding power-chord move per cycle, for movement into an accent or the next section.
-      - one or two hammer_on / pull_off figures as connective single-note motion (a thrash flavour).
+      - palm_mute is the CORE texture (the driving chug) — use it a lot on the ground.
+      - about ONE sliding move per cycle: slide (short, fret-to-fret) for movement into an
+        accent, or long_slide (a wide, slow position shift — a signature sitar-fusion move)
+        into a section seam or a big ringing chord; at most two long slides per cycle.
+      - pick_scrape: the pick dragged down the low strings INTO a downbeat power chord —
+        an entrance/climax gesture, at most ONE per cycle.
+      - one or two hammer_on / pull_off figures as connective single-note motion (the
+        thrash/Megadeth flavour).
       - reserve bend for a sustained phrase-ending or a transition, not mid-chug.
 
     HOW TO WRITE IT:
@@ -385,13 +454,16 @@ generate_riff:
         note/chord on the next sam. Write it so the LAST note/chord RESOLVES into the FIRST —
         a catchy riff feels like it LANDS on the downbeat, not like it restarts. Shape the end
         as a turnaround leading back to the root, never a jarring jump.
-      - Center on Sa (the root) and the raga's low, dark swaras; a riff is RHYTHMIC and
-        root-driven, not a melody. A few raga notes for colour, never a scale run.
+      - Your GROUND is Sa (or this riff's root) on the low string; RETURN to it constantly
+        — most metal riffs repeat one pitch far more than they change pitch. A few raga
+        notes for colour, never a scale run.
       - Match the subdivision: long crushing notes for a slow doom feel, short 8th/16th
         durations for a gallop or tremolo.
       - Durations are in beats: 0.25 = 16th, 0.5 = 8th, 1 = quarter, and they should sum
         to one FULL cycle ({cycle_beats} beats) — leave no gap where the loop repeats.
-      - You are seated LOW already — use oct 0 for your home, -1 to go even lower.
+      - You are seated LOW already — oct 0 IS the low string (code clamps anything lower
+        back up so the guitar never sinks into the bass register); use oct 0 as home and
+        +1 for a lifted answering figure.
 
     VOICING (this is what makes it sound like a metal guitar, not a bass) — STRICT RAGA, every
     sounding tone stays inside the grammar:
@@ -402,11 +474,20 @@ generate_riff:
         is a raga-colour voicing. Every chord swara MUST be an allowed raga swara — the same
         legality as the root. Chord the strong, accented notes (the sam and the tali) for weight;
         leave passing notes single for movement.
+      - POWER WEIGHT IS THE DEFAULT: on accents reach for the root's OWN swara (the octave)
+        or P (the fifth) — that is the dark, heavy metal sound. The BRIGHT colours (a second
+        or third over the root — they voice as add9/tenth) make the riff light and happy:
+        ration them to at most ~2 per cycle, and skip them entirely when the mood is dark.
+
+    REPAIR (when your previous take failed the deterministic texture verifier):
+    {repair}
 
     HARD RULES (a riff that breaks these is rejected and you redo it):
       - Use ONLY the raga's allowed swaras above — for BOTH the roots AND every chord tone.
         Sargam: S r R g G m M P d D n N. (A rest sounds nothing, so its swara is ignored.)
       - Every note needs a positive duration in beats; the durations (rests included) fill one cycle.
+      - Respect the texture mode's budgets above — a cycle that misses them comes back to you
+        with the exact failures listed.
   expected_output: |
     A single RiffPattern as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:

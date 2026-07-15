@@ -51,3 +51,14 @@ degrades cleanly to the base. Current + planned extras:
   2. save it as `soundfonts/Indian-Ensemble.sf2`.
 
   Without the file the render degrades cleanly (string-pad drone, GM-conga tabla, GM sitar).
+
+## SGM-V2.01.sf2 (optional, ~236MB)
+
+Shan's GM megafont V2.01 (freeware), fetched by `setup.sh` from archive.org. This is the
+soundfont family Songsterr's in-browser FluidSynth-WASM player uses ("SGM Plus HQ" — their
+build of it, split per preset); Sujit chose its guitar tone by ear (2026-07-15). When
+present, `src/soundfont.py` routes ALL guitar voices to SGM at bank offset 300 (its GM
+programs — Overdriven left take / Distortion right take — so the two-tone double-track
+survives), and palm-muted riff notes to its GS bank-1 articulation `Muted Dis.Gt`
+(offset bank 301, preset 28) — a real palm-muted DISTORTED guitar multisample, the
+Songsterr chug. Absent, the guitars degrade to Dethmetal, then the GM base.

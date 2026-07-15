@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 
@@ -99,7 +100,18 @@ def test_place_riff_repeats_one_cycle_across_bars():
     assert len(placed) == 16                       # 8 notes x 2 bars
     assert placed[0].start == 0.0
     assert placed[8].start == 4.0                  # second bar re-lands on the sam
-    assert all(n.oct == -3 for n in placed)        # seated in the rhythm register
+    assert all(n.oct == -2 for n in placed)        # a register below the floor clamps up to it
+
+
+def test_riff_notes_never_sink_below_the_rhythm_floor():
+    # the register default keeps the LAYER above sub-bass, but a local oct -1 could still
+    # sink a note an octave under it — each note's ABSOLUTE octave clamps at the floor (-2),
+    # like a guitarist out of frets below the low string
+    notes = [RiffNote(swara="S", dur=1.0, oct=-1), RiffNote(swara="g", dur=1.0, oct=0),
+             RiffNote(swara="m", dur=1.0, oct=1)]
+    placed = place_riff(notes, start=0.0, bars=1, cycle_beats=3.0, register=-2,
+                        accent_beats=set())
+    assert [n.oct for n in placed] == [-2, -2, -1]  # -3 clamps to -2; 0/+1 seat normally
 
 
 def test_place_riff_offsets_by_section_start():
@@ -380,6 +392,37 @@ def test_riff_inputs_for_defaults_to_solo_without_a_canvas():
     assert inputs["move"] == "propose" and "OPEN" in inputs["canvas"]
 
 
+def test_riff_inputs_render_the_mukhada_line_for_a_head_section():
+    # cross-voice seeding: a mukhada-role section's riff sees the sitar's cached head
+    # (swara + duration) and is framed as its rhythmic reduction
+    from crew.contracts import LeadNote, LeadPhrase, PhrasePlan
+    arr = _arr(("rhythm", "lead", "drone"))
+    arr.sections[0].form_role = "mukhada"
+    head = LeadPhrase(
+        phrase_plan=PhrasePlan(seed=["S"], contour="arch", transformations=["repeat"],
+                               climax_and_sam="lands"),
+        notes=[LeadNote(swara="S", dur=2.0), LeadNote(swara="m", dur=1.0, rest=True),
+               LeadNote(swara="g", dur=1.0)])
+    inputs = _RiffContext(arr, head).inputs_for(section_spans(arr)[0], [])
+    assert "S(2)" in inputs["mukhada_line"] and "-" in inputs["mukhada_line"]
+    assert "RHYTHMIC REDUCTION" in inputs["mukhada_line"]
+
+
+def test_riff_inputs_mukhada_line_is_benign_off_the_head_and_without_one():
+    arr = _arr(("rhythm", "drone"))
+    assert "not the gat head" in _RiffContext(arr).inputs_for(
+        section_spans(arr)[0], [])["mukhada_line"]                 # no head at all
+    arr2 = _arr(("rhythm", "drone"))
+    arr2.sections[0].form_role = "breakdown"
+    from crew.contracts import LeadNote, LeadPhrase, PhrasePlan
+    head = LeadPhrase(
+        phrase_plan=PhrasePlan(seed=["S"], contour="arch", transformations=["repeat"],
+                               climax_and_sam="lands"),
+        notes=[LeadNote(swara="S", dur=2.0)])
+    assert "not the gat head" in _RiffContext(arr2, head).inputs_for(
+        section_spans(arr2)[0], [])["mukhada_line"]                # a head, but not this section
+
+
 def test_riff_inputs_for_carries_the_operational_groove_brief():
     # the operational brief reaches the riff prompt, so doom means "chugs + turnaround", not silence
     arr = _arr(("rhythm", "drone"))                      # doom
@@ -393,6 +436,43 @@ def test_riff_inputs_for_carries_the_pakad_and_chalan():
     inputs = _RiffContext(arr).inputs_for(section_spans(arr)[0], [])
     assert inputs["pakad"] and inputs["chalan"]          # both phrases reach the prompt
     assert "S" in inputs["pakad"]                        # a real phrase, not an empty string
+
+
+def test_riff_inputs_carry_the_texture_mode_and_repair_feedback():
+    # the section's mode + brief reach the prompt, and a verifier violation renders
+    # as the targeted repair block on a re-roll (benign line on the first take)
+    arr = _arr(("rhythm", "drone"))
+    ctx = _RiffContext(arr)
+    span = section_spans(arr)[0]
+    first = ctx.inputs_for(span, [])
+    assert first["riff_mode"] == "drive" and "CHUG GROUND" in first["mode_brief"]
+    assert "nothing to repair" in first["repair"]
+    reroll = ctx.inputs_for(span, [], feedback=["this is a melody, not a riff"])
+    assert "melody" in reroll["repair"] and "FAILED" in reroll["repair"]
+
+
+def test_riff_prompt_placeholders_all_have_inputs():
+    # every {placeholder} in the generate_riff task must be supplied by inputs_for —
+    # a missing key would only surface as a LIVE interpolation crash on stage.
+    import re
+
+    import yaml
+    config = yaml.safe_load(
+        (Path(__file__).parents[1] / "crew" / "config" / "tasks.yaml").read_text())
+    text = config["generate_riff"]["description"] + config["generate_riff"]["expected_output"]
+    placeholders = set(re.findall(r"\{([a-z_]+)\}", text))
+    arr = _arr(("rhythm", "drone"))
+    inputs = _RiffContext(arr).inputs_for(section_spans(arr)[0], [])
+    missing = placeholders - set(inputs)
+    assert not missing, f"prompt placeholders with no input: {sorted(missing)}"
+
+
+def test_riff_event_names_the_sections_mode():
+    arr = _arr(("rhythm", "drone"))
+    fn, _ = _fake([_pattern("S", "g")])
+    _, events = generate_riff(arr, gen_fn=fn)
+    propose = next(e for e in events if e.type == EventType.PROPOSE)
+    assert propose.data["mode"] == "drive" and "drive mode" in propose.text
 
 
 def test_studio_riff_fn_builds_a_callable_without_an_llm():
