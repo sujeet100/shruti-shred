@@ -30,6 +30,7 @@ from crew.generators import (
     bass_layer,
     double_track,
     drone_layer,
+    harmonize_riff_to_lead,
     render_composition,
 )
 from crew.dynamics import apply_dynamics
@@ -54,6 +55,9 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     layers: list[Layer] = [drone_layer(arr)]
     layers.extend(lead_layers)
     if rhythm is not None:
+        # The riff yields to the raga line FIRST (clashing notes thin to a chug), so the
+        # double-track and the derived low end all inherit the consonant figure.
+        rhythm = harmonize_riff_to_lead(rhythm, lead_layers)
         layers.append(rhythm)                        # the hard-left rhythm track
         double = double_track(rhythm)                # the hard-right double (different gain patch)
         if double is not None:
@@ -73,12 +77,14 @@ def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:
     drums, tabla and drone are deterministic. Imports the LLM generators lazily so
     this module stays importable without paying the crewai import cost.
     """
-    from crew.lead import compose_lead
+    from crew.lead import compose_lead, mukhada_cell_from_events
     from crew.riff import compose_riff
 
     events: list[DebateEvent] = []
     lead_layers, lead_events = compose_lead(arr)
-    rhythm, riff_events = compose_riff(arr)
+    # Cross-voice seeding: the riff runs AFTER the lead and reduces the cached gat head
+    # (fished from the lead's events), so the band hears the mukhada IN the riff.
+    rhythm, riff_events = compose_riff(arr, mukhada=mukhada_cell_from_events(lead_events))
     events.extend(lead_events)
     events.extend(riff_events)
     return assemble_composition(arr, band_layers(arr, lead_layers, rhythm)), events

@@ -55,7 +55,14 @@ from crew.contracts import (
     SectionKind,
     motif_illegal_in_raga,
 )
-from crew.gat_verifier import verify_mukhada
+from crew.gat_verifier import (
+    verify_antara,
+    verify_fill,
+    verify_intro,
+    verify_manjha,
+    verify_mukhada,
+    verify_taan,
+)
 from crew.generators import (
     VOICES,
     SectionSpan,
@@ -69,7 +76,30 @@ from raga import RAGAS, scale_step_up, validate_composition
 _LEAD_ROLE: Final = "lead"                 # the layer role this generator fills
 _ROLE_GENERATOR: Final = "generator"       # DebateEvent role for a generator step
 _MUKHADA: Final = "mukhada"                # the gat HEAD — a cached ~1-avartan cell, looped + reprised
-_MUKHADA_REPAIR_TRIES: Final = 1           # extra re-rolls of a weak hook (bounded; best-of-N kept)
+_INTRO: Final = "intro"                    # the alap — Sa-anchored, verified, code-reserved silence after
+_MANJHA: Final = "manjha"                  # the development — verified to RETURN into the head
+_ANTARA: Final = "antara"                  # the second movement — verified arc: quote, climb, peak, descend
+_TAAN_LONG: Final = "taan_long"            # the developed peak — verified: motif-grown, arced, burst+space
+_CELL_REPAIR_TRIES: Final = 1              # extra re-rolls of a weak verified cell (bounded; best-of-N kept)
+
+# The intro reserves a TRAILING SILENCE before the gat enters — the long breath between the
+# alap's final held Sa and the mukhada. Rests render as true silence and sections have no
+# cross-block ties, so this pause must live INSIDE the intro's window: the alap is generated
+# for a SHORTENED window and placement simply leaves the tail empty. Code owns the pause —
+# an LLM told to "leave a long gap" reliably fills it.
+_INTRO_GAP_FRACTION: Final = 0.35          # up to this fraction of the intro window...
+                                           # ...capped at one tala cycle (see _intro_gen_span)
+
+# The mukhada taan FILLS — cut the back half of head statements and splice sixteenth-note
+# taans there, each resolving into the next statement (the classic gat move). Only a section
+# long enough to spare statements gets them (never its first or last bar, so the head still
+# opens and closes the section cleanly). Sujit's ask (2026-07-15): SEVERAL taan+mukhada
+# phrases per piece, and they should not all be the same taan — so up to `_FILL_VARIANTS`
+# DISTINCT cells are written and ROTATED across the fill slots.
+_FILL_MIN_BARS: Final = 3                  # a mukhada section this long earns taan fills
+_FILL_FRACTION: Final = 0.5                # a fill takes this much of its avartan (the back half)
+_FILL_VARIANTS: Final = 3                  # at most this many distinct fill cells per piece
+_FILL_BARS_PER_SECTION: Final = 3          # at most this many cut statements per section
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 _SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
@@ -96,7 +126,11 @@ _OUTPUT_SCHEMA: Final = """{
 Decide "phrase_plan" FIRST, then write "notes" that REALIZE it. "contour" is one of
 ascending / descending / arch / wave / landing / explosion. "transformations" (in the
 order they happen) are drawn from repeat, sequence_up, sequence_down, invert, fragment,
-accelerate, answer, resolve, octave_shift, rhythmic_compression. In the notes: "oct" is
+accelerate, answer, resolve, octave_shift, rhythmic_compression. For a TAAN/SOLO section
+the plan has THREE more required fields (omit them elsewhere): "taan_style" (the ONE
+dominant style — pick from the section guidance), "register_plan" (the arc in one line:
+where you start, where the single peak lands, the descent), and "rhythm_plan" (the
+burst/space shape, e.g. "pickup, 16th burst, held nyas, longer burst, tihai to sam"). In the notes: "oct" is
 your octave (0 = home; -1 mandra/lower, +1 taar/upper); "vel", "grace", "meend_swara",
 "meend_oct" and "bol" are optional. "meend_swara" is a swara to glide to; add "meend_oct" (same
 frame as a note's "oct") ONLY to glide ACROSS octaves — omit it to glide within the note's own
@@ -196,6 +230,26 @@ def is_mukhada(section) -> bool:
     return section.form_role == _MUKHADA
 
 
+def is_intro(section) -> bool:
+    """Whether this section is the gat's intro/alap — verified, with a code-reserved pause."""
+    return section.form_role == _INTRO
+
+
+def is_manjha(section) -> bool:
+    """Whether this section is the manjha — the development cell that must RETURN to the head."""
+    return section.form_role == _MANJHA
+
+
+def is_antara(section) -> bool:
+    """Whether this section is the antara — the second movement with the verified arc."""
+    return section.form_role == _ANTARA
+
+
+def is_taan_long(section) -> bool:
+    """Whether this section is the developed taan — the verified peak of the composition."""
+    return section.form_role == _TAAN_LONG
+
+
 def _one_cycle_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
     """A synthetic 1-bar (1-avartan) span, so the LLM composes the mukhada as EXACTLY one
     tala cycle — its `window_beats` and sam positions describe a single avartan — instead of
@@ -204,21 +258,71 @@ def _one_cycle_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
                        start=span.start, end=span.start + cycle_beats)
 
 
+def _ring_out_intro(line: list[Note], span: SectionSpan) -> list[Note]:
+    """Let the intro's final note RING through the code-reserved gap, fading like a struck
+    string dying away (Sujit: "resolve the intro to Sa — a long one, like a chord with
+    sustain, dropping volume"). The verified alap ends on a held Sa inside its shortened
+    window; code extends that note's SUSTAIN to the section edge and flags the renderer's
+    `fade` — articulation, not composition: no pitch, no order, no new note. Any pitch-wheel
+    gesture is stripped (a glide across a long dying tone would read as a swoop). Pure."""
+    if not line:
+        return line
+    last = line[-1]
+    return line[:-1] + [last.model_copy(update={
+        "dur": round(span.end - last.start, 4), "fade": True,
+        "meend_swara": None, "meend_oct": None, "andolan": None})]
+
+
+def _intro_gen_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
+    """The intro's SHORTENED generation window: the trailing gap (up to one cycle, at most
+    `_INTRO_GAP_FRACTION` of the window) is reserved by CODE — the alap's final Sa rings and
+    fades across it (`_ring_out_intro`) before the mukhada's entry. The LLM composes into the
+    shortened window; placement lays the phrase from the section start."""
+    gap = min(cycle_beats, span.length * _INTRO_GAP_FRACTION)
+    return SectionSpan(index=span.index, section=span.section,
+                       start=span.start, end=span.end - gap)
+
+
+def _fill_bars(section) -> list[int]:
+    """Which bars of a mukhada section get a taan fill — the MIDDLE statements of a section
+    long enough to spare them (never the first bar, which states the head, nor the last, which
+    closes the section; capped so a long section is still mostly head). Empty when the section
+    keeps every statement whole."""
+    if not is_mukhada(section) or section.bars < _FILL_MIN_BARS:
+        return []
+    return list(range(1, section.bars - 1))[:_FILL_BARS_PER_SECTION]
+
+
 def _place_lead_section(notes: list[LeadNote], *, span: SectionSpan, register: int,
                         cycle_beats: float,
-                        andolan_swaras: frozenset[str] = frozenset()) -> list[Note]:
+                        andolan_swaras: frozenset[str] = frozenset(),
+                        bar_fills: dict[int, list[LeadNote]] | None = None) -> list[Note]:
     """Place a section's notes on its window. A MUKHADA loops its one-avartan cell across every
     bar (each bar re-lands on the sam — the repeating hook); every other role lays its phrase
     once across the whole window. Truncation at each cycle edge means even an over-long cell
-    degrades to 'loop the first avartan', so the loop is robust to a cell that overshoots."""
+    degrades to 'loop the first avartan', so the loop is robust to a cell that overshoots.
+
+    When `bar_fills` is given (bar index -> that bar's taan cell), those statements of the
+    mukhada section are CUT: the head plays its front, the sixteenth-note taan takes the back,
+    and the next statement re-enters on its sam — the splice is code's, the taans are the
+    LLM's (each verified to resolve into the head)."""
     if not is_mukhada(span.section):
         return place_phrase(notes, start=span.start, end=span.end, register=register,
                             andolan_swaras=andolan_swaras)
     placed: list[Note] = []
     for bar in range(span.section.bars):
         bar_start = span.start + bar * cycle_beats
-        placed.extend(place_phrase(notes, start=bar_start, end=bar_start + cycle_beats,
-                                   register=register, andolan_swaras=andolan_swaras))
+        bar_end = bar_start + cycle_beats
+        fill = (bar_fills or {}).get(bar)
+        if fill is not None:
+            cut = bar_start + cycle_beats * (1.0 - _FILL_FRACTION)
+            placed.extend(place_phrase(notes, start=bar_start, end=cut, register=register,
+                                       andolan_swaras=andolan_swaras))
+            placed.extend(place_phrase(fill, start=cut, end=bar_end, register=register,
+                                       andolan_swaras=andolan_swaras))
+        else:
+            placed.extend(place_phrase(notes, start=bar_start, end=bar_end,
+                                       register=register, andolan_swaras=andolan_swaras))
     return placed
 
 
@@ -385,6 +489,39 @@ def _harmony_note(base: Note, swara: str, octave: int) -> Note:
     return Note(swara=swara, oct=octave, start=base.start, dur=base.dur, vel=base.vel)
 
 
+# The call-and-response taan (Sujit, 2026-07-15): sitar and lead guitar playing the whole
+# taan in constant harmony flattens the drama — instead they TRADE the line bar by bar
+# (call, response, call, ...) and JOIN in a raga third only for the final avartan(s), so the
+# two voices arriving together IS the climax. Deterministic: code owns which voice plays
+# which bar; the line itself is untouched.
+_JOIN_BARS_SHORT: Final = 1     # taans up to _JOIN_THRESHOLD bars join for the last bar...
+_JOIN_BARS_LONG: Final = 2      # ...longer taans for the last two
+_JOIN_THRESHOLD: Final = 4
+
+
+def _voice_taan_call_response(line: list[Note], span: SectionSpan, cycle_beats: float,
+                              raga: str) -> tuple[list[Note], list[Note]]:
+    """Split a taan section's placed line into (sitar, guitar) by AVARTAN: the voices
+    alternate solo bars (sitar calls, guitar responds), then both play the final bar(s) —
+    guitar a raga-diatonic third above. Pure."""
+    bars = span.section.bars
+    join_bars = _JOIN_BARS_SHORT if bars <= _JOIN_THRESHOLD else _JOIN_BARS_LONG
+    join_from = max(0, bars - join_bars)              # a 1-bar taan just joins (no room to trade)
+    sitar: list[Note] = []
+    guitar: list[Note] = []
+    for n in line:
+        bar = int((n.start - span.start) // cycle_beats)
+        if bar >= join_from:                          # the JOIN — both voices, harmonized
+            sitar.append(n)
+            swara, octave_delta = scale_step_up(n.swara, raga, 2)
+            guitar.append(_harmony_note(n, swara, n.oct + octave_delta))
+        elif bar % 2 == 0:                            # the sitar's call
+            sitar.append(n)
+        else:                                         # the guitar's response
+            guitar.append(n.model_copy())
+    return sitar, guitar
+
+
 def _voice_line(line: list[Note], voicing: Voicing, raga: str) -> tuple[list[Note], list[Note]]:
     """Split one melodic line into (sitar_notes, guitar_notes) per the voicing.
 
@@ -445,9 +582,12 @@ class LeadMemo:
     Composition MEMORY is how the music stops being a bag of unrelated sections: each
     lead phrase is generated seeing what the lead already played, so it can restate or
     vary the motif, answer the previous section, and build toward the climax. Holds the
-    section kind and the phrase as the model emitted it (LOCAL octaves)."""
+    section kind, the phrase as the model emitted it (LOCAL octaves), and the section's
+    gat form_role — labelling the memory lets a later cell FIND the head (the manjha and
+    the taan fill both orbit the mukhada, so they must know which memory it is)."""
     kind: str
     phrase: LeadPhrase
+    form_role: str | None = None
 
 
 def _local_token(note: LeadNote) -> str:
@@ -465,11 +605,30 @@ def _local_token(note: LeadNote) -> str:
 
 
 def _render_previous(memory: list[LeadMemo]) -> str:
-    """The lead's realized prior sections — its memory of the piece so far."""
+    """The lead's realized prior sections — its memory of the piece so far. Each line is
+    labelled with the section's gat role, so the model can tell the head from the rest."""
     if not memory:
         return "  (this is the FIRST lead section — introduce the theme)"
-    return "\n".join(f"  {memo.kind}: {' '.join(_local_token(n) for n in memo.phrase.notes)}"
-                     for memo in memory)
+    return "\n".join(
+        f"  {memo.kind}{f' [{memo.form_role}]' if memo.form_role else ''}: "
+        f"{' '.join(_local_token(n) for n in memo.phrase.notes)}"
+        for memo in memory)
+
+
+def _render_mukhada_head(memory: list[LeadMemo]) -> str:
+    """The cached gat HEAD, rendered for a cell that must RETURN to it (manjha / taan fill).
+
+    CROSS-CELL awareness made explicit: the mukhada cache fixed the head's identity, and this
+    extends it cell-to-cell — a manjha cannot honestly lead back into a head it has never seen.
+    Calls out the head's FIRST sounding swara, the seam the verifier will check."""
+    memo = next((m for m in memory if m.form_role == _MUKHADA), None)
+    if memo is None:
+        return "  (no mukhada stated yet — not applicable to this section)"
+    sounding = [n for n in memo.phrase.notes if not n.rest]
+    first = ("S" if sounding[0].bol == "chikari" else sounding[0].swara) if sounding else "S"
+    return (f"  the head: {' '.join(_local_token(n) for n in memo.phrase.notes)}\n"
+            f"  its FIRST note is {first} — the head re-enters on the sam right after you, so "
+            f"shape your FINAL notes as a stepwise lead-in that flows into {first}.")
 
 
 def _render_tala_position(span: SectionSpan, cycle_beats: float) -> str:
@@ -490,13 +649,14 @@ def _render_tala_position(span: SectionSpan, cycle_beats: float) -> str:
 
 
 def _render_repair(feedback: list[str] | None) -> str:
-    """The gat verifier's violations from a FAILED prior head, rendered so a re-roll fixes exactly
-    those. On the first attempt (no feedback) this is a benign line, so one prompt serves both. Code
-    never edits the notes — it only tells the composer WHAT failed; the LLM re-composes the head."""
+    """The gat verifier's violations from a FAILED prior attempt, rendered so a re-roll fixes
+    exactly those. Serves every VERIFIED cell (mukhada, intro, manjha, taan fill); on the first
+    attempt (no feedback) it is a benign line, so one prompt serves both. Code never edits the
+    notes — it only tells the composer WHAT failed; the LLM re-composes the cell."""
     if not feedback:
-        return "  (first attempt — compose the head freely within the rules above)"
+        return "  (first attempt — compose freely within the rules above)"
     issues = "\n".join(f"    - {v}" for v in feedback)
-    return ("  YOUR PREVIOUS MUKHADA FAILED the gat structure check. Keep everything that already "
+    return ("  YOUR PREVIOUS ATTEMPT FAILED the gat structure check. Keep everything that already "
             "worked, and FIX EXACTLY these:\n" + issues)
 
 
@@ -565,6 +725,7 @@ class _LeadContext:
             "window_beats": f"{span.length:g}",
             "tala_position": _render_tala_position(span, self._cycle_beats),
             "previous": _render_previous(memory),
+            "mukhada_head": _render_mukhada_head(memory),
             "move": move.value,
             "canvas": _render_canvas_for_lead(canvas, move),
             "repair": _render_repair(feedback),
@@ -685,7 +846,10 @@ def _render_plan(plan: PhrasePlan) -> str:
     """One-line human view of the compositional plan, for the trace and the debate event."""
     seed = " ".join(plan.seed) or "?"
     moves = " → ".join(plan.transformations) or "—"
-    return f"seed [{seed}] · {plan.contour} · {moves} · {plan.climax_and_sam}"
+    line = f"seed [{seed}] · {plan.contour} · {moves} · {plan.climax_and_sam}"
+    if plan.taan_style:
+        line = f"{plan.taan_style} taan · {line}"
+    return line
 
 
 def _lead_event(span: SectionSpan, phrase: LeadPhrase, line: list[Note],
@@ -709,39 +873,71 @@ def _lead_reprise_event(span: SectionSpan) -> DebateEvent:
         data={"form_role": _MUKHADA, "reprise": True})
 
 
-def _gat_repair_event(tries: int, violations: list[str]) -> DebateEvent:
-    """The gat verifier caught a weak hook and RE-ROLLED it (bounded). Shows the TIME-legality
+def _gat_repair_event(role: str, tries: int, violations: list[str]) -> DebateEvent:
+    """The gat verifier caught a weak cell and RE-ROLLED it (bounded). Shows the TIME-legality
     repair in the timeline/trace — the early local fix, before the late critics run. Notes whether
-    the re-roll landed a clean head or code kept the best-of-N with issues remaining."""
-    tail = f"still flags: {'; '.join(violations)}" if violations else "clean hook"
+    the re-roll landed clean or code kept the best-of-N with issues remaining."""
+    tail = f"still flags: {'; '.join(violations)}" if violations else "clean"
     return DebateEvent(
         type=EventType.INFO, agent="Lead", role=_ROLE_GENERATOR,
-        text=f"gat verify: mukhada re-rolled ({tries} tries) -> {tail}",
-        data={"gat_verify": True, "tries": tries, "violations": violations})
+        text=f"gat verify: {role} re-rolled ({tries} tries) -> {tail}",
+        data={"gat_verify": True, "cell": role, "tries": tries, "violations": violations})
 
 
-def _generate_mukhada_cell(gen_span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], *,
-                           gen_fn: LeadFn) -> tuple[LeadPhrase, int, list[str]]:
-    """Generate the gat HEAD, verifying its TIME-legality (`verify_mukhada`) and RE-ROLLING a weak
-    hook up to `_MUKHADA_REPAIR_TRIES` times. The re-roll is FED the exact violations (a targeted
-    re-roll, not a blind one) so the LLM re-composes the head to fix precisely what failed — code
+# A verifier bound to its cell's context (cycle/window/head), applied to a candidate phrase.
+type CellVerifier = Callable[[LeadPhrase], list[str]]
+
+
+def _generate_verified_cell(gen_span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], *,
+                            gen_fn: LeadFn, verify: CellVerifier) -> tuple[LeadPhrase, int, list[str]]:
+    """Generate a VERIFIED gat cell (mukhada / intro / manjha / taan fill), RE-ROLLING a weak
+    one up to `_CELL_REPAIR_TRIES` times. The re-roll is FED the exact violations (a targeted
+    re-roll, not a blind one) so the LLM re-composes the cell to fix precisely what failed — code
     never edits the notes. Bounded, keeping the best-of-N (fewest violations) if none come back
-    clean. Returns (cell, tries_used, remaining_violations). Pure control flow: the verifier is
+    clean. Returns (cell, tries_used, remaining_violations). Pure control flow: the verifiers are
     deterministic and `gen_fn` is injected, so this repair loop tests with no LLM."""
-    cycle_beats = arr.beats_per_bar
     best_cell: LeadPhrase | None = None
     best_viol: list[str] | None = None
     feedback: list[str] | None = None                        # None on attempt 1; the prior violations after
-    for attempt in range(_MUKHADA_REPAIR_TRIES + 1):
+    for attempt in range(_CELL_REPAIR_TRIES + 1):
         cell = gen_fn(gen_span, arr, list(memory), feedback=feedback)
-        viol = verify_mukhada(cell, cycle_beats=cycle_beats, raga=arr.raga)
+        viol = verify(cell)
         if not viol:
             return cell, attempt + 1, []
         feedback = viol                                      # the re-roll sees EXACTLY what failed
         if best_viol is None or len(viol) < len(best_viol):
             best_cell, best_viol = cell, viol
     assert best_cell is not None and best_viol is not None    # the loop runs at least once
-    return best_cell, _MUKHADA_REPAIR_TRIES + 1, best_viol
+    return best_cell, _CELL_REPAIR_TRIES + 1, best_viol
+
+
+def _fill_gen_span(span: SectionSpan, cycle_beats: float, head_first: str) -> SectionSpan:
+    """The synthetic span a mukhada taan FILL is generated against: half an avartan, framed as
+    a `taan_short` with an intent that states the splice contract (where it cuts in, that it
+    moves in sixteenths, and that it resolves into the head's first swara on the next sam)."""
+    half = cycle_beats * _FILL_FRACTION
+    section = span.section.model_copy(update={
+        "kind": SectionKind.TAAN, "bars": 1, "form_role": "taan_short",
+        "intent": (f"a taan FILL spliced into the mukhada: the head plays the first "
+                   f"{cycle_beats - half:g} beats of the avartan, then YOU take the last "
+                   f"{half:g} beats — one burst of sixteenth-notes (dur 0.25; only the final "
+                   f"landing note may be longer) that resolves stepwise into the head's first "
+                   f"swara ({head_first}), arriving exactly on the next sam"),
+    })
+    return SectionSpan(index=span.index, section=section,
+                       start=span.start, end=span.start + half)
+
+
+def _fill_event(fills: list[LeadPhrase], half_beats: float) -> DebateEvent:
+    """The taan fills are written once and spliced by code into the middle statements of the
+    long mukhada sections — a light INFO beat so the timeline shows the gat technique."""
+    n = len(fills)
+    return DebateEvent(
+        type=EventType.INFO, agent="Lead", role=_ROLE_GENERATOR,
+        text=f"gat fills: {n} distinct {half_beats:g}-beat sixteenth-note taan{'s' if n != 1 else ''} "
+             f"will cut into the mukhada's middle statements and resolve back into the head",
+        data={"form_role": "taan_short", "fill": True, "count": n,
+              "swaras": [[x.swara for x in f.notes if not x.rest] for f in fills]})
 
 
 def _lead_layer(voice_name: str, notes: list[Note]) -> Layer:
@@ -753,24 +949,41 @@ def _lead_layer(voice_name: str, notes: list[Note]) -> Layer:
                  channel=voice.channel, pan=voice.pan, notes=notes)
 
 
-def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement) -> list[Layer]:
+def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
+                     fills: list[LeadPhrase] | None = None) -> list[Layer]:
     """Assemble the lead layer(s) from already-generated per-section phrases (section index
     -> phrase). Places and VOICES each phrase exactly as the fan-out does — solo sitar,
     solo lead guitar, unison, octave, or a raga-diatonic third — so the studio, which
     generates phrases on the shared canvas rather than in the fan-out loop, produces
-    identical layers. A section with no phrase (a voice that laid out) is skipped. Pure."""
+    identical layers. A section with no phrase (a voice that laid out) is skipped. `fills`
+    (optional) are the verified sixteenth-note taans, ROTATED across the fill slots of the
+    long mukhada sections so consecutive cuts are distinct taans, not one repeated lick. Pure."""
     sitar_notes: list[Note] = []
     guitar_notes: list[Note] = []
     andolan_swaras = frozenset(RAGAS[arr.raga].get("andolan", []))   # a raga fact; empty -> no sway
+    fill_notes = [apply_strokes(apply_ornaments(f.notes, arr.raga)) for f in fills or []]
+    fill_cursor = 0
     for span in section_spans(arr):
         phrase = phrases.get(span.index)
         if phrase is None:
             continue
+        bar_fills: dict[int, list[LeadNote]] = {}
+        if fill_notes:
+            for bar in _fill_bars(span.section):
+                bar_fills[bar] = fill_notes[fill_cursor % len(fill_notes)]
+                fill_cursor += 1
         line = _place_lead_section(apply_strokes(apply_ornaments(phrase.notes, arr.raga)),
                                    span=span, register=arr.registers[_LEAD_ROLE],
                                    cycle_beats=arr.beats_per_bar,
-                                   andolan_swaras=andolan_swaras)
-        sitar_line, guitar_line = _voice_line(line, _voicing_for(span.section.kind), arr.raga)
+                                   andolan_swaras=andolan_swaras,
+                                   bar_fills=bar_fills)
+        if is_intro(span.section):
+            line = _ring_out_intro(line, span)        # the final Sa rings into the reserved gap
+        if span.section.kind is SectionKind.TAAN:     # the solo trades bars, then joins
+            sitar_line, guitar_line = _voice_taan_call_response(
+                line, span, arr.beats_per_bar, arr.raga)
+        else:
+            sitar_line, guitar_line = _voice_line(line, _voicing_for(span.section.kind), arr.raga)
         sitar_notes.extend(sitar_line)
         guitar_notes.extend(guitar_line)
     layers: list[Layer] = []
@@ -781,6 +994,12 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement) -> list[L
     return layers
 
 
+def _fill_slot_count(arr: Arrangement) -> int:
+    """How many fill slots (cut statements) the arrangement's lead-active mukhada sections
+    offer — the number of DISTINCT fill cells to write is capped by this and `_FILL_VARIANTS`."""
+    return sum(len(_fill_bars(s)) for s in arr.sections if _LEAD_ROLE in s.layers)
+
+
 def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], list[DebateEvent]]:
     """Fill the lead across the arrangement's lead-active sections, VOICED.
 
@@ -789,18 +1008,28 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
     lead-guitar line via `lead_layers_from`. Returns up to TWO layers and an empty list when
     no section uses the lead. `gen_fn` is injected so this loop is tested with no LLM.
 
-    The GAT HEAD is special (the money fix): the FIRST `mukhada` section is generated as
-    exactly ONE avartan (a one-cycle gen span), and every later `mukhada` REUSES that cached
-    cell verbatim — no second LLM call, so the hook returns identically instead of drifting.
-    `lead_layers_from` then loops the cell across each mukhada section's bars. Every other
-    role is generated once across its whole window, as before.
+    The STRUCTURED GAT CELLS are special — each is generated against its own deterministic
+    verifier with a bounded feedback re-roll (`_generate_verified_cell`):
+      * the FIRST `mukhada` is written as exactly ONE avartan and CACHED; every later mukhada
+        reuses the cell verbatim (the hook returns identically instead of drifting), and code
+        loops it across each section's bars;
+      * an `intro` is verified to establish and RESOLVE to Sa with true rests, and is generated
+        into a SHORTENED window so code reserves a real silence before the gat enters;
+      * a `manjha` is generated KNOWING the cached head (cross-cell awareness) and verified to
+        arrive at the sam and LEAD BACK into the head's first swara;
+      * when a mukhada section runs long, ONE sixteenth-note taan FILL is written (verified to
+        move in sixteenths and resolve into the head) and code splices it into the middle
+        statement of every such section.
+    Every other role is generated once across its whole window, as before.
     """
     events: list[DebateEvent] = []
     phrases: dict[int, LeadPhrase] = {}
     memory: list[LeadMemo] = []                     # the sections realized so far — the memory
     mukhada_cell: LeadPhrase | None = None          # the cached gat head, reused on every return
+    fill_cells: list[LeadPhrase] = []               # the distinct taan fills spliced into long mukhadas
     cycle_beats = arr.beats_per_bar
     register = arr.registers[_LEAD_ROLE]
+    raga = arr.raga
     for span in section_spans(arr):
         section = span.section
         if _LEAD_ROLE not in section.layers:
@@ -810,31 +1039,127 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
             events.append(_lead_reprise_event(span))
         elif is_mukhada(section):                   # the FIRST mukhada — write ONE avartan, verify, repair
             gen_span = _one_cycle_span(span, cycle_beats)
-            phrase, tries, viol = _generate_mukhada_cell(gen_span, arr, memory, gen_fn=gen_fn)
+            phrase, tries, viol = _generate_verified_cell(
+                gen_span, arr, memory, gen_fn=gen_fn,
+                verify=lambda c: verify_mukhada(c, cycle_beats=cycle_beats, raga=raga))
             mukhada_cell = phrase                   # cache the head for its returns
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            # The head rides the event stream (see `mukhada_cell_from_events`) so the RIFF
+            # generator — which runs after the lead — can reduce it, with no signature churn.
+            events[-1].data["mukhada_cell"] = phrase.model_dump(exclude_none=True)
             if tries > 1:                           # the verifier re-rolled a weak hook — show it
-                events.append(_gat_repair_event(tries, viol))
+                events.append(_gat_repair_event(_MUKHADA, tries, viol))
+            fill_cells = _generate_fills(span, arr, memory, mukhada_cell,
+                                         gen_fn=gen_fn, events=events)
+        elif is_intro(section):                     # the alap — verified, with a code-reserved pause
+            gen_span = _intro_gen_span(span, cycle_beats)
+            window = gen_span.length                # the SHORTENED window — overrun eats the silence
+            phrase, tries, viol = _generate_verified_cell(
+                gen_span, arr, memory, gen_fn=gen_fn,
+                verify=lambda c: verify_intro(c, window_beats=window, raga=raga))
+            line = _place_lead_section(phrase.notes, span=span, register=register,
+                                       cycle_beats=cycle_beats)
+            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            if tries > 1:
+                events.append(_gat_repair_event(_INTRO, tries, viol))
+        elif is_manjha(section) and mukhada_cell is not None:  # the development — must RETURN to the head
+            head = mukhada_cell
+            phrase, tries, viol = _generate_verified_cell(
+                span, arr, memory, gen_fn=gen_fn,
+                verify=lambda c: verify_manjha(c, mukhada=head, window_beats=span.length,
+                                               raga=raga))
+            line = _place_lead_section(phrase.notes, span=span, register=register,
+                                       cycle_beats=cycle_beats)
+            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            if tries > 1:
+                events.append(_gat_repair_event(_MANJHA, tries, viol))
+        elif is_antara(section) and mukhada_cell is not None:  # the second movement — the verified arc
+            head = mukhada_cell
+            phrase, tries, viol = _generate_verified_cell(
+                span, arr, memory, gen_fn=gen_fn,
+                verify=lambda c: verify_antara(c, mukhada=head, window_beats=span.length,
+                                               raga=raga))
+            line = _place_lead_section(phrase.notes, span=span, register=register,
+                                       cycle_beats=cycle_beats)
+            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            if tries > 1:
+                events.append(_gat_repair_event(_ANTARA, tries, viol))
+        elif is_taan_long(section):                 # the developed peak — motif-grown, arced, burst+space
+            phrase, tries, viol = _generate_verified_cell(
+                span, arr, memory, gen_fn=gen_fn,
+                verify=lambda c: verify_taan(c, motif=arr.motif, window_beats=span.length,
+                                             raga=raga))
+            line = _place_lead_section(phrase.notes, span=span, register=register,
+                                       cycle_beats=cycle_beats)
+            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            if tries > 1:
+                events.append(_gat_repair_event(_TAAN_LONG, tries, viol))
         else:
             phrase = gen_fn(span, arr, list(memory))   # a COPY, so gen_fn can't mutate history
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
         phrases[span.index] = phrase
-        memory.append(LeadMemo(section.kind.value, phrase))
+        memory.append(LeadMemo(section.kind.value, phrase, section.form_role))
 
-    layers = lead_layers_from(phrases, arr)
+    layers = lead_layers_from(phrases, arr, fills=fill_cells)
     if not layers:
         events.append(DebateEvent(type=EventType.INFO, agent="Lead", role=_ROLE_GENERATOR,
                                   text="no lead-active sections in this arrangement"))
     return layers, events
 
 
+def _generate_fills(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo],
+                    mukhada_cell: LeadPhrase, *, gen_fn: LeadFn,
+                    events: list[DebateEvent]) -> list[LeadPhrase]:
+    """Write the DISTINCT taan fills (each verified, bounded re-roll) right after the head is
+    cached — as many as the arrangement's fill slots need, capped at `_FILL_VARIANTS`. Each
+    fill sees the head (memory labelled `[mukhada]` + the `{mukhada_head}` block) AND the
+    fills already written (threaded into the memory as `taan_short` entries), so consecutive
+    cuts get contrasting taans instead of one repeated lick. The verifier holds every cell to
+    the same splice contract (sixteenths, exact length, resolves into the head)."""
+    count = min(_FILL_VARIANTS, _fill_slot_count(arr))
+    if count == 0:
+        return []
+    cycle_beats = arr.beats_per_bar
+    head_memory = memory + [LeadMemo(span.section.kind.value, mukhada_cell, _MUKHADA)]
+    head_first = next((("S" if n.bol == "chikari" else n.swara)
+                       for n in mukhada_cell.notes if not n.rest), "S")
+    fill_span = _fill_gen_span(span, cycle_beats, head_first)
+    half = cycle_beats * _FILL_FRACTION
+    fills: list[LeadPhrase] = []
+    for _ in range(count):
+        fill, tries, viol = _generate_verified_cell(
+            fill_span, arr, head_memory, gen_fn=gen_fn,
+            verify=lambda c: verify_fill(c, mukhada=mukhada_cell, window_beats=half,
+                                         raga=arr.raga))
+        fills.append(fill)
+        head_memory = head_memory + [LeadMemo("taan", fill, "taan_short")]
+        if tries > 1:
+            events.append(_gat_repair_event("taan fill", tries, viol))
+    events.append(_fill_event(fills, half))
+    return fills
+
+
 def compose_lead(arr: Arrangement) -> tuple[list[Layer], list[DebateEvent]]:
     """Run the real (LLM-backed) lead generation for a chart."""
     return generate_lead(arr, gen_fn=_LLMLead(arr))
+
+
+def mukhada_cell_from_events(events: list[DebateEvent]) -> LeadPhrase | None:
+    """The cached gat HEAD a lead run emitted, fished back out of its event stream.
+
+    The seam for CROSS-VOICE seeding: the riff generator runs AFTER the lead and should
+    reduce the head rhythmically (Sujit: the riff-only section should almost play the
+    mukhada) — the events already travel to every caller, so the head rides them instead
+    of changing `compose_lead`'s signature. None when no mukhada was generated."""
+    for event in events:
+        cell = event.data.get("mukhada_cell")
+        if cell:
+            return LeadPhrase.model_validate(cell)
+    return None
 
 
 # A canvas-aware per-section lead call, for the cooperative studio loop: (span, memory,

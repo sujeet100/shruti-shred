@@ -34,14 +34,16 @@ from talas import TALAS  # noqa: E402
 def _draft(raga="malkauns", subgenre="doom", tala="teentaal", bpm=72,
            motif=("d", "n", "S", "m"), anchor="gat_first") -> ArrangementDraft:
     # A minimal but VALID gat: a mukhada that RETURNS (stated, developed, brought back).
+    # The mukhada sections carry the lead — a section that rests the lead may run at most
+    # 2 bars (the lead-less cap), and a real mukhada is the lead's hook anyway.
     return ArrangementDraft(
         raga=raga, subgenre=subgenre, tala=tala, bpm=bpm, motif=list(motif), anchor=anchor,
         sections=[
-            Section(kind=SectionKind.RIFF, bars=4, layers=["rhythm", "drums", "drone"],
+            Section(kind=SectionKind.RIFF, bars=4, layers=["lead", "rhythm", "drums", "drone"],
                     foreground="rhythm", riff_slot="main", form_role="mukhada"),
             Section(kind=SectionKind.MELODY, bars=2, layers=["lead", "drone"],
                     foreground="lead", form_role="manjha"),
-            Section(kind=SectionKind.RIFF, bars=4, layers=["rhythm", "drums", "drone"],
+            Section(kind=SectionKind.RIFF, bars=4, layers=["lead", "rhythm", "drums", "drone"],
                     foreground="rhythm", riff_slot="main", form_role="mukhada")])
 
 
@@ -167,24 +169,118 @@ def test_guardrail_rejects_a_rhythm_section_without_a_slot():
 
 
 def test_guardrail_allows_a_lead_only_section_without_a_slot():
-    # a lead-only section needs no riff_slot; the rest still forms a valid gat (mukhada returns)
+    # a lead-only section needs no riff_slot; the rest still forms a valid gat (mukhada returns;
+    # the single lead-less riff section stays within the 2-bar cap)
     draft = ArrangementDraft(
         raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
         sections=[
-            Section(kind=SectionKind.ALAAP, bars=2, layers=["lead", "drone"],
+            Section(kind=SectionKind.ALAAP, bars=3, layers=["lead", "drone"],
                     foreground="lead", form_role="intro"),
-            Section(kind=SectionKind.RIFF, bars=4, layers=["rhythm", "drone"],
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
                     foreground="rhythm", riff_slot="main", form_role="mukhada"),
-            Section(kind=SectionKind.RIFF, bars=4, layers=["rhythm", "drone"],
+            Section(kind=SectionKind.RIFF, bars=2, layers=["rhythm", "drone"],
                     foreground="rhythm", riff_slot="main", form_role="mukhada")])
     ok, value = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
     assert ok is True and isinstance(value, ComposerTurn)
 
 
+def test_guardrail_requires_a_roomy_intro():
+    # a 2-avartan alap was heard as rushed — the aochar needs at least 3
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=[
+            Section(kind=SectionKind.ALAAP, bars=2, layers=["lead", "drone"],
+                    foreground="lead", form_role="intro"),
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada")])
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "intro" in msg.lower() and "3" in msg
+
+
+def test_guardrail_requires_two_bars_of_mukhada_after_a_manjha():
+    # the head must re-establish itself (2+ loops) after the manjha before anything else
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=[
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.MELODY, bars=2, layers=["lead", "drone"],
+                    foreground="lead", form_role="manjha"),
+            Section(kind=SectionKind.RIFF, bars=1, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada")])
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "re-establish" in msg
+
+
+def test_guardrail_allows_at_most_one_leadless_section():
+    # one riff-only interlude is a contrast; a second is a hole in the gat
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=[
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.RIFF, bars=2, layers=["rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.BREAKDOWN, bars=2, layers=["rhythm", "drone"],
+                    foreground="rhythm", riff_slot="breakdown", form_role="breakdown")])
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "At most 1 lead-less" in msg
+
+
+def test_guardrail_rejects_a_manjha_not_followed_by_a_mukhada():
+    # the manjha is the head's complement: the mukhada must re-enter IMMEDIATELY after it
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=[
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.MELODY, bars=2, layers=["lead", "drone"],
+                    foreground="lead", form_role="manjha"),
+            Section(kind=SectionKind.BREAKDOWN, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="breakdown", form_role="breakdown"),
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada")])
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "manjha" in msg.lower() and "immediately" in msg.lower()
+
+
+def test_guardrail_rejects_a_manjha_before_the_first_mukhada():
+    # a manjha develops the head — it cannot appear before the head has been stated
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=[
+            Section(kind=SectionKind.MELODY, bars=2, layers=["lead", "drone"],
+                    foreground="lead", form_role="manjha"),
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada")])
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "manjha" in msg.lower()
+
+
+def test_guardrail_caps_leadless_sections_at_two_bars():
+    # a riff-only interlude is a short contrast — the gat must never vanish for long
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=[
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada"),
+            Section(kind=SectionKind.RIFF, bars=3, layers=["rhythm", "drone"],
+                    foreground="rhythm", riff_slot="breakdown", form_role="breakdown"),
+            Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
+                    foreground="rhythm", riff_slot="main", form_role="mukhada")])
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "lead-less" in msg.lower()
+
+
 def _gat_sections(*roles: str) -> list[Section]:
-    """Sections carrying the given form_roles; rhythm-bearing ones get a slot so only the
-    form_role rule under test is what fails (not the riff_slot rule)."""
-    return [Section(kind=SectionKind.RIFF, bars=2, layers=["rhythm", "drone"],
+    """Sections carrying the given form_roles; rhythm-bearing ones get a slot and every
+    section carries the lead, so only the form_role rule under test is what fails (not the
+    riff_slot / lead-less rules)."""
+    return [Section(kind=SectionKind.RIFF, bars=2, layers=["lead", "rhythm", "drone"],
                     foreground="rhythm", riff_slot="main", form_role=role) for role in roles]
 
 

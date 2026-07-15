@@ -218,7 +218,7 @@ def test_generate_routes_to_parallel_by_default():
     marks: list = []
     ol, orr = lead_mod.compose_lead, riff_mod.compose_riff
     lead_mod.compose_lead = lambda arr: marks.append("lead") or ([], [])
-    riff_mod.compose_riff = lambda arr: marks.append("riff") or (None, [])
+    riff_mod.compose_riff = lambda arr, mukhada=None: marks.append("riff") or (None, [])
     os.environ.pop("RMA_STUDIO", None)               # default: studio OFF
     try:
         flow._generate(_arr())

@@ -142,13 +142,15 @@ def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[Deba
     if studio_enabled():
         from crew.studio_session import compose_studio
         return compose_studio(arr, passes=canvas_passes())
-    from crew.lead import compose_lead
+    from crew.lead import compose_lead, mukhada_cell_from_events
     from crew.riff import compose_riff
     publish(_running("Lead", "composing the gat…"))   # a RUNNING beat streams AHEAD of the slow work,
     lead_layers, e1 = compose_lead(arr)               # so the UI spotlights Lead WHILE it composes
     publish_all(e1)
     publish(_running("Riff", "laying down the riff…"))
-    rhythm, e2 = compose_riff(arr)
+    # Cross-voice seeding: the riff reduces the cached gat head (fished from the lead's
+    # events), so the band hears the mukhada IN the riff.
+    rhythm, e2 = compose_riff(arr, mukhada=mukhada_cell_from_events(e1))
     publish_all(e2)
     return lead_layers, rhythm, [*e1, *e2], []
 
@@ -219,9 +221,20 @@ def _render(comp: Composition, *, soundfont: Path, out_dir: Path, name: str) -> 
     return str(render_composition(comp, out_dir=out_dir, name=name, soundfont=soundfont))
 
 
+def _default_render_name() -> str:
+    """A unique per-run render name (fusion_YYYYMMDD_HHMMSS), so a new live render never
+    OVERWRITES an earlier one — each run's .wav/.mid/.json triplet stays comparable
+    against its predecessors (Sujit's rule, 2026-07-15). Called at wiring time, never
+    at import (no import-time side effects)."""
+    from datetime import datetime
+    return f"fusion_{datetime.now():%Y%m%d_%H%M%S}"
+
+
 def production_stages(*, soundfont: Path = _SOUNDFONT, out_dir: Path = _OUT_DIR,
-                      name: str = "fusion") -> Stages:
-    """Wire the real adapters (the composition root)."""
+                      name: str | None = None) -> Stages:
+    """Wire the real adapters (the composition root). `name` defaults to a unique
+    timestamped render name; pass one explicitly to pin it."""
+    name = name or _default_render_name()
     return Stages(
         interpret=_interpret, compose=_compose, generate=_generate, assemble=_assemble,
         critique=_critique, arbitrate=_arbitrate, regenerate=_regenerate,

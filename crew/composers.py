@@ -97,13 +97,28 @@ _SECTION_DESC: Final[dict[str, str]] = {
     "outro": "cadential resolution",
 }
 
+# A section that rests the lead may run at most this many avartans — riff-only interludes
+# are a short contrast; the gat must never vanish for long (enforced by the guardrail).
+_MAX_LEADLESS_BARS: Final = 2
+# ...and the whole form gets at most this many of them: one instrumental interlude is a
+# contrast, a second is a hole in the gat (Sujit cut the second bridge/breakdown outright).
+_MAX_LEADLESS_SECTIONS: Final = 1
+# The mukhada RETURN right after a manjha must run at least this many avartans, so the head
+# re-establishes itself before a riff interlude or anything else takes over.
+_MIN_RETURN_BARS: Final = 2
+# The intro/alap needs room to establish Sa and the raga (the aochar unfolds in phrases with
+# real silence between them) — a 2-avartan intro was heard as rushed (Sujit, 2026-07-15).
+_MIN_INTRO_BARS: Final = 3
+
 # One-line meaning per gat FORM role. Keyed by the FormRole value so a new role without a
 # description fails loud in `_render_form_roles` (KeyError) rather than shipping undocumented.
 _FORM_DESC: Final[dict[str, str]] = {
-    "intro": "opening — reveal the raga over the drone before the gat (often an alaap)",
+    "intro": "opening — reveal the raga over the drone before the gat (an aochar/alap); give "
+             "it at least 3 avartans so it can breathe",
     "mukhada": "the GAT HOOK — the recurring melodic+rhythmic head that resolves to the sam; "
                "STATE it early, then RETURN to it (mark the return 'mukhada' too)",
-    "manjha": "development (majh/manjha) — extend the mukhada in the middle register",
+    "manjha": "development (majh/manjha) — extend the mukhada in the middle register; the "
+              "mukhada must re-enter IMMEDIATELY after it (head -> manjha -> head, one cycle)",
     "antara": "the second theme — lifts into the higher (taar) octave",
     "taan_short": "a short cadential taan filler (half/one cycle) that resolves into the next mukhada",
     "taan_long": "the ONE developed taan/solo — the peak; place it after the antara or before the final mukhada",
@@ -146,7 +161,7 @@ _OUTPUT_SCHEMA: Final = """{
 }
 "reasoning" comes FIRST. "registers" is OPTIONAL — omit it to use sensible defaults. "intent" and "transition" are short free-text hints and may be empty.
 "anchor" is the ONE idea the whole piece derives from: "gat_first" (the sitar mukhada is the source; the riff is a rhythmic reduction of it) or "riff_first" (the riff is the source; the mukhada quotes its accented notes).
-Set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (above, the last section is the mukhada coming back). Reserve at most ONE "taan_long" for the peak.
+Set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (above, the last section is the mukhada coming back). Reserve at most ONE "taan_long" for the peak. A MANJHA must sit between mukhada statements — place a "mukhada" section IMMEDIATELY after every "manjha" (head -> manjha -> head, one cohesive cycle), and give that returning mukhada at least 2 bars so the head re-establishes itself. The whole form gets AT MOST ONE section that RESTS the lead (riff-only/breakdown), no longer than 2 bars — the gat is the star and must never vanish for long.
 Every rhythm section needs a "riff_slot" naming which riff it plays — "main"/"chorus"/"breakdown". Sections that SHARE a slot replay the SAME riff, so REUSE "main" wherever the mukhada/main riff returns, and give the chorus/breakdown their OWN slots to contrast. Lead-only sections need no slot."""
 
 
@@ -383,6 +398,53 @@ def _validate_turn(output: Any):
     if sum(s.form_role == "taan_long" for s in turn.draft.sections) > 1:
         return (False, "Reserve ONE developed taan/solo for the peak: at most one section may be "
                        "'taan_long' (use 'taan_short' for cadential fillers). Fix and resend.")
+    # The intro/alap needs room to breathe — the aochar establishes Sa and the raga in phrases
+    # separated by real silence, and code reserves a further pause at its end.
+    short_intro = [f"#{i + 1}" for i, s in enumerate(turn.draft.sections)
+                   if s.form_role == "intro" and s.bars < _MIN_INTRO_BARS]
+    if short_intro:
+        return (False, f"The intro/alap needs at least {_MIN_INTRO_BARS} avartans to establish "
+                       f"Sa and the raga before the gat enters — lengthen section(s) "
+                       f"{', '.join(short_intro)} and resend.")
+    # The manjha is the head's COMPLEMENT, not a detour: it may only appear once the mukhada
+    # has been stated, and the mukhada must re-enter IMMEDIATELY after it — head x3-4, manjha
+    # carries the line to the sam, head again: one cohesive cycle.
+    roles = [s.form_role for s in turn.draft.sections]
+    first_mukhada = roles.index("mukhada")
+    bad_manjha = [f"#{i + 1}" for i, role in enumerate(roles) if role == "manjha"
+                  and (i < first_mukhada or i + 1 >= len(roles) or roles[i + 1] != "mukhada")]
+    if bad_manjha:
+        return (False, "A manjha DEVELOPS the mukhada and must RETURN to it: place every manjha "
+                       "AFTER the mukhada is first stated, with a mukhada section IMMEDIATELY "
+                       "after it (mukhada -> manjha -> mukhada, one cohesive cycle). Fix "
+                       f"section(s) {', '.join(bad_manjha)} and resend.")
+    # The RETURN after a manjha must establish itself: at least two avartans of the head
+    # before anything else takes over (Sujit: "after manjha, 2 loops of mukhada again
+    # before only-riff kicks in").
+    short_return = [f"#{i + 2}" for i, role in enumerate(roles) if role == "manjha"
+                    and i + 1 < len(roles) and turn.draft.sections[i + 1].bars < _MIN_RETURN_BARS]
+    if short_return:
+        return (False, f"The mukhada RETURN after a manjha needs at least {_MIN_RETURN_BARS} "
+                       f"avartans — the head must re-establish itself before anything else "
+                       f"takes over. Lengthen section(s) {', '.join(short_return)} and resend.")
+    # Riff-only interludes are a CONTRAST, not a second act: without the lead the gat vanishes,
+    # so any section that rests the lead stays short (the first live render left the sitar
+    # silent for 8 avartans mid-piece — the form lost its thread), and the piece gets at most
+    # ONE such interlude (a second bridge/breakdown gap kills the gat's momentum — Sujit).
+    long_leadless = [f"#{i + 1} {s.kind.value}" for i, s in enumerate(turn.draft.sections)
+                     if "lead" not in s.layers and s.bars > _MAX_LEADLESS_BARS]
+    if long_leadless:
+        return (False, f"Keep lead-less (riff-only) sections SHORT — at most {_MAX_LEADLESS_BARS} "
+                       f"avartans each; the gat is the star and must never vanish for long. "
+                       f"Shorten or add the lead to section(s): {', '.join(long_leadless)} "
+                       f"and resend.")
+    leadless = [f"#{i + 1} {s.kind.value}" for i, s in enumerate(turn.draft.sections)
+                if "lead" not in s.layers]
+    if len(leadless) > _MAX_LEADLESS_SECTIONS:
+        return (False, f"At most {_MAX_LEADLESS_SECTIONS} lead-less (riff-only) section in the "
+                       f"whole form — one instrumental interlude is a contrast, a second is a "
+                       f"hole in the gat. Add the lead to (or merge/cut) some of: "
+                       f"{', '.join(leadless)} and resend.")
     return (True, turn)
 
 

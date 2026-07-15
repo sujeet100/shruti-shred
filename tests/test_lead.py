@@ -286,7 +286,8 @@ def test_melody_is_voiced_in_unison_on_two_layers():
 
 
 def test_taan_is_voiced_as_a_harmonized_third_on_two_layers():
-    arr = _arr(("lead", "drone"), kind=SectionKind.TAAN, raga="darbari")  # TAAN -> THIRD
+    # a ONE-bar taan has no room to trade — both voices join immediately, guitar a third up
+    arr = _arr(("lead", "drone"), kind=SectionKind.TAAN, raga="darbari")
     fn, _ = _fake([_phrase("S", "R", "g")])        # legal in darbari
     layers, _ = generate_lead(arr, gen_fn=fn)
     assert len(layers) == 2
@@ -295,6 +296,34 @@ def test_taan_is_voiced_as_a_harmonized_third_on_two_layers():
     assert [n.swara for n in sitar.notes] == ["S", "R", "g"]
     # a raga-diatonic third up in darbari (S R g m P d n): S->g, R->m, g->P
     assert [n.swara for n in guitar.notes] == ["g", "m", "P"]
+
+
+def test_taan_trades_bars_then_joins_in_harmony():
+    # a 3-bar taan: bar 0 sitar's CALL (solo), bar 1 guitar's RESPONSE (solo), bar 2 both
+    # JOIN — sitar the line, guitar a raga third above (the dramatic arrival)
+    arr = _gat_arr((SectionKind.TAAN, 3, "taan_long"), raga="darbari")
+    cell = LeadPhrase(phrase_plan=_plan("S"),                # 48 beats: 16 per teentaal bar
+                      notes=[LeadNote(swara="d", dur=0.5), LeadNote(swara="n", dur=0.5),
+                             LeadNote(swara="S", dur=0.5), LeadNote(swara="m", dur=0.5),
+                             LeadNote(swara="m", dur=6.0), LeadNote(swara="R", dur=8.0),
+                             LeadNote(swara="g", dur=0.25), LeadNote(swara="m", dur=0.25),
+                             LeadNote(swara="P", dur=0.25), LeadNote(swara="d", dur=0.25),
+                             LeadNote(swara="n", dur=0.25), LeadNote(swara="S", dur=0.25, oct=1),
+                             LeadNote(swara="R", dur=0.25, oct=1), LeadNote(swara="g", dur=0.25, oct=1),
+                             LeadNote(swara="g", dur=8.0, oct=1), LeadNote(swara="m", dur=6.0, oct=1),
+                             LeadNote(swara="R", dur=4.0, oct=1), LeadNote(swara="n", dur=4.0),
+                             LeadNote(swara="d", dur=2.0), LeadNote(swara="P", dur=2.0),
+                             LeadNote(swara="m", dur=2.0), LeadNote(swara="S", dur=2.0)])
+    fn, _ = _fake([cell])
+    layers, _ = generate_lead(arr, gen_fn=fn)
+    sitar = next(x for x in layers if x.instrument == VOICES["sitar"].instrument)
+    guitar = next(x for x in layers if x.instrument == VOICES["lead_guitar"].instrument)
+    assert all(n.start < 16.0 or n.start >= 32.0 for n in sitar.notes)   # sitar sits out bar 1
+    assert all(n.start >= 16.0 for n in guitar.notes)                     # guitar enters at bar 1
+    join_s = [n for n in sitar.notes if n.start >= 32.0]
+    join_g = [n for n in guitar.notes if n.start >= 32.0]
+    assert len(join_s) == len(join_g) > 0                                 # both play the join...
+    assert [n.swara for n in join_g] != [n.swara for n in join_s]         # ...guitar a third up
 
 
 def test_voice_line_octave_puts_the_guitar_an_octave_up():
@@ -577,6 +606,24 @@ def _worse_head() -> LeadPhrase:
                              LeadNote(swara="n", dur=2.0)])
 
 
+def _good_fill() -> LeadPhrase:
+    # a taan fill that PASSES verify_fill for a 16-beat teentaal head (an 8-beat cut):
+    # 32 sixteenths (0.25) summing to exactly 8, resolving onto S (the head's first swara).
+    swaras = (["m", "g", "m", "d", "n", "d", "m", "g"] * 4)[:31] + ["S"]
+    return LeadPhrase(phrase_plan=_plan("m"),
+                      notes=[LeadNote(swara=s, dur=0.25) for s in swaras])
+
+
+def _good_manjha() -> LeadPhrase:
+    # a manjha that PASSES verify_manjha against `_good_head()` over one 16-beat window:
+    # fills the window, varied durations, and ends ON the head's first swara (S).
+    return LeadPhrase(phrase_plan=_plan("d"),
+                      notes=[LeadNote(swara="d", dur=3.0), LeadNote(swara="n", dur=2.0),
+                             LeadNote(swara="m", dur=3.0), LeadNote(swara="g", dur=2.5),
+                             LeadNote(swara="m", dur=2.0), LeadNote(swara="g", dur=1.5),
+                             LeadNote(swara="S", dur=2.0)])
+
+
 def test_is_mukhada_reads_the_form_role():
     arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"), (SectionKind.ALAAP, 1, "manjha"))
     assert is_mukhada(arr.sections[0]) is True
@@ -584,12 +631,15 @@ def test_is_mukhada_reads_the_form_role():
 
 
 def test_generate_lead_writes_the_mukhada_as_ONE_avartan():
-    # the LLM is asked for exactly one cycle (bars coerced to 1), not the whole multi-bar window
+    # the LLM is asked for exactly one cycle (bars coerced to 1), not the whole multi-bar window.
+    # A 3-bar mukhada also earns a taan FILL, generated right after the head (the second call).
     arr = _gat_arr((SectionKind.ALAAP, 3, "mukhada"))
-    fn, calls = _fake([_good_head()])
+    fn, calls = _fake([_good_head(), _good_fill()])
     generate_lead(arr, gen_fn=fn)
     assert calls[0].section.bars == 1                       # a one-avartan gen window
     assert calls[0].length == arr.beats_per_bar             # ...spanning a single cycle
+    assert calls[1].length == arr.beats_per_bar / 2         # the fill: half an avartan
+    assert calls[1].section.form_role == "taan_short"       # framed as the cadential taan
 
 
 def test_generate_lead_loops_the_mukhada_cell_across_its_bars():
@@ -610,7 +660,7 @@ def test_generate_lead_reuses_the_cached_mukhada_on_return():
     arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"),
                    (SectionKind.ALAAP, 1, "manjha"),
                    (SectionKind.ALAAP, 1, "mukhada"))
-    fn, calls = _fake([_good_head(), _phrase("d", "n")])     # only TWO phrases: proves the 3rd reused
+    fn, calls = _fake([_good_head(), _good_manjha()])        # only TWO phrases: proves the 3rd reused
     layers, events = generate_lead(arr, gen_fn=fn)
     assert len(calls) == 2                                    # the returning mukhada did NOT call gen_fn
     reprises = [e for e in events if e.data.get("reprise")]
@@ -803,6 +853,191 @@ def test_leadnote_accepts_and_normalises_an_ornament():
     assert LeadNote(swara="g", dur=1.0, ornament="murki").ornament == "murki"
     for junk in (None, "null", "none", ""):
         assert LeadNote(swara="g", dur=1.0, ornament=junk).ornament is None
+
+
+# --- the intro/alap: verified, generated into a SHORTENED window ------------------
+
+def _good_intro() -> LeadPhrase:
+    # passes verify_intro (the aochar shape): opens on Sa, dips into the mandra, Sa-heavy
+    # with 3 returns, two 1.5-beat rests (one after a Sa), held final Sa.
+    # Sounds 13 beats + 3 beats of rests = a 16-beat cell.
+    return LeadPhrase(phrase_plan=_plan("S"),
+                      notes=[LeadNote(swara="S", dur=2.0), LeadNote(swara="S", dur=1.5, rest=True),
+                             LeadNote(swara="n", dur=2.0, oct=-1), LeadNote(swara="d", dur=3.0, oct=-1),
+                             LeadNote(swara="S", dur=2.0), LeadNote(swara="m", dur=1.5, rest=True),
+                             LeadNote(swara="g", dur=1.0), LeadNote(swara="S", dur=3.0)])
+
+
+def test_intro_is_generated_into_a_shortened_window():
+    # the trailing pause is CODE's: the alap is asked for LESS than its section window
+    # (2 teentaal bars = 32 beats; the gap is min(cycle 16, 32 * 0.35) = 11.2)
+    arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
+    fn, calls = _fake([_good_intro()])
+    generate_lead(arr, gen_fn=fn)
+    assert calls[0].length == 32 - 11.2
+
+
+def test_intro_final_sa_rings_through_the_reserved_gap():
+    # the 16-beat alap cell's LAST Sa is extended by code to ring (with a fade) across the
+    # reserved tail of the 32-beat window — the "struck chord dying away" resolution; every
+    # other note stays inside the shortened window
+    arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
+    fn, _ = _fake([_good_intro()])
+    layers, _ = generate_lead(arr, gen_fn=fn)
+    notes = sorted(layers[0].notes, key=lambda n: n.start)
+    last = notes[-1]
+    assert last.swara == "S" and last.start == 13.0
+    assert last.start + last.dur == 32.0 and last.fade is True   # rings to the section edge
+    assert all(n.start + n.dur <= 16.0 for n in notes[:-1])      # the rest end in the window
+
+
+def test_intro_is_verified_and_rerolled_with_feedback():
+    # a wandering alap (never resolves to Sa) is bounced; the re-roll sees WHY
+    bad = _phrase("g", "m", "d", "n", dur=2.0)               # no Sa anywhere, no rests
+    arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
+    fn, calls = _fake([bad, _good_intro()])
+    _, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 2
+    assert fn.seen_feedback[1] and any("Sa" in v for v in fn.seen_feedback[1])
+    rr = next(e for e in events if e.data.get("gat_verify"))
+    assert rr.data["cell"] == "intro"
+
+
+# --- the mukhada taan FILLS: distinct cells, spliced into the middle statements --
+
+def _good_fill_2() -> LeadPhrase:
+    # a SECOND distinct fill (different shape from _good_fill), same splice contract:
+    # 31 sixteenths + a landing on m (the malkauns vadi — within reach of the head's S)
+    swaras = (["d", "n", "d", "m", "g", "m", "d", "n"] * 4)[:31] + ["S"]
+    return LeadPhrase(phrase_plan=_plan("d"),
+                      notes=[LeadNote(swara=s, dur=0.25) for s in swaras])
+
+
+def test_fills_are_distinct_and_spliced_into_the_middle_bars():
+    # 4 bars of mukhada: bars 0 and 3 state the whole head; bars 1 and 2 are CUT, each with a
+    # DIFFERENT taan (rotated), the head's front half before each cut
+    arr = _gat_arr((SectionKind.ALAAP, 4, "mukhada"))
+    fn, calls = _fake([_good_head(), _good_fill(), _good_fill_2()])
+    layers, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 3                                   # the head + TWO distinct fills
+    notes = sorted(layers[0].notes, key=lambda n: n.start)
+    cut1 = [n for n in notes if 24.0 <= n.start < 32.0]      # bar 1's back half (16 + 8)
+    cut2 = [n for n in notes if 40.0 <= n.start < 48.0]      # bar 2's back half (32 + 8)
+    assert len(cut1) == 32 and all(n.dur <= 0.25 for n in cut1)
+    assert len(cut2) == 32 and all(n.dur <= 0.25 for n in cut2)
+    assert [n.swara for n in cut1] != [n.swara for n in cut2]   # rotated DISTINCT taans
+    head_restated = [n for n in notes if 48.0 <= n.start < 64.0]
+    assert [n.swara for n in head_restated] == ["S", "m", "g", "S"]   # bar 3: the head, whole
+    fill_events = [e for e in events if e.data.get("fill")]
+    assert len(fill_events) == 1 and fill_events[0].data["count"] == 2
+
+
+def test_short_mukhada_sections_get_no_fill():
+    # 2 bars is too short to spare a statement — every bar states the whole head
+    arr = _gat_arr((SectionKind.ALAAP, 2, "mukhada"))
+    fn, calls = _fake([_good_head()])
+    layers, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 1                                   # no fill was requested
+    assert not [e for e in events if e.data.get("fill")]
+
+
+# --- the manjha: verified against the cached head (cross-cell awareness) ---------
+
+def test_manjha_is_verified_and_rerolled_with_the_seam_feedback():
+    # a manjha that dies early is bounced; the re-roll is told to reach the closing sam
+    bad = _phrase("d", "n", dur=2.0)                         # 4 of 16 beats — nowhere near the sam
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"),
+                   (SectionKind.ALAAP, 1, "manjha"))
+    fn, calls = _fake([_good_head(), bad, _good_manjha()])
+    _, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 3                                   # head + manjha + one re-roll
+    assert fn.seen_feedback[2] and any("sam" in v for v in fn.seen_feedback[2])
+    rr = next(e for e in events if e.data.get("gat_verify"))
+    assert rr.data["cell"] == "manjha"
+
+
+# --- the antara: verified arc (quote -> climb -> late peak -> descend to Sa) -----
+
+def _good_antara() -> LeadPhrase:
+    # quotes the head (S m g S), climbs to a late taar peak, descends to madhya Sa —
+    # and fills its 16-beat window exactly (end-anchored cells must not overrun)
+    return LeadPhrase(phrase_plan=_plan("S"),
+                      notes=[LeadNote(swara="S", dur=1.5), LeadNote(swara="m", dur=1.0),
+                             LeadNote(swara="g", dur=1.0), LeadNote(swara="S", dur=1.5),
+                             LeadNote(swara="d", dur=1.0), LeadNote(swara="n", dur=1.0),
+                             LeadNote(swara="S", dur=1.0, oct=1), LeadNote(swara="g", dur=1.5, oct=1),
+                             LeadNote(swara="m", dur=1.0, oct=1), LeadNote(swara="g", dur=1.0, oct=1),
+                             LeadNote(swara="S", dur=0.5, oct=1), LeadNote(swara="n", dur=1.0),
+                             LeadNote(swara="d", dur=1.0), LeadNote(swara="S", dur=2.0)])
+
+
+def test_antara_is_verified_and_rerolled_with_the_arc_feedback():
+    # a "new tune in the taar" antara is bounced; the re-roll is told to quote the head
+    bad = LeadPhrase(phrase_plan=_plan("d"),
+                     notes=[LeadNote(swara="d", dur=2.0), LeadNote(swara="n", dur=1.5),
+                            LeadNote(swara="g", dur=2.0, oct=1), LeadNote(swara="n", dur=2.0),
+                            LeadNote(swara="d", dur=1.0), LeadNote(swara="S", dur=3.0)])
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"),
+                   (SectionKind.ALAAP, 1, "antara"))
+    fn, calls = _fake([_good_head(), bad, _good_antara()])
+    _, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 3                                   # head + antara + one re-roll
+    assert fn.seen_feedback[2] and any("quote" in v for v in fn.seen_feedback[2])
+    rr = next(e for e in events if e.data.get("gat_verify"))
+    assert rr.data["cell"] == "antara"
+
+
+# --- the developed taan (taan_long): verified peak ------------------------------
+
+def test_taan_long_is_verified_and_rerolled_with_feedback():
+    # an even wall of quarter notes is NOT a taan — bounced with the exact reasons;
+    # the arrangement motif for _gat_arr is d n S m, so the good taan must quote it
+    bad = _phrase("d", "n", "S", "m", dur=1.0)
+    good = LeadPhrase(phrase_plan=_plan("d"),
+                      notes=[LeadNote(swara="d", dur=0.5), LeadNote(swara="n", dur=0.5),
+                             LeadNote(swara="S", dur=0.5), LeadNote(swara="m", dur=0.5),
+                             LeadNote(swara="m", dur=2.0),
+                             LeadNote(swara="g", dur=0.25), LeadNote(swara="m", dur=0.25),
+                             LeadNote(swara="d", dur=0.25), LeadNote(swara="n", dur=0.25),
+                             LeadNote(swara="g", dur=0.25), LeadNote(swara="m", dur=0.25),
+                             LeadNote(swara="d", dur=0.25), LeadNote(swara="n", dur=0.25),
+                             LeadNote(swara="d", dur=0.25), LeadNote(swara="n", dur=0.25),
+                             LeadNote(swara="S", dur=0.25, oct=1), LeadNote(swara="g", dur=0.25, oct=1),
+                             LeadNote(swara="m", dur=1.0, oct=1),
+                             LeadNote(swara="g", dur=0.5, oct=1), LeadNote(swara="S", dur=0.5, oct=1),
+                             LeadNote(swara="n", dur=0.5), LeadNote(swara="d", dur=0.5),
+                             LeadNote(swara="m", dur=1.0), LeadNote(swara="g", dur=0.5),
+                             LeadNote(swara="S", dur=3.0)])
+    arr = _gat_arr((SectionKind.TAAN, 1, "taan_long"))
+    fn, calls = _fake([bad, good])
+    _, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 2
+    assert fn.seen_feedback[1] and any("burst" in v for v in fn.seen_feedback[1])
+    rr = next(e for e in events if e.data.get("gat_verify"))
+    assert rr.data["cell"] == "taan_long"
+
+
+def test_mukhada_cell_rides_the_event_stream():
+    # cross-voice seeding seam: the cached head is fished back from the events the lead
+    # already returns, so the riff can reduce it with no signature change
+    from crew.lead import mukhada_cell_from_events
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"))
+    fn, _ = _fake([_good_head()])
+    _, events = generate_lead(arr, gen_fn=fn)
+    cell = mukhada_cell_from_events(events)
+    assert cell is not None
+    assert [n.swara for n in cell.notes] == ["S", "m", "g", "S"]
+    assert mukhada_cell_from_events([]) is None
+
+
+def test_manjha_memory_labels_the_head():
+    # the manjha's memory names the mukhada, so the prompt can render THE GAT HEAD block
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"),
+                   (SectionKind.ALAAP, 1, "manjha"))
+    fn, _ = _fake([_good_head(), _good_manjha()])
+    generate_lead(arr, gen_fn=fn)
+    memos = fn.seen_memory[1]                                # what the manjha call saw
+    assert any(m.form_role == "mukhada" for m in memos)
 
 
 if __name__ == "__main__":

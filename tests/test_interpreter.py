@@ -44,6 +44,15 @@ def test_unstated_dimensions_stay_open():
     assert brief.sa is None
 
 
+def test_implausible_bpm_is_treated_as_unstated():
+    # a live extractor emitted bpm=2 for a query that stated no tempo (its own reasoning
+    # said "not stated") — out of the playable range means junk, not a choice
+    assert RawIntent(bpm=2).bpm is None
+    assert RawIntent(bpm=900).bpm is None
+    assert RawIntent(bpm=-1).bpm is None
+    assert RawIntent(bpm=132).bpm == 132
+
+
 def test_unsupported_raga_left_open_with_note():
     brief = resolve_brief(RawIntent(raga="Todi"))     # a real raga, but not in our menu
     assert brief.raga is None

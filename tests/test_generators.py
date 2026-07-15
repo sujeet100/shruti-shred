@@ -34,6 +34,7 @@ from crew.generators import (  # noqa: E402
     bass_layer,
     double_track,
     drone_layer,
+    harmonize_riff_to_lead,
     section_spans,
     total_beats,
 )
@@ -228,10 +229,57 @@ def test_double_track_is_a_second_track_panned_opposite_on_a_different_tone():
     # nudged a hair late so the pair decorrelates (Haas width), not mono-summed
     assert dbl.notes[0].start > src.notes[0].start
     assert all(d.swara == s.swara for d, s in zip(dbl.notes, src.notes))   # same riff
+    # a few cents sharp — decorrelates the pair even when a specialized soundfont
+    # routes BOTH sides to the same patch
+    assert dbl.detune_cents and src.detune_cents is None
 
 
 def test_no_riff_means_no_double():
     assert double_track(None) is None
+
+
+# --- the riff-under-lead consonance guard ---------------------------------------
+
+def _lead_layer(*notes: Note) -> Layer:
+    return Layer(role="lead", instrument="sitar", program=104, channel=2, notes=list(notes))
+
+
+def test_clashing_riff_note_thins_to_a_soft_chug():
+    # a held lead g (komal Ga) over a riff chugging R (a semitone below): the riff note
+    # loses its chord, clips to a chug, and softens — the clash turns percussive
+    lead = _lead_layer(Note(swara="g", oct=0, start=0.0, dur=2.0))
+    riff = Layer(role="rhythm", instrument="gtr", program=29, channel=0,
+                 notes=[Note(swara="R", oct=-2, start=0.0, dur=2.0, vel=100, chord=["R"])])
+    out = harmonize_riff_to_lead(riff, [lead])
+    n = out.notes[0]
+    assert n.chord is None and n.dur == 0.5 and n.vel == 90
+    assert n.swara == "R"                              # never re-pitched — code doesn't compose
+    assert n.technique == "palm_mute"
+
+
+def test_consonant_riff_notes_pass_untouched():
+    # the same swara (ic 0) and a fifth (ic 7 vs Sa lead) are consonant — left alone
+    lead = _lead_layer(Note(swara="S", oct=0, start=0.0, dur=4.0))
+    riff = Layer(role="rhythm", instrument="gtr", program=29, channel=0,
+                 notes=[Note(swara="S", oct=-2, start=0.0, dur=1.0, vel=100, chord=["S"]),
+                        Note(swara="P", oct=-2, start=1.0, dur=1.0, vel=100)])
+    out = harmonize_riff_to_lead(riff, [lead])
+    assert out.notes == riff.notes
+
+
+def test_fast_passing_lead_notes_do_not_trigger_the_guard():
+    # a 16th-note run brushing a semitone is passing colour, not a sustained grind
+    lead = _lead_layer(Note(swara="g", oct=0, start=0.0, dur=0.25))
+    riff = Layer(role="rhythm", instrument="gtr", program=29, channel=0,
+                 notes=[Note(swara="R", oct=-2, start=0.0, dur=2.0, vel=100)])
+    out = harmonize_riff_to_lead(riff, [lead])
+    assert out.notes == riff.notes
+
+
+def test_guard_without_lead_or_riff_is_a_no_op():
+    riff = _guitar_riff(-2)
+    assert harmonize_riff_to_lead(riff, []) is riff
+    assert harmonize_riff_to_lead(None, [_lead_layer()]) is None
 
 
 def test_no_riff_means_no_bass():
