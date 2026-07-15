@@ -90,6 +90,14 @@ _CELL_REPAIR_TRIES: Final = 1              # extra re-rolls of a weak verified c
 _INTRO_GAP_FRACTION: Final = 0.35          # up to this fraction of the intro window...
                                            # ...capped at one tala cycle (see _intro_gen_span)
 
+# The manjha is a SHORT lower-register bridge (Pandit Arvind Parikh; Masitkhani-gat descriptions):
+# at most one avartan, and we reserve a small breath before the mukhada re-enters — so it lands
+# SUB-CYCLE (~12 matras in a 16-matra teentaal), matching the sources and Sujit's ear (8-11 matras).
+# The old manjha filled its whole multi-bar section — a long developmental episode the tradition
+# does NOT have. Register (dip to the mandra, no taar) is enforced by verify_manjha.
+_MANJHA_MAX_CYCLES: Final = 1.0            # never longer than one avartan (a manjha is a short line)
+_MANJHA_GAP_FRACTION: Final = 0.25         # reserve this much as a breath before the head returns
+
 # The mukhada taan FILLS — cut the back half of head statements and splice sixteenth-note
 # taans there, each resolving into the next statement (the classic gat move). Only a section
 # long enough to spare statements gets them (never its first or last bar, so the head still
@@ -283,6 +291,16 @@ def _intro_gen_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
                        start=span.start, end=span.end - gap)
 
 
+def _manjha_gen_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
+    """The manjha's SHORT generation window: at most one avartan, minus a reserved breath before
+    the mukhada re-enters, so the low bridge lands sub-cycle instead of filling a whole multi-bar
+    section (Parikh: the manjha is a short line that takes the melody into the lower octave, not a
+    long development). Front-positioned like the intro; code leaves the trailing beats as silence."""
+    length = min(span.length, cycle_beats * _MANJHA_MAX_CYCLES) * (1.0 - _MANJHA_GAP_FRACTION)
+    return SectionSpan(index=span.index, section=span.section,
+                       start=span.start, end=span.start + length)
+
+
 def _fill_bars(section) -> list[int]:
     """Which bars of a mukhada section get a taan fill — the MIDDLE statements of a section
     long enough to spare them (never the first bar, which states the head, nor the last, which
@@ -306,6 +324,10 @@ def _place_lead_section(notes: list[LeadNote], *, span: SectionSpan, register: i
     mukhada section are CUT: the head plays its front, the sixteenth-note taan takes the back,
     and the next statement re-enters on its sam — the splice is code's, the taans are the
     LLM's (each verified to resolve into the head)."""
+    if is_manjha(span.section):                     # the low bridge occupies a SHORT sub-cycle window
+        m = _manjha_gen_span(span, cycle_beats)     # (the same window it was generated + verified against)
+        return place_phrase(notes, start=m.start, end=m.end, register=register,
+                            andolan_swaras=andolan_swaras)
     if not is_mukhada(span.section):
         return place_phrase(notes, start=span.start, end=span.end, register=register,
                             andolan_swaras=andolan_swaras)
@@ -1064,12 +1086,13 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
             events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
             if tries > 1:
                 events.append(_gat_repair_event(_INTRO, tries, viol))
-        elif is_manjha(section) and mukhada_cell is not None:  # the development — must RETURN to the head
+        elif is_manjha(section) and mukhada_cell is not None:  # the SHORT low bridge back to the head
             head = mukhada_cell
+            gen_span = _manjha_gen_span(span, cycle_beats)   # short, sub-cycle window (code reserves the rest)
+            window = gen_span.length
             phrase, tries, viol = _generate_verified_cell(
-                span, arr, memory, gen_fn=gen_fn,
-                verify=lambda c: verify_manjha(c, mukhada=head, window_beats=span.length,
-                                               raga=raga))
+                gen_span, arr, memory, gen_fn=gen_fn,
+                verify=lambda c: verify_manjha(c, mukhada=head, window_beats=window, raga=raga))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
@@ -1111,15 +1134,52 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
     return layers, events
 
 
+def _retrograde_fill(fill: LeadPhrase) -> LeadPhrase:
+    """A distinct fill from a base one, DETERMINISTICALLY: reverse the run but KEEP the final
+    landing note (so it still resolves into the head). Same pitches (legal), same sixteenth
+    durations (still a valid taan fill), different contour. No LLM."""
+    notes = fill.notes
+    if len(notes) <= 2:
+        return fill
+    return fill.model_copy(update={"notes": list(reversed(notes[:-1])) + [notes[-1]]})
+
+
+def _step_up_fill(fill: LeadPhrase, raga: str) -> LeadPhrase:
+    """A distinct fill: shift every run note UP one scale-degree in the raga (legal BY
+    CONSTRUCTION via `scale_step_up`), keeping the landing note. A higher variant; clears any
+    meend target on the shifted notes so nothing illegal is left dangling. No LLM."""
+    notes = fill.notes
+    if len(notes) <= 2:
+        return fill
+    shifted: list[LeadNote] = []
+    for n in notes[:-1]:
+        if n.rest:
+            shifted.append(n)
+            continue
+        sw, oct_delta = scale_step_up(n.swara, raga, 1)
+        shifted.append(n.model_copy(update={"swara": sw, "oct": n.oct + oct_delta,
+                                            "meend_swara": None, "meend_oct": None}))
+    return fill.model_copy(update={"notes": shifted + [notes[-1]]})
+
+
+def _fill_variants(base: LeadPhrase, count: int, raga: str) -> list[LeadPhrase]:
+    """Up to `count` DISTINCT fills from ONE generated base, via deterministic in-raga transforms
+    (the base, its retrograde, a scale-step-up). Consecutive mukhada cuts get contrasting taans
+    WITHOUT extra LLM calls (Sujit, 2026-07-16: the LLM-written variants sounded alike anyway, and
+    each cost a call). Every transform preserves the splice contract — sixteenths, length, and the
+    landing that resolves into the head — so the variants stay verified by construction."""
+    variants = [base, _retrograde_fill(base), _step_up_fill(base, raga)]
+    return (variants * (count // len(variants) + 1))[:count]
+
+
 def _generate_fills(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo],
                     mukhada_cell: LeadPhrase, *, gen_fn: LeadFn,
                     events: list[DebateEvent]) -> list[LeadPhrase]:
-    """Write the DISTINCT taan fills (each verified, bounded re-roll) right after the head is
-    cached — as many as the arrangement's fill slots need, capped at `_FILL_VARIANTS`. Each
-    fill sees the head (memory labelled `[mukhada]` + the `{mukhada_head}` block) AND the
-    fills already written (threaded into the memory as `taan_short` entries), so consecutive
-    cuts get contrasting taans instead of one repeated lick. The verifier holds every cell to
-    the same splice contract (sixteenths, exact length, resolves into the head)."""
+    """Write the mukhada taan fills. ONE fill is GENERATED by the LLM (verified, bounded re-roll)
+    right after the head is cached; the additional distinct fills are DERIVED deterministically
+    (`_fill_variants`), so consecutive cuts contrast without extra LLM calls. It sees the head
+    (memory `[mukhada]` + the `{mukhada_head}` block); the verifier holds it to the splice contract
+    (sixteenths, exact length, resolves into the head)."""
     count = min(_FILL_VARIANTS, _fill_slot_count(arr))
     if count == 0:
         return []
@@ -1129,16 +1189,12 @@ def _generate_fills(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo],
                        for n in mukhada_cell.notes if not n.rest), "S")
     fill_span = _fill_gen_span(span, cycle_beats, head_first)
     half = cycle_beats * _FILL_FRACTION
-    fills: list[LeadPhrase] = []
-    for _ in range(count):
-        fill, tries, viol = _generate_verified_cell(
-            fill_span, arr, head_memory, gen_fn=gen_fn,
-            verify=lambda c: verify_fill(c, mukhada=mukhada_cell, window_beats=half,
-                                         raga=arr.raga))
-        fills.append(fill)
-        head_memory = head_memory + [LeadMemo("taan", fill, "taan_short")]
-        if tries > 1:
-            events.append(_gat_repair_event("taan fill", tries, viol))
+    base, tries, viol = _generate_verified_cell(
+        fill_span, arr, head_memory, gen_fn=gen_fn,
+        verify=lambda c: verify_fill(c, mukhada=mukhada_cell, window_beats=half, raga=arr.raga))
+    if tries > 1:
+        events.append(_gat_repair_event("taan fill", tries, viol))
+    fills = _fill_variants(base, count, arr.raga)
     events.append(_fill_event(fills, half))
     return fills
 

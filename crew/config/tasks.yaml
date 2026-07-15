@@ -230,11 +230,15 @@ generate_lead:
         than restarts. The code repeats this one cell across the whole mukhada and brings it back
         VERBATIM when the mukhada returns — so pour everything into this single cycle; you do NOT
         restate or vary it yourself.
-      - manjha: DEVELOP the mukhada in the middle (madhya) register — extend and vary the HEAD's
-        material (see THE GAT HEAD above), keeping its rhythmic skeleton recognisable. You are the
-        head's complement, not a new tune: carry the line all the way to the closing sam (fill your
-        whole window), and shape your FINAL notes as a stepwise lead-in to the head's first swara —
-        the mukhada re-enters immediately after you, and the seam must flow.
+      - manjha: the LOWER-REGISTER BRIDGE (part of the sthayi). Pandit Parikh: the manjha takes the
+        melody DOWN into the mandra octave before the antara climbs. It is SHORT (about one avartan,
+        never a long development) and CALM — ONE clear, spacious idea with longer nyas, meend and
+        breathing room, NOT a busy taan-like run. Shift the centre of gravity into the mandra /
+        lower-madhya register and do NOT climb into the taar (the ANTARA owns the upper octave). Stay
+        unmistakably in the raga and keep the head's rhythmic skeleton recognisable, but CONTRAST the
+        mukhada through register and contour (dip down, then settle) rather than repeating it. Shape
+        your FINAL notes as a stepwise lead-in to the head's first swara — the mukhada re-enters
+        immediately after you, and the seam must flow.
       - antara: the SECOND MOVEMENT of the SAME gat — never a new tune. Its trajectory, in order:
         (1) OPEN in the middle (madhya) octave by QUOTING the mukhada's opening (see THE GAT HEAD
         above) — restate it or vary it lightly, an octave up is idiomatic; (2) DEVELOP that
@@ -266,18 +270,30 @@ generate_lead:
         (one short phrase stated THREE times, the last landing exactly on the sam). END by
         resolving on the sam onto a resting swara, leading into the returning mukhada — a
         brilliant landing matters more than maximum speed.
-      - intro: the AOCHAR — the short alap that ESTABLISHES SA AS HOME and unfolds the raga
-        before the gat. Its verified shape, in order: (1) OPEN on or around madhya Sa (never
-        the taar) and let the first phrases DIP INTO THE MANDRA (below home) — the exposition
-        starts at home and explores downward first; (2) introduce the raga's swaras GRADUALLY
-        (a phrase adds at most a couple of new notes — badhat), building each phrase from the
-        pakad; (3) every phrase ends SUSTAINED on a resting swara and Sa keeps returning —
-        Sa carries at least a THIRD of the sounding time and the line comes home to Sa at
-        least three separate times; RE-EMPHASIZE Sa the traditional way, punctuating between
-        phrases with chikari strokes (bol "chikari"); (4) take a true REST right after each Sa
-        landing (the nyas breath) — long notes with meend, real silence between phrases, no
-        pulse, no hurry; (5) END on a long HELD Sa (2+ beats) — code lets it RING and fade
-        into the reserved silence before the gat's mukhada brings the tala in.
+      - intro: the AOCHAR — a SHORT ALAP whose one job is to make THIS raga unmistakable and
+        establish Sa as HOME before the tala enters. Compose it as 3-6 SHORT, INDEPENDENT phrases
+        (musical sentences), NOT one continuous line. Every phrase has the SAME shape:
+            explore  ->  resolve HOME to Sa  ->  hold that Sa  ->  a true REST (real silence)
+        then the next phrase begins. Silence is part of the composition: the pause after each Sa
+        matters as much as the phrase — never connect two phrases without a rest between them, and
+        do not fear empty space. The rules, in order:
+        (1) STATE THE RAGA WITH ITS KEY PHRASES — build the phrases from the raga's PAKAD and
+            CHALAN (quote a signature phrase, or a combination of them, then vary it) so the raga
+            is clear from the first breath; do NOT wander through in-scale notes at random. At
+            least one phrase must STATE THE PAKAD.
+        (2) OPEN on or around madhya Sa (never the taar) and let the first phrases DIP INTO THE
+            MANDRA (below home) before the line rises.
+        (3) BADHAT — reveal the raga gradually: phrase 1 uses just 2-3 swaras of the pakad; each
+            later phrase may add a note or widen the range; the final phrases reach the widest span.
+        (4) SA IS THE GRAVITATIONAL CENTRE — EVERY phrase ends on Sa (no phrase ends on another
+            note); Sa carries roughly 35-50% of the sounding time; re-sound Sa between phrases with
+            chikari strokes (bol "chikari"). Sa is where a phrase LANDS — never a note to repeat or
+            sustain continuously.
+        (5) after each Sa landing take a true REST of ~0.5-2 beats (the nyas breath) — long notes
+            with meend, real silence between phrases, no pulse, no hurry.
+        (6) the FINAL phrase only SETTLES: end on a long HELD Sa (2+ beats, the longest of the
+            intro); code then lets it RING and fade into the reserved silence before the mukhada
+            brings the tala in.
       - outro: settle onto a held Sa. tihai: one phrase stated THREE times, landing on the sam.
 
     FAST RUNS ARE SIXTEENTHS, EARNED: build a taan from sixteenth-notes (dur 0.25), but do NOT fill

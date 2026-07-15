@@ -217,12 +217,25 @@ def assess(comp: Composition, *, judge_fn: JudgeFn) -> tuple[UstadVerdict, list[
     """
     payload = comp.model_dump(exclude_none=True)
     violations = [Violation(**v) for v in validate_composition(payload)]
-    narration = judge_fn(comp, payload)
+    if violations:
+        # A real violation to EXPLAIN — this is where the LLM (its ReAct tool call) earns its keep:
+        # it calls validate_composition and narrates WHY the piece is illegal, in a musician's terms.
+        narration = judge_fn(comp, payload)
+        explanation, reasoning = narration.explanation, narration.reasoning
+    else:
+        # CLEAN piece: SKIP the LLM entirely (Sujit, 2026-07-16 — "do things programmatically instead
+        # of the ReAct loop"). Code already OWNS the "legal" verdict, and a ReAct pass would only
+        # re-state "it's clean" at the cost of a critic call. Since the generators' pitch guardrail
+        # gates illegal notes before assembly, LEGAL is the common path — so this removes an LLM call
+        # from almost every run. The pattern is intact: the model still narrates when there IS a
+        # violation; it just doesn't narrate the absence of one.
+        explanation = f"All notes sit inside {RAGAS[comp.raga]['display']} — the piece is legal in the raga."
+        reasoning = "validate_composition returned no violations: every sounding swara is legal in the raga."
     verdict = UstadVerdict(
         verdict="illegal" if violations else "legal",
         violations=violations,
-        explanation=narration.explanation,
-        reasoning=narration.reasoning)
+        explanation=explanation,
+        reasoning=reasoning)
     return verdict, [_verdict_event(verdict)]
 
 

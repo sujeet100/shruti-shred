@@ -615,12 +615,13 @@ def _good_fill() -> LeadPhrase:
 
 
 def _good_manjha() -> LeadPhrase:
-    # a manjha that PASSES verify_manjha against `_good_head()` over one 16-beat window:
-    # fills the window, varied durations, and ends ON the head's first swara (S).
+    # a manjha that PASSES verify_manjha against `_good_head()` over the SHORTENED (~12-beat, sub-
+    # cycle) window: DIPS into the mandra, stays out of the taar, varied durations, and ends ON the
+    # head's first swara (S). Sums to 11.5 beats — inside the shortened manjha window.
     return LeadPhrase(phrase_plan=_plan("d"),
-                      notes=[LeadNote(swara="d", dur=3.0), LeadNote(swara="n", dur=2.0),
-                             LeadNote(swara="m", dur=3.0), LeadNote(swara="g", dur=2.5),
+                      notes=[LeadNote(swara="d", dur=1.5, oct=-1), LeadNote(swara="n", dur=1.5, oct=-1),
                              LeadNote(swara="m", dur=2.0), LeadNote(swara="g", dur=1.5),
+                             LeadNote(swara="m", dur=2.0), LeadNote(swara="g", dur=1.0),
                              LeadNote(swara="S", dur=2.0)])
 
 
@@ -680,12 +681,16 @@ def test_returning_mukhada_is_verbatim_the_head():
 
 
 def test_non_mukhada_roles_are_not_looped():
-    # a manjha is composed once across its whole window (not a looped cell)
+    # a manjha is composed once across its (short, sub-cycle) window — not a looped cell
     arr = _gat_arr((SectionKind.ALAAP, 2, "manjha"))
-    fn, calls = _fake([_phrase("d", "n", dur=2.0)])
+    manjha = LeadPhrase(phrase_plan=_plan("d"),
+                        notes=[LeadNote(swara="d", dur=2.0, oct=-1), LeadNote(swara="n", dur=1.5, oct=-1),
+                               LeadNote(swara="m", dur=2.0), LeadNote(swara="g", dur=1.5),
+                               LeadNote(swara="m", dur=2.0), LeadNote(swara="S", dur=2.5)])
+    fn, calls = _fake([manjha])
     layers, _ = generate_lead(arr, gen_fn=fn)
-    assert calls[0].section.bars == 2                        # full multi-bar window, not coerced
-    assert len(layers[0].notes) == 2                         # placed once, not looped per bar
+    assert calls[0].section.bars == 2                        # the section's bars are NOT coerced to 1
+    assert len(layers[0].notes) == 6                         # placed once, not looped per bar
 
 
 # --- gat verifier repair: a weak mukhada is RE-ROLLED before it's cached (fix #4) -
@@ -858,14 +863,17 @@ def test_leadnote_accepts_and_normalises_an_ornament():
 # --- the intro/alap: verified, generated into a SHORTENED window ------------------
 
 def _good_intro() -> LeadPhrase:
-    # passes verify_intro (the aochar shape): opens on Sa, dips into the mandra, Sa-heavy
-    # with 3 returns, two 1.5-beat rests (one after a Sa), held final Sa.
-    # Sounds 13 beats + 3 beats of rests = a 16-beat cell.
+    # passes verify_intro (the aochar shape): THREE short phrases, each exploring then landing on
+    # Sa, separated by real rests; opens on Sa, dips into the mandra, STATES the pakad (d n S..m),
+    # no continuous-Sa wall. The final Sa starts at beat 13.0 and the cell is 16 beats (13 before
+    # the close + a 3-beat held Sa), so the shortened-window / ring-out code tests below still hold.
     return LeadPhrase(phrase_plan=_plan("S"),
-                      notes=[LeadNote(swara="S", dur=2.0), LeadNote(swara="S", dur=1.5, rest=True),
-                             LeadNote(swara="n", dur=2.0, oct=-1), LeadNote(swara="d", dur=3.0, oct=-1),
-                             LeadNote(swara="S", dur=2.0), LeadNote(swara="m", dur=1.5, rest=True),
-                             LeadNote(swara="g", dur=1.0), LeadNote(swara="S", dur=3.0)])
+                      notes=[LeadNote(swara="S", dur=1.0), LeadNote(swara="n", dur=1.0, oct=-1),
+                             LeadNote(swara="S", dur=1.5), LeadNote(swara="S", dur=1.5, rest=True),
+                             LeadNote(swara="d", dur=2.0, oct=-1), LeadNote(swara="n", dur=1.0, oct=-1),
+                             LeadNote(swara="S", dur=2.0), LeadNote(swara="S", dur=1.0, rest=True),
+                             LeadNote(swara="g", dur=1.0), LeadNote(swara="m", dur=1.0),
+                             LeadNote(swara="S", dur=3.0)])
 
 
 def test_intro_is_generated_into_a_shortened_window():
@@ -905,27 +913,20 @@ def test_intro_is_verified_and_rerolled_with_feedback():
 
 # --- the mukhada taan FILLS: distinct cells, spliced into the middle statements --
 
-def _good_fill_2() -> LeadPhrase:
-    # a SECOND distinct fill (different shape from _good_fill), same splice contract:
-    # 31 sixteenths + a landing on m (the malkauns vadi — within reach of the head's S)
-    swaras = (["d", "n", "d", "m", "g", "m", "d", "n"] * 4)[:31] + ["S"]
-    return LeadPhrase(phrase_plan=_plan("d"),
-                      notes=[LeadNote(swara=s, dur=0.25) for s in swaras])
-
-
 def test_fills_are_distinct_and_spliced_into_the_middle_bars():
     # 4 bars of mukhada: bars 0 and 3 state the whole head; bars 1 and 2 are CUT, each with a
-    # DIFFERENT taan (rotated), the head's front half before each cut
+    # DIFFERENT taan — ONE fill is generated by the LLM, the second is a DETERMINISTIC in-raga
+    # variant (retrograde), no extra call; the variants are rotated across the cuts.
     arr = _gat_arr((SectionKind.ALAAP, 4, "mukhada"))
-    fn, calls = _fake([_good_head(), _good_fill(), _good_fill_2()])
+    fn, calls = _fake([_good_head(), _good_fill()])
     layers, events = generate_lead(arr, gen_fn=fn)
-    assert len(calls) == 3                                   # the head + TWO distinct fills
+    assert len(calls) == 2                                   # the head + ONE generated fill (not three)
     notes = sorted(layers[0].notes, key=lambda n: n.start)
     cut1 = [n for n in notes if 24.0 <= n.start < 32.0]      # bar 1's back half (16 + 8)
     cut2 = [n for n in notes if 40.0 <= n.start < 48.0]      # bar 2's back half (32 + 8)
     assert len(cut1) == 32 and all(n.dur <= 0.25 for n in cut1)
     assert len(cut2) == 32 and all(n.dur <= 0.25 for n in cut2)
-    assert [n.swara for n in cut1] != [n.swara for n in cut2]   # rotated DISTINCT taans
+    assert [n.swara for n in cut1] != [n.swara for n in cut2]   # base vs deterministic variant
     head_restated = [n for n in notes if 48.0 <= n.start < 64.0]
     assert [n.swara for n in head_restated] == ["S", "m", "g", "S"]   # bar 3: the head, whole
     fill_events = [e for e in events if e.data.get("fill")]

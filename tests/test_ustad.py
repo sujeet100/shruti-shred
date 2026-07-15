@@ -85,11 +85,21 @@ def test_code_owns_the_verdict_not_the_llm():
 
 
 def test_judge_is_handed_the_render_payload():
+    # the judge (the LLM) runs ONLY when there's a violation to explain — hand it an ILLEGAL piece
     fn, calls = _fake_judge()
-    assess(_comp(_SA), judge_fn=fn)
+    assess(_comp(_SA, _FOREIGN), judge_fn=fn)
     assert len(calls) == 1
     assert calls[0]["payload"]["raga"] == _RAGA                # the dict the tool binds to
     assert any(layer["role"] == "lead" for layer in calls[0]["payload"]["layers"])
+
+
+def test_clean_piece_skips_the_llm_judge():
+    # a LEGAL piece needs no narration — code owns the "legal" verdict, so the LLM/ReAct call is
+    # skipped entirely (Sujit, 2026-07-16: "do things programmatically instead of the ReAct loop").
+    fn, calls = _fake_judge(explanation="should never be used")
+    verdict, _ = assess(_comp(_SA, _SA), judge_fn=fn)
+    assert verdict.verdict == "legal" and calls == []          # the judge was NOT called
+    assert "legal" in verdict.explanation.lower()              # a deterministic confirmation instead
 
 
 def test_critique_event_carries_the_verdict():

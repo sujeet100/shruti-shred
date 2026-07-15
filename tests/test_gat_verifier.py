@@ -116,12 +116,14 @@ def test_an_all_rest_head_is_flagged():
 # --- verify_intro: the alap establishes Sa and resolves to it --------------------
 
 def _good_intro() -> LeadPhrase:
-    # the verified AOCHAR shape: opens on Sa, dips into the mandra, Sa-anchored (54% by
-    # duration, 3 separate returns), two 1.5-beat rests (one right after a Sa landing),
-    # ends on a held 3-beat Sa.
-    return _cell(_n("S", 2.0), _n("S", 1.5, rest=True), _n("n", 2.0, oct=-1),
-                 _n("d", 3.0, oct=-1), _n("S", 2.0), _n("m", 1.5, rest=True),
-                 _n("g", 1.0), _n("S", 3.0))
+    # the verified AOCHAR shape (malkauns): THREE short phrases, each EXPLORING then landing on
+    # Sa, separated by real rests; opens on Sa, dips into the mandra, STATES the pakad (d n S..m),
+    # Sa-anchored (~54% by duration), no continuous-Sa wall, ends on the longest held Sa (16 beats).
+    return _cell(_n("S", 1.0), _n("n", 1.0, oct=-1), _n("S", 1.5),         # phrase 1 -> Sa
+                 _n("S", 1.5, rest=True),                                   # nyas breath
+                 _n("d", 2.0, oct=-1), _n("n", 1.0, oct=-1), _n("S", 2.0),  # phrase 2 -> Sa
+                 _n("m", 1.5, rest=True),
+                 _n("g", 1.0), _n("m", 1.0), _n("S", 2.5))                  # phrase 3 -> held Sa
 
 
 def test_a_grounded_alap_has_no_violations():
@@ -192,6 +194,60 @@ def test_intro_with_no_sounding_notes_is_flagged():
     assert len(viol) == 1 and "no sounding notes" in viol[0]
 
 
+# --- verify_intro: the alap is phrases (explore -> Sa -> silence), not a continuous Sa wall ----
+
+def test_intro_must_be_several_phrases_not_one_continuous_line():
+    # one unbroken phrase (no rests) — the 'continuous line' failure
+    cell = _cell(_n("S", 1.0), _n("n", 1.0, oct=-1), _n("d", 1.0, oct=-1),
+                 _n("m", 1.0), _n("g", 1.0), _n("S", 3.0))
+    viol = verify_intro(cell, window_beats=16.0, raga="malkauns")
+    assert any("INDEPENDENT phrases" in v for v in viol)
+
+
+def test_intro_every_phrase_must_resolve_to_sa():
+    # phrase 2 ends on d, not Sa, before its rest
+    cell = _cell(_n("S", 1.0), _n("n", 1.0, oct=-1), _n("S", 1.5),
+                 _n("S", 1.5, rest=True),
+                 _n("g", 1.0), _n("m", 1.0), _n("d", 2.0),          # phrase 2 -> d (not Sa)
+                 _n("m", 1.5, rest=True),
+                 _n("g", 1.0), _n("m", 1.0), _n("S", 2.5))
+    viol = verify_intro(cell, window_beats=16.0, raga="malkauns")
+    assert any("RESOLVE home to Sa" in v for v in viol)
+
+
+def test_intro_a_phrase_must_explore_not_be_bare_sa():
+    # phrase 2 is only Sa — a drone, not a sentence
+    cell = _cell(_n("S", 1.0), _n("n", 1.0, oct=-1), _n("S", 1.5),
+                 _n("S", 1.5, rest=True),
+                 _n("S", 2.0),                                       # phrase 2: bare Sa
+                 _n("m", 1.5, rest=True),
+                 _n("g", 1.0), _n("m", 1.0), _n("S", 2.5))
+    viol = verify_intro(cell, window_beats=16.0, raga="malkauns")
+    assert any("bare Sa" in v for v in viol)
+
+
+def test_intro_must_not_dwell_on_sa_continuously():
+    # a phrase repeats Sa for 4.5 continuous beats — the 'Sa played continuously' failure
+    cell = _cell(_n("S", 1.0), _n("n", 1.0, oct=-1), _n("S", 1.5),
+                 _n("S", 1.5, rest=True),
+                 _n("g", 1.0), _n("S", 1.5), _n("S", 1.5), _n("S", 1.5),   # 4.5 beats of Sa
+                 _n("m", 1.5, rest=True),
+                 _n("g", 1.0), _n("S", 2.5))
+    viol = verify_intro(cell, window_beats=18.0, raga="malkauns")
+    assert any("continuous beats" in v for v in viol)
+
+
+def test_intro_must_state_the_pakad():
+    # uses only Sa and Ma — grounded and phrased, but never states malkauns's pakad (d n S / g m g)
+    cell = _cell(_n("S", 1.0), _n("m", 1.5, oct=-1), _n("S", 1.5),
+                 _n("S", 1.5, rest=True),
+                 _n("m", 2.0, oct=-1), _n("S", 2.0),
+                 _n("m", 1.5, rest=True),
+                 _n("m", 1.0), _n("S", 2.5))
+    viol = verify_intro(cell, window_beats=16.0, raga="malkauns")
+    assert any("PAKAD" in v for v in viol)
+
+
 # --- verify_manjha: arrive at the sam, lead back into the head -------------------
 
 _HEAD = LeadPhrase(phrase_plan=_PLAN,
@@ -200,9 +256,9 @@ _HEAD = LeadPhrase(phrase_plan=_PLAN,
 
 
 def _good_manjha() -> LeadPhrase:
-    # fills a 16-beat window, varied durations, ends a single ladder-step from the
-    # head's first swara (n -> S in malkauns: one scale degree)
-    return _cell(_n("d", 3.0), _n("n", 2.0), _n("m", 3.0), _n("g", 2.5),
+    # a LOW bridge: fills a 16-beat window, DIPS into the mandra, stays out of the taar, varied
+    # durations, ends a single ladder-step from the head's first swara (n -> S in malkauns)
+    return _cell(_n("d", 3.0, oct=-1), _n("n", 2.0, oct=-1), _n("m", 3.0), _n("g", 2.5),
                  _n("m", 2.0), _n("d", 1.5), _n("n", 2.0))
 
 
@@ -235,6 +291,22 @@ def test_manjha_flags_a_flat_run():
     cell = _cell(*[_n(s, 2.0) for s in ("d", "n", "m", "g", "m", "d", "n", "n")])
     viol = verify_manjha(cell, mukhada=_HEAD, window_beats=16.0, raga="malkauns")
     assert any("flat" in v for v in viol)
+
+
+def test_manjha_must_dip_into_the_mandra():
+    # a manjha that stays at/above home never becomes the LOW bridge (Parikh)
+    cell = _cell(_n("m", 3.0), _n("g", 2.5), _n("m", 3.0), _n("g", 2.5),
+                 _n("m", 2.0), _n("n", 3.0))                 # all in the madhya octave
+    viol = verify_manjha(cell, mukhada=_HEAD, window_beats=16.0, raga="malkauns")
+    assert any("mandra" in v for v in viol)
+
+
+def test_manjha_must_not_climb_into_the_taar():
+    # the taar (upper octave) is the ANTARA's job, not the manjha's
+    cell = _cell(_n("d", 3.0, oct=-1), _n("n", 2.0), _n("m", 3.0, oct=1),   # m sits in the taar
+                 _n("g", 2.5), _n("m", 3.0), _n("n", 2.5))
+    viol = verify_manjha(cell, mukhada=_HEAD, window_beats=16.0, raga="malkauns")
+    assert any("taar" in v for v in viol)
 
 
 # --- verify_antara: quote the head, climb, peak late, descend to madhya Sa -------

@@ -171,6 +171,18 @@ def _reverb_send(role) -> int:
     return _REVERB_SEND.get(role, _REVERB_SEND_DEFAULT)
 
 
+# Static mix level (MIDI CC7) per layer role — a light balance so the LEAD (sitar / lead guitar)
+# no longer BURIES the rhythm guitars (Sujit, 2026-07-16: "the guitars are buried behind the lead
+# tone now"). Only the melodic voices are pulled back; rhythm / bass / drums / tabla keep their
+# ear-calibrated default level, and the palm-mute companion keeps its own CC7=127 (MUTE_LEVEL) —
+# so this cannot disturb the chug parity. None (unlisted role) = leave the channel at its default.
+_MIX_LEVEL = {"lead": 92, "drone": 74}
+
+
+def _mix_level(role) -> int | None:
+    return _MIX_LEVEL.get(role)
+
+
 def _fine_tune(mf: MIDIFile, track: int, ch: int, cents: int) -> None:
     """Channel fine-tune via RPN 0,1 — shift the whole channel by `cents` (±100 max).
     A few cents on ONE side of the double-tracked rhythm pair decorrelates the two takes
@@ -456,6 +468,9 @@ def build_midi(comp: dict, path: str) -> None:
         if layer.get("pan") is not None:
             mf.addControllerEvent(i, ch, 0, 10, max(0, min(127, layer["pan"])))
         mf.addControllerEvent(i, ch, 0, 91, _reverb_send(layer.get("role")))
+        lvl = _mix_level(layer.get("role"))          # pull the melodic voices back under the rhythm wall
+        if lvl is not None:
+            mf.addControllerEvent(i, ch, 0, 7, lvl)
         if layer.get("detune_cents"):
             _fine_tune(mf, i, ch, layer["detune_cents"])
         # If any note on this channel moves the pitch wheel (a meend glide, or a riff

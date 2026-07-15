@@ -44,12 +44,19 @@ _MIN_NOTES_FLAT: Final = 3
 # DESIGN.md): opens AROUND MADHYA SA and dips into the mandra before rising; phrases end
 # sustained on nyas swaras; Sa is re-sounded often (chikari between phrases); the close is the
 # section's long final Sa, after which the gat's own mukhada brings the tala in.
-_INTRO_SA_SHARE: Final = 0.30       # Sa carries at least this share of the SOUNDING duration
+_INTRO_SA_SHARE: Final = 0.35       # Sa carries at least this share of the SOUNDING duration
 _INTRO_MIN_SA_RETURNS: Final = 3    # ...and the line RETURNS to Sa at least this many times
 _INTRO_HELD_SA: Final = 2.0         # the closing Sa is HELD at least this long (beats)
 _INTRO_MIN_RESTS: Final = 2         # at least this many true rests...
 _INTRO_MIN_REST_BEATS: Final = 1.0  # ...each at least this long
 _INTRO_OPEN_MAX_STEPS: Final = 2    # the opening note sits within this many ladder steps of Sa
+# The alap's MICRO-structure (Sujit's live note + GPT's alap spec, 2026-07-15): the diagnosed
+# failure was "Sa played repeatedly, continuously" — the model met the Sa-share/returns checks by
+# CLUSTERING Sa instead of composing phrase -> Sa -> silence. So the sentence structure is now
+# checkable: the alap is several SHORT INDEPENDENT phrases (rest-separated), each exploring then
+# landing on Sa, and Sa is a LANDING between phrases — never a sustained/repeated wall.
+_INTRO_MIN_PHRASES: Final = 3       # at least this many rest-separated phrases (musical sentences)
+_INTRO_MAX_SA_RUN: Final = 3.0      # no mid-alap run of consecutive Sa longer than this (the held close is exempt)
 
 # Manjha / taan-fill seam — "fluid" made checkable: the cell's last note sits within this many
 # scale-degrees of the mukhada's first swara, so the head re-enters as a step, not a leap.
@@ -260,7 +267,79 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str) -> list[st
         viol.append("no rest follows a Sa landing — after you land on Sa, take a true rest "
                     "(the nyas breath) before moving on")
 
+    # PHRASE GRAMMAR — the alap is a sequence of short sentences (explore -> resolve to Sa ->
+    # silence), NOT one continuous line, and Sa is a LANDING, never a sustained wall. This is the
+    # structure the Sa-share/returns checks above could not enforce (they were met by clustering Sa).
+    phrases = _intro_phrases(notes)
+    if len(phrases) < _INTRO_MIN_PHRASES:
+        viol.append(f"the alap is only {len(phrases)} phrase(s) — compose at least "
+                    f"{_INTRO_MIN_PHRASES} short, INDEPENDENT phrases separated by real silence, "
+                    f"each exploring then resolving to Sa; do not write one continuous line")
+    for i, ph in enumerate(phrases):
+        if _landing_swara(ph[-1]) != "S":
+            viol.append(f"phrase {i + 1} ends on {_landing_swara(ph[-1])}, not Sa — every alap "
+                        f"phrase must RESOLVE home to Sa before its pause")
+        if i < len(phrases) - 1 and all(_landing_swara(n) == "S" for n in ph):
+            viol.append(f"phrase {i + 1} is only Sa — a phrase must EXPLORE a swara or two of the "
+                        f"raga and THEN land on Sa; bare Sa is a drone, not a sentence")
+    run = _longest_mid_sa_run(notes)
+    if run > _INTRO_MAX_SA_RUN:
+        viol.append(f"the alap dwells on Sa for {run:g} continuous beats — Sa is where each phrase "
+                    f"LANDS, not a note to repeat or sustain; explore between the Sa landings")
+
+    # STATE THE RAGA — the alap must make THIS raga unmistakable, so at least one phrase quotes the
+    # PAKAD (the signature phrase), not just in-scale wandering (Sujit, 2026-07-15). Fuzzy, octave-
+    # agnostic, small-gap match (a passing/grace note doesn't break the quote — the same tier Rasik
+    # and the antara-quote use). This is the ONE authenticity fact the intro can be held to in code;
+    # deeper raga-idiom judgement still belongs to Rasik.
+    intro_swaras = [_landing_swara(n) for n in sounding]
+    if not any(_quote_present(intro_swaras, phrase, _QUOTE_MAX_GAP)
+               for phrase in RAGAS[raga]["pakad"]):
+        pakad = " | ".join(" ".join(p) for p in RAGAS[raga]["pakad"])
+        viol.append(f"the alap never states the raga's PAKAD ({pakad}) — build the phrases from the "
+                    f"raga's signature phrase(s), quoting one then varying it, so the raga is clear; "
+                    f"don't wander through in-scale notes at random")
+
     return viol
+
+
+def _intro_phrases(notes: list[LeadNote]) -> list[list[LeadNote]]:
+    """Split the alap into PHRASES at true rests: each phrase is the run of sounding notes
+    between rests. The alap's grammar is phrase -> Sa -> silence repeated, so a phrase is
+    exactly what a rest separates. Leading/trailing rests create no empty phrase."""
+    phrases: list[list[LeadNote]] = []
+    cur: list[LeadNote] = []
+    for n in notes:
+        if n.rest:
+            if cur:
+                phrases.append(cur)
+                cur = []
+        else:
+            cur.append(n)
+    if cur:
+        phrases.append(cur)
+    return phrases
+
+
+def _longest_mid_sa_run(notes: list[LeadNote]) -> float:
+    """The longest run of consecutive Sa by duration (a REST breaks a run), EXCLUDING the alap's
+    final held Sa (the close is meant to be long). Catches a Sa sustain/repeat inside the
+    exposition — the 'Sa played continuously' failure — without penalising the closing nyas."""
+    runs: list[float] = []
+    run = 0.0
+    for n in notes:
+        if not n.rest and _landing_swara(n) == "S":
+            run += n.dur
+        else:
+            if run:
+                runs.append(run)
+            run = 0.0
+    if run:
+        runs.append(run)
+    sounding = _sounding(notes)
+    if runs and sounding and _landing_swara(sounding[-1]) == "S":
+        runs.pop()          # the final run is the held-Sa close — exempt
+    return max(runs, default=0.0)
 
 
 def _rest_after_sa(notes: list[LeadNote]) -> bool:
@@ -320,6 +399,17 @@ def verify_manjha(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     if _rhythmically_flat(sounding):
         viol.append("the manjha is rhythmically flat — every note is the same length; develop the "
                     "head's rhythm, don't pace out even notes")
+
+    # LOWER-REGISTER BRIDGE (Pandit Arvind Parikh; Masitkhani-gat descriptions, 2026-07-15): the
+    # manjha takes the melody DOWN into the mandra octave — it is part of the sthayi and the ANTARA,
+    # not the manjha, owns the taar. So it must DIP into the lower octave and must NOT climb into the
+    # taar. This is what makes it a bridge that CONTRASTS the mukhada (by register) before the ascent.
+    if not any(n.oct < 0 for n in sounding):
+        viol.append("the manjha never dips into the mandra (lower) octave — it must take the melody "
+                    "DOWN below home; the manjha is the low bridge before the antara climbs")
+    if any(n.oct >= 1 for n in sounding):
+        viol.append("the manjha reaches the taar (upper) octave — keep it in the mandra / lower-madhya "
+                    "register; the ANTARA owns the upper octave, the manjha stays low")
 
     return viol
 

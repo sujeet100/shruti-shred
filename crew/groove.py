@@ -118,24 +118,31 @@ def _energy_for(section: Section) -> Optional[GrooveEnergy]:
 
 # The subgenre's pattern per energy (HALF is always the half-time crush). Blasts
 # appear only where the profile declares them idiomatic.
+# Driving metal grooves per subgenre — the plain `backbeat` (the pop beat's cousin) is pulled from
+# the mid-tempo VERSE/DEFAULT slots where it read pop (Sujit, 2026-07-16: "remove simple pop-like
+# grooves, keep hard rock/metal grooves"). Grounded in the metal-drumming taxonomy (Wikipedia;
+# Drumeo/Modern Drummer): heavy = the Maiden gallop, thrash = skank/D-beat, death = double-bass +
+# blast, black = blast/skank, prog = syncopation over the odd vibhag groupings. DOOM keeps the
+# backbeat — dragged late and hit heavy (the `_DOOM_DRAG` + rimshot weight), it is the doom groove,
+# NOT a pop beat — so removing it there would lose doom's identity.
 _STYLE: Final[dict[str, dict[GrooveEnergy, str]]] = {
-    "heavy": {GrooveEnergy.VERSE: "backbeat", GrooveEnergy.DRIVE: "gallop",
+    "heavy": {GrooveEnergy.VERSE: "dbeat", GrooveEnergy.DRIVE: "gallop",
               GrooveEnergy.CLIMAX: "double16"},
     "thrash": {GrooveEnergy.VERSE: "dbeat", GrooveEnergy.DRIVE: "skank",
                GrooveEnergy.CLIMAX: "double16"},
     "doom": {GrooveEnergy.VERSE: "halftime", GrooveEnergy.DRIVE: "backbeat",
-             GrooveEnergy.CLIMAX: "backbeat"},
+             GrooveEnergy.CLIMAX: "backbeat"},   # the dragged, heavy doom backbeat IS doom (not pop)
     "death": {GrooveEnergy.VERSE: "double16", GrooveEnergy.DRIVE: "blast",
               GrooveEnergy.CLIMAX: "bomb"},
     "black": {GrooveEnergy.VERSE: "skank", GrooveEnergy.DRIVE: "blast",
               GrooveEnergy.CLIMAX: "hammer"},
     "melodic_death": {GrooveEnergy.VERSE: "gallop", GrooveEnergy.DRIVE: "gallop",
                       GrooveEnergy.CLIMAX: "blast"},
-    "progressive": {GrooveEnergy.VERSE: "backbeat", GrooveEnergy.DRIVE: "prog",
+    "progressive": {GrooveEnergy.VERSE: "dbeat", GrooveEnergy.DRIVE: "prog",
                     GrooveEnergy.CLIMAX: "double16"},
 }
 _DEFAULT_STYLE: Final[dict[GrooveEnergy, str]] = {
-    GrooveEnergy.VERSE: "backbeat", GrooveEnergy.DRIVE: "backbeat",
+    GrooveEnergy.VERSE: "dbeat", GrooveEnergy.DRIVE: "gallop",
     GrooveEnergy.CLIMAX: "double16",
 }
 

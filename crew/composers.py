@@ -117,8 +117,9 @@ _FORM_DESC: Final[dict[str, str]] = {
              "it at least 3 avartans so it can breathe",
     "mukhada": "the GAT HOOK — the recurring melodic+rhythmic head that resolves to the sam; "
                "STATE it early, then RETURN to it (mark the return 'mukhada' too)",
-    "manjha": "development (majh/manjha) — extend the mukhada in the middle register; the "
-              "mukhada must re-enter IMMEDIATELY after it (head -> manjha -> head, one cycle)",
+    "manjha": "the LOWER-register bridge (majh/manjha, part of the sthayi) — a SHORT, calm line "
+              "that takes the melody DOWN into the mandra octave (the antara owns the taar); the "
+              "mukhada must re-enter IMMEDIATELY after it (head -> manjha -> head, one cohesive cycle)",
     "antara": "the second theme — lifts into the higher (taar) octave",
     "taan_short": "a short cadential taan filler (half/one cycle) that resolves into the next mukhada",
     "taan_long": "the ONE developed taan/solo — the peak; place it after the antara or before the final mukhada",
