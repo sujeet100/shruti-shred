@@ -1170,6 +1170,9 @@ class ConductorRuling(BaseModel):
 
 class EventType(str, Enum):
     INFO = "info"          # setup / narration
+    RUNNING = "running"    # a component STARTED working (streamed before its slow LLM work,
+                           # so the UI can spotlight it + show a "composing…" placeholder;
+                           # its real PROPOSE/CRITIQUE/etc. follows when it finishes)
     PROPOSE = "propose"    # a generator emits a candidate
     VALIDATE = "validate"  # the deterministic guardrail runs
     CRITIQUE = "critique"  # a critic scores / comments

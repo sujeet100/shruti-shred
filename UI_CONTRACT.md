@@ -142,12 +142,22 @@ debate.
   regenerated voice re-emits its `propose`, and the critics re-fire → a new round)
 - `info` — `"Revise cap (N) reached — accepting the last version."` at the clock limit
 
+### `running` — a "component STARTED" progress beat (STREAMING path only)
+`running` fires on the **streaming** path (`POST /api/compose/stream`) IMMEDIATELY before a
+component's slow LLM work — `agent` names the worker (Interpreter, Pandit, Lead, Riff, Ustad,
+Rasik, Producer, Conductor, System), `text` is a short "…composing…" line, `role` matches the
+component's role. It lets the UI spotlight the right mascot and show a placeholder WHILE the
+component works, instead of only after it finishes. It is **live-only**: `running` is published
+to the stream but is **NOT** added to `state.events`, so the synchronous `POST /api/compose`
+payload and the offline replay are unchanged. Forward-compatible — a consumer that doesn't know
+`running` can ignore it (§8). The matching real event (`propose`/`critique`/`verdict`/…) follows
+when the component finishes.
+
 ### ⚠️ Reserved-but-not-emitted event types
-`validate`, `revise`, and `render` exist in the `EventType` enum but the **live flow does
-not emit them today** — validation surfaces inside Ustad's `critique`, a revise shows as a
-Flow `info` + a fresh `propose`, and the render result is `state.wav_path` (no event). Do
-**not** build the UI to wait on these. (If the UI wants an explicit "rendered" beat, ask
-the backend session to add a `render` event — it's a one-liner.)
+`validate` and `revise` exist in the `EventType` enum but the **live flow does not emit them
+today** — validation surfaces inside Ustad's `critique`, and a revise shows as a Flow `info` +
+a fresh `propose`. The render step now emits a `running` beat (`agent: System`) but no explicit
+`render` event; the result is `state.wav_path`. Do **not** build the UI to wait on `validate`/`revise`.
 
 ---
 

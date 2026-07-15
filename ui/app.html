@@ -225,6 +225,13 @@
   }
   .mascot.speaking .bubble { transform: translateX(-50%) scale(1); }
   .mascot.speaking.right .bubble { left: auto; right: -8px; transform: scale(1); }
+  /* a component that is WORKING (live): a green "composing…" placeholder with a blinking dot,
+     shown until its real text arrives (the previous component's bubble lingers for reading). */
+  .bubble.composing { background: #10231a; color: #7cff6b; border-color: #1f6b3a;
+                      font-family: var(--font-body); font-style: italic; }
+  .bubble.composing::after { border-top-color: #10231a; }
+  .bubble .cdot { font-style: normal; animation: blink 1s steps(2, start) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
 
   /* verdict flashes on the stage */
   .stage.flash-accept { animation: flashA .6s ease-out; }
@@ -1072,25 +1079,85 @@
     seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset[attr] === val));
   }
 
-  // Map each event to stage choreography (the mascots taking turns IS the show).
-  function choreograph(e) {
-    const key = personaKey(e.agent);
-
-    // money-moment banners
+  // Money-moment banners + the Conductor's accept/revise flash — shared by the paced
+  // walkthrough (choreograph) and the live stream (liveSpeak), which differ only in HOW the
+  // spotlight/bubble move.
+  function stageBanners(e) {
     if (e.role === "composer") showMoment("cooperate", "★ MONEY MOMENT · THE BAND COOPERATES");
     else if (e.type === "debate" && e.role === "critic") showMoment("debate", "★ MONEY MOMENT · THE CRITICS DEBATE");
     else if (e.type === "verdict" || (e.role !== "composer" && e.type !== "debate")) {
       if (e.role !== "composer") hideMoment();
     }
-
-    // the speaker steps into the light and says its (trimmed) line
-    setActive(key, { say: shortSay(e) });
-
     if (e.type === "verdict" && e.role === "conductor") {
       stage.classList.remove("flash-accept","flash-revise");
       void stage.offsetWidth;                       // restart the animation
       stage.classList.add(e.verdict === "accept" ? "flash-accept" : "flash-revise");
     }
+  }
+
+  // Map each event to stage choreography (the mascots taking turns IS the show). The paced
+  // walkthrough hides the previous bubble as each speaker steps up (one at a time).
+  function choreograph(e) {
+    stageBanners(e);
+    setActive(personaKey(e.agent), { say: shortSay(e) });   // hides the previous speaker's bubble
+  }
+
+  // --- LIVE spotlight/bubble: RUNNING-aware, and it LINGERS the previous completed bubble ----
+  // The difference from the paced walkthrough: while a component composes we show a green
+  // "composing…" placeholder, and we keep the PREVIOUS completed bubble open until THIS one
+  // produces its real text — so the audience has time to read what just happened.
+  let liveCur = null;    // the component in the spotlight now (composing, or just spoke)
+  let livePrev = null;   // the previous completed component whose bubble lingers for reading
+
+  function liveHideBubble(key) { if (key && els[key]) els[key].classList.remove("speaking"); }
+
+  function liveSpot(key) {     // spotlight WITHOUT hiding other bubbles (unlike setActive)
+    if (activeKey && els[activeKey]) els[activeKey].classList.remove("active");
+    activeKey = key;
+    const m = els[key]; if (!m) return;
+    m.classList.add("active");
+    const p = PERSONAS[key];
+    stage.classList.add("lit");
+    dom.spotlight.style.left = p.x + "%";
+    dom.spotlight.style.top = (p.y - 58) + "%";
+    glowActiveZone(p.zone);
+  }
+
+  function liveSetBubble(key, html, composing) {
+    const bub = document.getElementById("bub-" + key);
+    if (!bub) return;
+    bub.innerHTML = html;
+    bub.classList.toggle("composing", !!composing);
+    if (els[key]) els[key].classList.add("speaking");
+  }
+
+  function liveResetChoreo() { liveCur = null; livePrev = null; }
+
+  // a component STARTED (RUNNING beat): spotlight it + a green "composing…" placeholder, and
+  // roll the just-finished component into the lingering slot (closing the older one).
+  function liveRunning(e) {
+    const key = personaKey(e.agent);
+    if (liveCur && liveCur !== key) { liveHideBubble(livePrev); livePrev = liveCur; }
+    liveCur = key;
+    liveSpot(key);
+    liveSetBubble(key, `<span class="cdot">●</span> ${escapeHtml(e.text || "composing…")}`, true);
+    setStatus(`${e.agent} composing`, "status running");
+    dom.sWho.textContent = e.agent; dom.sWho.style.color = `var(--role-${e.role||"system"})`;
+    dom.sWhat.textContent = e.text || "composing…";
+  }
+
+  // a component produced REAL output: swap its placeholder for the real line, and now that this
+  // one has spoken, close the previous lingering bubble (it has had its reading time).
+  function liveSpeak(e) {
+    const key = personaKey(e.agent);
+    if (key !== liveCur) {                 // no RUNNING preceded (batched / narration) — synthesize
+      if (liveCur) { liveHideBubble(livePrev); livePrev = liveCur; }
+      liveCur = key;
+    }
+    stageBanners(e);
+    liveSpot(key);
+    liveSetBubble(key, escapeHtml(shortSay(e)), false);
+    if (livePrev && livePrev !== key) { liveHideBubble(livePrev); livePrev = null; }
   }
 
   function shortSay(e) {
@@ -1275,13 +1342,22 @@
     stopAudio();
     dom.logfeed.innerHTML = "";
     hideMoment();
+    clearActive();                                 // drop any bubbles/spotlight from a prior run
+    liveResetChoreo();                             // reset the RUNNING-aware linger state
     dom.logTag.textContent = "— streaming…";
     dom.composeBtn.disabled = true;
     setStatus("composing (live)", "status running");
   }
+  // a RUNNING beat is progress, not a finished event: spotlight the worker + a "composing…"
+  // placeholder, and DON'T add it to director.events (so the Step walkthrough stays clean).
+  function liveRunningBeat(e) { liveRunning(e); }
   function liveEvent(e) {
     director.events.push(e);
-    showEvent(director.events.length - 1, true);   // append-render this beat immediately
+    const k = director.events.length - 1;
+    logEvent(e);                                   // append this beat to the session log
+    setSentence(e);
+    liveSpeak(e);                                  // linger-aware spotlight/bubble (not choreograph)
+    director.i = k; updateDirectorUI();
     dom.logTag.textContent = `— ${director.events.length} events`;
   }
   function liveFinish(comp, audio) {
@@ -1312,6 +1388,7 @@
         let obj; try { obj = JSON.parse(line); } catch (_) { continue; }
         if (obj.error) { err = obj.error; }
         else if (obj.done) { comp = obj.composition; audio = obj.audio; }
+        else if (obj.type === "running") { liveRunningBeat(obj); }   // progress, not a finished beat
         else { liveEvent(obj); got = true; }
       }
     }

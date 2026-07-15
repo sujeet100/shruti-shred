@@ -144,9 +144,11 @@ def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[Deba
         return compose_studio(arr, passes=canvas_passes())
     from crew.lead import compose_lead
     from crew.riff import compose_riff
-    lead_layers, e1 = compose_lead(arr)
-    publish_all(e1)                                   # the studio path streams per-turn; the
-    rhythm, e2 = compose_riff(arr)                    # parallel path streams two coarse bundles
+    publish(_running("Lead", "composing the gat…"))   # a RUNNING beat streams AHEAD of the slow work,
+    lead_layers, e1 = compose_lead(arr)               # so the UI spotlights Lead WHILE it composes
+    publish_all(e1)
+    publish(_running("Riff", "laying down the riff…"))
+    rhythm, e2 = compose_riff(arr)
     publish_all(e2)
     return lead_layers, rhythm, [*e1, *e2], []
 
@@ -165,15 +167,22 @@ def _critique(comp: Composition,
     from crew.producer import critique_composition
     from crew.rasik import critique_taste
     from crew.ustad import critique_legality
+    publish(_running("Ustad", "checking the raga's legality…", role="critic"))
     ustad, e1 = critique_legality(comp)
+    publish_all(e1)
+    publish(_running("Rasik", "judging the raga authenticity…", role="critic"))
     rasik, e2 = critique_taste(comp)
+    publish_all(e2)
+    publish(_running("Producer", "judging the song craft…", role="critic"))
     producer, e3 = critique_composition(comp, arr)
+    publish_all(e3)
     return ustad, rasik, producer, [*e1, *e2, *e3]
 
 
 def _arbitrate(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict,
                comp: Composition) -> tuple[ConductorRuling, list[DebateEvent]]:
     from crew.conductor import conduct
+    publish(_running("Conductor", "weighing the critics…", role="conductor"))
     return conduct(ustad, rasik, producer, comp)
 
 
@@ -192,9 +201,11 @@ def _regenerate(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Lay
     from crew.lead import compose_lead
     from crew.riff import compose_riff
     if ruling.layer == "rhythm":
+        publish(_running("Riff", "reworking the riff…"))
         new_rhythm, events = compose_riff(revised)
         return lead_layers, new_rhythm, events, canvases
     if ruling.layer == "lead":
+        publish(_running("Lead", "reworking the gat…"))
         new_lead, events = compose_lead(revised)
         return new_lead, rhythm, events, canvases
     return lead_layers, rhythm, [], canvases
@@ -242,6 +253,15 @@ def _flow_event(text: str) -> DebateEvent:
     return DebateEvent(type=EventType.INFO, agent="Flow", role="system", text=text)
 
 
+def _running(agent: str, text: str, role: str = "generator") -> DebateEvent:
+    """A 'component STARTED working' beat, `publish()`ed to the live sink IMMEDIATELY before an
+    agent's slow LLM work — so the UI spotlights the right mascot and shows a 'composing…'
+    placeholder WHILE it works, instead of only jumping after it finishes. Named per agent so the
+    spotlight lands correctly (the old vague agent='Flow' narration hijacked it). Live-only: it is
+    published, never added to `state.events`, so the persisted stream / replay contract is unchanged."""
+    return DebateEvent(type=EventType.RUNNING, agent=agent, role=role, text=text)
+
+
 # --------------------------------------------------------------------------- #
 # The Flow. The bounded loop is driven by ROUTER LABELS, not method completions:  #
 # CrewAI re-arms an or_() listener for a repeat only when a ROUTER re-emits a      #
@@ -269,13 +289,13 @@ class ComposeFlow(Flow[ComposeState]):
     def begin(self) -> None:
         """interpret the query, arrange the chart, generate the creative voices, assemble."""
         st = self.state
+        publish(_running("Interpreter", "reading your request…", role="system"))
         brief, e1 = self._stages.interpret(st.query)
         publish_all(e1)                               # stream each phase as it completes
-        publish(_flow_event("Composers negotiating the chart…"))
+        publish(_running("Pandit", "negotiating the chart with Riffsmith…", role="composer"))
         arr, e2 = self._stages.compose(brief)
         publish_all(e2)
-        publish(_flow_event("The band is composing on the shared canvas…"))
-        lead_layers, rhythm, e3, canvases = self._stages.generate(arr)   # streams its own events
+        lead_layers, rhythm, e3, canvases = self._stages.generate(arr)   # emits its own RUNNING beats
         st.arrangement = arr
         st.lead_layers = lead_layers
         st.rhythm = rhythm
@@ -311,12 +331,12 @@ class ComposeFlow(Flow[ComposeState]):
         authenticity), Producer (composition quality — reads the chart too)."""
         st = self.state
         assert st.composition is not None and st.arrangement is not None
-        publish(_flow_event("The critics are judging the piece…"))
+        # _critique streams each critic's RUNNING beat + events itself (per-critic spotlighting),
+        # so we do NOT publish_all(events) again here — that would double them on the live stream.
         ustad, rasik, producer, events = self._stages.critique(st.composition, st.arrangement)
         st.ustad = ustad
         st.rasik = rasik
         st.producer = producer
-        publish_all(events)
         st.events.extend(events)
 
     @listen(critique)
@@ -355,7 +375,7 @@ class ComposeFlow(Flow[ComposeState]):
         """Render the accepted composition to a WAV (skipped if fluidsynth is absent)."""
         st = self.state
         assert st.composition is not None
-        publish(_flow_event("Rendering the audio…"))
+        publish(_running("System", "rendering the audio…", role="system"))
         st.wav_path = self._stages.render(st.composition)
 
 
