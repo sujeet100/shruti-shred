@@ -398,6 +398,148 @@ RAGAS = {
             {"name": "Ragajunglism", "url": "https://ragajunglism.org/ragas/yaman/"},
         ],
     },
+
+    # --- Menu expansion (2026-07-15, source-verified ≥2 Hindustani sources each). ------------
+    # Chandrakauns, Jog, Marwa, Todi. Two are thaat-inexact (Chandrakauns modern, Jog uses both
+    # gandhars); Marwa and Todi are eponymous thaat ragas. Discrepancies FLAGGED in each comment.
+
+    "chandrakauns": {
+        "display": "Chandrakauns",
+        "thaat": "none (thaat-inexact — a modern Malkauns derivative)",
+        "western_mode": "dark pentatonic (natural 7)",
+        # Malkauns's dark pentatonic (S g m d) but with SHUDDHA Ni (N) instead of komal ni — the
+        # single changed note IS the raga: N is a leading tone pulling hard to Sa, so the brooding
+        # Malkauns frame gains tension/urgency, and komal-d -> shuddha-N -> S gives an augmented-2nd
+        # then a semitone (a neoclassical/"evil" colour). Re and Pa absent (audhav). FLAG: the modern
+        # shuddha-Ni form is the standard one encoded here; an older komal-ni variant also exists.
+        "allowed": ["S", "g", "m", "d", "N"],
+        "aroha":   ["S", "g", "m", "d", "N", "S"],
+        "avaroha": ["S", "N", "d", "m", "g", "S"],
+        "vadi": "m",      # Madhyam (Tanarang)
+        "samvadi": "S",   # Shadj
+        "jati": "audhav-audhav",   # 5 up, 5 down
+        "andolan": [],
+        "ornaments": [],  # meend-driven like its parent Malkauns; no signature murki/khatka in sources
+        "pakad": [
+            ["g", "m", "d", "N", "S"],
+            ["N", "d", "m", "g", "S"],
+        ],
+        "chalan": [
+            ["m", "g", "S"],
+            ["d", "N", "S"],                          # the shuddha-Ni pull to Sa — the identity
+            ["S", "N", "d", "m", "g", "m", "g", "S"], # Tanarang's "N d m g m g S" sway
+        ],
+        "samay": "second prahar of the night (~9 PM–12 AM)",
+        "sources": [
+            {"name": "Tanarang", "url": "https://tanarang.com/raag-chandrakauns/"},
+            {"name": "Ragajunglism", "url": "https://ragajunglism.org/ragas/chandrakauns/"},
+        ],
+    },
+
+    "jog": {
+        "display": "Jog",
+        "thaat": "Kafi (thaat-inexact — uses both gandhars)",
+        "western_mode": "both-Ga pentatonic (no Re/Dha, komal Ni)",
+        # A pentatonic on S–Ga–m–P–Ni that uses BOTH gandhars: SHUDDHA Ga ascending, then the
+        # signature komal-ga "Gmg" zigzag near Sa in descent (m G g S). That major/minor-third
+        # ambiguity (like a blues third) over a heavy P is the whole raga. Komal Ni; Re and Dha
+        # absent. FLAG (contested vadi): Tanarang gives Madhyam–Shadj; ragajunglism makes shuddha
+        # Ga the vadi (with Pa/Sa). Encoded m/S (Tanarang) — a judgement call, not a hard fact.
+        "allowed": ["S", "g", "G", "m", "P", "n"],   # ascending-semitone order (both Ga adjacent)
+        "aroha":   ["S", "G", "m", "P", "n", "S"],   # shuddha Ga ascending
+        "avaroha": ["S", "n", "P", "m", "G", "g", "S"],  # komal ga enters near Sa (the Gmg zigzag)
+        "vadi": "m",      # Madhyam (Tanarang; see FLAG)
+        "samvadi": "S",   # Shadj
+        "jati": "audhav-audhav",   # 5 swara-positions up/down (Ga counted once)
+        "andolan": [],
+        "ornaments": [],  # the Gmg is a vakra gamak/kan gesture, not a light murki/khatka
+        "pakad": [
+            ["G", "m", "P", "m", "G"],
+            ["m", "G", "g", "S"],         # the Gmg zigzag resolving to Sa — the fingerprint
+        ],
+        "chalan": [
+            ["S", "G", "m", "P", "n", "S"],
+            ["P", "m", "G", "m", "G", "g", "S"],
+            ["n", "S", "g", "S"],         # ragajunglism's "nSgS" komal-ga touch
+        ],
+        "samay": "second prahar of the night (~9 PM–12 AM)",
+        "sources": [
+            {"name": "Tanarang", "url": "https://tanarang.com/raag-jog/"},
+            {"name": "Ragajunglism", "url": "https://ragajunglism.org/ragas/jog/"},
+        ],
+    },
+
+    "marwa": {
+        "display": "Marwa",
+        "thaat": "Marwa",
+        "western_mode": "Marwa (flat-2, sharp-4, no Pa)",
+        # Marwa-thaat, sandhi-prakash (sunset). Komal Re + tivra Ma + NO Pancham — six notes — and
+        # the tonic itself is WEAK/avoided for long stretches (the raga hovers on komal re and Dha
+        # and resolves reluctantly to Sa). No Pa = no dominant pull (it floats, like Malkauns) plus
+        # a tritone (S–M) over a ♭2: unresolved, tense, exotic (a doom/black colour). vadi komal Re,
+        # samvadi Dha — an exceptional r–Dha axis with no consonance between them (Parrikar). FLAG:
+        # ragajunglism's page garbled Re's quality ("natural second"); Tanarang + Parrikar's lowercase
+        # "re" both confirm KOMAL Re (textbook Marwa).
+        "allowed": ["S", "r", "G", "M", "D", "N"],
+        "aroha":   ["S", "r", "G", "M", "D", "N", "S"],
+        "avaroha": ["S", "N", "D", "M", "G", "r", "S"],
+        "vadi": "r",      # komal Rishabh
+        "samvadi": "D",   # shuddha Dhaivat
+        "jati": "shadav-shadav",   # 6 up, 6 down (Pa omitted)
+        "andolan": [],
+        "ornaments": [],  # a meend-and-sustain raga; the weak Sa is structural, not an ornament
+        "pakad": [
+            ["D", "N", "r", "S"],         # the reluctant descent to the weak Sa
+            ["N", "r", "G", "M", "D"],
+            ["M", "G", "r", "S"],
+        ],
+        "chalan": [
+            ["r", "G", "M", "D"],
+            ["G", "M", "D", "N", "D"],    # dwelling on the samvadi Dha
+            ["N", "D", "N", "r", "S"],    # the mandra Ni–Dha approach to the weak Sa
+        ],
+        "samay": "sandhi-prakash — fourth prahar of the day / sunset (~3–6 PM)",
+        "sources": [
+            {"name": "Tanarang", "url": "https://tanarang.com/raag-marwa/"},
+            {"name": "Ragajunglism (incl. Rajan Parrikar)",
+             "url": "https://ragajunglism.org/ragas/marwa/"},
+        ],
+    },
+
+    "todi": {
+        "display": "Todi (Miyan ki Todi)",
+        "thaat": "Todi",
+        "western_mode": "Todi thaat (flat-2 flat-3 sharp-4 flat-6 natural-7)",
+        # The eponymous Todi-thaat raga (Miyan ki Todi). Komal Re + komal Ga + TIVRA Ma + komal Dha
+        # + shuddha Ni; Pancham present but SPARSE (alp — omit it entirely and it becomes Gurjari/
+        # Gujari Todi). vadi komal Dha, samvadi komal Ga. FLAG: the komal re/ga are sung "ati-komal"
+        # (a lower shruti than plain komal) — a microtone we cannot notate, so they are encoded as
+        # r/g and coloured by meend. The most chromatic raga of the roster (♭2 ♭3 ♯4 ♭6 ♮7 =
+        # harmonic-minor-with-a-tritone): a neoclassical/death "evil-scale" colour. Triple-sourced.
+        "allowed": ["S", "r", "g", "M", "P", "d", "N"],
+        "aroha":   ["S", "r", "g", "M", "d", "N", "S"],   # Pa generally skipped ascending
+        "avaroha": ["S", "N", "d", "P", "M", "g", "r", "S"],
+        "vadi": "d",      # komal Dhaivat
+        "samvadi": "g",   # komal Gandhar
+        "jati": "sampurna-sampurna",   # all 7 present (Pa sparse, not absent)
+        "andolan": [],
+        "ornaments": [],  # plaintive meend + the ati-komal shruti carry it, not light murki/khatka
+        "pakad": [
+            ["d", "N", "S", "r", "g", "r", "S"],
+            ["M", "d", "N", "d", "P"],
+        ],
+        "chalan": [
+            ["S", "r", "g", "r", "S"],
+            ["g", "M", "d", "N", "S"],
+            ["S", "N", "d", "P", "M", "g", "r", "S"],
+        ],
+        "samay": "second prahar of the day / late morning (~9 AM–12 PM)",
+        "sources": [
+            {"name": "Tanarang", "url": "https://tanarang.com/raag-todi/"},
+            {"name": "Wikipedia — Todi (raga)", "url": "https://en.wikipedia.org/wiki/Todi_(raga)"},
+            {"name": "Ragajunglism", "url": "https://ragajunglism.org/ragas/todi/"},
+        ],
+    },
 }
 
 

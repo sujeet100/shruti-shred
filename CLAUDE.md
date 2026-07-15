@@ -229,18 +229,26 @@ Patterns with Python*); Refactoring Guru; PEP 544; Pydantic / ruff docs.*
 abstraction only when a second implementation or a real test seam demands it. SRP serves clarity, not a
 checklist.
 
-## Menu (expanded 2026-07-14; all raga data source-verified ≥2 Hindustani sources)
+## Menu (expanded 2026-07-14 & 2026-07-15; all raga data source-verified ≥2 Hindustani sources)
 
 - **Ragas (by metal-friendly mode):** Bhairavi (Phrygian), Bhimpalasi (Dorian),
   Darbari Kanada (Aeolian), Bhairav (double-harmonic), Malkauns (dark pentatonic),
   **Kirwani (harmonic minor)**, **Charukeshi (Mixolydian ♭6)**, **Bageshree (Dorian)**,
-  **Puriya Dhanashree (double-harmonic ♯4)**, **Yaman (Lydian)**.
+  **Puriya Dhanashree (double-harmonic ♯4)**, **Yaman (Lydian)**,
+  **Chandrakauns (dark pentatonic + ♮7)**, **Jog (both-Ga pentatonic)**,
+  **Marwa (♭2 ♯4, no Pa)**, **Todi / Miyan ki Todi (♭2 ♭3 ♯4 ♭6 ♮7)**.
   - **Yaman was re-added** despite the old "too bright for metal" note — it is the brightest
     (Lydian), so it leans prog/power, not doom/black. Keep the caveat in mind.
   - **Kirwani & Charukeshi are CARNATIC in origin** (melakarta ragas adopted into Hindustani) —
     encoded in their verified HINDUSTANI form; treat any Carnatic source as a red flag.
   - Bageshree shares Dorian with Bhimpalasi; its identity is the weak/omitted Pa + vakra + Ma-vadi,
     not the scale — don't let the two collapse in generation.
+  - **2026-07-15 batch (Chandrakauns, Jog, Marwa, Todi):** Chandrakauns = Malkauns + shuddha Ni
+    (a leading tone → tension); Jog uses BOTH gandhars (the komal-ga "Gmg" zigzag is its identity —
+    don't let it collapse to a single third); Marwa OMITS Pa and its Sa is deliberately WEAK
+    (hovers on komal-re/Dha, no dominant pull — a floating, tritone-tense colour); Todi is the most
+    chromatic (Todi thaat, tivra Ma, Pa sparse, komal re/ga sung "ati-komal" — a shruti we can only
+    approximate). FLAGGED discrepancies live in each entry's comment (esp. Jog's contested vadi).
 - **Subgenres:** progressive, thrash, doom, death, **heavy** (Heavy Metal), **melodic_death**
   (Melodic Death), **black** (Black).
 

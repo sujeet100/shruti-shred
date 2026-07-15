@@ -34,6 +34,11 @@ MODES = {
     "harmonic minor":                      {0, 2, 3, 5, 7, 8, 11},   # Kirwani
     "Mixolydian b6":                       {0, 2, 4, 5, 7, 8, 10},   # Charukeshi (Aeolian dominant)
     "double harmonic #4":                  {0, 1, 4, 6, 7, 8, 11},   # Puriya Dhanashree (Poorvi + tritone)
+    # menu expansion (2026-07-15)
+    "dark pentatonic (natural 7)":         {0, 3, 5, 8, 11},         # Chandrakauns (Malkauns + shuddha Ni)
+    "both-Ga pentatonic (no Re/Dha, komal Ni)": {0, 3, 4, 5, 7, 10}, # Jog (both gandhars)
+    "Marwa (flat-2, sharp-4, no Pa)":      {0, 1, 4, 6, 9, 11},      # Marwa (Pa omitted)
+    "Todi thaat (flat-2 flat-3 sharp-4 flat-6 natural-7)": {0, 1, 3, 6, 7, 8, 11},  # Todi (Miyan ki Todi)
 }
 
 

@@ -54,7 +54,7 @@ def test_implausible_bpm_is_treated_as_unstated():
 
 
 def test_unsupported_raga_left_open_with_note():
-    brief = resolve_brief(RawIntent(raga="Todi"))     # a real raga, but not in our menu
+    brief = resolve_brief(RawIntent(raga="Bhoopali"))   # a real raga, but not in our menu
     assert brief.raga is None
     assert any("not supported" in n for n in brief.notes)
 

@@ -137,7 +137,7 @@ def test_beats_per_bar_and_grid_match_the_tala():
 
 def test_draft_rejects_unknown_raga():
     try:
-        _draft(raga="todi")                       # a real raga, but not in our menu
+        _draft(raga="bhoopali")                   # a real raga, but not in our menu
         assert False, "expected ValueError"
     except Exception as e:  # noqa: BLE001
         assert "unknown raga" in str(e).lower()
