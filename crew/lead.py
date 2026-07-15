@@ -45,6 +45,7 @@ from crew.contracts import (
     DebateEvent,
     EventStream,
     EventType,
+    Gat,
     Layer,
     LeadNote,
     LeadPhrase,
@@ -861,6 +862,120 @@ class _LLMLead:
 
 
 # --------------------------------------------------------------------------- #
+# The WHOLE-GAT generator: mukhada + manjha + antara composed as ONE object.   #
+# --------------------------------------------------------------------------- #
+
+# The Gat JSON we want back — each part is a lead phrase (see _OUTPUT_SCHEMA for the phrase shape).
+_GAT_OUTPUT_SCHEMA: Final = (
+    '{\n'
+    '  "anchor": "one line: the single idea seeding all three parts (a pakad phrase, a register plan)",\n'
+    '  "mukhada": <a phrase — the madhya HEAD>,\n'
+    '  "manjha":  <a phrase — the mandra BRIDGE (omit unless asked)>,\n'
+    '  "antara":  <a phrase — the taar SECOND THEME (omit unless asked)>\n'
+    '}\n'
+    'Each of mukhada / manjha / antara has the SAME shape as one lead phrase:\n' + _OUTPUT_SCHEMA
+)
+
+
+class GatFn(Protocol):
+    """A gat provider: compose the whole gat (mukhada + optionally manjha/antara) for a chart as
+    ONE coherent object. `needs_manjha`/`needs_antara` say which optional parts the arrangement
+    actually uses, so tokens aren't spent on parts that won't be rendered."""
+
+    def __call__(self, arr: Arrangement, *, needs_manjha: bool, needs_antara: bool) -> Gat: ...
+
+
+class _GatContext:
+    """Assembles the whole-gat prompt inputs — the piece-level facts plus which parts to compose.
+    Pure; no per-section span (the gat is composed as a unit, not a section)."""
+
+    def __init__(self, arr: Arrangement) -> None:
+        from subgenres import SUBGENRES
+        from talas import TALAS
+        self._static: dict[str, Any] = {
+            "raga_block": _render_raga_facts(arr.raga),
+            "motif": " ".join(arr.motif),
+            "subgenre_feel": SUBGENRES[arr.subgenre]["feel"],
+            "bpm": arr.bpm,
+            "tala": TALAS[arr.tala]["display"],
+            "cycle_beats": f"{arr.beats_per_bar:g}",
+            "gat_output_schema": _GAT_OUTPUT_SCHEMA,
+        }
+
+    def inputs_for(self, *, needs_manjha: bool, needs_antara: bool) -> dict[str, Any]:
+        parts = ["mukhada"] + (["manjha"] if needs_manjha else []) + (["antara"] if needs_antara else [])
+        return {**self._static, "parts_needed": ", ".join(parts)}
+
+
+def _gat_from_output(output: Any) -> Gat | None:
+    """The Gat CrewAI parsed via output_pydantic (or None if parsing failed)."""
+    parsed = getattr(output, "pydantic", None)
+    if isinstance(parsed, Gat):
+        return parsed
+    raw = getattr(output, "raw", None)
+    try:
+        return Gat.model_validate_json(raw) if raw else None
+    except ValidationError:
+        return None
+
+
+def _gat_guardrail(raga: str):
+    """Build the whole-gat guardrail: EVERY swara in EVERY part must be legal in the raga (the same
+    one domain rule as the per-section lead, applied across the three lines)."""
+    def guard(output: Any):
+        gat = _gat_from_output(output)
+        if gat is None:
+            return (False, "Return a single valid Gat JSON object and nothing else.")
+        swaras: list[str] = []
+        for part in (gat.mukhada, gat.manjha, gat.antara):
+            if part is not None:
+                swaras.extend(_phrase_swaras(part))
+        illegal = motif_illegal_in_raga(swaras, raga)
+        if illegal:
+            allowed = " ".join(RAGAS[raga]["allowed"])
+            return (False, f"swaras {sorted(set(illegal))} are illegal in raga {raga}. "
+                           f"Use only these swaras: {allowed}. Fix and resend.")
+        return (True, gat)
+
+    guard.__annotations__["return"] = tuple[bool, Any]
+    return guard
+
+
+class _GatCrew:
+    """Runs the whole-gat generation as an isolated single-agent crew (the `lead` agent), mirroring
+    `_LeadCrew` — config read once, `output_pydantic=Gat` for the shape, the raga-bound guardrail
+    for legality."""
+
+    def __init__(self) -> None:
+        config_dir = Path(__file__).parent / "config"
+        self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())["lead"]
+        self._task_config = yaml.safe_load((config_dir / "tasks.yaml").read_text())["generate_gat"]
+
+    def run(self, raga: str, inputs: dict[str, Any]) -> Gat:
+        agent = Agent(config=self._agent_config, llm=generator_llm(),
+                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER, verbose=False)
+        task = Task(config=self._task_config, agent=agent, output_pydantic=Gat,
+                    guardrail=_gat_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
+        crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
+        gat = _gat_from_output(crew.kickoff(inputs=inputs))
+        if gat is None:
+            raise ValueError("gat generator returned no parseable Gat")
+        return gat
+
+
+class _LLMGat:
+    """The real (LLM-backed) `gat_fn` — holds the crew and the precomputed context."""
+
+    def __init__(self, arr: Arrangement) -> None:
+        self._crew = _GatCrew()
+        self._context = _GatContext(arr)
+
+    def __call__(self, arr: Arrangement, *, needs_manjha: bool, needs_antara: bool) -> Gat:
+        return self._crew.run(
+            arr.raga, self._context.inputs_for(needs_manjha=needs_manjha, needs_antara=needs_antara))
+
+
+# --------------------------------------------------------------------------- #
 # The generator loop — pure control flow, LLM injected via `gen_fn`.           #
 # --------------------------------------------------------------------------- #
 
@@ -931,6 +1046,67 @@ def _generate_verified_cell(gen_span: SectionSpan, arr: Arrangement, memory: lis
             best_cell, best_viol = cell, viol
     assert best_cell is not None and best_viol is not None    # the loop runs at least once
     return best_cell, _CELL_REPAIR_TRIES + 1, best_viol
+
+
+def _verify_or_repair_part(part: LeadPhrase, role: str, gen_span: SectionSpan, arr: Arrangement,
+                           memory: list[LeadMemo], *, verify: CellVerifier, gen_fn: LeadFn,
+                           events: list[DebateEvent]) -> LeadPhrase:
+    """A gat part from the joint composition: KEEP it if it passes its verifier; otherwise repair
+    it IN ISOLATION — regenerate ONLY this part (the already-accepted parts stay fixed and are in
+    `memory`), via the per-section `gen_fn` bounded re-roll. The joint call gives coherence; this
+    keeps a single weak part from forcing a whole-gat rewrite (Sujit's steer, 2026-07-16)."""
+    if not verify(part):
+        return part                                  # the jointly-composed part is clean — keep it
+    repaired, tries, viol = _generate_verified_cell(gen_span, arr, memory, gen_fn=gen_fn, verify=verify)
+    events.append(_gat_repair_event(f"{role} (gat, in isolation)", tries + 1, viol))
+    return repaired
+
+
+def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
+                 events: list[DebateEvent]) -> Gat | None:
+    """Compose the gat as ONE object — mukhada + (manjha) + (antara) in a single `gat_fn` call so
+    they share a motif and a register arc — then verify each part and repair a failing one in
+    isolation. Returns None when the arrangement has no mukhada (nothing to compose jointly). Pure
+    control flow: `gat_fn` and `gen_fn` are injected, so this is fully tested with no LLM."""
+    spans = list(section_spans(arr))
+    mspan = next((s for s in spans if is_mukhada(s.section)), None)
+    if mspan is None:
+        return None
+    manjha_span = next((s for s in spans if is_manjha(s.section)), None)
+    antara_span = next((s for s in spans if is_antara(s.section)), None)
+    cycle, raga = arr.beats_per_bar, arr.raga
+
+    gat = gat_fn(arr, needs_manjha=manjha_span is not None, needs_antara=antara_span is not None)
+    parts = "mukhada" + (" + manjha" if manjha_span else "") + (" + antara" if antara_span else "")
+    events.append(DebateEvent(
+        type=EventType.INFO, agent="Lead", role=_ROLE_GENERATOR,
+        text=f"gat composed as ONE object ({parts})" + (f" — {gat.anchor}" if gat.anchor else ""),
+        data={"gat": True, "anchor": gat.anchor, "parts": parts}))
+
+    memory: list[LeadMemo] = []
+    mukhada = _verify_or_repair_part(
+        gat.mukhada, _MUKHADA, _one_cycle_span(mspan, cycle), arr, memory,
+        verify=lambda c: verify_mukhada(c, cycle_beats=cycle, raga=raga), gen_fn=gen_fn, events=events)
+    memory.append(LeadMemo(mspan.section.kind.value, mukhada, _MUKHADA))
+
+    manjha = None
+    if manjha_span is not None:
+        gen_span = _manjha_gen_span(manjha_span, cycle)
+        window = gen_span.length
+        manjha = _verify_or_repair_part(
+            gat.manjha or mukhada, _MANJHA, gen_span, arr, memory,
+            verify=lambda c: verify_manjha(c, mukhada=mukhada, window_beats=window, raga=raga),
+            gen_fn=gen_fn, events=events)
+        memory.append(LeadMemo(manjha_span.section.kind.value, manjha, _MANJHA))
+
+    antara = None
+    if antara_span is not None:
+        antara = _verify_or_repair_part(
+            gat.antara or mukhada, _ANTARA, antara_span, arr, memory,
+            verify=lambda c: verify_antara(c, mukhada=mukhada, window_beats=antara_span.length, raga=raga),
+            gen_fn=gen_fn, events=events)
+
+    return Gat(anchor=gat.anchor, mukhada=mukhada, manjha=manjha, antara=antara)
 
 
 def _fill_gen_span(span: SectionSpan, cycle_beats: float, head_first: str) -> SectionSpan:
@@ -1022,13 +1198,22 @@ def _fill_slot_count(arr: Arrangement) -> int:
     return sum(len(_fill_bars(s)) for s in arr.sections if _LEAD_ROLE in s.layers)
 
 
-def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], list[DebateEvent]]:
+def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
+                  gat_fn: GatFn | None = None) -> tuple[list[Layer], list[DebateEvent]]:
     """Fill the lead across the arrangement's lead-active sections, VOICED.
 
-    For each section that lists `lead`: get a phrase from `gen_fn` (threading the realized
-    prior sections as memory), then assemble every phrase into a sitar line and/or a
-    lead-guitar line via `lead_layers_from`. Returns up to TWO layers and an empty list when
-    no section uses the lead. `gen_fn` is injected so this loop is tested with no LLM.
+    For each section that lists `lead`: get a phrase (threading the realized prior sections as
+    memory), then assemble every phrase into a sitar line and/or a lead-guitar line via
+    `lead_layers_from`. Returns up to TWO layers and an empty list when no section uses the lead.
+    `gen_fn` (and `gat_fn`) are injected so this loop is tested with no LLM.
+
+    WHOLE-GAT COMPOSITION (Sujit + GPT, 2026-07-16): when a `gat_fn` is given, the mukhada, manjha
+    and antara are composed TOGETHER as ONE coherent object (a single call — a shared motif and a
+    planned register arc: madhya head, mandra bridge, taar answer), the way a musician conceives a
+    gat, rather than three lines composed in isolation. Each part is then verified and — if it
+    fails — repaired IN ISOLATION (the others held fixed; nobody rewrites a whole gat for one weak
+    antara). Absent a `gat_fn` (the studio path, most tests), each gat part falls back to the
+    per-section generation below, unchanged.
 
     The STRUCTURED GAT CELLS are special — each is generated against its own deterministic
     verifier with a bounded feedback re-roll (`_generate_verified_cell`):
@@ -1052,6 +1237,7 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
     cycle_beats = arr.beats_per_bar
     register = arr.registers[_LEAD_ROLE]
     raga = arr.raga
+    gat = _compose_gat(arr, gat_fn=gat_fn, gen_fn=gen_fn, events=events) if gat_fn else None
     for span in section_spans(arr):
         section = span.section
         if _LEAD_ROLE not in section.layers:
@@ -1059,11 +1245,14 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
         if is_mukhada(section) and mukhada_cell is not None:
             phrase = mukhada_cell                   # the hook RETURNS — reuse, don't regenerate
             events.append(_lead_reprise_event(span))
-        elif is_mukhada(section):                   # the FIRST mukhada — write ONE avartan, verify, repair
-            gen_span = _one_cycle_span(span, cycle_beats)
-            phrase, tries, viol = _generate_verified_cell(
-                gen_span, arr, memory, gen_fn=gen_fn,
-                verify=lambda c: verify_mukhada(c, cycle_beats=cycle_beats, raga=raga))
+        elif is_mukhada(section):                   # the FIRST mukhada — from the joint gat, or per-section
+            if gat is not None:
+                phrase, tries, viol = gat.mukhada, 1, []   # composed with the manjha/antara, already repaired
+            else:
+                gen_span = _one_cycle_span(span, cycle_beats)
+                phrase, tries, viol = _generate_verified_cell(
+                    gen_span, arr, memory, gen_fn=gen_fn,
+                    verify=lambda c: verify_mukhada(c, cycle_beats=cycle_beats, raga=raga))
             mukhada_cell = phrase                   # cache the head for its returns
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
@@ -1087,23 +1276,29 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn) -> tuple[list[Layer], lis
             if tries > 1:
                 events.append(_gat_repair_event(_INTRO, tries, viol))
         elif is_manjha(section) and mukhada_cell is not None:  # the SHORT low bridge back to the head
-            head = mukhada_cell
-            gen_span = _manjha_gen_span(span, cycle_beats)   # short, sub-cycle window (code reserves the rest)
-            window = gen_span.length
-            phrase, tries, viol = _generate_verified_cell(
-                gen_span, arr, memory, gen_fn=gen_fn,
-                verify=lambda c: verify_manjha(c, mukhada=head, window_beats=window, raga=raga))
+            if gat is not None and gat.manjha is not None:
+                phrase, tries, viol = gat.manjha, 1, []       # composed as part of the gat, already repaired
+            else:
+                head = mukhada_cell
+                gen_span = _manjha_gen_span(span, cycle_beats)  # short, sub-cycle window (code reserves the rest)
+                window = gen_span.length
+                phrase, tries, viol = _generate_verified_cell(
+                    gen_span, arr, memory, gen_fn=gen_fn,
+                    verify=lambda c: verify_manjha(c, mukhada=head, window_beats=window, raga=raga))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
             if tries > 1:
                 events.append(_gat_repair_event(_MANJHA, tries, viol))
         elif is_antara(section) and mukhada_cell is not None:  # the second movement — the verified arc
-            head = mukhada_cell
-            phrase, tries, viol = _generate_verified_cell(
-                span, arr, memory, gen_fn=gen_fn,
-                verify=lambda c: verify_antara(c, mukhada=head, window_beats=span.length,
-                                               raga=raga))
+            if gat is not None and gat.antara is not None:
+                phrase, tries, viol = gat.antara, 1, []       # composed as part of the gat, already repaired
+            else:
+                head = mukhada_cell
+                phrase, tries, viol = _generate_verified_cell(
+                    span, arr, memory, gen_fn=gen_fn,
+                    verify=lambda c: verify_antara(c, mukhada=head, window_beats=span.length,
+                                                   raga=raga))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
@@ -1200,8 +1395,9 @@ def _generate_fills(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo],
 
 
 def compose_lead(arr: Arrangement) -> tuple[list[Layer], list[DebateEvent]]:
-    """Run the real (LLM-backed) lead generation for a chart."""
-    return generate_lead(arr, gen_fn=_LLMLead(arr))
+    """Run the real (LLM-backed) lead generation for a chart — the gat composed as ONE object
+    (`_LLMGat`), everything else per-section (`_LLMLead`)."""
+    return generate_lead(arr, gen_fn=_LLMLead(arr), gat_fn=_LLMGat(arr))
 
 
 def mukhada_cell_from_events(events: list[DebateEvent]) -> LeadPhrase | None:

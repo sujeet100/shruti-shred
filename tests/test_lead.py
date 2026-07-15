@@ -24,6 +24,7 @@ from crew.contracts import (  # noqa: E402
     CanvasMove,
     CompositionBrief,
     EventType,
+    Gat,
     LeadNote,
     LeadPhrase,
     Note,
@@ -955,6 +956,59 @@ def test_manjha_is_verified_and_rerolled_with_the_seam_feedback():
     assert fn.seen_feedback[2] and any("sam" in v for v in fn.seen_feedback[2])
     rr = next(e for e in events if e.data.get("gat_verify"))
     assert rr.data["cell"] == "manjha"
+
+
+# --- the WHOLE gat: mukhada + manjha + antara composed as ONE object, per-part repair ----------
+
+def _fake_gat(gat: Gat):
+    """A fake gat_fn: returns a canned Gat and records the needs-flags it was asked for."""
+    calls: list[dict] = []
+
+    def fn(arr, *, needs_manjha, needs_antara):
+        calls.append({"needs_manjha": needs_manjha, "needs_antara": needs_antara})
+        return gat
+
+    return fn, calls
+
+
+def test_whole_gat_composes_the_parts_together_and_uses_them():
+    # a joint gat with clean parts: the mukhada + manjha come from ONE gat_fn call, and the
+    # per-section gen_fn is not called at all (the whole gat was composed together)
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"),
+                   (SectionKind.ALAAP, 1, "manjha"),
+                   (SectionKind.ALAAP, 2, "mukhada"))
+    gat = Gat(anchor="d n S", mukhada=_good_head(), manjha=_good_manjha())
+    gfn, gcalls = _fake_gat(gat)
+    fn, calls = _fake([])                                    # gen_fn must NOT be called
+    layers, events = generate_lead(arr, gen_fn=fn, gat_fn=gfn)
+    assert gcalls == [{"needs_manjha": True, "needs_antara": False}]   # ONE joint call, right parts
+    assert calls == []                                      # no per-section lead generation
+    assert any(e.data.get("gat") for e in events)           # the "composed as one object" beat
+    assert layers and layers[0].notes                       # the parts were placed
+
+
+def test_whole_gat_repairs_a_failing_part_in_isolation():
+    # the joint gat's manjha never dips to the mandra -> it is regenerated IN ISOLATION via gen_fn,
+    # while the good mukhada is kept (nobody rewrites a whole gat for one weak part)
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"), (SectionKind.ALAAP, 1, "manjha"))
+    bad_manjha = LeadPhrase(phrase_plan=_plan("m"),         # all madhya -> fails "dip into the mandra"
+                            notes=[LeadNote(swara="m", dur=2.0), LeadNote(swara="g", dur=2.0),
+                                   LeadNote(swara="m", dur=2.0), LeadNote(swara="g", dur=1.5),
+                                   LeadNote(swara="m", dur=2.0), LeadNote(swara="S", dur=2.0)])
+    gfn, _ = _fake_gat(Gat(mukhada=_good_head(), manjha=bad_manjha))
+    fn, calls = _fake([_good_manjha()])                     # gen_fn regenerates ONLY the manjha
+    layers, events = generate_lead(arr, gen_fn=fn, gat_fn=gfn)
+    assert len(calls) == 1                                  # exactly one per-part regen (mukhada kept)
+    assert any("gat" in (e.data.get("cell") or "") for e in events)   # a per-part repair event
+
+
+def test_whole_gat_is_skipped_without_a_mukhada():
+    # no mukhada -> nothing to compose jointly; gat_fn is never called, the intro falls back per-section
+    arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
+    gfn, gcalls = _fake_gat(Gat(mukhada=_good_head()))
+    fn, _ = _fake([_good_intro()])
+    generate_lead(arr, gen_fn=fn, gat_fn=gfn)
+    assert gcalls == []                                     # no mukhada -> gat_fn not called
 
 
 # --- the antara: verified arc (quote -> climb -> late peak -> descend to Sa) -----

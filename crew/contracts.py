@@ -870,6 +870,24 @@ class LeadPhrase(BaseModel):
     notes: list[LeadNote] = Field(min_length=1)
 
 
+class Gat(BaseModel):
+    """The whole gat as ONE composition (the way a musician conceives it — Pandit Arvind Parikh's
+    mukhada -> manjha -> antara). The three lines are generated TOGETHER, in a single LLM call, so
+    they share a motif and a PLANNED REGISTER ARC — the mukhada in the madhya (home), the manjha
+    dipping into the mandra (the low bridge), the antara lifting into the taar (the second theme)
+    — instead of three lines composed in isolation that only happen to be in the same raga.
+
+    `manjha`/`antara` are optional: an arrangement may omit either, and only the parts it needs are
+    generated. Legality is the generator's guardrail (as for LeadPhrase); each part is then held to
+    its own gat verifier, and a part that fails is repaired IN ISOLATION (the others held fixed) —
+    nobody rewrites a whole gat because one antara phrase isn't convincing.
+    """
+    anchor: str = ""                              # the ONE idea seeding all three (a short note to self)
+    mukhada: LeadPhrase
+    manjha: Optional[LeadPhrase] = None
+    antara: Optional[LeadPhrase] = None
+
+
 class RiffNote(BaseModel):
     """One note of a metal riff — a swara with a duration. A riff doesn't kan/meend,
     but it DOES voice chords and articulate the chug.
