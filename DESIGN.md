@@ -1081,3 +1081,77 @@ local. Pure tests: `tests/test_gat_verifier.py`, repair loop in `tests/test_lead
 **Still to do this campaign:** fix #5 (operational brief — steer the composers to concrete rhythm
 instead of a vague mood); then ONE batched full-band live render to hear the looping mukhada + rests
 + andolan + murki + the gat verify/repair in context.
+
+---
+
+## ★ GAT DEVELOPMENT — the NEXT-SESSION campaign (feedback 2026-07-15, NOT yet built)
+
+*Fix #5 + the menu expansion shipped (`e67270f`). Sujit then heard a full live render (`out/fusion.wav`)
+and gave detailed feedback; a second Gemini review INDEPENDENTLY converged on the same points and cracked
+the one weakness Sujit couldn't pinpoint. This section captures the whole plan so a new session starts
+cold. **Nothing here is built yet.** Build order: A (intro) → B (riff dissonance) → C (manjha) → D (taans).*
+
+**WINS to preserve:** "way better", "the gat structure came out well", "the mukhada being repeated
+sounds TOO GOOD" → the mukhada cache/loop (fixes 1+2) is VALIDATED. Do not regress it.
+
+**Root theme (Sujit + Gemini agree):** the manjha and the intro have the SAME gap the mukhada had before
+the overhaul — no definition, no resolution to the sam. And (Gemini's framing) LLMs can't invent silence
+or cyclical tension from "be spacious / develop the head"; they need feel translated into RIGID, CHECKABLE
+constraints — which is exactly our verify + feedback-re-roll pattern (extend it, don't re-prompt vaguely).
+
+**A. Intro / alap — random, never resolves to Sa, no space.** (self-contained Lead fix)
+  - Requirements: RESOLVE to a held Sa; play Sa OFTEN (Gemini: Sa ≥ ~30% of the alap BY DURATION); real
+    RESTS (Gemini: force ≥2 rests of 2–4 beats) with a rest AFTER landing on Sa; and a LONG pause between
+    the alap's last Sa and the mukhada.
+  - Design (was half-drafted, then reverted): a `verify_intro(cell)` in `crew/gat_verifier.py` — resolves-
+    to-Sa + Sa-duration-share ≥ 0.30 + ≥2 true rests — fed through the SAME bounded feedback re-roll as the
+    mukhada (generalise `_generate_mukhada_cell` → `_generate_verified_cell(gen_span, arr, memory, gen_fn,
+    verify)`; mukhada and intro both call it). Trigger on `form_role == "intro"` (add `is_intro`).
+  - The LONG pause is CODE, not the LLM: rests render as silence and there are NO cross-block ties (see
+    "rendering facts" below), so the pause must live INSIDE the intro window. Reserve a trailing gap —
+    generate the alap for a SHORTENED window (`end = span.end − gap`, gap ≈ min(cycle, span·0.35)) and
+    `_place_lead_section` leaves that tail silent before the mukhada. Prompt: alap Sa-anchored, rest after Sa.
+
+**B. Riff sounds muddy — THE insight Gemini cracked (highest audible impact; affects EVERY render).**
+  - Root cause: our STRICT-RAGA chord rule stacks raga swaras (`_stack_above`), so a "power chord" built on
+    a root whose stacked tone is a TRITONE/dim-5th (e.g. on Yaman's tivra Ma, or Ni) is consonant-enough on
+    a clean sitar but turns to MUD under high-gain distortion. The new tritone-heavy ragas (Yaman,
+    Puriya Dhanashree — both tivra Ma) make it worse.
+  - Fix (code-checkable — interval math, so CODE owns it): only allow a stacked power-chord interval when it
+    is CONSONANT under distortion — the OCTAVE (root + its own swara, always safe) or a TRUE perfect fifth
+    (7 semitones, i.e. Sa→Pa). For any other stack, compute the root→tone interval; if it's dissonant
+    (tritone 6, minor-2nd 1, etc.), DROP the stack to a single-note chug (or substitute the octave). Guard
+    in the riff voicing / renderer `_stack_above` path. Plus a prompt rule ("power-chord only Sa and Pa;
+    elsewhere single-note chugs; never stack a tritone"). NOTE this REVISITS the earlier `strict_raga`
+    decision — legality kept the chord IN the raga but ignored metal consonance; reconcile with Sujit.
+
+**C. Manjha is not a manjha — same "no definition / no return" gap.** (structural heart)
+  - It's complementary to the mukhada: mukhada ×3–4 → manjha comes to the sam → mukhada again = a cohesive
+    CYCLE. Its LAST note must connect FLUIDLY into the mukhada's FIRST note (Gemini: end on a lead-in like
+    Ni/Ga that pulls to the mukhada's first swara; the final ~2 beats match the mukhada's rhythmic subdivision).
+  - Design: the manjha is generated KNOWING the cached mukhada cell (esp. its first note) — CROSS-CELL
+    awareness (thread the mukhada cell into the manjha's prompt context). Extend the gat verifier with a
+    `verify_manjha(cell, mukhada)` seam check (resolves toward the mukhada's opening; lands on/approaches sam)
+    → the same feedback re-roll. This is the mukhada cache extended cell-to-cell.
+
+**D. No short fast (1/16) taans while the mukhada plays; taans don't resolve back cleanly.** (builds on C)
+  - Technique: cut a few matras OUT of a mukhada statement, play a short 16th-note taan there, then resolve
+    cleanly BACK into the mukhada (same fluid-seam rule as the manjha).
+  - Options (Gemini): (1) a new `form_role = "mukhada_with_fills"` — "half an avartan of the mukhada head,
+    then a 1/16 taan for the remaining matras, resolving onto the next sam"; OR (2) CODE splices a short
+    taan into gaps of the cached mukhada cell. Reuses C's return-to-mukhada mechanism. `taan_short` already
+    exists as a form_role but currently neither fires during the mukhada nor resolves back — fold this in.
+
+**Rendering facts (answer to Gemini's question — anchor the above in reality):** a `rest` note is skipped
+at placement (`place_phrase` advances time, sounds nothing) = TRUE silence; there are NO tied durations
+across blocks; sections are independent windows laid end-to-end on ONE timeline, TRUNCATED at the boundary
+(a transition is pure adjacency, no crossfade/tie). Consequence: any inter-section pause must be reserved
+INSIDE a section's window (why A's long pause is code inside the intro).
+
+**Also captured:** a TOOLING win — save the `Composition` JSON beside the WAV on live runs, so the riff/
+manjha/intro can be diagnosed SYMBOLICALLY for free next time (this session had only the `.mid`, no symbolic
+data, so the riff couldn't be inspected directly — Gemini diagnosed it from the PROMPTS instead).
+
+**Git state at handoff:** committed — `2244132` (GAT overhaul), `e67270f` (menu expansion + pakad-to-riff +
+groove_brief). UNCOMMITTED but COMPLETE + green — the live-UI `RUNNING`/placeholder fix (`contracts.py`,
+`crew/flow.py`, `ui/app.html`, `UI_CONTRACT.md`), pending Sujit's live eyeball before commit.
