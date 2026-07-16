@@ -18,7 +18,7 @@ import contextvars
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
-from crew.contracts import DebateEvent
+from crew.contracts import DebateEvent, EventType
 
 _SINK: contextvars.ContextVar[Callable[[DebateEvent], None] | None] = contextvars.ContextVar(
     "live_sink", default=None)
@@ -48,3 +48,24 @@ def publish_all(events: list[DebateEvent]) -> None:
     list of events at once)."""
     for event in events:
         publish(event)
+
+
+def beat(agent: str, text: str, role: str = "generator", data: dict | None = None) -> None:
+    """Publish a TRANSIENT 'working on X now' beat from INSIDE a slow stage — the per-call
+    progress the flow's per-stage RUNNING beats can't give (the whole lead phase is ONE flow
+    node holding 15+ LLM calls, so without these the UI freezes on 'composing the gat…' and
+    then floods; Sujit's live note, 2026-07-16). Same shape as the flow's `_running` beats:
+    type RUNNING, published only, never part of a returned event list — so the persisted
+    stream / replay contract is unchanged and a run with no sink pays nothing. `data` may
+    carry the full verifier violations behind a re-roll for a UI that wants to expand them."""
+    publish(DebateEvent(type=EventType.RUNNING, agent=agent, role=role, text=text,
+                        data=data or {}))
+
+
+def flags(violations: list[str], limit: int = 160) -> str:
+    """Verifier violations condensed for a TICKER line: each violation's FACT (the clause
+    before its ' — how to fix' tail), joined and capped — 'the alap dwells on Sa for 4
+    continuous beats; 16 of 21 notes carry a meend', not three paragraphs of guidance.
+    The full list rides the beat's `data` for a UI that wants to show everything."""
+    facts = "; ".join(v.split(" — ")[0].strip() for v in violations)
+    return facts if len(facts) <= limit else facts[:limit - 1].rstrip() + "…"

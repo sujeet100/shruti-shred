@@ -51,6 +51,7 @@ from crewai import Agent, Crew, Process, Task
 from pydantic import BaseModel, ValidationError
 
 from crew.config import (
+    AGENT_RETRY_LIMIT,
     CRITIC_MAX_ITER,
     MAX_ROUNDS,
     RASIK_OVERALL_FLOOR,
@@ -384,7 +385,8 @@ class _ConductorCrew:
 
     def debate_turn(self, critic: Critic, inputs: dict[str, Any]) -> DebateTurn:
         agent = Agent(config=self._agents[critic.config_key], llm=critic_llm(),
-                      allow_delegation=False, max_iter=CRITIC_MAX_ITER, verbose=False)
+                      allow_delegation=False, max_iter=CRITIC_MAX_ITER,
+                      max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._tasks["debate_turn"], agent=agent, output_pydantic=DebateTurn)
         result = Crew(agents=[agent], tasks=[task], process=Process.sequential,
                       verbose=False).kickoff(inputs=inputs)
@@ -395,7 +397,8 @@ class _ConductorCrew:
 
     def rule(self, inputs: dict[str, Any]) -> ConductorRuling:
         agent = Agent(config=self._agents["conductor"], llm=conductor_llm(),
-                      allow_delegation=False, max_iter=CRITIC_MAX_ITER, verbose=False)
+                      allow_delegation=False, max_iter=CRITIC_MAX_ITER,
+                      max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._tasks["arbitrate"], agent=agent, output_pydantic=ConductorRuling)
         result = Crew(agents=[agent], tasks=[task], process=Process.sequential,
                       verbose=False).kickoff(inputs=inputs)

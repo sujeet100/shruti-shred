@@ -42,8 +42,9 @@ def _n(swara: str, dur: float, **kw) -> LeadNote:
 # --- a clean, one-avartan, landing, varied head passes -------------------------
 
 def test_a_well_formed_mukhada_has_no_violations():
-    # malkauns (resting = S, m): fills the 8-beat avartan, lands on Sa, durations vary
-    cell = _cell(_n("S", 2.0), _n("g", 1.0), _n("m", 3.0), _n("S", 2.0))
+    # malkauns (resting = S, m): fills the 8-beat avartan, lands on Sa, and mixes note
+    # values — an 8th for movement against half/full-note nyas points (the 2026-07-16 rule)
+    cell = _cell(_n("S", 2.0), _n("g", 1.0), _n("m", 0.5), _n("m", 2.5), _n("S", 2.0))
     assert verify_mukhada(cell, cycle_beats=8.0, raga="malkauns") == []
 
 
@@ -93,10 +94,11 @@ def test_a_chikari_ending_counts_as_landing_on_sa():
 # --- not rhythmically flat ------------------------------------------------------
 
 def test_a_flat_even_note_head_is_flagged():
-    # the diagnosed failure: a gat of even quarter notes
+    # the diagnosed failure: a gat of even notes — no mix, no 8th movement
     cell = _cell(_n("S", 2.0), _n("g", 2.0), _n("m", 2.0), _n("S", 2.0))
     viol = verify_mukhada(cell, cycle_beats=8.0, raga="malkauns")
-    assert any("flat" in v for v in viol)
+    assert any("note value" in v for v in viol)
+    assert any("short note" in v for v in viol)
 
 
 def test_two_equal_notes_are_not_called_flat():
@@ -115,19 +117,33 @@ def test_an_all_rest_head_is_flagged():
 
 # --- verify_intro: the alap establishes Sa and resolves to it --------------------
 
+_INTRO_PLAN = PhrasePlan(
+    seed=["d", "n", "S"], contour="arch", transformations=["fragment", "repeat", "resolve"],
+    climax_and_sam="widens to g-m past the midpoint, settles on a held Sa",
+    badhat_plan="phrase 1 states d n S low; phrase 2 completes it and adds g; phrase 3 widens to g m")
+
+
+def _intro_cell(*notes: LeadNote) -> LeadPhrase:
+    return LeadPhrase(phrase_plan=_INTRO_PLAN, notes=list(notes))
+
+
 def _good_intro() -> LeadPhrase:
-    # the verified AOCHAR shape (malkauns): THREE short phrases, each EXPLORING then landing on
-    # Sa, separated by real rests; opens on Sa, dips into the mandra, STATES the pakad (d n S..m),
-    # Sa-anchored (~54% by duration), no continuous-Sa wall, ends on the longest held Sa (16 beats).
-    return _cell(_n("S", 1.0), _n("n", 1.0, oct=-1), _n("S", 1.5),         # phrase 1 -> Sa
-                 _n("S", 1.5, rest=True),                                   # nyas breath
-                 _n("d", 2.0, oct=-1), _n("n", 1.0, oct=-1), _n("S", 2.0),  # phrase 2 -> Sa
-                 _n("m", 1.5, rest=True),
-                 _n("g", 1.0), _n("m", 1.0), _n("S", 2.5))                  # phrase 3 -> held Sa
+    # the verified AOCHAR shape (malkauns): THREE short phrases, each developing the ONE motif
+    # (d n S) then landing on Sa, separated by real rests; opens on Sa, dips into the mandra,
+    # STATES the pakad (g m g S), Sa-anchored (50% by duration), no continuous-Sa wall, reveals
+    # the motif progressively (narrow phrase 1; the widest reach — m — past the midpoint), and
+    # ends on the longest held Sa (18 beats total).
+    return _intro_cell(
+        _n("S", 1.0), _n("d", 1.0, oct=-1), _n("n", 1.0, oct=-1), _n("S", 1.5),  # phrase 1 -> Sa
+        _n("S", 1.5, rest=True),                                                  # nyas breath
+        _n("d", 1.0, oct=-1), _n("n", 1.0, oct=-1), _n("S", 1.0),                 # phrase 2:
+        _n("g", 1.0), _n("S", 1.5),                                               #  motif + g -> Sa
+        _n("m", 1.5, rest=True),
+        _n("g", 1.0), _n("m", 1.0), _n("g", 0.5), _n("S", 2.5))                   # phrase 3 -> held Sa
 
 
 def test_a_grounded_alap_has_no_violations():
-    assert verify_intro(_good_intro(), window_beats=16.0, raga="malkauns") == []
+    assert verify_intro(_good_intro(), window_beats=18.0, raga="malkauns") == []
 
 
 def test_intro_must_open_around_sa():
@@ -246,6 +262,104 @@ def test_intro_must_state_the_pakad():
                  _n("m", 1.0), _n("S", 2.5))
     viol = verify_intro(cell, window_beats=16.0, raga="malkauns")
     assert any("PAKAD" in v for v in viol)
+
+
+# --- verify_intro: ONE motif, progressively revealed (badhat) ---------------------
+
+_GAT_HEAD = LeadPhrase(phrase_plan=_PLAN, notes=[
+    _n("d", 1.0), _n("n", 1.0), _n("S", 1.5), _n("m", 1.5),
+    _n("g", 1.0), _n("m", 1.0), _n("g", 1.5), _n("S", 1.5)])   # d n S m | g m g S
+
+
+def test_intro_motif_drawn_from_the_head_passes():
+    # the good intro's motif (d n S) IS the head's opening — teasing the gat, no violations
+    assert verify_intro(_good_intro(), window_beats=18.0, raga="malkauns",
+                        mukhada=_GAT_HEAD) == []
+
+
+def test_intro_motif_not_in_the_head_is_flagged():
+    # m d n never appears in the head (in order) — the intro would tease a DIFFERENT tune
+    cell = LeadPhrase(phrase_plan=_INTRO_PLAN.model_copy(update={"seed": ["m", "d", "n"]}),
+                      notes=_good_intro().notes)
+    viol = verify_intro(cell, window_beats=18.0, raga="malkauns", mukhada=_GAT_HEAD)
+    assert any("not drawn from the mukhada head" in v for v in viol)
+
+
+def test_intro_every_phrase_must_touch_the_motif():
+    # phrase 2 develops nothing of the motif (g m S, no d n) — episodic, not ONE thought
+    cell = _intro_cell(
+        _n("S", 1.0), _n("d", 1.0, oct=-1), _n("n", 1.0, oct=-1), _n("S", 1.5),
+        _n("S", 1.5, rest=True),
+        _n("g", 1.0), _n("m", 1.0), _n("S", 1.5),                 # phrase 2: a NEW phrase
+        _n("m", 1.5, rest=True),
+        _n("g", 1.0), _n("m", 1.0), _n("g", 0.5), _n("S", 2.5))
+    viol = verify_intro(cell, window_beats=16.0, raga="malkauns")
+    assert any("never touches the motif" in v for v in viol)
+
+
+def test_intro_must_state_the_full_motif():
+    # the anchors (d n) recur but the full motif (d n S m) never completes — no reveal
+    cell = LeadPhrase(phrase_plan=_INTRO_PLAN.model_copy(update={"seed": ["d", "n", "S", "m"]}),
+                      notes=_good_intro().notes)
+    viol = verify_intro(cell, window_beats=18.0, raga="malkauns")
+    assert any("never stated" in v for v in viol)
+
+
+def test_intro_opening_phrase_must_stay_narrow():
+    # phrase 1 leaps to taar Sa — the two-octaves-in-four-seconds failure heard live
+    cell = _good_intro()
+    cell.notes[3] = _n("S", 1.5, oct=1)
+    viol = verify_intro(cell, window_beats=18.0, raga="malkauns")
+    assert any("opening phrase spans" in v for v in viol)
+
+
+def test_intro_highest_note_must_arrive_late():
+    # a fine motif-driven alap whose widest reach (m) lands in phrase 1 — badhat inverted
+    cell = LeadPhrase(
+        phrase_plan=_INTRO_PLAN.model_copy(update={"seed": ["g", "m"]}),
+        notes=[_n("S", 1.0), _n("g", 1.0), _n("m", 1.0), _n("S", 1.5),
+               _n("S", 1.5, rest=True),
+               _n("d", 1.0, oct=-1), _n("n", 1.0, oct=-1), _n("g", 1.0), _n("m", 1.0), _n("S", 1.5),
+               _n("m", 1.5, rest=True),
+               _n("g", 1.0), _n("m", 1.0), _n("g", 1.5), _n("S", 2.5)])
+    viol = verify_intro(cell, window_beats=19.0, raga="malkauns")
+    assert any("arrives too early" in v for v in viol)
+
+
+def test_intro_must_declare_a_real_motif():
+    # a one-swara seed is not a motif — the intro must name the ONE idea it develops
+    cell = LeadPhrase(phrase_plan=_PLAN, notes=_good_intro().notes)   # seed = ["S"]
+    viol = verify_intro(cell, window_beats=18.0, raga="malkauns")
+    assert any("declares no usable motif" in v for v in viol)
+
+
+# --- verify_intro: the AUDIBLE line (a meend is heard at its TARGET) ---------------
+
+def test_a_meend_spammed_intro_fails_on_its_audible_line():
+    # the 2026-07-16 live failure in miniature: WRITTEN as motif phrases, but every note
+    # meends to Sa — the ear gets one repeated note. The audible-line checks + the meend
+    # rate cap must all see through the written swaras.
+    cell = _good_intro()
+    cell.notes = [n if n.rest else n.model_copy(update={"meend_swara": "S"})
+                  for n in cell.notes]
+    viol = verify_intro(cell, window_beats=18.0, raga="malkauns")
+    assert any("meend" in v for v in viol)                    # the rate cap names the cause
+    assert any("motif" in v or "Sa" in v for v in viol)       # and the audible line collapses
+
+
+def test_audible_line_reads_the_meend_target_octave():
+    # a written-madhya note meending to taar Sa IS a taar reach — the audible peak
+    cell = _good_intro()
+    cell.notes[2] = _n("n", 1.0, oct=-1, meend_swara="S", meend_oct=1)   # audibly taar Sa, early
+    viol = verify_intro(cell, window_beats=18.0, raga="malkauns")
+    assert any("opening phrase spans" in v or "too early" in v for v in viol)
+
+
+def test_a_noop_meend_does_not_trip_the_audible_checks():
+    # meend_swara == the written pitch: no glide, nothing changes audibly — still clean
+    cell = _good_intro()
+    cell.notes[0] = cell.notes[0].model_copy(update={"meend_swara": "S"})   # S -> S
+    assert verify_intro(cell, window_beats=18.0, raga="malkauns") == []
 
 
 # --- verify_manjha: arrive at the sam, lead back into the head -------------------
@@ -381,8 +495,9 @@ def _good_taan() -> LeadPhrase:
                  _n("g", 0.25), _n("m", 0.25), _n("d", 0.25), _n("n", 0.25),  # burst
                  _n("d", 0.25), _n("n", 0.25), _n("S", 0.25, oct=1), _n("g", 0.25, oct=1),
                  _n("m", 1.0, oct=1),                                         # the late peak
-                 _n("g", 0.5, oct=1), _n("S", 0.5, oct=1), _n("n", 0.5),
-                 _n("d", 0.5), _n("m", 0.5), _n("S", 2.0))                    # descend, land
+                 _n("g", 0.25, oct=1), _n("S", 0.25, oct=1), _n("n", 0.25), _n("d", 0.25),
+                 _n("n", 0.25), _n("d", 0.25), _n("m", 0.25), _n("g", 0.25),  # the cadential run
+                 _n("S", 2.0))                                                # ...lands on the sam
 
 
 def test_a_concert_taan_has_no_violations():

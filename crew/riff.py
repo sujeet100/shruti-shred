@@ -37,7 +37,7 @@ import yaml
 from crewai import Agent, Crew, Process, Task
 from pydantic import ValidationError
 
-from crew.config import GENERATOR_MAX_ITER, GENERATOR_RETRIES, generator_llm, load_env
+from crew.config import AGENT_RETRY_LIMIT, GENERATOR_MAX_ITER, GENERATOR_RETRIES, generator_llm, load_env
 from crew.contracts import (
     RHYTHM_FLOOR,
     Arrangement,
@@ -63,6 +63,7 @@ from crew.generators import (
     render_composition,
     section_spans,
 )
+from crew.live import beat, flags
 from crew.riff_family import develop_section
 from crew.riff_texture import MODE_BRIEFS, riff_mode_for, verified_riff
 from raga import RAGAS, validate_composition
@@ -321,6 +322,7 @@ class _RiffContext:
             "form_role": section.form_role or "free (no gat role set)",
             "riff_slot": slot_for(section),
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
+            "section_transition": section.transition or "(none given)",
             "bars": section.bars,
             "riff_mode": mode.value,
             "mode_brief": MODE_BRIEFS[mode],
@@ -382,7 +384,8 @@ class _RiffCrew:
 
     def run(self, raga: str, inputs: dict[str, Any]) -> RiffPattern:
         agent = Agent(config=self._agent_config, llm=generator_llm(),
-                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER, verbose=False)
+                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER,
+                      max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._task_config, agent=agent, output_pydantic=RiffPattern,
                     guardrail=_riff_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
@@ -408,10 +411,18 @@ class _LLMRiff:
         self._context = _RiffContext(arr, mukhada)
 
     def __call__(self, span: SectionSpan, arr: Arrangement, memory: list[RiffMemo]) -> RiffPattern:
-        return verified_riff(
-            lambda fb: self._crew.run(
-                arr.raga, self._context.inputs_for(span, memory, feedback=fb)),
-            span.section, arr.beats_per_bar)
+        slot = span.section.riff_slot or span.section.kind.value
+        mode = riff_mode_for(span.section).value
+
+        def gen(fb: list[str] | None) -> RiffPattern:
+            if fb is None:
+                beat("Riff", f"laying down the '{slot}' riff ({mode})…")
+            else:                                     # SHOW WHY the take is being redone
+                beat("Riff", f"re-rolling the '{slot}' riff — flagged: {flags(fb)}",
+                     data={"violations": fb, "slot": slot, "mode": mode})
+            return self._crew.run(arr.raga, self._context.inputs_for(span, memory, feedback=fb))
+
+        return verified_riff(gen, span.section, arr.beats_per_bar)
 
 
 # --------------------------------------------------------------------------- #
@@ -528,10 +539,18 @@ def studio_riff_fn(arr: Arrangement) -> StudioRiffFn:
 
     def gen(span: SectionSpan, memory: list[RiffMemo], canvas: SectionCanvas,
             move: CanvasMove) -> RiffPattern:
-        return verified_riff(
-            lambda fb: crew.run(arr.raga, context.inputs_for(
-                span, memory, canvas=canvas, move=move, feedback=fb)),
-            span.section, arr.beats_per_bar)
+        slot = span.section.riff_slot or span.section.kind.value
+
+        def attempt(fb: list[str] | None) -> RiffPattern:
+            if fb is None:
+                beat("Riff", f"'{slot}' riff — {move.value}…")
+            else:
+                beat("Riff", f"re-rolling the '{slot}' riff — flagged: {flags(fb)}",
+                     data={"violations": fb, "slot": slot})
+            return crew.run(arr.raga, context.inputs_for(
+                span, memory, canvas=canvas, move=move, feedback=fb))
+
+        return verified_riff(attempt, span.section, arr.beats_per_bar)
 
     return gen
 

@@ -25,7 +25,12 @@ from crew.contracts import (  # noqa: E402
     SectionKind,
     build_arrangement,
 )
-from crew.dynamics import apply_dynamics, section_energy  # noqa: E402
+from crew.dynamics import (  # noqa: E402
+    apply_dynamics,
+    apply_taan_exposure,
+    section_energy,
+    taan_exposure_windows,
+)
 from render import DRUMS  # noqa: E402
 
 _DRUM = sorted(DRUMS)[0]
@@ -121,6 +126,60 @@ def test_a_formless_chart_is_unchanged():
     lead = Layer(role="lead", notes=[Note(swara="S", start=16.0, dur=1, vel=90)])
     out = apply_dynamics([rhythm, lead], arr)
     assert out[0].notes[0].vel == 110 and out[1].notes[0].vel == 90
+
+
+# --- apply_taan_exposure: the band-drop window ----------------------------------
+
+def _taan_arr(bars=2):
+    """mukhada [0,16) then a taan_long of `bars` 16-beat cycles — the exposure window is
+    the taan's FINAL avartan."""
+    return _arr([
+        _sec("mukhada", "rhythm", ["rhythm", "drums", "drone"]),
+        _sec("taan_long", "lead", ["lead", "rhythm", "drums", "tabla", "drone"], bars=bars),
+    ])
+
+
+def test_exposure_window_is_the_taans_final_avartan():
+    assert taan_exposure_windows(_taan_arr(bars=2)) == [(32.0, 48.0)]
+
+
+def test_a_one_bar_taan_gets_no_exposure():
+    assert taan_exposure_windows(_taan_arr(bars=1)) == []
+    assert taan_exposure_windows(_arr([_sec("mukhada", "rhythm", ["rhythm", "drone"])])) == []
+
+
+def test_exposure_drops_the_band_and_keeps_the_raga_voices():
+    arr = _taan_arr(bars=2)                          # window [32, 48)
+    lead = Layer(role="lead", notes=[Note(swara="S", start=36.0, dur=1, vel=90)])
+    rhythm = Layer(role="rhythm", notes=[
+        Note(swara="S", start=30.0, dur=4.0, vel=100),   # struck BEFORE — its tail rings in
+        Note(swara="S", start=36.0, dur=1.0, vel=100),   # inside the window — dropped
+    ])
+    bass = Layer(role="bass", notes=[Note(swara="S", oct=-1, start=40.0, dur=1, vel=100)])
+    drums = Layer(role="drums", hits=[DrumHit(drum=_DRUM, start=33.0)])
+    tabla = Layer(role="tabla", hits=[DrumHit(drum="tabla_lo", start=36.0)])
+    out = {ly.role: ly for ly in apply_taan_exposure([lead, rhythm, bass, drums, tabla], arr)}
+    assert [n.start for n in out["rhythm"].notes] == [30.0]     # the ring-in survives, whole
+    assert out["rhythm"].notes[0].dur == 4.0
+    assert out["bass"].notes == [] and out["drums"].hits == []  # the band is out
+    assert len(out["lead"].notes) == 1 and len(out["tabla"].hits) == 1   # sitar + tabla carry it
+
+
+def test_exposure_keeps_one_clamped_stop_hit_on_the_sam():
+    arr = _taan_arr(bars=2)
+    rhythm = Layer(role="rhythm", notes=[Note(swara="S", start=32.0, dur=4.0, vel=110)])
+    drums = Layer(role="drums", hits=[DrumHit(drum=_DRUM, start=32.0), DrumHit(drum=_DRUM, start=32.5)])
+    out = {ly.role: ly for ly in apply_taan_exposure([rhythm, drums], arr)}
+    assert [n.start for n in out["rhythm"].notes] == [32.0]
+    assert out["rhythm"].notes[0].dur == 1.0                    # the stop hit rings, briefly
+    assert [h.start for h in out["drums"].hits] == [32.0]       # the kit hits the sam, then silence
+
+
+def test_exposure_is_a_noop_outside_the_window():
+    arr = _taan_arr(bars=2)
+    rhythm = Layer(role="rhythm", notes=[Note(swara="S", start=16.0, dur=1, vel=110)])
+    out = apply_taan_exposure([rhythm], arr)
+    assert out[0].notes[0].start == 16.0 and out[0].notes[0].dur == 1
 
 
 if __name__ == "__main__":

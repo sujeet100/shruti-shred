@@ -1,0 +1,135 @@
+# Per-call briefs for the Lead generator — exactly ONE of these is injected as
+# {role_brief} per generation (crew/lead.py::_render_role_brief), so a call reads only
+# the rules for the section it is actually composing. This replaced the old universal
+# prompt that taught every gat role + section kind on every call (2026-07-16 latency
+# campaign): the model deliberates over what applies, so irrelevant rules cost thinking
+# tokens, not just context.
+#
+# Selection: a section with a known gat `form_role` gets that role's brief (the role
+# subsumes the kind); otherwise its section `kind`'s brief; otherwise `default`.
+# Every rule a gat verifier enforces (crew/gat_verifier.py) MUST stay stated here —
+# a trimmed rule the verifier still checks just turns into re-roll spend.
+
+kinds:
+  alaap: |
+    An ALAAP: slow, unmetered, spacious. Unfold the seed from the mandra upward — long
+    notes with an occasional meend, and true rests between phrases. No hurry.
+  melody: |
+    A MELODY: a singable theme. State the seed clearly, answer it (A, then a varied A',
+    a contrasting B, then A''), and keep a medium pace.
+  taan: |
+    A TAAN: fast and virtuosic. Develop the seed with sequences and fragments,
+    accelerate by mixing triplets and shorter values (never one even duration), climb
+    to ONE peak in the taar, and land the closing phrase on the sam. Never a straight
+    aroha/avaroha run.
+  solo: |
+    A SOLO: improvise on the seed — alternate held statements with quick developed runs.
+  outro: |
+    An OUTRO: take the seed one last time and resolve it down to a held Sa. A tihai
+    (one phrase stated THREE times, the last landing on the sam) is the classic close.
+
+roles:
+  mukhada: |
+    The MUKHADA — the GAT HOOK. Write EXACTLY ONE avartan; code loops it across the
+    section and brings it back VERBATIM on every return (you never restate or vary it
+    yourself), so pour everything into this single cycle:
+      - BUILD IT ON THE PAKAD — the raga's signature phrase IS the natural hook; quote
+        or closely derive the head from it.
+      - Fill the whole avartan and LAND ON THE SAM: resolve onto a resting swara
+        (ideally the vadi or Sa).
+      - LOOP SEAMLESSLY: write the LAST note to lead melodically into the FIRST, so
+        each repeat feels like it lands rather than restarts.
+      - MIX THE NOTE VALUES — at least THREE distinct durations: 8ths (0.5) for the
+        movement, quarters, and at least one HELD note (2+ beats) as the nyas resting
+        point. A head of even values reads as a metronome and is rejected.
+      - Give it a short recurring bol signature (e.g. da diri da ra) — its rhythmic
+        identity, restated on every return.
+  manjha: |
+    The MANJHA — the LOWER-REGISTER BRIDGE (part of the sthayi; short and calm):
+      - ONE clear, spacious idea filling the window (about one avartan) — longer nyas,
+        meend and breathing room, never a busy taan-like run.
+      - Centre of gravity in the mandra / lower-madhya: DIP into the mandra (oct -1)
+        and do NOT touch the taar — the antara owns the upper octave.
+      - Vary the note lengths (a flat wall of equal durations is rejected).
+      - Keep the head's rhythmic skeleton recognisable but CONTRAST it by register and
+        contour (dip down, then settle) rather than repeating it.
+      - The mukhada re-enters right after you: shape your FINAL notes as a stepwise
+        lead-in that flows into the head's first swara.
+  antara: |
+    The ANTARA — the SECOND MOVEMENT of the SAME gat, never a new tune. In order:
+      - OPEN in the middle (madhya) octave by QUOTING the mukhada's opening swaras
+        (restate or vary lightly; never open in the taar).
+      - DEVELOP that material through sequential variations, climbing gradually — a
+        good third of your material recognisably derived from the head.
+      - Enter the taar (+1) and reach the composition's HIGHEST note ONCE, past the
+        midpoint — the emotional peak; then DESCEND (never end on the peak).
+      - Come to REST on or near madhya Sa, handing off into the returning mukhada.
+      - Fill the window, pacing close to the mukhada's, and MIX at least three distinct
+        note values (8ths and quarters against the held notes) — a wall of even long
+        notes reads as a drone and is rejected.
+  taan_short: |
+    A TAAN FILL — a short cadential burst spliced into the mukhada:
+      - SIXTEENTH-NOTES only (dur 0.25); only the final landing note may be longer.
+      - Fill the cut window exactly.
+      - Resolve stepwise into the head's first swara (see THE GAT HEAD below), arriving
+        on the next sam. A connective flourish, not a solo.
+  taan_long: |
+    The TAAN — THE CLIMAX of the whole composition. A taan is ONE musical journey grown
+    from the piece's MOTIF, not "the scale, quickly":
+      - Restate the motif EARLY, then develop that one idea — sequence, fragment,
+        compress; never unrelated fast phrases.
+      - Choose ONE dominant style for the whole taan (phrase_plan.taan_style): koot
+        (vakra zig-zag along the raga's own chalan — the DEFAULT, deeply raga-true);
+        gamak (every note shaken with force — a natural metal fit); alankarik
+        (sequenced palta patterns at speed); chhoot (a swift dashing descent from the
+        taar after the peak); sapat (a straight run — ONE dash, never the whole taan);
+        or mishra (sapat and koot mixed).
+      - THE ARC is badhat (phrase_plan.register_plan): start in the madhya (not the
+        taar), widen the range gradually, reach the single highest note ONCE past the
+        midpoint, then descend purposefully.
+      - THE RHYTHM is burst and space (phrase_plan.rhythm_plan): a pickup, a sixteenth
+        burst (4+ consecutive 0.25s), a held nyas or a true rest, a bigger burst —
+        vary the notes-per-beat (layakari), with at least three distinct durations. At
+        the fastest passages think like a sitarist's TODA: articulate with diri/darada
+        bols rather than more notes.
+      - END IN FLIGHT: the final approach is itself a dense sixteenth run resolving
+        STRAIGHT onto the closing sam, landing on a resting swara — a landing walked to
+        on long notes is rejected. The classic cadence is a TIHAI (one short phrase
+        stated THREE times, the last landing exactly on the sam). A brilliant landing
+        matters more than maximum speed.
+  intro: |
+    The AOCHAR — a SHORT ALAP developing ONE MUSICAL THOUGHT. Make THIS raga
+    unmistakable, establish Sa as HOME, and TEASE the gat so the mukhada arrives as
+    the natural culmination of your idea:
+      - MOTIF FIRST: phrase_plan.seed is 2-5 swaras DERIVED FROM THE MUKHADA HEAD
+        shown below (a fragment of the head's swaras is ideal; fall back to a pakad
+        fragment when no head is shown). Every phrase answers "how do I develop this
+        motif?" — never "what new phrase should I invent?". Describe the reveal in
+        phrase_plan.badhat_plan.
+      - Compose 3-6 SHORT phrases, each with the SAME shape: explore/vary the motif ->
+        resolve HOME to Sa -> hold that Sa -> a true REST of ~0.5-2 beats (the nyas
+        breath). Real silence separates EVERY pair of phrases — the pause matters as
+        much as the phrase.
+      - BADHAT (progressive reveal): phrase 1 states only a FRAGMENT of the motif (2-3
+        swaras) in a NARROW range around home; each later phrase adds a note or widens
+        the range; present the FULL motif at the intro's widest reach; the intro's
+        highest note arrives PAST THE MIDPOINT.
+      - STATE THE RAGA: build the phrases from the pakad and chalan (the motif quoted,
+        then varied); at least one phrase must STATE THE PAKAD outright.
+      - OPEN on or around madhya Sa (never the taar) and let the first phrases DIP
+        INTO THE MANDRA before the line rises.
+      - SA IS THE GRAVITATIONAL CENTRE: EVERY phrase ends on Sa; Sa carries roughly
+        35-50% of the sounding time; re-sound Sa between phrases LOW (a mandra Sa,
+        oct -1) like a guitarist's low open string, keeping chikari rare. Sa is where
+        a phrase LANDS — never a note to sit on continuously.
+      - Meend SPARINGLY: a meend note is heard at its TARGET, so save it for a glide
+        INTO a landing; most alap notes sound their own written swara plain.
+      - The FINAL phrase only SETTLES: end on a long HELD Sa (2+ beats, the longest of
+        the intro); code then lets it ring into a reserved silence before the gat enters.
+  outro: |
+    The OUTRO: settle onto a held Sa. A tihai — one phrase stated THREE times, the
+    last landing on the sam — is the classic close.
+
+default: |
+  A free section: shape the phrase to the section's creative intent and its seam into
+  the next section, developing the piece's motif.

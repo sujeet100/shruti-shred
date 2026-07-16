@@ -15,9 +15,9 @@ from __future__ import annotations
 import os
 
 # --- Pure constants (no env, safe at import) ------------------------------------
-# Gemini has no "reasoning effort" knob in the Claude-Code sense — we steer with
-# temperature. Generators explore; critics/Conductor stay steady. Composers sit
+# Temperature: generators explore; critics/Conductor stay steady. Composers sit
 # in between: creative enough to vary, disciplined enough to emit valid structure.
+# (Reasoning is steered separately, via the Gemini thinking level — see build_llm.)
 GENERATOR_TEMPERATURE: float = 0.9
 COMPOSER_TEMPERATURE: float = 0.7
 CRITIC_TEMPERATURE: float = 0.2
@@ -83,9 +83,32 @@ COMPOSER_MAX_ITER: int = 3
 # backstop against a runaway ReAct loop, not a working budget.
 CRITIC_MAX_ITER: int = 4
 
+# CrewAI's OWN task-level retry on error — set to 0 on EVERY agent (Sujit's call,
+# 2026-07-16): the default (2) silently re-dials a failed call up to twice, so a dead
+# connection pins one progress beat for 3 x the 120s timeout (~6 min) before the flow
+# hears about it. We fail FAST and LOUDLY instead: the UI falls back to Demo on a live
+# failure, and every retry that matters is OURS — the verifier re-rolls and guardrail
+# retries carry targeted feedback, which a blind re-dial never does.
+AGENT_RETRY_LIMIT: int = 0
+
 # Defaults; override via the env vars named below.
 _DEFAULT_FLASH: str = "gemini/gemini-3.5-flash"
 _DEFAULT_REASONING: str = "low"
+
+# The Interpreter's thinking level. Faithful extraction is driven by the PROMPT's
+# rules + examples, not by deliberation (prompt-before-effort), so it runs at the
+# floor — Gemini 3.x's `minimal` (Sujit, 2026-07-16). Uncapped, the extractor was
+# observed burning ~650 thinking tokens on a job that needs none.
+EXTRACTOR_THINKING: str = "minimal"
+
+# Per-request timeout. A live run hung for 19 minutes on ONE dropped LLM call (2026-07-16 —
+# no default timeout anywhere in the native google-genai stack), freezing the whole flow
+# mid-demo. Raised 120 -> 180 the same evening: the stricter verifier constraints made the
+# hard lead cells think longer (healthy calls observed up to ~111s / 31k tokens), and 120s
+# started clipping LEGITIMATE work (a 504 killed a 12-minute run). 180s fits the observed
+# tail with margin while a true hang still dies visibly in three minutes. On expiry the
+# call raises; the flow surfaces the failure (the UI falls back to Demo on a failed run).
+_DEFAULT_TIMEOUT_S: int = 180
 
 
 def load_env() -> None:
@@ -113,8 +136,21 @@ def pro_model() -> str:
 
 
 def reasoning_effort() -> str:
-    """Gemini reasoning effort; `RMA_REASONING_EFFORT` overrides (default low)."""
+    """The default thinking level (Gemini `thinking_level`: minimal/low/medium/high);
+    `RMA_REASONING_EFFORT` overrides (default low)."""
     return os.getenv("RMA_REASONING_EFFORT", _DEFAULT_REASONING)
+
+
+def llm_timeout_s() -> int:
+    """Per-request LLM timeout in seconds; `RMA_LLM_TIMEOUT_S` overrides (default 180).
+    A non-integer value falls back to the default rather than crashing a run."""
+    raw = os.getenv("RMA_LLM_TIMEOUT_S")
+    if raw is None:
+        return _DEFAULT_TIMEOUT_S
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return _DEFAULT_TIMEOUT_S
 
 
 def has_api_key() -> bool:
@@ -154,11 +190,34 @@ def canvas_passes() -> int:
 def build_llm(model: str, temperature: float, effort: str | None = None):
     """Construct a CrewAI LLM (lazy import: no crewai cost until called).
 
-    `effort` overrides the global reasoning effort for this one agent — used where
-    a task needs more budget than the default (e.g. faithful extraction).
+    `effort` overrides the global thinking level for this one agent — e.g. the
+    extractor runs `minimal` while the rest of the crew runs the default.
+
+    The thinking cap rides the provider's `thinking_config` passthrough, NOT
+    `reasoning_effort`: CrewAI 1.15.2's native Gemini provider silently DROPS
+    `reasoning_effort` (only the OpenAI/Azure providers forward it), so thinking ran
+    at the model default — `medium`, uncapped. Traces of 2026-07-16 showed lead calls
+    burning 4k-18.5k thinking tokens each (40-137s latencies, 504 DEADLINE_EXCEEDED
+    stalls); `thinking_level` is the knob the API actually honors. Re-verify the
+    passthrough (and the reasoning_tokens in a trace) on any CrewAI upgrade.
+
+    The per-request timeout rides `client_params` into the native google-genai client
+    (`http_options.timeout`, milliseconds) — both knobs are specific to the
+    Gemini-native provider; the non-`gemini/` fallback path gets `reasoning_effort`,
+    which those providers do forward.
     """
     from crewai import LLM
-    return LLM(model=model, temperature=temperature, reasoning_effort=effort or reasoning_effort())
+    level = effort or reasoning_effort()
+    common: dict = {"temperature": temperature,
+                    "client_params": {"http_options": {"timeout": llm_timeout_s() * 1000}}}
+    if model.startswith("gemini/"):
+        from google.genai import types
+        return LLM(model=model,
+                   thinking_config=types.ThinkingConfig(thinking_level=level,
+                                                        include_thoughts=True),
+                   **common)
+    valid = {"none", "low", "medium", "high"}                 # CrewAI's reasoning_effort Literal
+    return LLM(model=model, reasoning_effort=level if level in valid else "low", **common)
 
 
 def generator_llm():
@@ -193,9 +252,8 @@ def extractor_llm():
     """Low-temperature Flash for extraction (Interpreter).
 
     Runs stone cold (temperature 0 — extraction needs reproducibility, not variety)
-    at the default (low) effort. Faithful extraction is driven by the PROMPT's rules
-    + examples, not by burning reasoning effort — prompt first, effort only if a
-    solid prompt still fails (see DESIGN.md). The `effort` param on build_llm exists
-    for that escalation, deliberately unused here.
+    at MINIMAL thinking. Faithful extraction is driven by the PROMPT's rules +
+    examples, not by deliberation — prompt first, effort only if a solid prompt
+    still fails (see DESIGN.md).
     """
-    return build_llm(flash_model(), EXTRACTOR_TEMPERATURE)
+    return build_llm(flash_model(), EXTRACTOR_TEMPERATURE, effort=EXTRACTOR_THINKING)

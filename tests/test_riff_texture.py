@@ -23,6 +23,7 @@ from crew.contracts import RiffNote, RiffPattern, Section, SectionKind  # noqa: 
 from crew.riff_texture import (  # noqa: E402
     MODE_BRIEFS,
     RiffMode,
+    open_the_rings,
     riff_mode_for,
     verified_riff,
     verify_riff,
@@ -111,6 +112,12 @@ def test_mukhada_drives_taan_pads_breakdown_stabs():
     assert riff_mode_for(_section(SectionKind.BREAKDOWN)) is RiffMode.STABS
 
 
+def test_manjha_pads_the_low_bridge():
+    # changed from DRIVE (2026-07-16): the calm low bridge wants a ringing chordal
+    # platform under the lead's sparse line, not the mukhada's chug engine
+    assert riff_mode_for(_section(SectionKind.MELODY, "manjha")) is RiffMode.PADS
+
+
 def test_every_mode_has_a_prompt_brief():
     for mode in RiffMode:
         assert MODE_BRIEFS[mode].strip(), mode
@@ -160,6 +167,27 @@ def test_fancy_techniques_are_rationed():
     assert any("scrape" in v for v in viol)
 
 
+def test_drive_owes_open_ringing_weight():
+    # the Malkauns render's mukhada riff in miniature: EVERY note palm-muted (even the
+    # chorded ones) — pure attack, zero resonance; the engine must also breathe
+    pm = [("d", 0.5), ("d", 0.5), ("S", 0.5), ("S", 0.5), ("S", 1.0), ("S", 0.5), ("S", 0.5)]
+    tail = [("m", 0.5), ("g", 0.5), ("S", 0.5), ("S", 1.0)]
+    pattern = RiffPattern(notes=(
+        [_n(s, d, chord=[s], technique="palm_mute") for s, d in pm]
+        + [_n("S", 1.0, rest=True)]
+        + [_n(s, d, chord=[s], technique="palm_mute") for s, d in tail]
+        + [_n("S", 0.5, rest=True)]))
+    viol = verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert any("RINGS open" in v for v in viol)
+
+
+def test_a_palm_muted_hold_is_not_sam_weight():
+    pattern = _drive_clean()
+    pattern.notes[0] = _n("S", 1.0, technique="palm_mute")   # written long, gates to a tick
+    viol = verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert any("sam" in v for v in viol)
+
+
 # --- PADS: sustained ringing chords, not motion ----------------------------------
 
 def test_a_clean_pads_cycle_passes():
@@ -176,6 +204,20 @@ def test_pads_require_a_long_chorded_ring():
     pattern.notes[0] = _n("S", 3.0)               # the long hold loses its chord stack
     viol = verify_riff(pattern, mode=RiffMode.PADS, cycle_beats=_CYCLE)
     assert any("chord" in v for v in viol)
+
+
+def test_pads_ring_must_be_open_not_palm_muted():
+    # the Malkauns render's taan "pads" in miniature: long WRITTEN durations, every note
+    # palm-muted — the renderer gates each to ~70ms, so nothing actually rings
+    pattern = RiffPattern(notes=[
+        _n("S", 3.0, chord=["S"], technique="palm_mute"),
+        _n("S", 1.0, rest=True),
+        _n("g", 2.0, chord=["g"], technique="palm_mute"),
+        _n("S", 2.0, chord=["P"], technique="palm_mute"),
+    ])
+    viol = verify_riff(pattern, mode=RiffMode.PADS, cycle_beats=_CYCLE)
+    assert any("NEVER ring" in v for v in viol)          # the ring share sees through the duration
+    assert any("not palm-muted" in v for v in viol)      # and the long-ring check does too
 
 
 # --- STABS: hit then silence, low, weighted ---------------------------------------
@@ -240,6 +282,46 @@ def test_the_verifier_respects_the_sections_mode():
     gen_pads = _gen_sequence(_pads_clean())
     out = verified_riff(gen_pads, _section(SectionKind.MELODY, "antara"), _CYCLE)
     assert out is not None and len(gen_pads.feedbacks) == 1
+
+
+# --- open_the_rings: the deterministic sustain guarantee ---------------------------
+
+def _mute_wall() -> RiffPattern:
+    """The live Malkauns failure in miniature: a legal drive cycle where EVERY note —
+    even the long chorded ones — is palm-muted, so nothing rings."""
+    return RiffPattern(notes=[
+        _n("S", 1.0, chord=["S"], technique="palm_mute"),
+        *[_n("S", 0.5, chord=["S"], technique="palm_mute") for _ in range(6)],
+        _n("S", 1.0, rest=True),
+        *[_n("S", 0.5, chord=["S"], technique="palm_mute") for _ in range(4)],
+        _n("S", 1.0, chord=["P"], technique="palm_mute"),
+    ])
+
+
+def test_open_the_rings_demutes_the_longest_chords():
+    out = open_the_rings(_mute_wall(), RiffMode.DRIVE)
+    opened = [n for n in out.notes if not n.rest and n.technique is None]
+    assert opened and all(n.dur >= 1.0 and n.chord for n in opened)   # longest chorded first
+    sounding = [n for n in out.notes if not n.rest]
+    ring = sum(n.dur for n in opened)
+    assert ring >= 0.2 * sum(n.dur for n in sounding)                 # the DRIVE budget is met
+    chugs = [n for n in sounding if n.dur < 1.0]
+    assert all(n.technique == "palm_mute" for n in chugs)             # the chug ground survives
+
+
+def test_open_the_rings_is_a_noop_when_the_budget_is_met():
+    drive, stabs = _drive_clean(), _stabs_clean()
+    assert open_the_rings(drive, RiffMode.DRIVE) == drive             # already rings enough
+    assert open_the_rings(stabs, RiffMode.STABS) == stabs             # STABS has no ring budget
+
+
+def test_a_never_clean_riff_still_comes_back_ringing():
+    # both (all three, with the raised retry) takes are mute walls — the fallback repairs
+    # the best take, so the rendered riff is GUARANTEED sustained chords
+    gen = _gen_sequence(_mute_wall(), _mute_wall(), _mute_wall())
+    out = verified_riff(gen, _section(SectionKind.RIFF, "mukhada"), _CYCLE)
+    assert len(gen.feedbacks) == 3                                    # tries raised to 2 re-rolls
+    assert any(not n.rest and n.dur >= 1.0 and n.technique is None for n in out.notes)
 
 
 if __name__ == "__main__":

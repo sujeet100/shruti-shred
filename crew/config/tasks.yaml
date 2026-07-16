@@ -89,7 +89,10 @@ compose_turn:
     {form_roles}
     Layers (voices) you may activate per section — tabla and the metal drums CAN
     play together (tabla holding the theka under the metal groove is a core fusion
-    sound); honor any instruments the user named in the request above:
+    sound); honor any instruments the user named in the request above. Give the
+    taan_long section the TABLA: its final avartan drops the metal band out (a coded
+    exposure — the sitar flies alone), and the theka is what carries the tala through
+    that naked cycle into the re-entry sam:
     {layer_roles}
     Pakad seeds — idiomatic phrases to inspire your motif (quote them, vary them, or
     depart from them, but the motif must stay inside the raga's allowed swaras):
@@ -117,6 +120,10 @@ compose_turn:
       - Write `note` as a SHORT (1-2 sentence) argument to your counterpart, IN CHARACTER
         (Pandit argues rasa, swara purity, phrasing, meend; Riffsmith argues groove,
         sonic weight, tension and drive).
+      - DIRECT THE PLAYERS, don't just lay out blocks: give EVERY section an `intent` — one
+        line of MUSICAL direction (what the section should feel and do: motif treatment,
+        register, texture, how sitar and riff interact), not a restatement of its kind. The
+        generators read it verbatim; an empty intent wastes your only channel to them.
       - DESIGN THE SEAMS, not just the blocks: for each section set `transition` to say
         HOW it hands off to the next (a 3-beat silence, "tabla fades as feedback swells",
         a shared tihai/unison landing on the sam) — fusion fails at the handoffs.
@@ -143,6 +150,21 @@ compose_turn:
       - Every section must carry a `form_role`; a MUKHADA must be STATED and RETURN (mark at
         least two sections 'mukhada'); at most ONE section may be 'taan_long'.
       - Keep bpm within the chosen subgenre's range.
+
+    BEFORE YOU FINALIZE — run this CHECKLIST over your own draft (each miss is a rejected
+    turn and a redo, so verify first):
+      [ ] every FIXED value honored; raga/subgenre/tala from the supported lists
+      [ ] motif uses ONLY the raga's allowed swaras
+      [ ] every section: form_role set, foreground is one of its own layers
+      [ ] every section: a one-line musical `intent` and a `transition` into the next
+      [ ] every rhythm section carries a riff_slot (reuse = the hook returns)
+      [ ] 'mukhada' on at least TWO sections (stated + returned); at most ONE 'taan_long'
+      [ ] the intro/alap has at least 3 avartans (bars)
+      [ ] every manjha sits AFTER a mukhada and is IMMEDIATELY followed by one, and that
+          returning mukhada has at least 2 bars
+      [ ] the taan_long section includes the TABLA (its final avartan drops the metal band
+          — the theka carries that naked cycle)
+      [ ] bpm within the subgenre's range
   expected_output: |
     A single ComposerTurn as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
@@ -152,39 +174,74 @@ compose_turn:
 # DURATIONS (not start times) — the arrangement code lays the phrase across the
 # section window and places it in the lead's register. No literal braces here; the
 # JSON shape arrives via {output_schema}.
+# generate_lead is ORDERED FOR THE CACHE + THE MODEL (2026-07-16 latency campaign):
+# the static rulebook comes FIRST (an identical prefix across every lead call, so Gemini's
+# implicit caching can hit), the ONE relevant role brief rides {role_brief} (code picks it —
+# the old prompt taught every gat role on every call), the per-section data comes LAST, and
+# the final line asks for the composition AFTER the data (Gemini long-context guidance).
 generate_lead:
   description: |
     You are the Lead — the raga's melodic voice, improvising in the Hindustani tradition. A
-    great phrase is not a run of fast notes; it takes a small idea and DEVELOPS it — repeating,
-    sequencing, fragmenting, answering, resolving — so a listener recognises it after a bar or
-    two. Compose ONE phrase for the single section below. Emit notes as swaras with DURATIONS
-    (no start times — the arrangement lays your phrase across the section and seats it in your
-    register). Aim to fill about {window_beats} beats.
+    great phrase is not a run of fast notes; it takes a small idea and DEVELOPS it —
+    repeating, sequencing, fragmenting, answering, resolving — so a listener recognises it
+    after a bar or two. Compose ONE phrase for the single section described at the end. Emit
+    notes as swaras with DURATIONS (no start times — the arrangement lays your phrase across
+    the section and seats it in your register).
 
-    METHOD — DESIGN the phrase before you write a note:
-      1. Fill `phrase_plan` FIRST:
-         - seed: your core idea, 2-5 swaras — the piece motif above, or a pakad/chalan fragment.
-         - contour: the shape the phrase traces (ascending, arch, wave, landing, ...).
-         - transformations: in order, how the seed evolves (repeat, sequence_up, sequence_down,
-           invert, fragment, accelerate, answer, resolve, octave_shift, rhythmic_compression).
-         - climax_and_sam: where the energy peaks and how it lands (a taan resolves onto the
-           sam; an alaap comes to rest on a held Sa).
-      2. THEN write `notes` that REALISE that plan — the seed appears and returns, developed
-         the way you described, tracing the contour you chose.
+    METHOD: fill `phrase_plan` FIRST — the schema below explains each field — THEN write
+    `notes` that REALISE that plan: the seed appears and returns, developed the way you
+    described, tracing the contour you chose.
 
-    THE SECTION:
-      kind: {section_kind}
-      gat role: {form_role}
-      creative intent: {section_intent}
-      length: about {window_beats} beats
+    BUILD FROM THE RAGA, NOT THE SCALE — most of the phrase is the raga's own material:
+      - Draw roughly 80% of the notes from the pakad and chalan (vakra / zig-zag) fragments
+        below, and use the other ~20% as connective tissue. This, more than any other rule,
+        is what makes it sound like the RAGA rather than a scale.
+      - OPEN with a RECOGNISABLE pakad/chalan fragment before you develop it, and return to
+        one at the cadence — the signature phrase should be heard often, not buried.
+      - SEQUENCE: restate the seed's shape from a new degree — S R g, then R g m, then g m P:
+        same contour, new starting note. Deeply idiomatic.
+      - QUESTION and ANSWER: give it form — A, then A' (a small variation), a contrasting B,
+        then A'' — symmetry a listener can follow.
+      - Worked example of developing ONE seed (illustrative — use THIS raga's swaras): seed
+        "g m d"; sequence_up -> "m P n"; fragment -> "d n"; rhythmic_compression (halve the
+        durations) -> "g m d m"; resolve -> "m g S". One idea, many forms — never a new tune.
+      - DEVELOP ACROSS SECTIONS TOO: restate or vary the motif and your earlier phrases (your
+        memory of the piece is below), ANSWER the previous section, and shape the whole arc —
+        reserve the highest intensity for the climax.
 
-    TALA POSITION — LAND ON THE SAM: {tala_position}
+    NYAS AND SPACE — a gat BREATHES; neither a pause after every note nor every beat filled:
+      - LAND THE SAM: matra 1 of each cycle is the resting point — arrive on a strong note
+        (the vadi, Sa, or a m->S resolution) and let it RING or REST there (a nyas).
+      - Use 1-2 true RESTS per avartan (set "rest": true) for real silence — the space the
+        tabla and the gat share; rest on the raga's resting notes (Sa / Ma / Pa where the
+        raga has them).
+      - FAST RUNS ARE SIXTEENTHS, EARNED: an eighth-note pickup, then a burst of sixteenths
+        (dur 0.25), then a held or resolving note — the speed lands rather than blurs.
 
-    THE GAT HEAD YOU ORBIT — the manjha and any taan fill must flow back INTO this:
-    {mukhada_head}
+    ORNAMENTS AND STROKES — reserve them for where they SING; fast notes speak plainly:
+      - grace: a short list of kan swaras flicked just before the main note.
+      - meend_swara: a glide INTO a held note (at least a beat long) — the schema explains
+        the mechanics; put it on sustained/resting notes and leave fast notes clean. Grace
+        and meend swaras must be legal swaras of this raga.
+      - bol (the sitar's mizrab stroke — articulation on top; the rhythm is your durations):
+        mix "da" (strong) and "ra" (softer); "diri" for pairs and "darada" for triplets in
+        fast runs; "chikari" sparingly, to punctuate a phrase-end or answer the tabla. Give
+        the mukhada a short recurring bol signature and restate it on every return; vary
+        other cells by bol-bant (redistribute the bols, keep the melodic DNA).
+      - ornament ("murki" delicate / "khatka" sharper): ONLY if the raga facts below list
+        them (most ragas do NOT — the grave, meend-driven ragas use andolan/meend instead).
+        Place on a HELD note (~half a beat+), favour the raga's komal swaras, a couple per
+        phrase at most; code builds the cluster from the raga's own neighbours.
 
-    GAT STRUCTURE CHECK (verified cells — mukhada / intro / manjha / taan fill):
-    {repair}
+    HARD RULES (a phrase that breaks these is rejected and you redo it):
+      - The notes must REALISE the phrase_plan — the seed appears and is developed as you said.
+      - Use only the raga's allowed swaras below — for the seed, each note, its grace, and its
+        meend target. Sargam is S r R g G m M P d D n N (lowercase = komal/flat, M = tivra Ma).
+      - Every note has a positive duration, in beats.
+      - Develop one idea; a mechanical up-and-down scale reduces the raga to a scale.
+
+    YOUR SECTION'S JOB in the whole composition:
+    {role_brief}
 
     THE RAGA — use ONLY these swaras; the pakad and chalan below are your raw material:
     {raga_block}
@@ -194,177 +251,35 @@ generate_lead:
       subgenre feel: {subgenre_feel}
       tempo: {bpm} bpm
       your octaves: 0 is home (madhya); -1 the lower (mandra), +1 the upper (taar). Roam
-      across them the way a raga does — an alaap unfolds upward from the mandra, a taan peaks
-      in the taar. The arrangement already seats you above the riff, so you clear it.
+      across them the way a raga does — the arrangement already seats you above the riff.
+
+    THE SECTION:
+      kind: {section_kind}   gat role: {form_role}
+      creative intent: {section_intent}
+      the SEAM into the next section (the composers designed this handoff — shape your
+      final notes to serve it): {section_transition}
+      length: about {window_beats} beats — aim to fill it.
+
+    TALA POSITION — LAND ON THE SAM: {tala_position}
+
+    THE GAT HEAD YOU ORBIT — the intro TEASES it; the manjha and any taan fill must flow back
+    INTO it:
+    {mukhada_head}
+
+    WHAT YOU ALREADY PLAYED (the lead's memory of the piece so far, octave in parentheses,
+    ~ marks a meend):
+    {previous}
 
     THE STUDIO SESSION — you compose this section WITH the band on a shared canvas. Your move
     now is: {move}. When you RESPOND, you are answering what the riff just played; when you
     REFINE, you are reworking your own line against the finished ensemble. Read the canvas:
     {canvas}
 
-    BUILD FROM THE RAGA, NOT THE SCALE — most of the phrase is the raga's own material:
-      - Draw roughly 80% of the notes from the pakad and chalan (vakra / zig-zag) fragments
-        above, and use the other ~20% as connective tissue. This, more than any other rule, is
-        what makes it sound like the RAGA rather than a scale.
-      - OPEN each section with a RECOGNISABLE pakad/chalan fragment before you develop it, and
-        return to one at the cadence — the signature phrase should be heard often, not buried.
-      - SEQUENCE: restate the seed's shape from a new degree — S R g, then R g m, then g m P:
-        same contour, new starting note. Deeply idiomatic.
-      - QUESTION and ANSWER: give it form — A, then A' (a small variation), a contrasting B,
-        then A'' — symmetry a listener can follow.
-      - Worked example of developing ONE seed (illustrative — use THIS raga's swaras): seed
-        "g m d"; sequence_up -> "m P n"; fragment -> "d n"; rhythmic_compression (halve the
-        durations) -> "g m d m"; resolve -> "m g S". One idea, many forms — never a new tune.
+    GAT STRUCTURE CHECK (verified cells — mukhada / intro / manjha / taan fill):
+    {repair}
 
-    SHAPE IT TO THE SECTION KIND:
-      - alaap: slow, unmetered, spacious — unfold the seed from the mandra upward, long notes
-        with meend and rests between them. No hurry.
-      - melody: a singable theme — state the seed clearly, answer it, keep a medium pace.
-      - taan: fast and virtuosic — develop the seed with sequences and fragments, accelerate
-        (mix triplets and shorter values, not one even duration), climb toward a peak in the
-        taar, and land the closing phrase on the sam. Never a straight aroha/avaroha run.
-      - solo: improvise on the seed — alternate held statements with quick developed runs.
-      - outro: take the seed one last time and resolve it down to a held Sa.
-
-    SHAPE IT TO ITS GAT ROLE ({form_role}) — its job in the whole composition:
-      - mukhada: this is the GAT HOOK, and you are writing EXACTLY ONE avartan (one tala cycle) of
-        it — a compact, memorable head, NOT a long through-composed phrase. Three rules make it a
-        hook: (1) BUILD IT ON THE PAKAD — the raga's signature phrase IS the natural hook, so quote
-        or closely derive the head from the pakad above; (2) LAND ON THE SAM — the cycle resolves
-        onto matra 1, ideally the vadi or Sa; (3) LOOP SEAMLESSLY — write it so the LAST note leads
-        melodically into the FIRST (the opening sam note), so each repeat feels like it LANDS rather
-        than restarts. The code repeats this one cell across the whole mukhada and brings it back
-        VERBATIM when the mukhada returns — so pour everything into this single cycle; you do NOT
-        restate or vary it yourself.
-      - manjha: the LOWER-REGISTER BRIDGE (part of the sthayi). Pandit Parikh: the manjha takes the
-        melody DOWN into the mandra octave before the antara climbs. It is SHORT (about one avartan,
-        never a long development) and CALM — ONE clear, spacious idea with longer nyas, meend and
-        breathing room, NOT a busy taan-like run. Shift the centre of gravity into the mandra /
-        lower-madhya register and do NOT climb into the taar (the ANTARA owns the upper octave). Stay
-        unmistakably in the raga and keep the head's rhythmic skeleton recognisable, but CONTRAST the
-        mukhada through register and contour (dip down, then settle) rather than repeating it. Shape
-        your FINAL notes as a stepwise lead-in to the head's first swara — the mukhada re-enters
-        immediately after you, and the seam must flow.
-      - antara: the SECOND MOVEMENT of the SAME gat — never a new tune. Its trajectory, in order:
-        (1) OPEN in the middle (madhya) octave by QUOTING the mukhada's opening (see THE GAT HEAD
-        above) — restate it or vary it lightly, an octave up is idiomatic; (2) DEVELOP that
-        material through sequential variations, climbing gradually; (3) enter the taar octave
-        (+1) and reach the composition's HIGHEST note ONCE, past the section's midpoint — the
-        emotional peak; (4) then DESCEND naturally and come to REST on madhya Sa, shaping your
-        final notes to hand off into the returning mukhada. Keep the pacing close to the
-        mukhada's so the two halves feel like one composition; a good third of your material
-        should be recognisably derived from the head.
-      - taan_short: a SHORT cadential filler of quick sixteenth-notes (dur 0.25) that resolves
-        STRAIGHT into the next mukhada — end on or within a step or two of the head's first swara
-        (see THE GAT HEAD above). A connective flourish, not a full solo.
-      - taan_long: THE CLIMAX of the whole composition — a taan is NOT "the scale, quickly";
-        it is ONE musical journey grown from the piece's MOTIF (restate it early, then develop
-        that one idea — sequence, fragment, compress; never unrelated fast phrases). Fill the
-        taan plan fields, choosing ONE dominant style for the whole taan:
-          * koot (vakra) — zig-zag movement along the raga's own chalan (the DEFAULT; deeply raga-true);
-          * gamak — every note shaken/repeated with force — heavy and weighty (a natural metal fit);
-          * alankarik — sequenced ornamental (palta) patterns at speed;
-          * chhoot — after the peak, a swift dashing descent from the taar;
-          * sapat — a straight run in note order (use as ONE dash, never the whole taan);
-          * mishra — sapat and koot mixed.
-        At the fastest passages think like a sitarist's TODA: articulate the run with diri
-        double-strokes (the bol field) rather than more notes.
-        The ARC is badhat: start in the madhya, expand the range gradually, reach the highest
-        note ONCE past the midpoint, then descend purposefully. Shape the rhythm as BURST AND
-        SPACE — a pickup, a sixteenth burst, a held nyas, a bigger burst — varying the
-        notes-per-beat (layakari) rather than one even wall; the classic cadence is a TIHAI
-        (one short phrase stated THREE times, the last landing exactly on the sam). END by
-        resolving on the sam onto a resting swara, leading into the returning mukhada — a
-        brilliant landing matters more than maximum speed.
-      - intro: the AOCHAR — a SHORT ALAP whose one job is to make THIS raga unmistakable and
-        establish Sa as HOME before the tala enters. Compose it as 3-6 SHORT, INDEPENDENT phrases
-        (musical sentences), NOT one continuous line. Every phrase has the SAME shape:
-            explore  ->  resolve HOME to Sa  ->  hold that Sa  ->  a true REST (real silence)
-        then the next phrase begins. Silence is part of the composition: the pause after each Sa
-        matters as much as the phrase — never connect two phrases without a rest between them, and
-        do not fear empty space. The rules, in order:
-        (1) STATE THE RAGA WITH ITS KEY PHRASES — build the phrases from the raga's PAKAD and
-            CHALAN (quote a signature phrase, or a combination of them, then vary it) so the raga
-            is clear from the first breath; do NOT wander through in-scale notes at random. At
-            least one phrase must STATE THE PAKAD.
-        (2) OPEN on or around madhya Sa (never the taar) and let the first phrases DIP INTO THE
-            MANDRA (below home) before the line rises.
-        (3) BADHAT — reveal the raga gradually: phrase 1 uses just 2-3 swaras of the pakad; each
-            later phrase may add a note or widen the range; the final phrases reach the widest span.
-        (4) SA IS THE GRAVITATIONAL CENTRE — EVERY phrase ends on Sa (no phrase ends on another
-            note); Sa carries roughly 35-50% of the sounding time; re-sound Sa between phrases with
-            chikari strokes (bol "chikari"). Sa is where a phrase LANDS — never a note to repeat or
-            sustain continuously.
-        (5) after each Sa landing take a true REST of ~0.5-2 beats (the nyas breath) — long notes
-            with meend, real silence between phrases, no pulse, no hurry.
-        (6) the FINAL phrase only SETTLES: end on a long HELD Sa (2+ beats, the longest of the
-            intro); code then lets it RING and fade into the reserved silence before the mukhada
-            brings the tala in.
-      - outro: settle onto a held Sa. tihai: one phrase stated THREE times, landing on the sam.
-
-    FAST RUNS ARE SIXTEENTHS, EARNED: build a taan from sixteenth-notes (dur 0.25), but do NOT fill
-    every beat with them — use an eighth-note pickup, then a burst of sixteenths, then a held or
-    resolving note, so the speed lands rather than blurs. Every phrase resolves onto the sam.
-
-    NYAS AND SPACE — a gat BREATHES; do not pause after every one or two notes, and do not fill
-    every beat either:
-      - LAND THE SAM: matra 1 of each cycle is the resting point — arrive on a strong note (the
-        vadi, Sa, or a m->S resolution) and let it RING or REST there (a nyas), rather than moving
-        straight on.
-      - Use 1-2 true RESTS per avartan (set "rest": true on a note) for real silence — the space the
-        tabla and the gat share — instead of lengthening a note to fake a pause.
-      - Rest on the raga's resting notes (Sa / Ma / Pa where the raga has them); save the wall-to-wall
-        motion for the taan.
-
-    WHAT YOU ALREADY PLAYED (the lead's memory of the piece so far, octave in parentheses,
-    ~ marks a meend):
-    {previous}
-
-    DEVELOP ACROSS SECTIONS TOO — build on what you already played so the piece coheres as one
-    composition, not a bag of unrelated ideas: restate or vary the motif and your earlier
-    phrases, ANSWER the previous section, and shape the whole ARC — reserve your highest, most
-    intense phrase for the climax and let an outro resolve back down to Sa.
-
-    ORNAMENTS — reserve them for where they SING; a fast run wants clean, crisp articulation,
-    so ornament the held and cadential notes and let quick notes speak plainly:
-      - grace: a short list of kan swaras flicked just before the main note.
-      - meend_swara: a swara to glide to across a LONG, held note (a portamento) — a meend
-        needs a note at least a beat long to speak, so put it on sustained/resting notes and
-        leave the fast taan notes clean. The glide may rise OR fall (either direction is
-        idiomatic). Add meend_oct only to glide ACROSS octaves — e.g. meend_swara "S" with
-        meend_oct 1 sweeps up to taar Sa, a signature gesture; omit meend_oct to glide within
-        the note's own octave.
-      Grace and meend swaras must also be legal swaras of this raga.
-
-    MIZRAB BOLS — the sitar's right-hand strokes. Attach a "bol" to your notes to give the gat a
-    RHYTHMIC personality, not just a melody:
-      - "da" a strong stroke, "ra" a softer return, "diri" a fast da+ra DOUBLE-stroke (a pair, for
-        quick ornamental motion), "darada" a da+ra+da TRIPLE-stroke (a triplet), "chikari" a bright
-        high-Sa accent that PUNCTUATES a phrase-end or a gap (its swara is ignored — it sounds the
-        drone strings). Use diri for pairs and darada for triplet groupings in a taan.
-      - A bol is a STROKE, not a subdivision: the rhythm is your durations; the bol is the
-        articulation on top. Mix them — do not stamp the same bol on every note.
-      - THE MUKHADA HAS A BOL IDENTITY: give it a short, recognizable recurring stroke pattern
-        (e.g. da diri da ra) — its rhythmic signature — and restate that SAME bol pattern each time
-        the mukhada RETURNS. Vary the manjha/antara by bol-bant (redistribute/displace the bols)
-        while keeping the melodic DNA. Use chikari sparingly, to answer the tabla or close a phrase.
-
-    MURKI / KHATKA — light decorative flicks, ONLY if the raga facts list them (most do NOT; the
-    grave and meend-driven ragas use andolan/meend instead, so DON'T flag an ornament there):
-      - Set a note's "ornament" to "murki" (delicate, fast) or "khatka" (sharper, heavier). The code
-        builds the little cluster from the raga's own neighbouring swaras — you just choose WHERE and
-        WHICH, you do not spell the cluster out.
-      - Place them on a HELD note (they need ~half a beat to speak), and FAVOUR the komal swaras the
-        raga colours (e.g. komal g and komal r in the descent) — that is where they sound idiomatic.
-      - A garnish, not a habit: a couple per phrase at most. They decorate a resting/cadential note,
-        they don't replace developing the line.
-
-    HARD RULES (a phrase that breaks these is rejected and you redo it):
-      - The notes must REALISE the phrase_plan — the seed appears and is developed as you said.
-      - Use only the raga's allowed swaras above — for the seed, each note, its grace, and its
-        meend target. Sargam is S r R g G m M P d D n N (lowercase = komal/flat, M = tivra Ma).
-      - Every note has a positive duration, in beats.
-      - Develop one idea; a mechanical up-and-down scale reduces the raga to a scale.
+    Based on everything above, compose this ONE section now — the phrase_plan first, then
+    the notes that realise it.
   expected_output: |
     A single LeadPhrase as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
@@ -435,6 +350,8 @@ generate_riff:
       kind: {section_kind}
       gat role: {form_role}
       creative intent: {section_intent}
+      the SEAM into the next section (the composers designed this handoff — let your last
+      cycle's ending serve it): {section_transition}
       it repeats for {bars} bars (tala cycles).
 
     THE TEXTURE MODE — {riff_mode}: how this section's guitar behaves (a deterministic
@@ -481,10 +398,13 @@ generate_riff:
     SHAPE IT TO ITS GAT ROLE ({form_role}) — the riff's job in the composition:
       - mukhada: the main low-string HOOK — palm-muted chugs on Sa and the raga's dark low
         swaras, a small gallop cell, and enough SPACE (rests) for the gat/sitar to speak.
-      - manjha: the same riff DNA, varied — a changed ending or accent, or a hammer-on answer.
+      - manjha: SIMPLER than the mukhada — the gat's low, calm bridge; settle onto ringing
+        chordal support (keep the riff's DNA in the chord roots) and leave the space to the
+        lead's quiet low line.
       - antara: lift the register and OPEN up — wider power chords, less palm-muting, ringing.
       - breakdown: simplify to heavy, sparse, tala-aligned power-chord hits (a tihai-cell feel).
-      - taan_short / taan_long: thin out and hold back — the melodic taan leads; support it.
+      - taan_short / taan_long: thin out and hold back — the melodic taan leads; hold long
+        ringing chords under it (a resonant platform, not a pulse).
       - intro / outro / tihai: sparse — set up or settle; a tihai is a figure stated thrice to the sam.
 
     GROUND AND MOVEMENT (this is what makes a riff instead of a melody) — almost every
@@ -505,7 +425,9 @@ generate_riff:
         own, rewrite the cycle before touching the pitches.
 
     TECHNIQUE BUDGET — techniques serve a FUNCTION; do not decorate every note:
-      - palm_mute is the CORE texture (the driving chug) — use it a lot on the ground.
+      - palm_mute is the CHUG texture — use it on the short GROUND strokes ONLY, never on a
+        ring: a palm-muted note gates to a short chunk whatever its written duration, so any
+        chord or note of a beat or more that should SUSTAIN must be struck OPEN (no technique).
       - about ONE sliding move per cycle: slide (short, fret-to-fret) for movement into an
         accent, or long_slide (a wide, slow position shift — a signature sitar-fusion move)
         into a section seam or a big ringing chord; at most two long slides per cycle.

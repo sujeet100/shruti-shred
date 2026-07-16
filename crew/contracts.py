@@ -932,6 +932,10 @@ class PhrasePlan(BaseModel):
     taan_style: Optional[str] = None    # ONE dominant style for the whole taan (prompt lists the verified set)
     register_plan: Optional[str] = None  # the arc: where it starts, where the single peak lands, the descent
     rhythm_plan: Optional[str] = None    # the burst/space shape (e.g. "pickup, burst, held, burst, tihai")
+    # Intro/alap architecture (the aochar fills this too — same optional-free-string pattern as
+    # the taan fields above). The intro develops ONE recurring motif (its `seed`, drawn from the
+    # mukhada head) rather than inventing independent phrases; this names the reveal.
+    badhat_plan: Optional[str] = None   # intro only: the progressive reveal — the fragment phrase 1 states, what each later phrase adds, where the widest reach lands
 
     @field_validator("seed")
     @classmethod

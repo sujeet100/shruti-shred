@@ -40,6 +40,7 @@ from crewai import Agent, Crew, Process, Task
 from pydantic import ValidationError
 
 from crew.config import (
+    AGENT_RETRY_LIMIT,
     COMPOSER_MAX_ITER,
     COMPOSER_RETRIES,
     COMPOSER_TURNS,
@@ -485,7 +486,8 @@ class _ComposerCrew:
         # output_pydantic: CrewAI parses+validates the SHAPE into a ComposerTurn;
         # the guardrail adds the raga-legality domain check with a bounded retry.
         agent = Agent(config=self._agent_configs[speaker.config_key], llm=composer_llm(),
-                      allow_delegation=False, max_iter=COMPOSER_MAX_ITER, verbose=False)
+                      allow_delegation=False, max_iter=COMPOSER_MAX_ITER,
+                      max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         return Task(config=self._task_config, agent=agent, output_pydantic=ComposerTurn,
                     guardrail=_validate_turn, guardrail_max_retries=COMPOSER_RETRIES)
 

@@ -173,10 +173,13 @@ def _reverb_send(role) -> int:
 
 # Static mix level (MIDI CC7) per layer role — a light balance so the LEAD (sitar / lead guitar)
 # no longer BURIES the rhythm guitars (Sujit, 2026-07-16: "the guitars are buried behind the lead
-# tone now"). Only the melodic voices are pulled back; rhythm / bass / drums / tabla keep their
-# ear-calibrated default level, and the palm-mute companion keeps its own CC7=127 (MUTE_LEVEL) —
-# so this cannot disturb the chug parity. None (unlisted role) = leave the channel at its default.
-_MIX_LEVEL = {"lead": 92, "drone": 74}
+# tone now"). The melodic voices are pulled back; the TABLA is LIFTED (Sujit, same day: "I did
+# not hear tabla" — the Indian Ensemble strokes sit at low velocity against a Power-kit at ~85
+# and companions at CC7=127, so the theka needs channel volume the velocities can't give it).
+# Rhythm / bass / drums keep their ear-calibrated default level, and the palm-mute companion
+# keeps its own CC7=127 (MUTE_LEVEL) — so this cannot disturb the chug parity. None (unlisted
+# role) = leave the channel at its default.
+_MIX_LEVEL = {"lead": 92, "drone": 74, "tabla": 115}
 
 
 def _mix_level(role) -> int | None:
@@ -438,6 +441,9 @@ def build_midi(comp: dict, path: str) -> None:
                 mf.addControllerEvent(i, ch, 0, 100, 2)    # RPN LSB = coarse tuning
                 mf.addControllerEvent(i, ch, 0, 6, 64 + ct)  # data entry MSB (semitones)
             mf.addControllerEvent(i, ch, 0, 91, _reverb_send("tabla"))
+            lvl = _mix_level("tabla")                 # the theka's channel-volume lift — its own
+            if lvl is not None:                       # channel only (the GM-conga fallback shares
+                mf.addControllerEvent(i, ch, 0, 7, lvl)  # channel 9 with the kit: never lift there)
             for h in layer["hits"]:
                 mf.addNote(i, ch, TABLA_KEYS[h["drum"]], h["start"], h.get("dur", 0.2), h.get("vel", 100))
             continue

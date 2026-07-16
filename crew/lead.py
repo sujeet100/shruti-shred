@@ -31,6 +31,7 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final, Protocol
 
@@ -38,7 +39,7 @@ import yaml
 from crewai import Agent, Crew, Process, Task
 from pydantic import ValidationError
 
-from crew.config import GENERATOR_MAX_ITER, GENERATOR_RETRIES, generator_llm, load_env
+from crew.config import AGENT_RETRY_LIMIT, GENERATOR_MAX_ITER, GENERATOR_RETRIES, generator_llm, load_env
 from crew.contracts import (
     Arrangement,
     CanvasMove,
@@ -72,6 +73,7 @@ from crew.generators import (
     render_composition,
     section_spans,
 )
+from crew.live import beat, flags
 from raga import RAGAS, scale_step_up, validate_composition
 
 _LEAD_ROLE: Final = "lead"                 # the layer role this generator fills
@@ -125,24 +127,35 @@ _OUTPUT_SCHEMA: Final = """{
   },
   "notes": [
     {"swara": "d", "oct": -1, "dur": 2.0, "vel": 80, "bol": "da"},
-    {"swara": "g", "oct": 0, "dur": 0.5, "grace": ["S"], "bol": "diri"},
-    {"swara": "m", "oct": 0, "dur": 4.0, "meend_swara": "S", "meend_oct": 1, "bol": "da"},
-    {"swara": "g", "oct": 0, "dur": 1.5, "ornament": "murki"},
+    {"swara": "n", "oct": -1, "dur": 0.5},
+    {"swara": "S", "oct": 0, "dur": 0.5},
+    {"swara": "g", "oct": 0, "dur": 0.5, "grace": ["S"]},
+    {"swara": "m", "oct": 0, "dur": 4.0, "meend_swara": "S", "meend_oct": 1},
     {"rest": true, "swara": "S", "dur": 1.0},
+    {"swara": "g", "oct": 0, "dur": 1.5, "ornament": "murki"},
     {"swara": "S", "oct": 1, "dur": 0.5, "bol": "chikari"}
   ]
 }
-Decide "phrase_plan" FIRST, then write "notes" that REALIZE it. "contour" is one of
+Decide "phrase_plan" FIRST, then write "notes" that REALIZE it. Most notes are PLAIN —
+just swara, oct, dur (and optionally vel), like the second and third example notes: add
+grace / meend / bol / ornament only where a rule asks for that specific gesture, and emit
+"rest" only on an actual silence. "contour" is one of
 ascending / descending / arch / wave / landing / explosion. "transformations" (in the
 order they happen) are drawn from repeat, sequence_up, sequence_down, invert, fragment,
 accelerate, answer, resolve, octave_shift, rhythmic_compression. For a TAAN/SOLO section
 the plan has THREE more required fields (omit them elsewhere): "taan_style" (the ONE
 dominant style — pick from the section guidance), "register_plan" (the arc in one line:
 where you start, where the single peak lands, the descent), and "rhythm_plan" (the
-burst/space shape, e.g. "pickup, 16th burst, held nyas, longer burst, tihai to sam"). In the notes: "oct" is
+burst/space shape, e.g. "pickup, 16th burst, held nyas, longer burst, tihai to sam"). For an
+INTRO/alap section the plan has ONE more required field (omit it elsewhere): "badhat_plan"
+(the progressive reveal in one line: the motif fragment phrase 1 states, what each later
+phrase adds, where the widest reach lands). In the notes: "oct" is
 your octave (0 = home; -1 mandra/lower, +1 taar/upper); "vel", "grace", "meend_swara",
-"meend_oct" and "bol" are optional. "meend_swara" is a swara to glide to; add "meend_oct" (same
-frame as a note's "oct") ONLY to glide ACROSS octaves — omit it to glide within the note's own
+"meend_oct" and "bol" are optional. "meend_swara" is a swara to glide to — and the note is
+HEARD AT THE TARGET (the written swara is only the brief start of the pull), so a meend is an
+OCCASIONAL ornament gliding INTO a note you want heard, never the default articulation: most
+notes carry NO meend and sound their own written swara. Add "meend_oct" (same frame as a
+note's "oct") ONLY to glide ACROSS octaves — omit it to glide within the note's own
 octave. "bol" is the sitar mizrab STROKE (articulation, NOT a rhythm): "da" strong, "ra" softer,
 "diri" a fast double-stroke (a pair), "darada" a triple-stroke (a triplet), "chikari" a bright
 high-Sa punctuation accent (its swara is ignored). "rest" (optional) = a SILENT beat for nyas /
@@ -424,6 +437,21 @@ def _split_strokes(n: LeadNote, count: int) -> list[LeadNote]:
     return out
 
 
+def strip_noop_meends(notes: list[LeadNote]) -> list[LeadNote]:
+    """Strip meends that don't GLIDE — the target IS the written pitch. The LLM stamps
+    `meend_swara == swara` on many notes as schema over-fill; the render anchors a meend on
+    its target, so a no-op meend still pays the pre-bend gesture for nothing. Real meends
+    (target differs) pass through untouched — the audible-line verifier judges those. Pure."""
+    out: list[LeadNote] = []
+    for n in notes:
+        target_oct = n.meend_oct if n.meend_oct is not None else n.oct
+        if n.meend_swara is not None and (n.meend_swara, target_oct) == (n.swara, n.oct):
+            out.append(n.model_copy(update={"meend_swara": None, "meend_oct": None}))
+        else:
+            out.append(n)
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Murki / khatka — realise an EXPRESSIVE ornament the composer asked for. Pure. #
 # The counterpoint to andolan: andolan is a raga FACT code applies to a swara;  #
@@ -575,6 +603,29 @@ def _voice_line(line: list[Note], voicing: Voicing, raga: str) -> tuple[list[Not
 # the Riff generator lands as the third user, extract a shared fact-renderer.)  #
 # --------------------------------------------------------------------------- #
 
+@lru_cache(maxsize=1)
+def _role_briefs() -> dict[str, Any]:
+    """The per-role / per-kind lead briefs (`crew/config/lead_roles.yaml`), read once.
+
+    Exactly ONE brief is injected per call as `{role_brief}` — the 2026-07-16 latency fix:
+    the old universal prompt taught every gat role and section kind on every call, and the
+    model deliberated over all of them (irrelevant rules cost thinking tokens, not just
+    context)."""
+    path = Path(__file__).parent / "config" / "lead_roles.yaml"
+    return yaml.safe_load(path.read_text())
+
+
+def _render_role_brief(section) -> str:
+    """The one brief this section composes under: its gat `form_role`'s (the role subsumes
+    the kind — a mukhada's rules cover its being an alaap or melody section), else its
+    section kind's, else the generic default."""
+    briefs = _role_briefs()
+    role_text = briefs["roles"].get(section.form_role or "")
+    if role_text is not None:
+        return role_text
+    return briefs["kinds"].get(section.kind.value, briefs["default"])
+
+
 def _render_raga_facts(raga: str) -> str:
     """The raga's facts the lead composes from — the single source of truth."""
     r = RAGAS[raga]
@@ -638,18 +689,27 @@ def _render_previous(memory: list[LeadMemo]) -> str:
         for memo in memory)
 
 
-def _render_mukhada_head(memory: list[LeadMemo]) -> str:
-    """The cached gat HEAD, rendered for a cell that must RETURN to it (manjha / taan fill).
+def _render_mukhada_head(memory: list[LeadMemo], *, tease: bool = False) -> str:
+    """The cached gat HEAD, rendered for a cell that must RETURN to it (manjha / taan fill) —
+    or, with `tease`, for the INTRO that must FORESHADOW it.
 
     CROSS-CELL awareness made explicit: the mukhada cache fixed the head's identity, and this
-    extends it cell-to-cell — a manjha cannot honestly lead back into a head it has never seen.
-    Calls out the head's FIRST sounding swara, the seam the verifier will check."""
+    extends it cell-to-cell — a manjha cannot honestly lead back into a head it has never seen,
+    and an intro cannot tease a head it has never seen. For a returning cell it calls out the
+    head's FIRST sounding swara (the seam the verifier will check); for the intro it directs
+    the motif derivation the intro verifier will check."""
     memo = next((m for m in memory if m.form_role == _MUKHADA), None)
     if memo is None:
         return "  (no mukhada stated yet — not applicable to this section)"
+    tokens = " ".join(_local_token(n) for n in memo.phrase.notes)
+    if tease:
+        return (f"  the head (ALREADY COMPOSED — it enters right after your closing held Sa):\n"
+                f"  {tokens}\n"
+                f"  derive your recurring motif (phrase_plan.seed) from its swaras and reveal it "
+                f"phrase by phrase, so the mukhada arrives as the natural culmination of your idea.")
     sounding = [n for n in memo.phrase.notes if not n.rest]
     first = ("S" if sounding[0].bol == "chikari" else sounding[0].swara) if sounding else "S"
-    return (f"  the head: {' '.join(_local_token(n) for n in memo.phrase.notes)}\n"
+    return (f"  the head: {tokens}\n"
             f"  its FIRST note is {first} — the head re-enters on the sam right after you, so "
             f"shape your FINAL notes as a stepwise lead-in that flows into {first}.")
 
@@ -744,11 +804,13 @@ class _LeadContext:
             **self._static,
             "section_kind": section.kind.value,
             "form_role": section.form_role or "free (no gat role set)",
+            "role_brief": _render_role_brief(section),
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
+            "section_transition": section.transition or "(none given)",
             "window_beats": f"{span.length:g}",
             "tala_position": _render_tala_position(span, self._cycle_beats),
             "previous": _render_previous(memory),
-            "mukhada_head": _render_mukhada_head(memory),
+            "mukhada_head": _render_mukhada_head(memory, tease=is_intro(section)),
             "move": move.value,
             "canvas": _render_canvas_for_lead(canvas, move),
             "repair": _render_repair(feedback),
@@ -829,7 +891,8 @@ class _LeadCrew:
 
     def run(self, raga: str, inputs: dict[str, Any]) -> LeadPhrase:
         agent = Agent(config=self._agent_config, llm=generator_llm(),
-                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER, verbose=False)
+                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER,
+                      max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._task_config, agent=agent, output_pydantic=LeadPhrase,
                     guardrail=_lead_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
@@ -953,7 +1016,8 @@ class _GatCrew:
 
     def run(self, raga: str, inputs: dict[str, Any]) -> Gat:
         agent = Agent(config=self._agent_config, llm=generator_llm(),
-                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER, verbose=False)
+                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER,
+                      max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._task_config, agent=agent, output_pydantic=Gat,
                     guardrail=_gat_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
@@ -986,6 +1050,8 @@ def _render_plan(plan: PhrasePlan) -> str:
     line = f"seed [{seed}] · {plan.contour} · {moves} · {plan.climax_and_sam}"
     if plan.taan_style:
         line = f"{plan.taan_style} taan · {line}"
+    if plan.badhat_plan:
+        line = f"{line} · badhat: {plan.badhat_plan}"
     return line
 
 
@@ -1032,11 +1098,18 @@ def _generate_verified_cell(gen_span: SectionSpan, arr: Arrangement, memory: lis
     re-roll, not a blind one) so the LLM re-composes the cell to fix precisely what failed — code
     never edits the notes. Bounded, keeping the best-of-N (fewest violations) if none come back
     clean. Returns (cell, tries_used, remaining_violations). Pure control flow: the verifiers are
-    deterministic and `gen_fn` is injected, so this repair loop tests with no LLM."""
+    deterministic and `gen_fn` is injected, so this repair loop tests with no LLM (the live
+    `beat`s are ambient no-ops without a sink)."""
+    cell_name = gen_span.section.form_role or gen_span.section.kind.value
     best_cell: LeadPhrase | None = None
     best_viol: list[str] | None = None
     feedback: list[str] | None = None                        # None on attempt 1; the prior violations after
     for attempt in range(_CELL_REPAIR_TRIES + 1):
+        if feedback is None:
+            beat("Lead", f"composing the {cell_name}…")
+        else:                                                # SHOW WHY the piece is being redone
+            beat("Lead", f"re-rolling the {cell_name} — flagged: {flags(feedback)}",
+                 data={"violations": feedback, "cell": cell_name, "attempt": attempt + 1})
         cell = gen_fn(gen_span, arr, list(memory), feedback=feedback)
         viol = verify(cell)
         if not viol:
@@ -1055,8 +1128,11 @@ def _verify_or_repair_part(part: LeadPhrase, role: str, gen_span: SectionSpan, a
     it IN ISOLATION — regenerate ONLY this part (the already-accepted parts stay fixed and are in
     `memory`), via the per-section `gen_fn` bounded re-roll. The joint call gives coherence; this
     keeps a single weak part from forcing a whole-gat rewrite (Sujit's steer, 2026-07-16)."""
-    if not verify(part):
+    part_viol = verify(part)
+    if not part_viol:
         return part                                  # the jointly-composed part is clean — keep it
+    beat("Lead", f"the gat's {role} failed its check — repairing in isolation; flagged: "
+                 f"{flags(part_viol)}", data={"violations": part_viol, "cell": role})
     repaired, tries, viol = _generate_verified_cell(gen_span, arr, memory, gen_fn=gen_fn, verify=verify)
     events.append(_gat_repair_event(f"{role} (gat, in isolation)", tries + 1, viol))
     return repaired
@@ -1076,6 +1152,7 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
     antara_span = next((s for s in spans if is_antara(s.section)), None)
     cycle, raga = arr.beats_per_bar, arr.raga
 
+    beat("Lead", "composing the whole gat (mukhada + manjha + antara) in one call…")
     gat = gat_fn(arr, needs_manjha=manjha_span is not None, needs_antara=antara_span is not None)
     parts = "mukhada" + (" + manjha" if manjha_span else "") + (" + antara" if antara_span else "")
     events.append(DebateEvent(
@@ -1159,7 +1236,8 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
     sitar_notes: list[Note] = []
     guitar_notes: list[Note] = []
     andolan_swaras = frozenset(RAGAS[arr.raga].get("andolan", []))   # a raga fact; empty -> no sway
-    fill_notes = [apply_strokes(apply_ornaments(f.notes, arr.raga)) for f in fills or []]
+    fill_notes = [apply_strokes(apply_ornaments(strip_noop_meends(f.notes), arr.raga))
+                  for f in fills or []]
     fill_cursor = 0
     for span in section_spans(arr):
         phrase = phrases.get(span.index)
@@ -1170,7 +1248,8 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
             for bar in _fill_bars(span.section):
                 bar_fills[bar] = fill_notes[fill_cursor % len(fill_notes)]
                 fill_cursor += 1
-        line = _place_lead_section(apply_strokes(apply_ornaments(phrase.notes, arr.raga)),
+        line = _place_lead_section(apply_strokes(apply_ornaments(strip_noop_meends(phrase.notes),
+                                                                 arr.raga)),
                                    span=span, register=arr.registers[_LEAD_ROLE],
                                    cycle_beats=arr.beats_per_bar,
                                    andolan_swaras=andolan_swaras,
@@ -1238,6 +1317,15 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
     register = arr.registers[_LEAD_ROLE]
     raga = arr.raga
     gat = _compose_gat(arr, gat_fn=gat_fn, gen_fn=gen_fn, events=events) if gat_fn else None
+    # The head as a memo, for cells generated BEFORE the mukhada span is reached (the intro
+    # precedes the head in the timeline but the gat is composed first): injected into the
+    # intro's memory so the `{mukhada_head}` block can show the head it must tease — the same
+    # pattern `_generate_fills` uses to show the head to a fill.
+    head_memo: LeadMemo | None = None
+    if gat is not None:
+        mukhada_kind = next(s.section.kind.value for s in section_spans(arr)
+                            if is_mukhada(s.section))
+        head_memo = LeadMemo(mukhada_kind, gat.mukhada, _MUKHADA)
     for span in section_spans(arr):
         section = span.section
         if _LEAD_ROLE not in section.layers:
@@ -1267,9 +1355,11 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
         elif is_intro(section):                     # the alap — verified, with a code-reserved pause
             gen_span = _intro_gen_span(span, cycle_beats)
             window = gen_span.length                # the SHORTENED window — overrun eats the silence
+            head = gat.mukhada if gat is not None else None
+            intro_memory = memory + [head_memo] if head_memo is not None else memory
             phrase, tries, viol = _generate_verified_cell(
-                gen_span, arr, memory, gen_fn=gen_fn,
-                verify=lambda c: verify_intro(c, window_beats=window, raga=raga))
+                gen_span, arr, intro_memory, gen_fn=gen_fn,
+                verify=lambda c: verify_intro(c, window_beats=window, raga=raga, mukhada=head))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
@@ -1315,6 +1405,7 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
             if tries > 1:
                 events.append(_gat_repair_event(_TAAN_LONG, tries, viol))
         else:
+            beat("Lead", f"composing the {section.kind.value} line…")
             phrase = gen_fn(span, arr, list(memory))   # a COPY, so gen_fn can't mutate history
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
@@ -1431,6 +1522,7 @@ def studio_lead_fn(arr: Arrangement) -> StudioLeadFn:
 
     def gen(span: SectionSpan, memory: list[LeadMemo], canvas: SectionCanvas,
             move: CanvasMove) -> LeadPhrase:
+        beat("Lead", f"{span.section.kind.value} — {move.value}…")
         return crew.run(arr.raga, context.inputs_for(span, memory, canvas=canvas, move=move))
 
     return gen

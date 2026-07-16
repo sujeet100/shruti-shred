@@ -16,6 +16,13 @@ chords under the sitar's movement (Sujit: long chords serve sitar fusion better 
 riffs), STABS is the sparse low syncopated crush. The mode picks both the prompt brief and
 the verifier's budgets — the ask and the enforcement always agree.
 
+The RING-GATE lesson (2026-07-16, measured on the Malkauns render): a ring is an OPEN
+strike, not a written duration — the renderer gates a palm-muted note to a fixed ~70ms
+chug whatever its duration, so the taan's "pads" (long PM notes) played as sparse ticks
+right where the sitar needed a platform. Every sustain budget is therefore technique-aware
+(`_rings`), and DRIVE now owes a minimum of open ringing weight too (Sujit's steer: the
+rhythm guitar's melodic ambition stays low, its RESONANCE stays high).
+
 Pure: no LLM, no I/O; `verified_riff` takes the generation as an injected callable.
 """
 
@@ -29,8 +36,10 @@ from crew.contracts import RiffNote, RiffPattern, Section, SectionKind
 from raga import SWARAS
 
 # Bounded repair: extra re-rolls of a cycle that misses its budgets (best-of-N kept —
-# a weak riff plays rather than killing a live run). Same bound as the lead's gat cells.
-RIFF_REPAIR_TRIES: Final = 1
+# a weak riff plays rather than killing a live run). Raised 1 -> 2 (2026-07-16): the live
+# Malkauns run failed the open-ring budget on BOTH takes and best-of-N played an all-muted
+# riff; one more targeted retry is one call, spent only when the take is already failing.
+RIFF_REPAIR_TRIES: Final = 2
 
 # --- the budgets (deliberately loose — they flag gross misses, not taste) ---------------
 _FILL_LO: Final = 0.7               # durations must roughly fill the cycle...
@@ -43,7 +52,8 @@ _REST_SHARE_STABS: Final = 0.20     # STABS: hit-then-silence IS the texture (fl
 _WEIGHT_DUR: Final = 1.0            # a note this long counts as weight even unchorded
 _COLOR_MAX: Final = 2               # bright stacks (add9/tenth seats) per cycle — a spice
 _COLOR_MAX_STABS: Final = 1
-_RING_SHARE_MIN: Final = 0.55       # PADS: share of sounding DURATION in notes >= 1 beat
+_RING_SHARE_MIN: Final = 0.55       # PADS: share of sounding DURATION in OPEN notes >= 1 beat
+_RING_SHARE_MIN_DRIVE: Final = 0.2  # DRIVE: even the engine owes this much open ringing weight
 _RING_LONG: Final = 2.0             # PADS: at least one chord held this long...
 _BUSY_NOTE: Final = 0.25            # PADS: sixteenths are movement —
 _BUSY_SHARE_MAX: Final = 0.25       # ...keep them a small minority
@@ -62,8 +72,12 @@ class RiffMode(str, Enum):
     STABS = "stabs"      # sparse, low, syncopated chorded hits with real silence
 
 
+# The manjha PADS (changed from DRIVE 2026-07-16): it is the gat's LOW, CALM bridge — the
+# Malkauns render put a full chug engine under its six sparse lead notes and it was the
+# emptiest-feeling section. A quiet bridge wants a ringing chordal platform, simpler than
+# the mukhada, not the same engine.
 _MODE_BY_ROLE: Final[dict[str, RiffMode]] = {
-    "mukhada": RiffMode.DRIVE, "manjha": RiffMode.DRIVE,
+    "mukhada": RiffMode.DRIVE, "manjha": RiffMode.PADS,
     "antara": RiffMode.PADS, "taan_short": RiffMode.PADS, "taan_long": RiffMode.PADS,
     "intro": RiffMode.PADS, "outro": RiffMode.PADS,
     "breakdown": RiffMode.STABS, "tihai": RiffMode.STABS,
@@ -94,15 +108,19 @@ MODE_BRIEFS: Final[dict[RiffMode, str]] = {
         "melody). Movement is EARNED: a short 2-4 note figure from the pakad, then back to "
         "the chug. Put POWER-CHORD weight (the root's own swara, or P) on the sam and tali; "
         "bright colour stacks (add9/tenth — R or G over the root) are a spice, at most 2 per "
-        "cycle. Leave at least one true rest; rough space budget: ~40% chug, ~25% ring, "
-        "~20% movement, ~15% silence."),
+        "cycle. BREATHE attack-then-resonance: at least ~20% of your sounding time is OPEN "
+        "ringing chords a beat or longer — a ring is an open strike, a palm-muted note can "
+        "never ring (it gates to a short chug whatever its duration). Leave at least one "
+        "true rest; rough space budget: ~40% chug, ~25% ring, ~20% movement, ~15% silence."),
     RiffMode.PADS: (
         "PADS — the sitar carries ALL movement here; you are texture, not motion. Sustain "
         "wide RINGING power chords: one or two per vibhag, most of your sounding time in "
         "notes a beat or longer, at least one chord held 2+ beats — and every long chord "
-        "CARRIES a chord stack (own swara / P) so it blooms. No runs (sixteenths stay a "
-        "small minority), no busy chugging. Think Tool/Opeth weight under a melody: strike, "
-        "let it decay, leave the foreground empty for the raga line."),
+        "CARRIES a chord stack (own swara / P) so it blooms. Strike the chords OPEN, never "
+        "palm-muted — a palm-muted note gates to a short chug and cannot ring; the ring IS "
+        "this section's platform for the sitar. No runs (sixteenths stay a small minority), "
+        "no busy chugging. Think Tool/Opeth weight under a melody: strike, let it decay, "
+        "leave the foreground empty for the raga line."),
     RiffMode.STABS: (
         "STABS — sparse, low, syncopated POWER-CHORD hits locked to the tala's accents: "
         "hit, then SILENCE (at least a fifth of the cycle is true rest — the silence IS the "
@@ -137,8 +155,24 @@ def _is_color(note: RiffNote) -> bool:
                for c in (note.chord or []))
 
 
+def _rings(note: RiffNote) -> bool:
+    """Does the note actually SUSTAIN in the render? Written duration alone is not enough —
+    the renderer gates a palm-muted note to a fixed ~70ms chug whatever its duration (the
+    Malkauns render's 'pads' were long PM notes that played as sparse ticks), so a ring is
+    an OPEN strike of at least a beat."""
+    return note.dur >= _WEIGHT_DUR and note.technique != "palm_mute"
+
+
+def _ring_share(sounding: list[RiffNote]) -> float:
+    """Share of the sounding DURATION that actually rings (open notes >= 1 beat)."""
+    total = sum(n.dur for n in sounding)
+    return sum(n.dur for n in sounding if _rings(n)) / total
+
+
 def _weighted(note: RiffNote) -> bool:
-    return bool(note.chord) or note.dur >= _WEIGHT_DUR
+    """Carries weight on the beat: a chord stack, or a note that genuinely rings — a naked
+    palm-muted 'held' note is a thin tick, not weight."""
+    return bool(note.chord) or _rings(note)
 
 
 def _shared_violations(notes: list[RiffNote], sounding: list[RiffNote],
@@ -181,6 +215,12 @@ def _drive_violations(notes: list[RiffNote], sounding: list[RiffNote],
     if notes and not notes[0].rest and not _weighted(notes[0]):
         viol.append("the sam note carries no weight — open the cycle with a chord (the root's "
                     "own swara, or P) or a held note; the downbeat is the anchor")
+    ring = _ring_share(sounding)
+    if ring < _RING_SHARE_MIN_DRIVE:
+        viol.append(f"only {ring:.0%} of the sounding time RINGS open (need >= "
+                    f"{_RING_SHARE_MIN_DRIVE:.0%}) — a riff breathes attack-then-resonance; "
+                    f"between the chug runs strike at least one OPEN chord of a beat or more "
+                    f"and let it sustain (a palm-muted note gates short and can never ring)")
     colors = sum(1 for n in sounding if _is_color(n))
     if colors > _COLOR_MAX:
         viol.append(f"{colors} bright colour stacks (add9/tenth seats) in one cycle — that is "
@@ -192,15 +232,15 @@ def _drive_violations(notes: list[RiffNote], sounding: list[RiffNote],
 def _pads_violations(notes: list[RiffNote], sounding: list[RiffNote],
                      cycle_beats: float) -> list[str]:
     viol: list[str] = []
-    total = sum(n.dur for n in sounding)
-    ring = sum(n.dur for n in sounding if n.dur >= _WEIGHT_DUR)
-    if ring < _RING_SHARE_MIN * total:
-        viol.append(f"only {ring / total:.0%} of the sounding time rings (notes >= "
-                    f"{_WEIGHT_DUR:g} beat) — pads SUSTAIN; hold wide chords and let them "
-                    f"bloom while the sitar moves")
-    if not any(n.dur >= _RING_LONG for n in sounding):
-        viol.append(f"no chord is held {_RING_LONG:g}+ beats — a pad section needs at least "
-                    f"one long ringing power chord")
+    ring = _ring_share(sounding)
+    if ring < _RING_SHARE_MIN:
+        viol.append(f"only {ring:.0%} of the sounding time rings — an OPEN strike of >= "
+                    f"{_WEIGHT_DUR:g} beat rings; a palm-muted note gates to a short chug and "
+                    f"can NEVER ring, whatever its written duration. Pads SUSTAIN: hold wide "
+                    f"open chords and let them bloom while the sitar moves")
+    if not any(_rings(n) and n.dur >= _RING_LONG for n in sounding):
+        viol.append(f"no OPEN chord is held {_RING_LONG:g}+ beats — a pad section needs at "
+                    f"least one long ringing power chord (not palm-muted)")
     naked = [n for n in sounding if n.dur >= _RING_LONG and not n.chord]
     if naked:
         viol.append("a long held note carries no chord stack — give every 2+ beat ring "
@@ -267,13 +307,45 @@ def verify_riff(pattern: RiffPattern, *, mode: RiffMode, cycle_beats: float) -> 
     return viol
 
 
+def open_the_rings(pattern: RiffPattern, mode: RiffMode) -> RiffPattern:
+    """Deterministic texture repair — the GUARANTEE behind the ring budgets: strip
+    `palm_mute` from the longest chorded notes (longest first, chorded preferred) until the
+    mode's open-ring share is met, so a model that palm-mutes everything (the live Malkauns
+    failure: both takes 0% open ring, best-of-N played the mute wall) still renders with
+    sustained chords. Articulation-level surgery only — pitches, rhythm and order untouched
+    (same license as the meend density guard); notes shorter than a beat stay chugs. Pure;
+    a no-op when the budget is already met or the mode has no ring budget (STABS)."""
+    target = {RiffMode.DRIVE: _RING_SHARE_MIN_DRIVE, RiffMode.PADS: _RING_SHARE_MIN}.get(mode)
+    if target is None:
+        return pattern
+    notes = list(pattern.notes)
+    sounding_idx = [i for i, n in enumerate(notes) if not n.rest]
+    total = sum(notes[i].dur for i in sounding_idx)
+    if total <= 0:
+        return pattern
+    ring = sum(notes[i].dur for i in sounding_idx if _rings(notes[i]))
+    candidates = sorted((i for i in sounding_idx
+                         if notes[i].technique == "palm_mute" and notes[i].dur >= _WEIGHT_DUR),
+                        key=lambda i: (bool(notes[i].chord), notes[i].dur), reverse=True)
+    for i in candidates:
+        if ring >= target * total:
+            break
+        notes[i] = notes[i].model_copy(update={"technique": None})
+        ring += notes[i].dur
+    if notes == list(pattern.notes):
+        return pattern
+    return pattern.model_copy(update={"notes": notes})
+
+
 def verified_riff(gen: Callable[[Optional[list[str]]], RiffPattern], section: Section,
                   cycle_beats: float) -> RiffPattern:
     """Generate a VERIFIED riff cycle: call `gen(feedback)` and re-roll a cycle that
     misses its mode's budgets up to `RIFF_REPAIR_TRIES` times, feeding back the EXACT
     violations (a targeted re-roll, not a blind one). Bounded, best-of-N (fewest
     violations) when none come back clean — a weak riff plays; a live run never dies on
-    taste. Pure control flow: `gen` is injected, so this tests with no LLM."""
+    taste. A never-clean best take gets the deterministic `open_the_rings` repair, so the
+    sustain budget is a guarantee, not a hope. Pure control flow: `gen` is injected, so
+    this tests with no LLM."""
     mode = riff_mode_for(section)
     best: Optional[RiffPattern] = None
     best_viol: Optional[list[str]] = None
@@ -287,4 +359,4 @@ def verified_riff(gen: Callable[[Optional[list[str]]], RiffPattern], section: Se
         if best_viol is None or len(viol) < len(best_viol):
             best, best_viol = pattern, viol
     assert best is not None                   # the loop ran at least once
-    return best
+    return open_the_rings(best, mode)

@@ -37,7 +37,7 @@ from crewai import Agent, Crew, Process, Task
 from crewai.tools import BaseTool
 from pydantic import BaseModel, ValidationError
 
-from crew.config import CRITIC_MAX_ITER, critic_llm, load_env
+from crew.config import AGENT_RETRY_LIMIT, CRITIC_MAX_ITER, critic_llm, load_env
 from crew.contracts import (
     Composition,
     DebateEvent,
@@ -162,7 +162,8 @@ class _UstadCrew:
     def run(self, comp: Composition, payload: dict) -> UstadNarration:
         agent = Agent(config=self._agent_config, llm=critic_llm(),
                       tools=[_validator_tool(payload)], allow_delegation=False,
-                      max_iter=CRITIC_MAX_ITER, verbose=False)
+                      max_iter=CRITIC_MAX_ITER,
+                      max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._task_config, agent=agent, output_pydantic=UstadNarration)
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
         result = crew.kickoff(inputs={

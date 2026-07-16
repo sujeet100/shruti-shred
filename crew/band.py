@@ -33,7 +33,7 @@ from crew.generators import (
     harmonize_riff_to_lead,
     render_composition,
 )
-from crew.dynamics import apply_dynamics
+from crew.dynamics import apply_dynamics, apply_taan_exposure
 from crew.groove import groove_layer, tabla_layer
 from raga import validate_composition
 
@@ -48,9 +48,11 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     Takes the CREATIVE voices already generated (the lead layer(s) and the riff) and
     derives the rest around them: the drone from the chart, the bass and drums from
     the riff, and the tabla from the tala. Drone leads the list; percussion trails it.
-    Finally `apply_dynamics` shapes the energy arc + layer-by-function balance across the
-    sections (a no-op on a chart with no declared gat form) — the last mixing step so it
-    sees every voice at once.
+    Then two deterministic post-assembly passes, each needing every voice at once:
+    `apply_taan_exposure` drops the metal band out of the long taan's final avartan (the
+    band-drop window — sitar, drone and tabla carry the peak alone), and `apply_dynamics`
+    shapes the energy arc + layer-by-function balance across the sections (both no-ops on
+    a chart with no declared gat form).
     """
     layers: list[Layer] = [drone_layer(arr)]
     layers.extend(lead_layers)
@@ -67,7 +69,9 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     for derived in (bass_layer(arr, rhythm), groove_layer(arr, rhythm), tabla_layer(arr)):
         if derived is not None:
             layers.append(derived)
-    return apply_dynamics(layers, arr)
+    # The taan exposure runs BEFORE the balance pass: the band-drop window empties first, then
+    # the energy/foreground gains shape whatever still sounds.
+    return apply_dynamics(apply_taan_exposure(layers, arr), arr)
 
 
 def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:

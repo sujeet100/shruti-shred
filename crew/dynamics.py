@@ -52,9 +52,12 @@ _GAIN_FLOOR: float = 0.62
 _GAIN_CEIL: float = 1.08
 
 # Layer-by-function gains for a NON-foreground voice (the foreground itself is always 1.0):
-_DUCK_RHYTHM_UNDER_LEAD: float = 0.55   # the mix fix — the double-tracked wall makes room for the lead
+# duck raised 0.55 -> 0.70 and the tabla bed 0.85 -> 0.95 (Sujit's live notes, 2026-07-16:
+# "riff sounded quiet under the mukhada" / "tabla could be louder" — the old duck buried the
+# chug, and the bed gain was shaving an already-quiet tabla).
+_DUCK_RHYTHM_UNDER_LEAD: float = 0.70   # the riff makes room for the lead without vanishing
 _LEAD_UNDER_RHYTHM: float = 0.90        # a background lead stays present but doesn't fight the riff
-_BED: dict[str, float] = {"tabla": 0.85, "bass": 0.90, "drums": 0.90}  # support beds sit under
+_BED: dict[str, float] = {"tabla": 0.95, "bass": 0.90, "drums": 0.90}  # support beds sit under
 _BED_DEFAULT: float = 0.85
 
 _DRONE_ROLE = "drone"
@@ -128,3 +131,68 @@ def apply_dynamics(layers: list[Layer], arr: Arrangement) -> list[Layer]:
         return _gain_for(span.section, role, is_final=(span.index == final_index))
 
     return [_balance_layer(layer, gain_at) for layer in layers]
+
+
+# --- THE TAAN EXPOSURE — the band-drop window (Sujit's own Yaman fusion, 2026-07-16) --------
+# Measured on his track: its most dramatic moments are the ones where rhythm/bass/drums vanish
+# and the sitar plays exposed, the band slamming back in. Made structural: in the FINAL avartan
+# of every long taan (the piece's peak), the metal band — rhythm (and its double), bass, kit —
+# drops out: ONE stop hit on that avartan's sam (clamped to ring at most a beat), then true
+# silence, while the sitar's taan (with its tihai), the drone, and the TABLA carry the cycle
+# alone (sitar+tabla is the classic Hindustani exposure, and the theka keeps the tala audible so
+# the re-entry sam is FELT). The band re-enters on the next section's downbeat, which the drums'
+# band-entrance machinery already marks with a crash. Notes struck BEFORE the window keep their
+# tails — a chord rings INTO the exposure, exactly like the guitar tails on Sujit's track.
+_EXPOSED_ROLES: frozenset[str] = frozenset({"rhythm", "bass", "drums"})
+_TAAN_LONG_ROLE: str = "taan_long"
+_EXPOSURE_MIN_BARS: int = 2     # a 1-bar taan has no band statement to drop out FROM
+_STOP_HIT_RING: float = 1.0     # the sam stop hit rings at most this long before the silence
+_EPS: float = 1e-6
+
+
+def taan_exposure_windows(arr: Arrangement) -> list[tuple[float, float]]:
+    """The [start, end) beat windows where the band drops out: the FINAL avartan of every
+    `taan_long` section of at least `_EXPOSURE_MIN_BARS` bars. Pure."""
+    return [(span.end - arr.beats_per_bar, span.end)
+            for span in section_spans(arr)
+            if span.section.form_role == _TAAN_LONG_ROLE
+            and span.section.bars >= _EXPOSURE_MIN_BARS]
+
+
+def _exposure_keep(start: float, dur: float,
+                   windows: list[tuple[float, float]]) -> tuple[bool, float]:
+    """(keep, dur) for one event of an EXPOSED role. An event before a window keeps its tail
+    (the ring-in); the event ON a window's sam is the stop hit (its ring clamped); anything
+    later inside the window is dropped."""
+    for a, b in windows:
+        if a - _EPS <= start < b - _EPS:
+            if start <= a + _EPS:
+                return True, min(dur, _STOP_HIT_RING)
+            return False, dur
+    return True, dur
+
+
+def apply_taan_exposure(layers: list[Layer], arr: Arrangement) -> list[Layer]:
+    """Drop the metal band (rhythm, bass, drums) out of every long taan's final avartan — the
+    exposure window — leaving the lead, drone and tabla to carry the peak alone. Pure —
+    returns new layers, mutating nothing. A chart with no qualifying taan comes back unchanged."""
+    windows = taan_exposure_windows(arr)
+    if not windows:
+        return layers
+    exposed: list[Layer] = []
+    for layer in layers:
+        if layer.role not in _EXPOSED_ROLES:
+            exposed.append(layer)
+        elif layer.notes:
+            notes = []
+            for n in layer.notes:
+                keep, dur = _exposure_keep(n.start, n.dur, windows)
+                if keep:
+                    notes.append(n if dur == n.dur else n.model_copy(update={"dur": dur}))
+            exposed.append(layer.model_copy(update={"notes": notes}))
+        elif layer.hits:
+            hits = [h for h in layer.hits if _exposure_keep(h.start, h.dur, windows)[0]]
+            exposed.append(layer.model_copy(update={"hits": hits}))
+        else:
+            exposed.append(layer)
+    return exposed

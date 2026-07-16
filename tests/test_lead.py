@@ -42,6 +42,7 @@ from crew.lead import (  # noqa: E402
     Voicing,
     _LeadContext,
     _lead_guardrail,
+    _role_briefs,
     _render_canvas_for_lead,
     _render_previous,
     _voice_line,
@@ -314,7 +315,11 @@ def test_taan_trades_bars_then_joins_in_harmony():
                              LeadNote(swara="g", dur=8.0, oct=1), LeadNote(swara="m", dur=6.0, oct=1),
                              LeadNote(swara="R", dur=4.0, oct=1), LeadNote(swara="n", dur=4.0),
                              LeadNote(swara="d", dur=2.0), LeadNote(swara="P", dur=2.0),
-                             LeadNote(swara="m", dur=2.0), LeadNote(swara="S", dur=2.0)])
+                             LeadNote(swara="d", dur=0.25), LeadNote(swara="n", dur=0.25),
+                             LeadNote(swara="d", dur=0.25), LeadNote(swara="P", dur=0.25),
+                             LeadNote(swara="m", dur=0.25), LeadNote(swara="g", dur=0.25),
+                             LeadNote(swara="R", dur=0.25), LeadNote(swara="g", dur=0.25),
+                             LeadNote(swara="S", dur=2.0)])
     fn, _ = _fake([cell])
     layers, _ = generate_lead(arr, gen_fn=fn)
     sitar = next(x for x in layers if x.instrument == VOICES["sitar"].instrument)
@@ -430,6 +435,46 @@ def test_lead_inputs_for_renders_repair_feedback():
 def test_studio_lead_fn_builds_a_callable_without_an_llm():
     arr = _arr(("lead", "rhythm", "drone"), kind=SectionKind.RIFF)
     assert callable(studio_lead_fn(arr))
+
+
+# --- role briefs: one section, one set of rules (the 2026-07-16 latency fix) ----
+
+def test_role_brief_prefers_the_gat_role_over_the_kind():
+    # a mukhada (kind ALAAP) gets the mukhada's rules, not the alaap kind's
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"))
+    brief = _LeadContext(arr).inputs_for(section_spans(arr)[0], [])["role_brief"]
+    assert "EXACTLY ONE avartan" in brief
+    assert "unfold the seed" not in brief.lower()
+
+
+def test_role_brief_falls_back_to_the_section_kind():
+    arr = _arr(("lead", "drone"), kind=SectionKind.MELODY)
+    brief = _LeadContext(arr).inputs_for(section_spans(arr)[0], [])["role_brief"]
+    assert "singable theme" in brief
+
+
+def test_role_briefs_cover_every_gat_role_and_lead_kind():
+    briefs = _role_briefs()
+    for role in ("mukhada", "manjha", "antara", "taan_short", "taan_long", "intro", "outro"):
+        assert briefs["roles"][role].strip(), f"missing roles.{role}"
+    for kind in ("alaap", "melody", "taan", "solo", "outro"):
+        assert briefs["kinds"][kind].strip(), f"missing kinds.{kind}"
+    assert briefs["default"].strip()
+
+
+def test_generate_lead_task_placeholders_all_supplied():
+    # the prompt contract: every {placeholder} in the task config is a key inputs_for provides
+    import re
+
+    import yaml
+    cfg_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "crew", "config", "tasks.yaml")
+    with open(cfg_path) as f:
+        task = yaml.safe_load(f)["generate_lead"]
+    arr = _arr(("lead", "drone"))
+    inputs = _LeadContext(arr).inputs_for(section_spans(arr)[0], [])
+    placeholders = set(re.findall(r"\{([a-z_]+)\}", task["description"] + task["expected_output"]))
+    assert placeholders <= set(inputs), f"unfilled placeholders: {placeholders - set(inputs)}"
 
 
 # --- the legality guardrail: the hard line -------------------------------------
@@ -587,10 +632,12 @@ def _gat_arr(*specs: tuple[SectionKind, int, str], raga: str = "malkauns") -> Ar
 
 def _good_head() -> LeadPhrase:
     # a mukhada that PASSES the gat verifier: fills the 16-beat teentaal avartan, lands on Sa,
-    # varied durations. Used wherever a test needs a clean head so the verify+repair is a no-op.
+    # and mixes note values (an 8th against half/full notes — the 2026-07-16 rhythmic-mix rule).
+    # Used wherever a test needs a clean head so the verify+repair is a no-op.
     return LeadPhrase(phrase_plan=_plan("S"),
-                      notes=[LeadNote(swara="S", dur=6.0), LeadNote(swara="m", dur=4.0),
-                             LeadNote(swara="g", dur=3.0), LeadNote(swara="S", dur=3.0)])
+                      notes=[LeadNote(swara="S", dur=5.5), LeadNote(swara="m", dur=4.0),
+                             LeadNote(swara="g", dur=0.5), LeadNote(swara="g", dur=3.0),
+                             LeadNote(swara="S", dur=3.0)])
 
 
 def _flat_head() -> LeadPhrase:
@@ -650,10 +697,10 @@ def test_generate_lead_loops_the_mukhada_cell_across_its_bars():
     fn, _ = _fake([_good_head()])                           # a clean 16-beat head
     layers, _ = generate_lead(arr, gen_fn=fn)
     notes = sorted(layers[0].notes, key=lambda n: n.start)
-    assert len(notes) == 8                                  # the 4-note cell placed in both bars
+    assert len(notes) == 10                                 # the 5-note cell placed in both bars
     bar0 = [n.swara for n in notes if n.start < 16.0]
     bar1 = [n.swara for n in notes if n.start >= 16.0]
-    assert bar0 == bar1 == ["S", "m", "g", "S"]             # looped verbatim, each avartan on the sam
+    assert bar0 == bar1 == ["S", "m", "g", "g", "S"]        # looped verbatim, each avartan on the sam
     assert min(n.start for n in notes if n.start >= 16.0) == 16.0
 
 
@@ -678,7 +725,7 @@ def test_returning_mukhada_is_verbatim_the_head():
     notes = sorted(layers[0].notes, key=lambda n: n.start)
     head = [n.swara for n in notes if n.start < 16.0]
     ret = [n.swara for n in notes if n.start >= 16.0]
-    assert head == ret == ["S", "m", "g", "S"]
+    assert head == ret == ["S", "m", "g", "g", "S"]
 
 
 def test_non_mukhada_roles_are_not_looped():
@@ -702,7 +749,7 @@ def test_generate_lead_rerolls_a_weak_mukhada_and_keeps_the_clean_one():
     layers, events = generate_lead(arr, gen_fn=fn)
     assert len(calls) == 2                                   # the hook was re-rolled once
     swaras = [n.swara for n in sorted(layers[0].notes, key=lambda n: n.start)]
-    assert swaras == ["S", "m", "g", "S"]                   # the CLEAN head is what got placed
+    assert swaras == ["S", "m", "g", "g", "S"]              # the CLEAN head is what got placed
     rr = [e for e in events if e.data.get("gat_verify")]
     assert len(rr) == 1 and rr[0].data["tries"] == 2 and rr[0].data["violations"] == []
 
@@ -731,7 +778,7 @@ def test_reroll_feeds_the_violations_back_to_the_generator():
     fn, _ = _fake([_flat_head(), _good_head()])
     generate_lead(arr, gen_fn=fn)
     assert fn.seen_feedback[0] is None                       # first attempt: no feedback
-    assert fn.seen_feedback[1] and any("flat" in v for v in fn.seen_feedback[1])  # re-roll sees the flaw
+    assert fn.seen_feedback[1] and any("note value" in v for v in fn.seen_feedback[1])  # re-roll sees the flaw
 
 
 def test_non_mukhada_generation_gets_no_repair_feedback():
@@ -861,14 +908,28 @@ def test_leadnote_accepts_and_normalises_an_ornament():
         assert LeadNote(swara="g", dur=1.0, ornament=junk).ornament is None
 
 
+def test_noop_meends_are_stripped_at_placement():
+    # meend_swara == the written pitch is schema over-fill, not a glide — placement strips
+    # it; a REAL meend (target differs) passes through for the renderer's target-anchored pull
+    arr = _arr(("lead", "drone"))
+    phrase = LeadPhrase(phrase_plan=_plan("g"),
+                        notes=[LeadNote(swara="g", dur=2.0, meend_swara="g"),   # no-op
+                               LeadNote(swara="m", dur=2.0, meend_swara="g")])  # real glide
+    layers = lead_layers_from({0: phrase}, arr)
+    notes = sorted(layers[0].notes, key=lambda n: n.start)
+    assert notes[0].meend_swara is None
+    assert notes[1].meend_swara == "g"
+
+
 # --- the intro/alap: verified, generated into a SHORTENED window ------------------
 
 def _good_intro() -> LeadPhrase:
-    # passes verify_intro (the aochar shape): THREE short phrases, each exploring then landing on
-    # Sa, separated by real rests; opens on Sa, dips into the mandra, STATES the pakad (d n S..m),
+    # passes verify_intro (the aochar shape): THREE short phrases, each developing the ONE motif
+    # (n S) then landing on Sa, separated by real rests; opens on Sa, dips into the mandra, STATES
+    # the pakad (d n S..m), reveals progressively (narrow phrase 1, the widest reach — m — late),
     # no continuous-Sa wall. The final Sa starts at beat 13.0 and the cell is 16 beats (13 before
     # the close + a 3-beat held Sa), so the shortened-window / ring-out code tests below still hold.
-    return LeadPhrase(phrase_plan=_plan("S"),
+    return LeadPhrase(phrase_plan=_plan("n", "S"),
                       notes=[LeadNote(swara="S", dur=1.0), LeadNote(swara="n", dur=1.0, oct=-1),
                              LeadNote(swara="S", dur=1.5), LeadNote(swara="S", dur=1.5, rest=True),
                              LeadNote(swara="d", dur=2.0, oct=-1), LeadNote(swara="n", dur=1.0, oct=-1),
@@ -900,6 +961,25 @@ def test_intro_final_sa_rings_through_the_reserved_gap():
     assert all(n.start + n.dur <= 16.0 for n in notes[:-1])      # the rest end in the window
 
 
+def test_live_beats_stream_from_inside_the_lead_stage():
+    # per-call progress (Sujit's live note): a sink installed around generate_lead hears a
+    # RUNNING beat for the cell AND for its re-roll — the UI shows work as it happens, not
+    # one flood when the flow node completes. Without a sink, beats are free no-ops.
+    from crew.contracts import EventType
+    from crew.live import live_sink
+    bad = _phrase("g", "m", "d", "n", dur=2.0)
+    arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
+    seen: list = []
+    fn, _ = _fake([bad, _good_intro()])
+    with live_sink(seen.append):
+        generate_lead(arr, gen_fn=fn)
+    running = [e for e in seen if e.type == EventType.RUNNING]
+    assert any("composing the intro" in e.text for e in running)
+    reroll = next(e for e in running if "re-rolling the intro" in e.text)
+    assert "flagged:" in reroll.text and "Sa" in reroll.text      # the ticker SAYS WHY
+    assert reroll.data["violations"]                              # ...and carries the full list
+
+
 def test_intro_is_verified_and_rerolled_with_feedback():
     # a wandering alap (never resolves to Sa) is bounced; the re-roll sees WHY
     bad = _phrase("g", "m", "d", "n", dur=2.0)               # no Sa anywhere, no rests
@@ -929,7 +1009,7 @@ def test_fills_are_distinct_and_spliced_into_the_middle_bars():
     assert len(cut2) == 32 and all(n.dur <= 0.25 for n in cut2)
     assert [n.swara for n in cut1] != [n.swara for n in cut2]   # base vs deterministic variant
     head_restated = [n for n in notes if 48.0 <= n.start < 64.0]
-    assert [n.swara for n in head_restated] == ["S", "m", "g", "S"]   # bar 3: the head, whole
+    assert [n.swara for n in head_restated] == ["S", "m", "g", "g", "S"]   # bar 3: the head, whole
     fill_events = [e for e in events if e.data.get("fill")]
     assert len(fill_events) == 1 and fill_events[0].data["count"] == 2
 
@@ -1011,6 +1091,43 @@ def test_whole_gat_is_skipped_without_a_mukhada():
     assert gcalls == []                                     # no mukhada -> gat_fn not called
 
 
+def test_intro_sees_the_head_it_must_tease():
+    # WHOLE-GAT path: the head is composed FIRST, so the intro is generated KNOWING it — the
+    # head memo rides the intro's memory (feeding the {mukhada_head} tease block) and the
+    # verifier accepts a motif drawn from the head's swaras (n S appears in d n S m ...).
+    arr = _gat_arr((SectionKind.ALAAP, 2, "intro"), (SectionKind.ALAAP, 1, "mukhada"))
+    head = LeadPhrase(phrase_plan=_plan("d"),
+                      notes=[LeadNote(swara="d", dur=3.0), LeadNote(swara="n", dur=3.0),
+                             LeadNote(swara="S", dur=4.0), LeadNote(swara="m", dur=3.0),
+                             LeadNote(swara="g", dur=0.5), LeadNote(swara="S", dur=2.5)])
+    gfn, _ = _fake_gat(Gat(mukhada=head))
+    fn, calls = _fake([_good_intro()])
+    generate_lead(arr, gen_fn=fn, gat_fn=gfn)
+    assert len(calls) == 1                                  # the teasing intro passed first try
+    assert any(m.form_role == "mukhada" for m in fn.seen_memory[0])   # the intro SAW the head
+
+
+def test_intro_motif_is_rerolled_when_not_drawn_from_the_head():
+    # the head (S m g S) contains no n, so _good_intro's motif (n S) teases the WRONG tune —
+    # bounced, and the re-roll (told exactly why) derives its motif from the head instead
+    arr = _gat_arr((SectionKind.ALAAP, 2, "intro"), (SectionKind.ALAAP, 1, "mukhada"))
+    gfn, _ = _fake_gat(Gat(mukhada=_good_head()))
+    teasing = LeadPhrase(
+        phrase_plan=_plan("g", "S"),
+        notes=[LeadNote(swara="S", dur=1.0), LeadNote(swara="g", dur=1.0), LeadNote(swara="S", dur=1.5),
+               LeadNote(swara="S", dur=1.5, rest=True),
+               LeadNote(swara="d", dur=1.0, oct=-1), LeadNote(swara="n", dur=1.0, oct=-1),
+               LeadNote(swara="g", dur=1.0), LeadNote(swara="S", dur=1.5),
+               LeadNote(swara="m", dur=1.5, rest=True),
+               LeadNote(swara="g", dur=1.0), LeadNote(swara="m", dur=1.0),
+               LeadNote(swara="g", dur=0.5), LeadNote(swara="S", dur=2.5)])
+    fn, calls = _fake([_good_intro(), teasing])
+    generate_lead(arr, gen_fn=fn, gat_fn=gfn)
+    assert len(calls) == 2
+    assert fn.seen_feedback[1] and any("not drawn from the mukhada head" in v
+                                       for v in fn.seen_feedback[1])
+
+
 # --- the antara: verified arc (quote -> climb -> late peak -> descend to Sa) -----
 
 def _good_antara() -> LeadPhrase:
@@ -1081,7 +1198,7 @@ def test_mukhada_cell_rides_the_event_stream():
     _, events = generate_lead(arr, gen_fn=fn)
     cell = mukhada_cell_from_events(events)
     assert cell is not None
-    assert [n.swara for n in cell.notes] == ["S", "m", "g", "S"]
+    assert [n.swara for n in cell.notes] == ["S", "m", "g", "g", "S"]
     assert mukhada_cell_from_events([]) is None
 
 

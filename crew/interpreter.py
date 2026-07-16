@@ -18,7 +18,7 @@ import sys
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
-from crew.config import extractor_llm, load_env
+from crew.config import AGENT_RETRY_LIMIT, extractor_llm, load_env
 from crew.contracts import (
     CompositionBrief,
     DebateEvent,
@@ -38,7 +38,8 @@ class InterpreterCrew:
 
     @agent
     def interpreter(self) -> Agent:
-        return Agent(config=self.agents_config["interpreter"], llm=extractor_llm(), verbose=False)
+        return Agent(config=self.agents_config["interpreter"], llm=extractor_llm(),
+                     max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
 
     @task
     def interpret_query(self) -> Task:

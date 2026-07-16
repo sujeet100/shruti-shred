@@ -38,6 +38,13 @@ _FILL_MIN: Final = 0.6
 _FILL_MAX: Final = 1.6
 # Calling a head "flat" needs enough notes to judge — two notes of equal length is not a pattern.
 _MIN_NOTES_FLAT: Final = 3
+# The head's RHYTHMIC MIX (Sujit, 2026-07-16: a good mukhada mixes 8ths and quarters with half/
+# full notes — the long note IS the nyas/rest point, the 8ths are the movement between them; the
+# render's quarters-and-halves head read as a metronome): at least this many distinct note
+# values, including one long resting value and one short moving value.
+_MUKHADA_MIN_DURATIONS: Final = 3
+_MUKHADA_LONG: Final = 2.0          # at least one half-note+ (the nyas / resting point)
+_MUKHADA_SHORT: Final = 0.5         # at least one 8th-or-faster (the movement between rests)
 
 # Intro/alap — the diagnosed failure: random wandering that never resolves to Sa, with no space.
 # Structure research-verified (2026-07-15, the AOCHAR — the short pre-gat alap; sources in
@@ -57,6 +64,32 @@ _INTRO_OPEN_MAX_STEPS: Final = 2    # the opening note sits within this many lad
 # landing on Sa, and Sa is a LANDING between phrases — never a sustained/repeated wall.
 _INTRO_MIN_PHRASES: Final = 3       # at least this many rest-separated phrases (musical sentences)
 _INTRO_MAX_SA_RUN: Final = 3.0      # no mid-alap run of consecutive Sa longer than this (the held close is exempt)
+# ONE MOTIF, PROGRESSIVELY REVEALED (Sujit's steer + a converging GPT note, 2026-07-16): the
+# diagnosed failure of the first Malkauns render — the prompt's badhat rules were PROSE and the
+# model ignored them (taar Sa four seconds in; episodic phrases quoting different pakad material).
+# So the aochar's remembered-because-one-idea shape is now checkable: the declared `seed` IS the
+# intro's recurring motif (drawn from the mukhada head, so the gat arrives as its culmination),
+# every phrase but the final settle carries its opening, the full motif is stated somewhere, the
+# opening phrase stays a narrow fragment, and the intro's widest reach arrives past the midpoint.
+_INTRO_MOTIF_MIN: Final = 2         # the declared motif is at least this many swaras...
+_INTRO_MOTIF_MAX: Final = 5         # ...and at most this many (a kernel, not a whole line)
+_INTRO_ANCHOR_LEN: Final = 2        # each phrase carries at least this opening fragment of the motif
+_INTRO_OPEN_SPAN: Final = 7         # semitones: the FIRST phrase stays a narrow fragment around home
+_INTRO_PEAK_MIN_POS: Final = 0.5    # the intro's highest note arrives past this fraction (badhat)
+# A meend is an ORNAMENT — and the render anchors it on its TARGET, so a meend note is HEARD
+# at the target, not the written swara. The 2026-07-16 render put a meend on ~100% of alap
+# notes (all toward Sa): the whole exposition audibly collapsed onto one repeated note. The
+# audible-line checks catch that collapse; this cap names the cause in the feedback.
+_INTRO_MEEND_MAX_SHARE: Final = 0.5
+
+
+def _real_meend(note: LeadNote) -> bool:
+    """A meend that actually GLIDES — its target differs from the written pitch (the LLM
+    sometimes stamps `meend_swara == swara`, a no-op the placement strips anyway)."""
+    if note.rest or note.meend_swara is None:
+        return False
+    target_oct = note.meend_oct if note.meend_oct is not None else note.oct
+    return (note.meend_swara, target_oct) != (note.swara, note.oct)
 
 # Manjha / taan-fill seam — "fluid" made checkable: the cell's last note sits within this many
 # scale-degrees of the mukhada's first swara, so the head re-enters as a step, not a leap.
@@ -77,6 +110,10 @@ _TAAN_BURST_LEN: Final = 4          # a real burst: at least this many consecuti
 _TAAN_BURST_NOTE: Final = 0.25      # ...each at most a sixteenth
 _TAAN_SPACE_BEATS: Final = 1.0      # "space": a rest, or a note held at least this long
 _TAAN_MIN_DURATIONS: Final = 3      # distinct sounding durations — mixed subdivisions, not one wall
+# The CADENTIAL RUN (Sujit, 2026-07-16: "taans end with complex 8th/16th notes and land on Sa —
+# that creates tension"): a burst must END inside the final stretch of the taan, so the landing
+# is arrived at in FLIGHT, not walked to on long notes.
+_TAAN_END_BURST_WINDOW: Final = 0.3  # ...a burst ends within this final fraction of the taan
 # END-ANCHORED cells (manjha / antara / taan — their cadence IS the last note) must fill their
 # window without overrunning it: placement TRUNCATES at the window edge, so any overrun cuts off
 # the very cadence the verifier approved. (Caught live: an antara passed "ends on Sa", overran
@@ -102,8 +139,30 @@ def _sounding(notes: list[LeadNote]) -> list[LeadNote]:
 
 
 def _landing_swara(note: LeadNote) -> str:
-    """The swara a note actually sounds — a chikari stroke rings taar Sa, whatever it wrote."""
-    return "S" if note.bol == "chikari" else note.swara
+    """The swara a note actually SOUNDS. Two renderer facts the written swara hides: a
+    chikari stroke rings taar Sa whatever it wrote, and a MEEND is anchored on its TARGET —
+    the written swara is only the brief pre-bend flick, the target is what sustains. Every
+    pitch check reads THIS. (The 2026-07-16 Malkauns alap was WRITTEN as perfect pakad
+    phrases, but every note meended to Sa — the ear got one repeated high note while the
+    written line passed every check. Verify what SOUNDS, not what is written.)"""
+    if note.bol == "chikari":
+        return "S"
+    return note.meend_swara if note.meend_swara is not None else note.swara
+
+
+def _landing_oct(note: LeadNote) -> int:
+    """The octave a note actually sounds in — the meend target's frame when it glides
+    across octaves (`meend_oct` None = the note's own octave). Chikari keeps the written
+    octave here: it is punctuation, and letting it count as a taar reach would let a
+    stray accent pass the register-arc checks."""
+    if note.bol != "chikari" and note.meend_swara is not None and note.meend_oct is not None:
+        return note.meend_oct
+    return note.oct
+
+
+def _landing_pitch(note: LeadNote) -> int:
+    """The pitch a note actually sounds, in semitones relative to madhya Sa."""
+    return _landing_oct(note) * 12 + SWARAS[_landing_swara(note)]
 
 
 def _rhythmically_flat(sounding: list[LeadNote]) -> bool:
@@ -177,9 +236,16 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
         viol.append(f"the mukhada ends on {last.swara}, not a resting swara "
                     f"({' '.join(sorted(resting))}) — cadence to the sam so the head lands and loops")
 
-    if _rhythmically_flat(sounding):
-        viol.append("the mukhada is rhythmically flat — every note is the same length; vary the "
-                    "durations so the head has a rhythmic shape (a gat head is not even quarters)")
+    durations = {round(n.dur, 4) for n in sounding}
+    if len(sounding) >= _MIN_NOTES_FLAT and len(durations) < _MUKHADA_MIN_DURATIONS:
+        viol.append(f"the mukhada uses only {len(durations)} note value(s) — a gat head mixes "
+                    f"8ths and quarters WITH half/full notes; the mix is its rhythmic identity")
+    if not any(d >= _MUKHADA_LONG for d in durations):
+        viol.append(f"the mukhada has no long note (>= {_MUKHADA_LONG:g} beats) — the head "
+                    f"RESTS somewhere (a nyas on a half/full note) before it moves again")
+    if not any(d <= _MUKHADA_SHORT for d in durations):
+        viol.append(f"the mukhada has no short note (<= {_MUKHADA_SHORT:g} beats) — 8ths are "
+                    f"the movement between the resting notes; all-quarters reads as a metronome")
 
     return viol
 
@@ -195,7 +261,8 @@ def _overrun_violation(notes: list[LeadNote], window_beats: float, cell_name: st
             f"overrun gets TRUNCATED, cutting off your own ending; {tail}")
 
 
-def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str) -> list[str]:
+def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
+                 mukhada: LeadPhrase | None = None) -> list[str]:
     """Return the intro/alap's structural violations (empty == a grounded alap). Pure.
 
     The diagnosed failure of the first live gat: an alap of wandering notes that NEVER resolved
@@ -210,6 +277,10 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str) -> list[st
         several separate times (Sa is HOME and the ear must keep hearing it come home);
       * REAL SILENCE — at least two true rests of a beat or more;
       * A BREATH AFTER SA — at least one rest immediately follows a Sa landing (the nyas).
+    Plus the ONE-MOTIF discipline (`_motif_violations`): the intro develops a single declared
+    motif — drawn from the mukhada head when `mukhada` is given, so the gat enters as the
+    culmination of the intro's idea — and reveals it progressively (badhat) instead of
+    inventing independent phrases.
     The long pause between the alap's last Sa and the mukhada is NOT checked here — that gap is
     code-reserved by the generator (a shortened window), never the LLM's job. But the alap must
     STAY inside its shortened window (`window_beats`) — an overrun spills into the reserved
@@ -229,11 +300,11 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str) -> list[st
                     f"held Sa within the window and let the quiet do the rest")
 
     first = sounding[0]
-    if first.oct >= 1 or _scale_steps_between(_landing_swara(first), "S", raga) > _INTRO_OPEN_MAX_STEPS:
-        viol.append(f"the alap opens on {_landing_swara(first)} (oct {first.oct:+d}) — begin "
-                    f"AROUND madhya Sa (Sa itself or a step or two from it); the exposition "
+    if _landing_oct(first) >= 1 or _scale_steps_between(_landing_swara(first), "S", raga) > _INTRO_OPEN_MAX_STEPS:
+        viol.append(f"the alap opens on {_landing_swara(first)} (oct {_landing_oct(first):+d}) — "
+                    f"begin AROUND madhya Sa (Sa itself or a step or two from it); the exposition "
                     f"starts at home, then dips into the mandra")
-    if not any(n.oct < 0 for n in sounding):
+    if not any(_landing_oct(n) < 0 for n in sounding):
         viol.append("the alap never touches the mandra (lower) octave — dip below home in the "
                     "early phrases before the line rises; that dip is the aochar's first move")
 
@@ -300,6 +371,84 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str) -> list[st
                     f"raga's signature phrase(s), quoting one then varying it, so the raga is clear; "
                     f"don't wander through in-scale notes at random")
 
+    # MEEND DISCIPLINE — the render anchors a meend on its TARGET, so an over-meended line is
+    # HEARD as its targets (the audible-line checks above read exactly that). This check names
+    # the cause so the re-roll fixes the disease, not each symptom.
+    meends = sum(1 for n in sounding if _real_meend(n))
+    if meends > _INTRO_MEEND_MAX_SHARE * len(sounding):
+        viol.append(f"{meends} of {len(sounding)} notes carry a meend — a meend note is HEARD "
+                    f"at its TARGET, so over-meending collapses the line onto the targets; use "
+                    f"meend on at most half the notes (an ornament gliding INTO a note, not the "
+                    f"default articulation), and let most notes sound their own written swara")
+
+    viol.extend(_motif_violations(cell, phrases, mukhada))
+
+    return viol
+
+
+def _melodic(notes: list[LeadNote]) -> list[LeadNote]:
+    """The MELODY notes of a line — sounding, minus chikari strokes (a chikari rings taar Sa as
+    punctuation, not a melody pitch, so it must not fake a motif match or a register reach)."""
+    return [n for n in notes if not n.rest and n.bol != "chikari"]
+
+
+def _motif_violations(cell: LeadPhrase, phrases: list[list[LeadNote]],
+                      mukhada: LeadPhrase | None) -> list[str]:
+    """The intro's ONE-MOTIF + BADHAT violations — the aochar develops a single recurring idea
+    and reveals it progressively (see the `_INTRO_MOTIF_*` block for the diagnosed failure):
+      * A REAL MOTIF IS DECLARED — `phrase_plan.seed` names the 2-5 swara kernel;
+      * DRAWN FROM THE HEAD — when the mukhada is known, the motif appears (in order, small
+        gaps, any octave) in the head, so the gat enters as the intro's culmination;
+      * EVERY PHRASE CARRIES IT — each phrase except the final settle touches the motif's
+        opening fragment (develop ONE thought, don't invent a new phrase each time);
+      * REVEALED COMPLETELY — the full motif is stated somewhere before the held Sa;
+      * NARROW OPENING — phrase 1 stays a fragment around home (<= `_INTRO_OPEN_SPAN`
+        semitones), so there is range left to unfold;
+      * LATE WIDEST REACH — the intro's highest melody note arrives past the midpoint.
+    """
+    viol: list[str] = []
+    seed = cell.phrase_plan.seed
+    if not (_INTRO_MOTIF_MIN <= len(seed) <= _INTRO_MOTIF_MAX):
+        viol.append(f"the intro declares no usable motif (seed = {' '.join(seed) or 'empty'}) — "
+                    f"phrase_plan.seed must name the ONE recurring idea, "
+                    f"{_INTRO_MOTIF_MIN}-{_INTRO_MOTIF_MAX} swaras drawn from the mukhada head "
+                    f"(or the pakad), that every phrase develops")
+    else:
+        if mukhada is not None:
+            head_swaras = [_landing_swara(n) for n in _sounding(mukhada.notes)]
+            if head_swaras and not _quote_present(head_swaras, seed, _QUOTE_MAX_GAP):
+                viol.append(f"the motif ({' '.join(seed)}) is not drawn from the mukhada head "
+                            f"({' '.join(head_swaras)}) — derive it from the head's swaras so "
+                            f"the mukhada arrives as the culmination of the intro's idea")
+        anchor = seed[:_INTRO_ANCHOR_LEN]
+        for i, ph in enumerate(phrases[:-1]):       # the final phrase only SETTLES — exempt
+            if not _quote_present([_landing_swara(n) for n in _melodic(ph)], anchor, _QUOTE_MAX_GAP):
+                viol.append(f"phrase {i + 1} never touches the motif ({' '.join(seed)}) — every "
+                            f"phrase explores or varies the ONE motif (at least its opening "
+                            f"{' '.join(anchor)}) before landing on Sa; do not invent a new "
+                            f"phrase each time")
+        all_melodic = [_landing_swara(n) for ph in phrases for n in _melodic(ph)]
+        if not _quote_present(all_melodic, seed, _QUOTE_MAX_GAP):
+            viol.append(f"the full motif ({' '.join(seed)}) is never stated — reveal it "
+                        f"completely in a later phrase (the reveal is the intro's story)")
+
+    first_melodic = _melodic(phrases[0]) if phrases else []
+    if first_melodic:
+        span = max(map(_landing_pitch, first_melodic)) - min(map(_landing_pitch, first_melodic))
+        if span > _INTRO_OPEN_SPAN:
+            viol.append(f"the opening phrase spans {span} semitones — badhat: phrase 1 states a "
+                        f"NARROW fragment around home (<= {_INTRO_OPEN_SPAN}); each later phrase "
+                        f"may add a note or widen the range")
+    melodic = [n for ph in phrases for n in _melodic(ph)]
+    if melodic:
+        pitches = [_landing_pitch(n) for n in melodic]
+        peak = pitches.index(max(pitches))
+        elapsed = sum(n.dur for n in melodic[:peak])
+        total = sum(n.dur for n in melodic)
+        if elapsed < _INTRO_PEAK_MIN_POS * total:
+            viol.append("the intro's highest note arrives too early — badhat: reveal the raga "
+                        "gradually and let the widest reach land past the midpoint, in the "
+                        "later phrases")
     return viol
 
 
@@ -404,10 +553,10 @@ def verify_manjha(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     # manjha takes the melody DOWN into the mandra octave — it is part of the sthayi and the ANTARA,
     # not the manjha, owns the taar. So it must DIP into the lower octave and must NOT climb into the
     # taar. This is what makes it a bridge that CONTRASTS the mukhada (by register) before the ascent.
-    if not any(n.oct < 0 for n in sounding):
+    if not any(_landing_oct(n) < 0 for n in sounding):
         viol.append("the manjha never dips into the mandra (lower) octave — it must take the melody "
                     "DOWN below home; the manjha is the low bridge before the antara climbs")
-    if any(n.oct >= 1 for n in sounding):
+    if any(_landing_oct(n) >= 1 for n in sounding):
         viol.append("the manjha reaches the taar (upper) octave — keep it in the mandra / lower-madhya "
                     "register; the ANTARA owns the upper octave, the manjha stays low")
 
@@ -438,14 +587,14 @@ def _arc_violations(sounding: list[LeadNote], cell_name: str) -> list[str]:
     The upper octave is earned — a cell that starts high, peaks early, or exits on its own
     climax has no arc, just altitude."""
     viol: list[str] = []
-    if sounding[0].oct >= 1:
+    if _landing_oct(sounding[0]) >= 1:
         viol.append(f"the {cell_name} opens already in the taar octave — start in the middle "
                     f"(madhya) octave and CLIMB; the ascent is the {cell_name}'s story")
-    if max(n.oct for n in sounding) < 1:
+    if max(_landing_oct(n) for n in sounding) < 1:
         viol.append(f"the {cell_name} never reaches the taar octave — its climb must enter the "
                     f"upper octave (oct +1) for the composition's peak")
         return viol
-    pitches = [n.oct * 12 + SWARAS[_landing_swara(n)] for n in sounding]
+    pitches = [_landing_pitch(n) for n in sounding]
     peak = pitches.index(max(pitches))
     elapsed = sum(n.dur for n in sounding[:peak])
     total = sum(n.dur for n in sounding)
@@ -504,9 +653,17 @@ def verify_antara(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     viol.extend(_arc_violations(sounding, "antara"))
 
     last = sounding[-1]
-    if _landing_swara(last) != "S" or last.oct >= 1:
-        viol.append(f"the antara ends on {_landing_swara(last)} (oct {last.oct:+d}) — descend and "
-                    f"come to rest on madhya Sa, handing off into the returning mukhada")
+    if _landing_swara(last) != "S" or _landing_oct(last) >= 1:
+        viol.append(f"the antara ends on {_landing_swara(last)} (oct {_landing_oct(last):+d}) — "
+                    f"descend and come to rest on madhya Sa, handing off into the returning mukhada")
+
+    # RHYTHMIC VARIETY (Sujit, 2026-07-16: the antara's harmonized guitar line was "single long
+    # notes, no variation" — 26 two-beat notes): the second theme is still a THEME, so it mixes
+    # note values (8ths and quarters against the held notes), same floor the taan is held to.
+    if len({round(n.dur, 4) for n in sounding}) < _TAAN_MIN_DURATIONS:
+        viol.append(f"the antara uses fewer than {_TAAN_MIN_DURATIONS} distinct note values — a "
+                    f"wall of even long notes reads as a drone, not a theme; mix 8ths and "
+                    f"quarters against the held notes")
 
     return viol
 
@@ -561,6 +718,10 @@ def verify_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
     if not _has_burst(sounding):
         viol.append(f"the taan has no true sixteenth-note burst (>= {_TAAN_BURST_LEN} consecutive "
                     f"notes of <= {_TAAN_BURST_NOTE:g} beats) — it must actually run, in bursts")
+    elif not _late_burst(sounding):
+        viol.append("the taan's final approach WALKS to the landing on long notes — end with a "
+                    "dense run (a last burst of 16ths/8ths) that resolves straight onto the "
+                    "closing sam; the tension of the run is what makes the landing feel earned")
     if not any(n.rest for n in notes) and not any(n.dur >= _TAAN_SPACE_BEATS for n in sounding):
         viol.append("the taan never breathes — contrast the bursts with space: a true rest or a "
                     "held note of a beat or more")
@@ -577,6 +738,20 @@ def _has_burst(sounding: list[LeadNote]) -> bool:
     for n in sounding:
         run = run + 1 if n.dur <= _TAAN_BURST_NOTE else 0
         if run >= _TAAN_BURST_LEN:
+            return True
+    return False
+
+
+def _late_burst(sounding: list[LeadNote]) -> bool:
+    """Does a burst END inside the taan's final stretch (`_TAAN_END_BURST_WINDOW`)? The
+    cadential run — the landing note itself may be long; what matters is arriving in flight."""
+    total = sum(n.dur for n in sounding)
+    elapsed = 0.0
+    run = 0
+    for n in sounding:
+        elapsed += n.dur
+        run = run + 1 if n.dur <= _TAAN_BURST_NOTE else 0
+        if run >= _TAAN_BURST_LEN and elapsed >= (1.0 - _TAAN_END_BURST_WINDOW) * total:
             return True
     return False
 
