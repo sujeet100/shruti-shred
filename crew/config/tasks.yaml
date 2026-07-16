@@ -360,6 +360,7 @@ generate_riff:
 
     THE RAGA — use ONLY these swaras (the riff must stay legal): {allowed}
       (raga: {raga}; the shared motif every voice locks to is: {motif})
+      direction rule: {direction_rule}
       pakad (the raga's SIGNATURE phrase): {pakad}
       chalan (how the raga MOVES): {chalan}
       BUILD THE RIFF FROM THESE, not arbitrary in-scale notes: anchor your chugs on the pakad's

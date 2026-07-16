@@ -314,6 +314,38 @@ def test_guardrail_rejects_an_illegal_swara():
     assert ok is False and "illegal" in msg.lower() and "P" in msg
 
 
+def test_bends_are_seated_in_the_raga():
+    # malkauns: the next step above S is g (3 semitones) — the bend's held apex is a
+    # raga tone, not the old fixed whole-tone rise
+    placed = place_riff([RiffNote(swara="S", dur=1.0, technique="bend")], start=0.0, bars=1,
+                        cycle_beats=1.0, register=0, accent_beats=set(), raga="malkauns")
+    assert placed[0].technique == "bend" and placed[0].bend_st == 3
+
+
+def test_bend_skips_a_descent_only_swara():
+    # bageshree: S's neighbour R is descent-only, so the bend seats on g (3 semitones)
+    placed = place_riff([RiffNote(swara="S", dur=1.0, technique="bend")], start=0.0, bars=1,
+                        cycle_beats=1.0, register=0, accent_beats=set(), raga="bageshree")
+    assert placed[0].bend_st == 3
+
+
+def test_bend_with_no_reachable_seat_plays_plain():
+    # bageshree m: P is descent-only and the next enterable swara (D) is 4 semitones up —
+    # too far to bend, so the note plays plain instead of holding an out-of-raga apex
+    placed = place_riff([RiffNote(swara="m", dur=1.0, technique="bend")], start=0.0, bars=1,
+                        cycle_beats=1.0, register=0, accent_beats=set(), raga="bageshree")
+    assert placed[0].technique is None and placed[0].bend_st is None
+
+
+def test_guardrail_enforces_the_direction_rule_on_the_root_line():
+    # Bageshree's P is DESCENT-only: a root line climbing m -> P is bounced with the
+    # rule named; the raga's own D -> P -> m descent passes.
+    ok, msg = _riff_guardrail("bageshree")(_FakeOutput(_pattern("m", "P")))
+    assert ok is False and "DESCENT-only" in msg and "P" in msg
+    ok, value = _riff_guardrail("bageshree")(_FakeOutput(_pattern("D", "P", "m")))
+    assert ok is True and isinstance(value, RiffPattern)
+
+
 # --- the RiffNote contract -----------------------------------------------------
 
 def test_riffnote_rejects_nonpositive_duration():

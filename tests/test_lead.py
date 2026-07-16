@@ -560,6 +560,31 @@ def test_guardrail_catches_an_illegal_cross_octave_meend_target():
     assert ok is False and "P" in msg
 
 
+def test_guardrail_enforces_the_direction_rule():
+    # Bageshree's P is DESCENT-only (the aroha skips it): m -> P ascends into it and is
+    # bounced with the rule named; D -> P -> m is the raga's own descent and passes.
+    ok, msg = _lead_guardrail("bageshree")(_FakeOutput(_phrase("m", "P", "S")))
+    assert ok is False and "DESCENT-only" in msg and "P" in msg
+    ok, value = _lead_guardrail("bageshree")(_FakeOutput(_phrase("D", "P", "m")))
+    assert ok is True and isinstance(value, LeadPhrase)
+
+
+def test_guardrail_catches_a_meend_gliding_up_into_a_descent_only_swara():
+    # the glide LANDS on its target, so a meend rising into Bageshree's P is an
+    # ascending entry too
+    phrase = LeadPhrase(phrase_plan=_plan("S"),
+                        notes=[LeadNote(swara="m", dur=2.0, meend_swara="P")])
+    ok, msg = _lead_guardrail("bageshree")(_FakeOutput(phrase))
+    assert ok is False and "DESCENT-only" in msg
+
+
+def test_raga_facts_state_the_direction_rule():
+    from crew.lead import _render_raga_facts
+    facts = _render_raga_facts("bageshree")
+    assert "direction rule" in facts and "DESCENT" in facts and "P" in facts
+    assert "direction rule" not in _render_raga_facts("malkauns")
+
+
 def test_guardrail_checks_the_declared_seed_too():
     # The phrase_plan seed is part of what the phrase commits to, so an illegal seed swara
     # (P is absent from Malkauns) is caught even when every NOTE is legal.
@@ -924,18 +949,24 @@ def test_noop_meends_are_stripped_at_placement():
 # --- the intro/alap: verified, generated into a SHORTENED window ------------------
 
 def _good_intro() -> LeadPhrase:
-    # passes verify_intro (the aochar shape): THREE short phrases, each developing the ONE motif
-    # (n S) then landing on Sa, separated by real rests; opens on Sa, dips into the mandra, STATES
-    # the pakad (d n S..m), reveals progressively (narrow phrase 1, the widest reach — m — late),
-    # no continuous-Sa wall. The final Sa starts at beat 13.0 and the cell is 16 beats (13 before
-    # the close + a 3-beat held Sa), so the shortened-window / ring-out code tests below still hold.
+    # passes verify_intro (the alap-VISTAR shape): THREE tension-holding phrases developing the
+    # ONE motif (n S) — each ends AWAY from home — separated by real rests with the mandra Sa
+    # PLUCKED between them; opens on Sa, the melodic line dips into the mandra, STATES the
+    # pakad, widest reach (m) late, and only the FINAL phrase comes home. The final Sa starts
+    # at beat 13.0 and the cell is 16 beats, so the shortened-window / ring-out tests hold.
     return LeadPhrase(phrase_plan=_plan("n", "S"),
-                      notes=[LeadNote(swara="S", dur=1.0), LeadNote(swara="n", dur=1.0, oct=-1),
-                             LeadNote(swara="S", dur=1.5), LeadNote(swara="S", dur=1.5, rest=True),
-                             LeadNote(swara="d", dur=2.0, oct=-1), LeadNote(swara="n", dur=1.0, oct=-1),
-                             LeadNote(swara="S", dur=2.0), LeadNote(swara="S", dur=1.0, rest=True),
-                             LeadNote(swara="g", dur=1.0), LeadNote(swara="m", dur=1.0),
-                             LeadNote(swara="S", dur=3.0)])
+                      notes=[LeadNote(swara="S", dur=0.5), LeadNote(swara="n", dur=1.0, oct=-1),
+                             LeadNote(swara="S", dur=0.5), LeadNote(swara="d", dur=1.0, oct=-1),
+                             LeadNote(swara="S", dur=1.0, rest=True),
+                             LeadNote(swara="S", dur=0.5, oct=-1),               # the low pluck
+                             LeadNote(swara="S", dur=1.0, rest=True),
+                             LeadNote(swara="d", dur=0.5, oct=-1), LeadNote(swara="n", dur=0.5, oct=-1),
+                             LeadNote(swara="S", dur=0.5), LeadNote(swara="g", dur=1.5),
+                             LeadNote(swara="S", dur=1.0, rest=True),
+                             LeadNote(swara="S", dur=0.5, oct=-1),               # the low pluck
+                             LeadNote(swara="S", dur=1.0, rest=True),
+                             LeadNote(swara="g", dur=0.5), LeadNote(swara="m", dur=1.0),
+                             LeadNote(swara="g", dur=0.5), LeadNote(swara="S", dur=3.0)])
 
 
 def test_intro_is_generated_into_a_shortened_window():
@@ -1200,6 +1231,18 @@ def test_mukhada_cell_rides_the_event_stream():
     assert cell is not None
     assert [n.swara for n in cell.notes] == ["S", "m", "g", "g", "S"]
     assert mukhada_cell_from_events([]) is None
+
+
+def test_mukhada_voices_unison_whatever_its_kind():
+    # the head doubles sitar+guitar even on a kind that voices solo sitar — the verbatim
+    # return must carry the same presence as the first statement (Sujit, 2026-07-16)
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"))
+    fn, _ = _fake([_good_head()])
+    layers, _ = generate_lead(arr, gen_fn=fn)
+    assert len(layers) == 2                                      # sitar + lead guitar
+    sitar, guitar = layers
+    assert [(n.swara, n.start) for n in sitar.notes] == \
+           [(n.swara, n.start) for n in guitar.notes]            # a true unison double
 
 
 def test_manjha_memory_labels_the_head():

@@ -27,6 +27,7 @@ from render import (  # noqa: E402
     _bends,
     _meend_wheel,
     _pull_offset,
+    _render_bend,
     _seat_chord_tone,
     _wheel,
     build_midi,
@@ -96,6 +97,22 @@ def test_long_slide_and_pick_scrape_are_wheel_gestures_too():
     assert _apply_technique("long_slide", 1.0, 100, 120) == (1.0, 100)
     assert _apply_technique("pick_scrape", 0.5, 110, 120) == (0.5, 110)
     assert _bends({"technique": "long_slide"}) and _bends({"technique": "pick_scrape"})
+
+
+def test_bend_apex_follows_the_per_note_depth():
+    # the sequencer stamps a raga-aware bend_st per note; the renderer's held apex
+    # must follow it (the fixed BEND_ST is only the fallback for hand-authored dicts)
+    class _Rec:
+        def __init__(self) -> None:
+            self.wheels: list[tuple[float, int]] = []
+
+        def addPitchWheelEvent(self, track, ch, t, v) -> None:
+            self.wheels.append((t, v))
+
+    rec = _Rec()
+    _render_bend(rec, 0, 0, 0.0, 1.0, st=3)
+    assert max(v for _, v in rec.wheels) == _wheel(3)   # the apex is the stamped depth
+    assert rec.wheels[-1][1] == 0                       # ...and the wheel recenters
 
 
 def test_legato_arms_the_wheel_and_pulls_from_the_previous_pitch():

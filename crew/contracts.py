@@ -730,6 +730,10 @@ class Note(BaseModel):
     meend_oct: Optional[int] = None              # target's ABSOLUTE octave (None = the note's own octave)
     chord: Optional[list[str]] = None            # extra raga swaras sounded WITH the root (stacked up)
     technique: Optional[RiffTechnique] = None    # a rhythm-guitar articulation the renderer maps
+    bend_st: Optional[int] = None                # a bend's rise in semitones — code stamps the
+                                                 # RAGA-AWARE depth (the next swara enterable from
+                                                 # below, raga.ascent_step) so the apex never holds
+                                                 # an out-of-raga pitch; None = renderer default
     andolan: Optional[bool] = None               # a slow, shallow pitch OSCILLATION on this held note
                                                  # (Darbari komal g/d, Bhairav komal r/d) — code sets it
                                                  # deterministically on the raga's andolan swaras

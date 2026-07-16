@@ -63,7 +63,8 @@ from crew.contracts import (
     motif_illegal_in_raga,
 )
 from crew.interpreter import interpret
-from raga import RAGAS
+from crew.lead import render_direction_rule
+from raga import RAGAS, directional_varjya
 from subgenres import SUBGENRES
 from talas import TALAS
 
@@ -213,6 +214,9 @@ def _render_raga_block(key: str) -> str:
     ]
     if r.get("andolan"):
         lines.append(f"    andolan (swaras that oscillate — idiomatic): {' '.join(r['andolan'])}")
+    direction = directional_varjya(key)
+    if direction:
+        lines.append(f"    direction rule — {render_direction_rule(direction)}")
     return "\n".join(lines)
 
 

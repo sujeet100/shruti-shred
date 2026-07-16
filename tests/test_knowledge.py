@@ -145,6 +145,37 @@ def test_chord_tones_are_validated():
     assert len(v) == 1 and v[0]["kind"] == "chord" and v[0]["swara"] == "P", v
 
 
+def test_directional_varjya_is_derived_from_the_ladders():
+    # data-derived, no new facts: a swara absent from the aroha is DESCENT-only.
+    # Bageshree touches P and R only on the way down; Bhimpalasi skips R and D
+    # ascending; Malkauns is symmetric (no rule). (Sujit's catch, 2026-07-16.)
+    from raga import directional_varjya
+    assert directional_varjya("bageshree") == {"R": "avaroha", "P": "avaroha"}
+    assert directional_varjya("bhimpalasi") == {"R": "avaroha", "D": "avaroha"}
+    assert directional_varjya("malkauns") == {}
+
+
+def test_ascent_step_skips_descent_only_swaras():
+    # the next swara ENTERABLE from below — the seat for any code gesture rising into
+    # a pitch (a riff bend's apex): a plain step in a symmetric raga, the skip in a
+    # directional one, and octave-aware at the top of the ladder.
+    from raga import ascent_step
+    assert ascent_step("S", "malkauns") == ("g", 0)     # plain next step
+    assert ascent_step("S", "bageshree") == ("g", 0)    # R is descent-only -> skipped
+    assert ascent_step("m", "bageshree") == ("D", 0)    # P skipped, lands on D
+    assert ascent_step("n", "malkauns") == ("S", 1)     # wraps into the next octave
+
+
+def test_direction_violations_flag_a_wrong_side_entry():
+    from raga import direction_violations
+    # m -> P ascends into Bageshree's descent-only P: flagged with the rule named
+    assert any("DESCENT-only" in v for v in direction_violations([("m", 0), ("P", 0)], "bageshree"))
+    # D -> P is the raga's own descent — clean; a re-struck P (same pitch) is free too
+    assert direction_violations([("D", 0), ("P", 0), ("P", 0), ("m", 0)], "bageshree") == []
+    # the rule is octave-aware: taar m down to madhya P is an entry from ABOVE — clean
+    assert direction_violations([("m", 1), ("P", 0)], "bageshree") == []
+
+
 def test_phase0_pipeline_still_holds():
     # The proven Phase 0 composition is clean; the deliberately-illegal variant
     # is caught. Guards against a schema/validator change silently regressing.

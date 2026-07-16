@@ -162,8 +162,10 @@ LEGATO_MAX_GAP = 0.05    # beats: prev note must END this close for a legato con
 # Reverb send (MIDI CC91) per layer role — a metal mix's space: the melodic voices sit in a
 # room, the rhythm chug stays tight, and the low end stays dry so it doesn't smear. Without
 # an explicit send the specialized banks (Dethmetal) play bone-dry raw samples — the "no
-# reverb, sounds like noise" tone of the first live render.
-_REVERB_SEND = {"lead": 68, "drone": 48, "rhythm": 30, "bass": 12, "tabla": 52, "drums": 38}
+# reverb, sounds like noise" tone of the first live render. The tabla sits WETTER than the
+# kit (52 -> 78, Sujit's ear 2026-07-16: "tabla is very dry") — the Indian Ensemble strokes
+# are close-miked one-shots that need the room the metal samples carry baked in.
+_REVERB_SEND = {"lead": 68, "drone": 48, "rhythm": 30, "bass": 12, "tabla": 78, "drums": 38}
 _REVERB_SEND_DEFAULT = 40
 
 
@@ -324,15 +326,19 @@ def _render_slide(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
     mf.addPitchWheelEvent(track, ch, round(start + dur, 4), 0)
 
 
-def _render_bend(mf: MIDIFile, track: int, ch: int, start: float, dur: float) -> None:
-    """Bend UP: wheel rises from 0 to BEND_ST over the first half, holds, then recenters
-    at note end. On a polyphonic (chorded) channel the whole chord bends together —
-    acceptable, and correct for a slid/bent power chord."""
+def _render_bend(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
+                 st: float = BEND_ST) -> None:
+    """Bend UP: wheel rises from 0 to `st` semitones over the first half, holds, then
+    recenters at note end. The apex HOLDS, so `st` must land on a real pitch — the
+    sequencer stamps a raga-aware depth per note (`bend_st`, the next enterable swara);
+    BEND_ST is only the fallback for hand-authored dicts. On a polyphonic (chorded)
+    channel the whole chord bends together — acceptable, and correct for a slid/bent
+    power chord."""
     glide = dur * BEND_FRAC
     steps = max(4, min(24, int(glide / 0.02)))
     for k in range(steps + 1):
         t = start + glide * k / steps
-        mf.addPitchWheelEvent(track, ch, round(t, 4), _wheel(BEND_ST * k / steps))
+        mf.addPitchWheelEvent(track, ch, round(t, 4), _wheel(st * k / steps))
     mf.addPitchWheelEvent(track, ch, round(start + dur, 4), 0)
 
 
@@ -571,7 +577,7 @@ def build_midi(comp: dict, path: str) -> None:
                 if st is not None:               # no usable previous note: soft attack only
                     _render_slide(mf, i, ch, n["start"], dur, st=st, frac=LEGATO_PULL_FRAC)
             elif n.get("technique") == "bend":
-                _render_bend(mf, i, ch, n["start"], dur)
+                _render_bend(mf, i, ch, n["start"], dur, st=n.get("bend_st") or BEND_ST)
             elif n.get("andolan"):
                 _render_andolan(mf, i, ch, n["start"], dur, bpm)
             prev_pitch, prev_end = sounding, n["start"] + n["dur"]

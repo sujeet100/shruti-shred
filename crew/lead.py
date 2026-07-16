@@ -74,7 +74,7 @@ from crew.generators import (
     section_spans,
 )
 from crew.live import beat, flags
-from raga import RAGAS, scale_step_up, validate_composition
+from raga import RAGAS, direction_violations, directional_varjya, scale_step_up, validate_composition
 
 _LEAD_ROLE: Final = "lead"                 # the layer role this generator fills
 _ROLE_GENERATOR: Final = "generator"       # DebateEvent role for a generator step
@@ -530,8 +530,15 @@ _VOICING_BY_KIND: Final[dict[SectionKind, Voicing]] = {
 }
 
 
-def _voicing_for(kind: SectionKind) -> Voicing:
-    return _VOICING_BY_KIND.get(kind, Voicing.SITAR)
+def _voicing_for(section) -> Voicing:
+    """The section's voicing — by KIND, with one form_role override: a MUKHADA always voices
+    UNISON (sitar + guitar doubling), whatever section kind carries it. The head is the gat's
+    identity and returns verbatim; its first statements ride melody-kind sections (unison) but
+    the post-climax return often rides a riff-kind one, which voiced SOLO SITAR — the hook came
+    back audibly thinner than it first appeared (Sujit's 2026-07-16 render)."""
+    if is_mukhada(section):
+        return Voicing.UNISON
+    return _VOICING_BY_KIND.get(section.kind, Voicing.SITAR)
 
 
 def _harmony_note(base: Note, swara: str, octave: int) -> Note:
@@ -626,6 +633,22 @@ def _render_role_brief(section) -> str:
     return briefs["kinds"].get(section.kind.value, briefs["default"])
 
 
+def render_direction_rule(rules: dict[str, str]) -> str:
+    """One line naming the raga's one-directional swaras — data-derived (see
+    `directional_varjya`), rendered for a prompt's raga facts."""
+    down = [sw for sw, d in rules.items() if d == "avaroha"]
+    up = [sw for sw, d in rules.items() if d == "aroha"]
+    parts: list[str] = []
+    if down:
+        parts.append(f"{' '.join(down)} appear{'s' if len(down) == 1 else ''} ONLY in "
+                     f"DESCENT — touch on the way down, approached from above, never "
+                     f"from below (the aroha skips {'it' if len(down) == 1 else 'them'})")
+    if up:
+        parts.append(f"{' '.join(up)} appear{'s' if len(up) == 1 else ''} ONLY in "
+                     f"ASCENT — approached from below, never from above")
+    return "; ".join(parts)
+
+
 def _render_raga_facts(raga: str) -> str:
     """The raga's facts the lead composes from — the single source of truth."""
     r = RAGAS[raga]
@@ -636,6 +659,9 @@ def _render_raga_facts(raga: str) -> str:
         f"  pakad: {' | '.join(' '.join(p) for p in r['pakad'])}",
         f"  chalan: {' | '.join(' '.join(p) for p in r['chalan'])}",
     ]
+    direction = directional_varjya(raga)
+    if direction:
+        lines.append(f"  direction rule — {render_direction_rule(direction)}")
     if r.get("andolan"):
         lines.append(f"  andolan — the code SWAYS these komal swaras when you HOLD them (a slow"
                      f" oscillation that defines the raga), so give them length: {' '.join(r['andolan'])}")
@@ -850,11 +876,41 @@ def _phrase_swaras(phrase: LeadPhrase) -> list[str]:
     return swaras
 
 
+def _phrase_direction_seq(phrase: LeadPhrase) -> list[tuple[str, int]]:
+    """The phrase's sounding line as (swara, octave) steps for the direction rule — a
+    meend adds its own step (the glide LANDS on the target), rests and chikari are
+    skipped (punctuation, not melodic entries)."""
+    seq: list[tuple[str, int]] = []
+    for n in phrase.notes:
+        if n.rest or n.bol == "chikari":
+            continue
+        seq.append((n.swara, n.oct))
+        if n.meend_swara is not None:
+            seq.append((n.meend_swara, n.meend_oct if n.meend_oct is not None else n.oct))
+    return seq
+
+
+def _phrase_grammar_error(phrase: LeadPhrase, raga: str) -> str | None:
+    """The ONE domain rule both lead guardrails share, as a precise retryable error (or
+    None when clean): every swara the phrase sounds must be legal in the raga, and a
+    one-directional swara (Bageshree's descent-only P...) must be entered from its own
+    side (`direction_violations` — the same data-derived rule the prompt states)."""
+    illegal = motif_illegal_in_raga(_phrase_swaras(phrase), raga)
+    if illegal:
+        allowed = " ".join(RAGAS[raga]["allowed"])
+        return (f"swaras {sorted(set(illegal))} are illegal in raga {raga}. "
+                f"Use only these swaras: {allowed}. Fix and resend.")
+    direction = direction_violations(_phrase_direction_seq(phrase), raga)
+    if direction:
+        return "; ".join(dict.fromkeys(direction)) + ". Fix the approach and resend."
+    return None
+
+
 def _lead_guardrail(raga: str):
-    """Build the Task guardrail for a given raga: the ONE domain rule — every swara
-    the phrase sounds must be legal in the raga. `output_pydantic` guarantees the
-    SHAPE; this checks the grammar and, on a violation, returns the precise error so
-    CrewAI re-runs the section (a bounded retry, not a loop).
+    """Build the Task guardrail for a given raga: the raga-grammar rule — legal swaras,
+    entered from the legal direction (`_phrase_grammar_error`). `output_pydantic`
+    guarantees the SHAPE; this checks the grammar and, on a violation, returns the
+    precise error so CrewAI re-runs the section (a bounded retry, not a loop).
 
     Contract: returns (True, LeadPhrase) or (False, error-message). CrewAI reads the
     guardrail's RETURN ANNOTATION and requires the literal object tuple[bool, Any];
@@ -865,11 +921,9 @@ def _lead_guardrail(raga: str):
         phrase = _phrase_from_output(output)
         if phrase is None:
             return (False, "Return a single valid LeadPhrase JSON object and nothing else.")
-        illegal = motif_illegal_in_raga(_phrase_swaras(phrase), raga)
-        if illegal:
-            allowed = " ".join(RAGAS[raga]["allowed"])
-            return (False, f"swaras {sorted(set(illegal))} are illegal in raga {raga}. "
-                           f"Use only these swaras: {allowed}. Fix and resend.")
+        error = _phrase_grammar_error(phrase, raga)
+        if error:
+            return (False, error)
         return (True, phrase)
 
     guard.__annotations__["return"] = tuple[bool, Any]
@@ -983,21 +1037,20 @@ def _gat_from_output(output: Any) -> Gat | None:
 
 
 def _gat_guardrail(raga: str):
-    """Build the whole-gat guardrail: EVERY swara in EVERY part must be legal in the raga (the same
-    one domain rule as the per-section lead, applied across the three lines)."""
+    """Build the whole-gat guardrail: every part faces the same raga-grammar rule as the
+    per-section lead (`_phrase_grammar_error` — legal swaras, entered from the legal
+    direction), each violation named with its part."""
     def guard(output: Any):
         gat = _gat_from_output(output)
         if gat is None:
             return (False, "Return a single valid Gat JSON object and nothing else.")
-        swaras: list[str] = []
-        for part in (gat.mukhada, gat.manjha, gat.antara):
-            if part is not None:
-                swaras.extend(_phrase_swaras(part))
-        illegal = motif_illegal_in_raga(swaras, raga)
-        if illegal:
-            allowed = " ".join(RAGAS[raga]["allowed"])
-            return (False, f"swaras {sorted(set(illegal))} are illegal in raga {raga}. "
-                           f"Use only these swaras: {allowed}. Fix and resend.")
+        for name, part in (("mukhada", gat.mukhada), ("manjha", gat.manjha),
+                           ("antara", gat.antara)):
+            if part is None:
+                continue
+            error = _phrase_grammar_error(part, raga)
+            if error:
+                return (False, f"in the {name}: {error}")
         return (True, gat)
 
     guard.__annotations__["return"] = tuple[bool, Any]
@@ -1260,7 +1313,7 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
             sitar_line, guitar_line = _voice_taan_call_response(
                 line, span, arr.beats_per_bar, arr.raga)
         else:
-            sitar_line, guitar_line = _voice_line(line, _voicing_for(span.section.kind), arr.raga)
+            sitar_line, guitar_line = _voice_line(line, _voicing_for(span.section), arr.raga)
         sitar_notes.extend(sitar_line)
         guitar_notes.extend(guitar_line)
     layers: list[Layer] = []
@@ -1344,7 +1397,7 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
             mukhada_cell = phrase                   # cache the head for its returns
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
-            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            events.append(_lead_event(span, phrase, line, _voicing_for(section)))
             # The head rides the event stream (see `mukhada_cell_from_events`) so the RIFF
             # generator — which runs after the lead — can reduce it, with no signature churn.
             events[-1].data["mukhada_cell"] = phrase.model_dump(exclude_none=True)
@@ -1362,7 +1415,7 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
                 verify=lambda c: verify_intro(c, window_beats=window, raga=raga, mukhada=head))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
-            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            events.append(_lead_event(span, phrase, line, _voicing_for(section)))
             if tries > 1:
                 events.append(_gat_repair_event(_INTRO, tries, viol))
         elif is_manjha(section) and mukhada_cell is not None:  # the SHORT low bridge back to the head
@@ -1377,7 +1430,7 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
                     verify=lambda c: verify_manjha(c, mukhada=head, window_beats=window, raga=raga))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
-            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            events.append(_lead_event(span, phrase, line, _voicing_for(section)))
             if tries > 1:
                 events.append(_gat_repair_event(_MANJHA, tries, viol))
         elif is_antara(section) and mukhada_cell is not None:  # the second movement — the verified arc
@@ -1391,7 +1444,7 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
                                                    raga=raga))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
-            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            events.append(_lead_event(span, phrase, line, _voicing_for(section)))
             if tries > 1:
                 events.append(_gat_repair_event(_ANTARA, tries, viol))
         elif is_taan_long(section):                 # the developed peak — motif-grown, arced, burst+space
@@ -1401,7 +1454,7 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
                                              raga=raga))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
-            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            events.append(_lead_event(span, phrase, line, _voicing_for(section)))
             if tries > 1:
                 events.append(_gat_repair_event(_TAAN_LONG, tries, viol))
         else:
@@ -1409,7 +1462,7 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
             phrase = gen_fn(span, arr, list(memory))   # a COPY, so gen_fn can't mutate history
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
-            events.append(_lead_event(span, phrase, line, _voicing_for(section.kind)))
+            events.append(_lead_event(span, phrase, line, _voicing_for(section)))
         phrases[span.index] = phrase
         memory.append(LeadMemo(section.kind.value, phrase, section.form_role))
 

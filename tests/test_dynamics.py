@@ -58,7 +58,8 @@ def test_energy_is_none_without_a_form_role():
 
 
 def test_energy_rises_intro_to_peak():
-    e = lambda r: section_energy(_sec(r, "lead", ["lead", "drone"]), is_final=False)
+    def e(r):
+        return section_energy(_sec(r, "lead", ["lead", "drone"]), is_final=False)
     assert e("intro") < e("mukhada") < e("antara") < e("taan_long")
 
 
@@ -118,6 +119,34 @@ def test_riff_led_section_keeps_the_rhythm_up():
 def test_drum_hits_are_scaled_too():
     _arr_, (_drone, _lead, _rhythm, drums) = _band()
     assert drums.hits[0].vel != 100                             # the kit rides the energy arc
+
+
+def test_returning_head_is_not_background_scaled():
+    # the lead playing the MUKHADA keeps full role gain even under a riff foreground — the
+    # hook returns at the strength of its first statement (Sujit's 2026-07-16 render: the
+    # returning head sat at vel 72 vs 80, exactly the 0.90 background scale)
+    arr = _arr([
+        _sec("mukhada", "lead", ["lead", "rhythm", "drone"]),     # [0,16) first statement
+        _sec("mukhada", "rhythm", ["lead", "rhythm", "drone"]),   # [16,32) the riff-led return
+        _sec("outro", "lead", ["lead", "drone"]),                  # keeps the return off the final floor
+    ])
+    lead = Layer(role="lead", notes=[Note(swara="S", start=0.0, dur=1, vel=90),
+                                     Note(swara="S", start=16.0, dur=1, vel=90)])
+    out = apply_dynamics([lead], arr)[0]
+    assert _vel_at(out, 0.0) == _vel_at(out, 16.0)
+
+
+def test_background_lead_still_scales_outside_the_head():
+    # the mukhada exemption is surgical: a background lead in any OTHER form still sits back
+    arr = _arr([
+        _sec("antara", "lead", ["lead", "rhythm", "drone"]),
+        _sec("antara", "rhythm", ["lead", "rhythm", "drone"]),
+        _sec("outro", "lead", ["lead", "drone"]),
+    ])
+    lead = Layer(role="lead", notes=[Note(swara="S", start=0.0, dur=1, vel=90),
+                                     Note(swara="S", start=16.0, dur=1, vel=90)])
+    out = apply_dynamics([lead], arr)[0]
+    assert _vel_at(out, 16.0) < _vel_at(out, 0.0)
 
 
 def test_a_formless_chart_is_unchanged():

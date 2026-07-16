@@ -48,15 +48,18 @@ _MUKHADA_SHORT: Final = 0.5         # at least one 8th-or-faster (the movement b
 
 # Intro/alap — the diagnosed failure: random wandering that never resolves to Sa, with no space.
 # Structure research-verified (2026-07-15, the AOCHAR — the short pre-gat alap; sources in
-# DESIGN.md): opens AROUND MADHYA SA and dips into the mandra before rising; phrases end
-# sustained on nyas swaras; Sa is re-sounded often (chikari between phrases); the close is the
-# section's long final Sa, after which the gat's own mukhada brings the tala in.
-_INTRO_SA_SHARE: Final = 0.35       # Sa carries at least this share of the SOUNDING duration
-_INTRO_MIN_SA_RETURNS: Final = 3    # ...and the line RETURNS to Sa at least this many times
+# DESIGN.md), REVISED to the alap-VISTAR shape (Sujit's ear, 2026-07-16): the phrases hold
+# TENSION — they explore the motif up OR down and do NOT come home each time; instead the
+# MANDRA Sa is PLUCKED between phrases as a drone anchor (the guitarist's low open string /
+# the sitar's jod string), and the ONE real resolution — the long held Sa that finally feels
+# like home — is saved for the close, after which the gat's mukhada brings the tala in.
+_INTRO_SA_SHARE: Final = 0.20       # Sa (the low plucks + the close) still anchors by duration
+_INTRO_MIN_SA_RETURNS: Final = 3    # ...and Sa is re-sounded at least this many separate times
 _INTRO_HELD_SA: Final = 2.0         # the closing Sa is HELD at least this long (beats)
 _INTRO_MIN_RESTS: Final = 2         # at least this many true rests...
 _INTRO_MIN_REST_BEATS: Final = 1.0  # ...each at least this long
 _INTRO_OPEN_MAX_STEPS: Final = 2    # the opening note sits within this many ladder steps of Sa
+_INTRO_PLUCK_MAX_OCT: Final = -1    # the between-phrase Sa pluck sits in the mandra (or lower)
 # The alap's MICRO-structure (Sujit's live note + GPT's alap spec, 2026-07-15): the diagnosed
 # failure was "Sa played repeatedly, continuously" — the model met the Sa-share/returns checks by
 # CLUSTERING Sa instead of composing phrase -> Sa -> silence. So the sentence structure is now
@@ -265,22 +268,24 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
                  mukhada: LeadPhrase | None = None) -> list[str]:
     """Return the intro/alap's structural violations (empty == a grounded alap). Pure.
 
-    The diagnosed failure of the first live gat: an alap of wandering notes that NEVER resolved
-    to Sa, barely touched it, and left no silence. Each requirement is Sujit's feel — plus the
-    research-verified AOCHAR shape — translated into a checkable rule (an LLM cannot invent
+    The shape is a MINIATURE ALAP VISTAR (Sujit's ear, 2026-07-16, revising the earlier
+    every-phrase-resolves design): the phrases hold TENSION — each explores the motif, up or
+    down, and does NOT come home — while the MANDRA Sa is PLUCKED between phrases as a drone
+    anchor (the low open string / jod string), and the one true resolution is the close.
+    Each requirement is that feel translated into a checkable rule (an LLM cannot invent
     silence or groundedness from "be spacious"):
-      * OPENS AROUND SA — the first note is Sa or a step or two from it, never in the taar
-        (the exposition starts around the middle tonic and dips into the mandra first);
-      * TOUCHES THE MANDRA — the early phrases reach below the home octave before the rise;
-      * ENDS ON A HELD SA — the alap must come to rest, not stop;
-      * SA-ANCHORED — Sa carries >= 30% of the sounding duration AND the line RETURNS to Sa
-        several separate times (Sa is HOME and the ear must keep hearing it come home);
-      * REAL SILENCE — at least two true rests of a beat or more;
-      * A BREATH AFTER SA — at least one rest immediately follows a Sa landing (the nyas).
+      * OPENS AROUND SA — the first note is Sa or a step or two from it, never in the taar;
+      * TOUCHES THE MANDRA — the melodic line itself dips below home (the pluck doesn't count);
+      * TENSION HELD — no phrase before the last resolves onto a madhya-or-higher Sa;
+      * PLUCKED HOME — every gap between phrases is anchored by a mandra-Sa pluck;
+      * ENDS ON A HELD SA — the final phrase alone resolves, onto the intro's longest Sa;
+      * SA-ANCHORED — Sa (the plucks + the close) still carries real duration and recurs;
+      * REAL SILENCE — at least two true rests of a beat or more.
     Plus the ONE-MOTIF discipline (`_motif_violations`): the intro develops a single declared
     motif — drawn from the mukhada head when `mukhada` is given, so the gat enters as the
     culmination of the intro's idea — and reveals it progressively (badhat) instead of
-    inventing independent phrases.
+    inventing independent phrases. Badhat here means the ENVELOPE widens (narrow opening,
+    widest reach past the midpoint) — individual phrases may ascend or descend freely.
     The long pause between the alap's last Sa and the mukhada is NOT checked here — that gap is
     code-reserved by the generator (a shortened window), never the LLM's job. But the alap must
     STAY inside its shortened window (`window_beats`) — an overrun spills into the reserved
@@ -304,9 +309,10 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
         viol.append(f"the alap opens on {_landing_swara(first)} (oct {_landing_oct(first):+d}) — "
                     f"begin AROUND madhya Sa (Sa itself or a step or two from it); the exposition "
                     f"starts at home, then dips into the mandra")
-    if not any(_landing_oct(n) < 0 for n in sounding):
-        viol.append("the alap never touches the mandra (lower) octave — dip below home in the "
-                    "early phrases before the line rises; that dip is the aochar's first move")
+    if not any(_landing_oct(n) < 0 for n in _melodic(sounding)):
+        viol.append("the alap's melodic line never touches the mandra (lower) octave — dip "
+                    "below home in the early phrases before the line rises (the low Sa pluck "
+                    "alone is punctuation, not the dip)")
 
     last = sounding[-1]
     if _landing_swara(last) != "S":
@@ -319,14 +325,14 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
     total = sum(n.dur for n in sounding)
     sa_dur = sum(n.dur for n in sounding if _landing_swara(n) == "S")
     if sa_dur < _INTRO_SA_SHARE * total:
-        viol.append(f"Sa carries only {sa_dur / total:.0%} of the alap's sounding time — return "
-                    f"to Sa often (>= {_INTRO_SA_SHARE:.0%} by duration); the alap's job is to "
-                    f"establish Sa as home")
+        viol.append(f"Sa carries only {sa_dur / total:.0%} of the alap's sounding time — keep "
+                    f"home ringing (>= {_INTRO_SA_SHARE:.0%} by duration): pluck the mandra Sa "
+                    f"between phrases and hold the closing Sa")
     returns = _sa_returns(sounding)
     if returns < _INTRO_MIN_SA_RETURNS:
-        viol.append(f"the line comes home to Sa only {returns} time(s) — RETURN to Sa at least "
-                    f"{_INTRO_MIN_SA_RETURNS} separate times (end phrases on Sa, and punctuate "
-                    f"between phrases with chikari strokes)")
+        viol.append(f"Sa is sounded only {returns} separate time(s) — touch home at least "
+                    f"{_INTRO_MIN_SA_RETURNS} times: the low pluck between phrases, and the "
+                    f"held Sa at the close")
 
     rests = [n for n in notes if n.rest and n.dur >= _INTRO_MIN_REST_BEATS]
     if len(rests) < _INTRO_MIN_RESTS:
@@ -334,29 +340,37 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
                     f"use at least {_INTRO_MIN_RESTS}; an alap breathes in real silence, not in "
                     f"wall-to-wall notes")
 
-    if not _rest_after_sa(notes):
-        viol.append("no rest follows a Sa landing — after you land on Sa, take a true rest "
-                    "(the nyas breath) before moving on")
-
-    # PHRASE GRAMMAR — the alap is a sequence of short sentences (explore -> resolve to Sa ->
-    # silence), NOT one continuous line, and Sa is a LANDING, never a sustained wall. This is the
-    # structure the Sa-share/returns checks above could not enforce (they were met by clustering Sa).
+    # PHRASE GRAMMAR — the alap is short independent sentences separated by real silence, each
+    # holding its TENSION (no mid-intro homecoming), with the mandra-Sa pluck anchoring the gaps
+    # and Sa never sustained as a wall. A pluck-only group is punctuation, not a phrase.
     phrases = _intro_phrases(notes)
     if len(phrases) < _INTRO_MIN_PHRASES:
         viol.append(f"the alap is only {len(phrases)} phrase(s) — compose at least "
-                    f"{_INTRO_MIN_PHRASES} short, INDEPENDENT phrases separated by real silence, "
-                    f"each exploring then resolving to Sa; do not write one continuous line")
-    for i, ph in enumerate(phrases):
-        if _landing_swara(ph[-1]) != "S":
-            viol.append(f"phrase {i + 1} ends on {_landing_swara(ph[-1])}, not Sa — every alap "
-                        f"phrase must RESOLVE home to Sa before its pause")
-        if i < len(phrases) - 1 and all(_landing_swara(n) == "S" for n in ph):
-            viol.append(f"phrase {i + 1} is only Sa — a phrase must EXPLORE a swara or two of the "
-                        f"raga and THEN land on Sa; bare Sa is a drone, not a sentence")
+                    f"{_INTRO_MIN_PHRASES} short, INDEPENDENT phrases separated by real silence; "
+                    f"do not write one continuous line")
+    for i, ph in enumerate(phrases[:-1]):           # every phrase but the final settle
+        core = _melodic(ph)
+        if not core:
+            continue                                # a degenerate phrase; the pluck rules cover it
+        last = core[-1]
+        if _landing_swara(last) == "S" and _landing_oct(last) > _INTRO_PLUCK_MAX_OCT:
+            viol.append(f"phrase {i + 1} resolves onto Sa — hold the TENSION: no phrase before "
+                        f"the last comes home; touch home between phrases as a LOW plucked "
+                        f"mandra Sa (oct {_INTRO_PLUCK_MAX_OCT}) instead, and save the real "
+                        f"resolution for the closing held Sa")
+        if all(_landing_swara(n) == "S" for n in core):
+            viol.append(f"phrase {i + 1} is only Sa — a phrase must EXPLORE the motif through "
+                        f"the raga's swaras; bare Sa is a drone stroke, not a sentence")
+    unanchored = _unanchored_boundaries(notes)
+    if unanchored:
+        viol.append(f"{unanchored} gap(s) between phrases have no mandra-Sa pluck — between "
+                    f"every pair of phrases, sound Sa LOW (oct {_INTRO_PLUCK_MAX_OCT}, like a "
+                    f"low open string) so home keeps ringing under the held tension")
     run = _longest_mid_sa_run(notes)
     if run > _INTRO_MAX_SA_RUN:
-        viol.append(f"the alap dwells on Sa for {run:g} continuous beats — Sa is where each phrase "
-                    f"LANDS, not a note to repeat or sustain; explore between the Sa landings")
+        viol.append(f"the alap dwells on Sa for {run:g} continuous beats — Sa is a drone TOUCH "
+                    f"between phrases, not a note to repeat or sustain; explore the motif "
+                    f"between the Sa strokes")
 
     # STATE THE RAGA — the alap must make THIS raga unmistakable, so at least one phrase quotes the
     # PAKAD (the signature phrase), not just in-scale wandering (Sujit, 2026-07-15). Fuzzy, octave-
@@ -386,10 +400,19 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
     return viol
 
 
+def _is_sa_pluck(note: LeadNote) -> bool:
+    """The between-phrase DRONE anchor: a mandra (or lower) Sa sounding — the guitarist's low
+    open string, the sitar's jod string. Analysis treats it as PUNCTUATION, not melody: it
+    must not fake a mandra dip, a motif tone, or a phrase of its own."""
+    return (not note.rest and note.bol != "chikari"
+            and _landing_swara(note) == "S" and _landing_oct(note) <= _INTRO_PLUCK_MAX_OCT)
+
+
 def _melodic(notes: list[LeadNote]) -> list[LeadNote]:
-    """The MELODY notes of a line — sounding, minus chikari strokes (a chikari rings taar Sa as
-    punctuation, not a melody pitch, so it must not fake a motif match or a register reach)."""
-    return [n for n in notes if not n.rest and n.bol != "chikari"]
+    """The MELODY notes of a line — sounding, minus the two kinds of punctuation: chikari
+    strokes (taar-Sa accents) and mandra-Sa plucks (the drone anchor). Neither may fake a
+    motif match, a register reach, or a phrase ending."""
+    return [n for n in notes if not n.rest and n.bol != "chikari" and not _is_sa_pluck(n)]
 
 
 def _motif_violations(cell: LeadPhrase, phrases: list[list[LeadNote]],
@@ -452,22 +475,44 @@ def _motif_violations(cell: LeadPhrase, phrases: list[list[LeadNote]],
     return viol
 
 
-def _intro_phrases(notes: list[LeadNote]) -> list[list[LeadNote]]:
-    """Split the alap into PHRASES at true rests: each phrase is the run of sounding notes
-    between rests. The alap's grammar is phrase -> Sa -> silence repeated, so a phrase is
-    exactly what a rest separates. Leading/trailing rests create no empty phrase."""
-    phrases: list[list[LeadNote]] = []
+def _intro_groups(notes: list[LeadNote]) -> list[list[LeadNote]]:
+    """Split the alap at true rests: each group is the run of sounding notes between rests.
+    Leading/trailing rests create no empty group."""
+    groups: list[list[LeadNote]] = []
     cur: list[LeadNote] = []
     for n in notes:
         if n.rest:
             if cur:
-                phrases.append(cur)
+                groups.append(cur)
                 cur = []
         else:
             cur.append(n)
     if cur:
-        phrases.append(cur)
-    return phrases
+        groups.append(cur)
+    return groups
+
+
+def _intro_phrases(notes: list[LeadNote]) -> list[list[LeadNote]]:
+    """The alap's PHRASES: the rest-separated groups that carry melody. The vistar grammar is
+    phrase -> silence -> low Sa pluck -> phrase..., so a group that is ONLY the mandra-Sa
+    pluck is punctuation between phrases, not a phrase of its own."""
+    return [g for g in _intro_groups(notes) if not all(_is_sa_pluck(n) for n in g)]
+
+
+def _unanchored_boundaries(notes: list[LeadNote]) -> int:
+    """How many gaps between consecutive PHRASES lack the mandra-Sa drone anchor. A gap is
+    anchored when a pluck-only group sits between the phrases, or when the earlier phrase
+    ends — or the later one begins — with the pluck (both orderings are idiomatic)."""
+    groups = _intro_groups(notes)
+    is_phrase = [not all(_is_sa_pluck(n) for n in g) for g in groups]
+    idx = [i for i, p in enumerate(is_phrase) if p]
+    missing = 0
+    for a, b in zip(idx, idx[1:]):
+        between = any(not is_phrase[j] for j in range(a + 1, b))
+        edge = _is_sa_pluck(groups[a][-1]) or _is_sa_pluck(groups[b][0])
+        if not (between or edge):
+            missing += 1
+    return missing
 
 
 def _longest_mid_sa_run(notes: list[LeadNote]) -> float:
@@ -491,10 +536,6 @@ def _longest_mid_sa_run(notes: list[LeadNote]) -> float:
     return max(runs, default=0.0)
 
 
-def _rest_after_sa(notes: list[LeadNote]) -> bool:
-    """Does any true rest immediately follow a sounding Sa?"""
-    return any(n.rest and not prev.rest and _landing_swara(prev) == "S"
-               for prev, n in zip(notes, notes[1:]))
 
 
 def _sa_returns(sounding: list[LeadNote]) -> int:

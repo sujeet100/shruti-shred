@@ -623,6 +623,74 @@ def scale_step_up(swara: str, raga: str, steps: int = 1) -> tuple[str, int]:
     return allowed[idx % len(allowed)], idx // len(allowed)
 
 
+def directional_varjya(raga: str) -> dict[str, str]:
+    """Swaras this raga admits in only ONE melodic direction, DERIVED from the verified
+    aroha/avaroha (no new facts): a swara absent from the aroha is DESCENT-only (value
+    "avaroha" — e.g. Bageshree's P and R, touched only on the way down), one absent from
+    the avaroha is ASCENT-only (value "aroha"). Empty for a raga whose swaras all move
+    freely. Pure: reads only the encoded, source-verified ladders.
+    """
+    r = RAGAS[raga]
+    aroha, avaroha = set(r["aroha"]), set(r["avaroha"])
+    out: dict[str, str] = {}
+    for sw in r["allowed"]:
+        if sw not in aroha:
+            out[sw] = "avaroha"
+        elif sw not in avaroha:
+            out[sw] = "aroha"
+    return out
+
+
+def direction_violations(seq: list[tuple[str, int]], raga: str) -> list[str]:
+    """Directional-varjya violations over ONE melodic line — human-readable, for the
+    generator guardrails (the early bounded retry). `seq` is the line's sounding
+    (swara, octave) pairs in playing order; give a meend its own step (note, then target)
+    so a glide INTO a one-directional swara faces the rule too.
+
+    Scope (deliberate): this guards the lines an LLM WRITES (lead phrase, gat parts, riff
+    cycle). It is NOT part of `validate_composition` — code-derived voices (the
+    raga-diatonic third harmony, the bass's root-following) mirror a legal line in ways a
+    naive entered-from check can mis-flag, and a hard validator rule would turn those
+    into forced-revise loops with no agent at fault. Re-striking the same pitch is free;
+    only a strictly lower->higher entry into a descent-only swara (or the mirror) flags.
+    """
+    rules = directional_varjya(raga)
+    if not rules:
+        return []
+    out: list[str] = []
+    prev: int | None = None
+    for sw, oct_ in seq:
+        pitch = semitone(sw) + 12 * oct_ if sw in SWARAS else None
+        if pitch is None:                     # an illegal swara — the set check owns that
+            prev = None
+            continue
+        rule = rules.get(sw)
+        if rule == "avaroha" and prev is not None and prev < pitch:
+            out.append(f"'{sw}' is approached from below — in this raga '{sw}' is "
+                       f"DESCENT-only (the aroha skips it): touch it only on the way "
+                       f"down, reached from above")
+        elif rule == "aroha" and prev is not None and prev > pitch:
+            out.append(f"'{sw}' is approached from above — in this raga '{sw}' is "
+                       f"ASCENT-only (the avaroha skips it): touch it only on the way "
+                       f"up, reached from below")
+        prev = pitch
+    return out
+
+
+def ascent_step(swara: str, raga: str) -> tuple[str, int]:
+    """The nearest swara ABOVE `swara` this raga lets you ENTER from below — one scale
+    step up (`scale_step_up`), skipping any descent-only swara exactly as the aroha
+    skips it. Returns (swara, octave_delta). The seat for any code gesture that RISES
+    INTO a pitch (a riff bend's apex): legal by set AND by direction. Pure."""
+    rules = directional_varjya(raga)
+    steps = 1
+    sw, oct_d = scale_step_up(swara, raga, steps)
+    while rules.get(sw) == "avaroha":
+        steps += 1
+        sw, oct_d = scale_step_up(swara, raga, steps)
+    return sw, oct_d
+
+
 def validate_composition(comp: dict) -> list[dict]:
     """Return a list of grammar violations (empty == clean).
 

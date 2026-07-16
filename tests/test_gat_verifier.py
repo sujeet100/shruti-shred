@@ -128,18 +128,22 @@ def _intro_cell(*notes: LeadNote) -> LeadPhrase:
 
 
 def _good_intro() -> LeadPhrase:
-    # the verified AOCHAR shape (malkauns): THREE short phrases, each developing the ONE motif
-    # (d n S) then landing on Sa, separated by real rests; opens on Sa, dips into the mandra,
-    # STATES the pakad (g m g S), Sa-anchored (50% by duration), no continuous-Sa wall, reveals
-    # the motif progressively (narrow phrase 1; the widest reach — m — past the midpoint), and
-    # ends on the longest held Sa (18 beats total).
+    # the verified ALAP-VISTAR shape (malkauns): THREE tension-holding phrases developing the
+    # ONE motif (d n S) — each ends AWAY from home — separated by real rests with the mandra Sa
+    # PLUCKED between them (the drone anchor / jod string); opens on Sa, the melodic line dips
+    # into the mandra, STATES the pakad (g m g S), and only the FINAL phrase comes home to the
+    # longest held Sa (17.25 beats total).
     return _intro_cell(
-        _n("S", 1.0), _n("d", 1.0, oct=-1), _n("n", 1.0, oct=-1), _n("S", 1.5),  # phrase 1 -> Sa
-        _n("S", 1.5, rest=True),                                                  # nyas breath
-        _n("d", 1.0, oct=-1), _n("n", 1.0, oct=-1), _n("S", 1.0),                 # phrase 2:
-        _n("g", 1.0), _n("S", 1.5),                                               #  motif + g -> Sa
-        _n("m", 1.5, rest=True),
-        _n("g", 1.0), _n("m", 1.0), _n("g", 0.5), _n("S", 2.5))                   # phrase 3 -> held Sa
+        _n("S", 1.0), _n("d", 1.0, oct=-1), _n("n", 1.5, oct=-1),   # phrase 1 — ends away
+        _n("S", 1.0, rest=True),
+        _n("S", 1.0, oct=-1),                                        # the low Sa pluck (drone)
+        _n("S", 1.0, rest=True),
+        _n("d", 0.5, oct=-1), _n("n", 0.5, oct=-1), _n("S", 0.5),    # phrase 2 — full motif,
+        _n("g", 1.5),                                                #  widens, ends away on g
+        _n("m", 1.0, rest=True),
+        _n("S", 0.75, oct=-1),                                       # the low Sa pluck again
+        _n("g", 1.0, rest=True),
+        _n("g", 1.0), _n("m", 1.0), _n("g", 0.5), _n("S", 2.5))      # final: pakad -> held Sa
 
 
 def test_a_grounded_alap_has_no_violations():
@@ -166,7 +170,7 @@ def test_intro_needs_several_sa_returns():
                  _n("d", 3.0, oct=-1), _n("g", 2.0), _n("m", 1.5, rest=True),
                  _n("g", 1.0), _n("S", 5.0))
     viol = verify_intro(cell, window_beats=17.0, raga="malkauns")
-    assert any("separate times" in v for v in viol)
+    assert any("separate time" in v for v in viol)
 
 
 def test_intro_must_end_on_sa():
@@ -181,10 +185,11 @@ def test_intro_final_sa_must_be_held():
     assert any("HOLD" in v for v in verify_intro(cell, window_beats=12.0, raga="malkauns"))
 
 
-def test_intro_needs_sa_to_carry_a_third_of_the_time():
-    cell = _cell(_n("S", 1.0), _n("S", 1.5, rest=True), _n("g", 4.0), _n("m", 4.0),
-                 _n("d", 1.5, rest=True), _n("n", 4.0), _n("S", 2.0))   # Sa only 3/15
-    assert any("establish Sa" in v for v in verify_intro(cell, window_beats=18.0, raga="malkauns"))
+def test_intro_needs_sa_to_keep_ringing():
+    cell = _cell(_n("S", 0.5), _n("S", 1.5, rest=True), _n("g", 4.0), _n("m", 4.0),
+                 _n("d", 1.5, rest=True), _n("n", 4.0), _n("S", 1.0))   # Sa only 1.5/13.5
+    assert any("keep home ringing" in v
+               for v in verify_intro(cell, window_beats=18.0, raga="malkauns"))
 
 
 def test_intro_needs_two_real_rests():
@@ -192,11 +197,35 @@ def test_intro_needs_two_real_rests():
     assert any("rest" in v and "breathes" in v for v in verify_intro(cell, window_beats=10.0, raga="malkauns"))
 
 
-def test_intro_needs_a_rest_after_a_sa_landing():
-    # two rests, but neither follows a Sa — the nyas breath is missing
-    cell = _cell(_n("g", 1.0), _n("g", 1.5, rest=True), _n("S", 3.0), _n("m", 1.0),
-                 _n("m", 1.5, rest=True), _n("S", 3.0))
-    assert any("nyas" in v for v in verify_intro(cell, window_beats=11.0, raga="malkauns"))
+def test_intro_gaps_need_the_low_sa_pluck():
+    # phrases separated by rests, but home is never plucked in the gaps — the drone is missing
+    cell = _cell(_n("S", 1.0), _n("g", 1.0), _n("m", 1.5),
+                 _n("S", 1.0, rest=True),
+                 _n("g", 1.0), _n("m", 1.0), _n("d", 1.0),
+                 _n("m", 1.0, rest=True),
+                 _n("g", 1.0), _n("S", 2.5))
+    viol = verify_intro(cell, window_beats=14.0, raga="malkauns")
+    assert any("pluck" in v for v in viol)
+
+
+def test_intro_phrases_must_hold_tension():
+    # phrase 1 resolves onto madhya Sa before its rest — the homecoming arrives too soon
+    cell = _good_intro()
+    cell.notes[2] = _n("S", 1.5)                     # phrase 1 now ends home instead of away
+    viol = verify_intro(cell, window_beats=18.0, raga="malkauns")
+    assert any("TENSION" in v for v in viol)
+
+
+def test_intro_pluck_groups_are_not_phrases():
+    # two melodic phrases + three pluck-only groups: the pluck is punctuation, so the
+    # phrase count is still short
+    cell = _cell(_n("S", 1.0, oct=-1), _n("S", 1.0, rest=True),
+                 _n("g", 1.0), _n("m", 1.5),
+                 _n("S", 1.0, rest=True), _n("S", 0.75, oct=-1), _n("S", 1.0, rest=True),
+                 _n("g", 1.0), _n("S", 2.5),
+                 _n("S", 1.0, rest=True), _n("S", 0.75, oct=-1))
+    viol = verify_intro(cell, window_beats=14.0, raga="malkauns")
+    assert any("INDEPENDENT phrases" in v for v in viol)
 
 
 def test_intro_must_not_spill_into_the_reserved_silence():
@@ -218,17 +247,6 @@ def test_intro_must_be_several_phrases_not_one_continuous_line():
                  _n("m", 1.0), _n("g", 1.0), _n("S", 3.0))
     viol = verify_intro(cell, window_beats=16.0, raga="malkauns")
     assert any("INDEPENDENT phrases" in v for v in viol)
-
-
-def test_intro_every_phrase_must_resolve_to_sa():
-    # phrase 2 ends on d, not Sa, before its rest
-    cell = _cell(_n("S", 1.0), _n("n", 1.0, oct=-1), _n("S", 1.5),
-                 _n("S", 1.5, rest=True),
-                 _n("g", 1.0), _n("m", 1.0), _n("d", 2.0),          # phrase 2 -> d (not Sa)
-                 _n("m", 1.5, rest=True),
-                 _n("g", 1.0), _n("m", 1.0), _n("S", 2.5))
-    viol = verify_intro(cell, window_beats=16.0, raga="malkauns")
-    assert any("RESOLVE home to Sa" in v for v in viol)
 
 
 def test_intro_a_phrase_must_explore_not_be_bare_sa():
@@ -298,8 +316,8 @@ def test_intro_every_phrase_must_touch_the_motif():
 
 
 def test_intro_must_state_the_full_motif():
-    # the anchors (d n) recur but the full motif (d n S m) never completes — no reveal
-    cell = LeadPhrase(phrase_plan=_INTRO_PLAN.model_copy(update={"seed": ["d", "n", "S", "m"]}),
+    # the anchors (d n) recur but the full motif (d n S d) never completes — no reveal
+    cell = LeadPhrase(phrase_plan=_INTRO_PLAN.model_copy(update={"seed": ["d", "n", "S", "d"]}),
                       notes=_good_intro().notes)
     viol = verify_intro(cell, window_beats=18.0, raga="malkauns")
     assert any("never stated" in v for v in viol)
@@ -308,7 +326,7 @@ def test_intro_must_state_the_full_motif():
 def test_intro_opening_phrase_must_stay_narrow():
     # phrase 1 leaps to taar Sa — the two-octaves-in-four-seconds failure heard live
     cell = _good_intro()
-    cell.notes[3] = _n("S", 1.5, oct=1)
+    cell.notes[2] = _n("S", 1.5, oct=1)
     viol = verify_intro(cell, window_beats=18.0, raga="malkauns")
     assert any("opening phrase spans" in v for v in viol)
 

@@ -82,14 +82,20 @@ def _energy_gain(energy: float) -> float:
     return _GAIN_FLOOR + (_GAIN_CEIL - _GAIN_FLOOR) * energy
 
 
-def _role_gain(role: str, foreground: str) -> float:
-    """How loud a voice sits relative to the section's foreground — 'each layer one job'."""
-    if role == foreground:
+def _role_gain(role: str, section: Section) -> float:
+    """How loud a voice sits relative to the section's foreground — 'each layer one job'.
+
+    ONE exception to the background scaling: the lead playing the MUKHADA. The head is the
+    gat's identity and returns verbatim — it must come back at the strength of its first
+    statement even in a riff-foreground section (diagnosed from Sujit's 2026-07-16 render:
+    the returning head sat at vel 72 vs its first statement's 80 — exactly the 0.90
+    background scale — and read as 'the sitar got quiet towards the end')."""
+    if role == section.foreground:
         return 1.0
-    if role == "rhythm" and foreground == "lead":
+    if role == "rhythm" and section.foreground == "lead":
         return _DUCK_RHYTHM_UNDER_LEAD
     if role == "lead":
-        return _LEAD_UNDER_RHYTHM
+        return 1.0 if section.form_role == "mukhada" else _LEAD_UNDER_RHYTHM
     return _BED.get(role, _BED_DEFAULT)
 
 
@@ -99,7 +105,7 @@ def _gain_for(section: Section, role: str, *, is_final: bool) -> float:
     energy = section_energy(section, is_final=is_final)
     if energy is None:
         return 1.0
-    return _energy_gain(energy) * _role_gain(role, section.foreground)
+    return _energy_gain(energy) * _role_gain(role, section)
 
 
 def _balance_layer(layer: Layer, gain_at: Callable[[float, str], float]) -> Layer:

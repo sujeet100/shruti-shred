@@ -66,7 +66,8 @@ from crew.generators import (
 from crew.live import beat, flags
 from crew.riff_family import develop_section
 from crew.riff_texture import MODE_BRIEFS, riff_mode_for, verified_riff
-from raga import RAGAS, validate_composition
+from crew.lead import render_direction_rule
+from raga import RAGAS, ascent_step, direction_violations, directional_varjya, semitone, validate_composition
 from subgenres import SUBGENRES
 from talas import TALAS
 
@@ -114,7 +115,25 @@ and gat breathe."""
 # Placement: one cycle -> repeated, register-seated, accent-locked notes. Pure. #
 # --------------------------------------------------------------------------- #
 
-def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int) -> list[Note]:
+# The widest riff bend, in semitones (a minor third — still an idiomatic metal bend).
+# When the raga's next enterable swara sits farther than this, the note plays PLAIN:
+# a partial bend would hold an out-of-raga apex, and a wider one reads as a slide.
+_BEND_MAX_ST: Final = 3
+
+
+def _bend_depth(swara: str, raga: str) -> int | None:
+    """Semitones a bend on `swara` rises IN THIS RAGA — up to the next swara the raga
+    lets you enter from below (`ascent_step`: legal by set AND direction), or None when
+    that seat is too far to bend (the note plays plain). The old fixed 2-semitone bend
+    HELD its apex on whatever pitch lay a whole tone up — out of raga wherever the
+    ladder steps differently (Sujit's ear, 2026-07-16: bends pausing on varjya notes)."""
+    sw, oct_d = ascent_step(swara, raga)
+    depth = semitone(sw) + 12 * oct_d - semitone(swara)
+    return depth if depth <= _BEND_MAX_ST else None
+
+
+def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int,
+                    raga: str | None = None) -> list[Note]:
     """Lay one cycle's notes end-to-end from beat 0, seat them in `register`, and make
     them cover EXACTLY one cycle so the riff loops seamlessly.
 
@@ -127,6 +146,10 @@ def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int) 
     the layer out of sub-bass, but the LLM's local `oct: -1` could still push a root an
     octave below it (~D1, 37 Hz — heard as bass-register mud on the first live gat render).
     Like a guitarist out of frets below the low string, the note sounds AT the floor.
+
+    With `raga` given, each BEND is seated in the raga: its depth is stamped as
+    `bend_st` (the interval to the next enterable swara, `_bend_depth`) so the apex is
+    a raga tone, or the bend is stripped (a plain note) when no seat is in reach.
     """
     placed: list[Note] = []
     t = 0.0
@@ -138,9 +161,14 @@ def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int) 
             last_was_rest = True
         else:
             dur = min(rn.dur, cycle_beats - t)
+            technique, bend_st = rn.technique, None
+            if technique == "bend" and raga is not None:
+                bend_st = _bend_depth(rn.swara, raga)
+                if bend_st is None:
+                    technique = None                 # no reachable seat — the note plays plain
             placed.append(Note(swara=rn.swara, oct=max(register + rn.oct, RHYTHM_FLOOR),
                                start=round(t, 4), dur=round(dur, 4), vel=rn.vel,
-                               chord=rn.chord, technique=rn.technique))
+                               chord=rn.chord, technique=technique, bend_st=bend_st))
             last_was_rest = False
         t += rn.dur
     # Fill a SHORT cycle so the loop has no accidental gap — UNLESS the pattern ends on a rest,
@@ -153,7 +181,8 @@ def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int) 
 
 
 def _place_cycles(cycles: list[list[RiffNote]], *, start: float, cycle_beats: float,
-                  register: int, accent_beats: set[float]) -> list[Note]:
+                  register: int, accent_beats: set[float],
+                  raga: str | None = None) -> list[Note]:
     """Place a per-bar SEQUENCE of cycles (one RiffNote list per bar), sequencing each onto its
     bar from `start` and locking it to the accent grid. Notes whose onset (within the cycle)
     lands on an accented matra (sam/tali) are punched up — this is how CODE locks the riff to
@@ -162,7 +191,7 @@ def _place_cycles(cycles: list[list[RiffNote]], *, start: float, cycle_beats: fl
     (`rhythm_layer_from` -> `develop_section`). Pure."""
     notes: list[Note] = []
     for bar, cycle_notes in enumerate(cycles):
-        cycle = _sequence_cycle(cycle_notes, cycle_beats, register)
+        cycle = _sequence_cycle(cycle_notes, cycle_beats, register, raga)
         offset = start + bar * cycle_beats
         for n in cycle:
             vel = min(127, round(n.vel * _RIFF_ACCENT_BOOST)) if n.start in accent_beats else n.vel
@@ -171,12 +200,12 @@ def _place_cycles(cycles: list[list[RiffNote]], *, start: float, cycle_beats: fl
 
 
 def place_riff(pattern: list[RiffNote], *, start: float, bars: int, cycle_beats: float,
-               register: int, accent_beats: set[float]) -> list[Note]:
+               register: int, accent_beats: set[float], raga: str | None = None) -> list[Note]:
     """Repeat ONE cycle across `bars` from `start`, locking each bar to the sam — the LITERAL
     (no-variation) placement. `rhythm_layer_from` uses the developed placement (the riff family)
     instead; this stays as the primitive the accent/loop tests target. Pure."""
     return _place_cycles([pattern] * bars, start=start, cycle_beats=cycle_beats,
-                         register=register, accent_beats=accent_beats)
+                         register=register, accent_beats=accent_beats, raga=raga)
 
 
 def _accent_beats(arr: Arrangement) -> set[float]:
@@ -295,6 +324,8 @@ class _RiffContext:
         self._static: dict[str, Any] = {
             "raga": r["display"],
             "allowed": " ".join(r["allowed"]),
+            "direction_rule": render_direction_rule(directional_varjya(arr.raga))
+                              or "(every swara moves freely both ways)",
             "pakad": " | ".join(" ".join(p) for p in r["pakad"]),
             "chalan": " | ".join(" ".join(p) for p in r["chalan"]),
             "motif": " ".join(arr.motif),
@@ -368,6 +399,13 @@ def _riff_guardrail(raga: str):
             allowed = " ".join(RAGAS[raga]["allowed"])
             return (False, f"swaras {sorted(set(illegal))} are illegal in raga {raga}. "
                            f"Use only these swaras (roots AND chord tones): {allowed}. Fix and resend.")
+        # The riff's ROOT line is a melodic sequence too — a one-directional swara
+        # (Bageshree's descent-only P...) must be entered from its own side, exactly as
+        # the raga facts in the prompt state. Chord tones stack in one instant (not a
+        # melodic entry), so only the roots face the direction rule.
+        direction = direction_violations([(n.swara, n.oct) for n in sounded], raga)
+        if direction:
+            return (False, "; ".join(dict.fromkeys(direction)) + ". Fix the approach and resend.")
         return (True, pattern)
 
     guard.__annotations__["return"] = tuple[bool, Any]
@@ -471,7 +509,7 @@ def rhythm_layer_from(patterns: dict[int, RiffPattern], arr: Arrangement) -> Lay
         cycles = develop_section(pattern.notes, span.section,
                                  is_final_rhythm=(span.index == final_rhythm))
         notes.extend(_place_cycles(cycles, start=span.start, cycle_beats=arr.beats_per_bar,
-                                   register=register, accent_beats=accents))
+                                   register=register, accent_beats=accents, raga=arr.raga))
     if not notes:
         return None
     voice = VOICES[_RHYTHM_ROLE]
