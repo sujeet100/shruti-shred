@@ -57,6 +57,7 @@ from crew.contracts import (
     EventType,
     FormRole,
     SectionKind,
+    _LAYAS,
     build_arrangement,
     motif_illegal_in_raga,
 )
@@ -181,8 +182,11 @@ def _render_brief(brief: CompositionBrief) -> str:
         f"  key/Sa: FIXED = {brief.key} (Sa={brief.sa})" if brief.key
         else "  key/Sa: OPEN — a sensible default is applied",
         f"  bpm: FIXED = {brief.bpm}" if brief.bpm else "  bpm: OPEN — you choose",
-        "  tala: OPEN — you always choose the rhythmic cycle",
+        f"  tala: FIXED = {brief.tala} (use this rhythmic cycle)" if brief.tala
+        else "  tala: OPEN — you choose the rhythmic cycle",
     ]
+    if brief.laya:
+        lines.append(f"  laya: FIXED = {brief.laya} ({_LAYAS[brief.laya]})")
     if brief.mood:
         lines.append(f"  mood to honor: {brief.mood}")
     if brief.instruments:

@@ -8,11 +8,11 @@ interpret_query:
     states and leave the rest for the code — every creative decision is made downstream.
 
     METHOD — fill `reasoning` first, then the value fields. In `reasoning`, go field
-    by field (raga, key, subgenre, mood, bpm, instruments) and for each state either
-    the exact words from the request that give it, or "not stated". Then set each
-    field to that value, or null wherever you wrote "not stated". A field the request
-    does not mention stays null. It is normal and correct for most fields to be null —
-    a bare "a heavy metal fusion" fills only mood.
+    by field (raga, key, subgenre, mood, bpm, tala, laya, instruments) and for each
+    state either the exact words from the request that give it, or "not stated". Then
+    set each field to that value, or null wherever you wrote "not stated". A field the
+    request does not mention stays null. It is normal and correct for most fields to be
+    null — a bare "a heavy metal fusion" fills only mood.
 
     FIELD DEFINITIONS — fill each only from the request, else null:
       raga        a Hindustani raga the user names, else null.
@@ -22,7 +22,13 @@ interpret_query:
       mood        an emotional / vibe word or two the user uses (dark, angry,
                   romantic, epic, crushing). One or two words — a genre name goes in
                   subgenre, and the whole request never belongs here. Else null.
-      bpm         a tempo number the user gives, else null.
+      bpm         a tempo NUMBER the user gives (e.g. "120 bpm"), else null. A tempo WORD
+                  like "vilambit" or "slow" is NOT a bpm — it goes in laya.
+      tala        a Hindustani rhythmic cycle the user names: teentaal, jhaptaal, ektaal,
+                  rupak, keherwa, or dadra. Copy just the tala name even if the request wraps
+                  it ("in vilambit teentaal" -> tala "teentaal", laya "vilambit"). Else null.
+      laya        a tempo CLASS the user names: vilambit (slow), madhya (medium), or drut
+                  (fast) — or its English gloss (slow / medium / fast). Else null.
       instruments specific instruments the user names (tabla, drums, sitar, ...).
                   A vibe word or a phrase counts as mood, not an instrument. Else null.
 
@@ -39,7 +45,7 @@ interpret_query:
   expected_output: >
     A RawIntent JSON with `reasoning` FIRST (your per-field grounding: the exact
     words that set each field, or "not stated"), then raga, key, subgenre, mood,
-    bpm, instruments — each set only if this request states it, otherwise null.
+    bpm, tala, laya, instruments — each set only if this request states it, otherwise null.
 
 # The composers share ONE task template (their differing bias lives in the agent
 # backstories, not here). {placeholders} are filled per turn from the evolving Flow

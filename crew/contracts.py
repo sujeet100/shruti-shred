@@ -63,6 +63,15 @@ _NULLISH = {"", "null", "none", "n/a", "na", "unspecified", "unknown", "any",
 _BPM_MIN: Final = 40
 _BPM_MAX: Final = 300
 
+# Laya = the tempo CLASS a user may name (a Hindustani vocabulary word, not a bpm number). Kept as
+# a separate field so "vilambit" isn't lost by the bpm validator; the composer reads it as guidance
+# and picks an actual tempo within the subgenre's range.
+_LAYAS: Final[dict[str, str]] = {
+    "vilambit": "slow — pick a tempo at the SLOW end of the subgenre's range",
+    "madhya": "medium — a tempo in the MIDDLE of the subgenre's range",
+    "drut": "fast — a tempo at the FAST end of the subgenre's range",
+}
+
 
 class RawIntent(BaseModel):
     """What the Interpreter LLM extracts — loose, only what the user actually said.
@@ -85,9 +94,11 @@ class RawIntent(BaseModel):
     subgenre: Optional[str] = None
     mood: Optional[str] = None
     bpm: Optional[int] = None
+    tala: Optional[str] = None          # a rhythmic cycle the user named (e.g. "teentaal")
+    laya: Optional[str] = None          # a tempo class the user named (vilambit / madhya / drut)
     instruments: Optional[list[str]] = None
 
-    @field_validator("raga", "key", "subgenre", "mood", mode="before")
+    @field_validator("raga", "key", "subgenre", "mood", "tala", "laya", mode="before")
     @classmethod
     def _blank_to_none(cls, v):
         return None if isinstance(v, str) and v.strip().lower() in _NULLISH else v
@@ -128,6 +139,8 @@ class CompositionBrief(BaseModel):
     sa: Optional[int] = None           # MIDI root, from key if stated; else open
     subgenre: Optional[str] = None     # kept only if the user named a SUPPORTED one
     bpm: Optional[int] = None          # only if the user gave a number
+    tala: Optional[str] = None         # kept only if the user named a SUPPORTED tala (else composers choose)
+    laya: Optional[str] = None         # vilambit / madhya / drut, if the user stated a tempo class
     instruments: Optional[list[str]] = None  # only if the user named some
     mood: Optional[str] = None         # emotional vibe (e.g. angry, romantic) — a hint for the composers
     notes: list[str] = Field(default_factory=list)
@@ -146,6 +159,20 @@ class CompositionBrief(BaseModel):
             raise ValueError(f"unknown subgenre '{v}' (expected one of {sorted(SUBGENRES)})")
         return v
 
+    @field_validator("tala")
+    @classmethod
+    def _known_tala(cls, v):
+        if v is not None and v not in TALAS:
+            raise ValueError(f"unknown tala '{v}' (expected one of {sorted(TALAS)})")
+        return v
+
+    @field_validator("laya")
+    @classmethod
+    def _known_laya(cls, v):
+        if v is not None and v not in _LAYAS:
+            raise ValueError(f"unknown laya '{v}' (expected one of {sorted(_LAYAS)})")
+        return v
+
 
 def _match_raga(text: Optional[str]) -> Optional[str]:
     """Map a free-text raga name to a RAGAS key, or None. Handles display names."""
@@ -158,6 +185,47 @@ def _match_raga(text: Optional[str]) -> Optional[str]:
         display = raga["display"].lower()
         if key in t or display in t or t in display:
             return key
+    return None
+
+
+# Common English/roman-spelling variants for the tala names, so "teental"/"tintal" or a laya-prefixed
+# phrase ("vilambit teentaal") still resolves to the supported key.
+_TALA_ALIASES: Final[dict[str, str]] = {
+    "teental": "teentaal", "tintal": "teentaal", "trital": "teentaal", "tritaal": "teentaal",
+    "jhaptal": "jhaptaal", "japtal": "jhaptaal", "ektal": "ektaal",
+    "rupaktaal": "rupak", "roopak": "rupak", "kaharwa": "keherwa", "kaherva": "keherwa",
+}
+
+
+def _match_tala(text: Optional[str]) -> Optional[str]:
+    """Map a free-text tala name to a TALAS key, or None. Handles the key, the display name, common
+    spellings, and a laya-prefixed phrase ("vilambit teentaal" -> teentaal)."""
+    if not text:
+        return None
+    t = text.strip().lower()
+    if t in TALAS:
+        return t
+    for key in TALAS:
+        if key in t or TALAS[key]["display"].lower() in t:
+            return key
+    for alias, key in _TALA_ALIASES.items():
+        if alias in t:
+            return key
+    return None
+
+
+def _match_laya(text: Optional[str]) -> Optional[str]:
+    """Map a free-text tempo word to a laya (vilambit / madhya / drut), or None. Accepts the
+    Hindustani term or its English gloss (slow / medium / fast)."""
+    if not text:
+        return None
+    t = text.strip().lower()
+    aliases = {"vilambit": "vilambit", "vilambhit": "vilambit", "slow": "vilambit",
+               "madhya": "madhya", "madhyalaya": "madhya", "medium": "madhya", "moderate": "madhya",
+               "drut": "drut", "fast": "drut"}
+    for alias, laya in aliases.items():
+        if alias in t:
+            return laya
     return None
 
 
@@ -205,9 +273,26 @@ def resolve_brief(intent: RawIntent) -> CompositionBrief:
             notes.append(f"subgenre {intent.subgenre!r} not supported "
                          f"{sorted(SUBGENRES)} — left open for the composers")
 
+    tala: Optional[str] = None
+    if intent.tala:
+        matched = _match_tala(intent.tala)
+        if matched:
+            tala = matched
+        else:
+            notes.append(f"tala {intent.tala!r} not supported {sorted(TALAS)} "
+                         f"— left open for the composers")
+
+    laya: Optional[str] = None
+    if intent.laya:
+        matched = _match_laya(intent.laya)
+        if matched:
+            laya = matched
+        else:
+            notes.append(f"laya {intent.laya!r} not recognized (vilambit/madhya/drut) — left open")
+
     return CompositionBrief(raga=raga, key=key, sa=sa, subgenre=subgenre,
-                            bpm=intent.bpm, instruments=intent.instruments,
-                            mood=intent.mood, notes=notes)
+                            bpm=intent.bpm, tala=tala, laya=laya,
+                            instruments=intent.instruments, mood=intent.mood, notes=notes)
 
 
 # --------------------------------------------------------------------------- #

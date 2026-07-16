@@ -70,6 +70,30 @@ def test_unsupported_subgenre_left_open_with_note():
     assert any("not supported" in n for n in brief.notes)
 
 
+def test_supported_tala_is_kept():
+    # the bug: a stated tala was never extracted, so the composers ignored it and chose their own
+    brief = resolve_brief(RawIntent(raga="darbari", tala="teentaal"))
+    assert brief.tala == "teentaal"
+
+
+def test_tala_and_laya_from_a_vilambit_phrase():
+    # "a fusion in vilambit teentaal" — tala teentaal, laya vilambit (the exact live-diagnosed case)
+    brief = resolve_brief(RawIntent(tala="vilambit teentaal", laya="vilambit"))
+    assert brief.tala == "teentaal" and brief.laya == "vilambit"
+
+
+def test_unsupported_tala_left_open_with_note():
+    brief = resolve_brief(RawIntent(raga="bhairav", tala="chautaal"))   # real tala, not in our menu
+    assert brief.tala is None
+    assert any("tala" in n and "not supported" in n for n in brief.notes)
+
+
+def test_laya_is_normalized_from_its_english_gloss():
+    assert resolve_brief(RawIntent(laya="slow")).laya == "vilambit"
+    assert resolve_brief(RawIntent(laya="drut")).laya == "drut"
+    assert resolve_brief(RawIntent(laya="whatever")).laya is None   # unrecognized -> open
+
+
 def test_stated_bpm_is_not_clamped():
     brief = resolve_brief(RawIntent(raga="malkauns", subgenre="doom", bpm=180))
     assert brief.bpm == 180
