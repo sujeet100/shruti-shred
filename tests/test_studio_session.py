@@ -251,17 +251,28 @@ def test_flow_revise_stays_canvas_aware():
     arr = _arr(_RIFF_SEC, _TAAN_SEC)
     gen_lead, gen_riff, rev_lead = _fake_lead(), _fake_riff(), _fake_lead()
 
-    def assemble(a, lead, rhythm):
+    def assemble(a, lead, rhythm, orchestra):
         from crew.band import band_layers
         from crew.generators import assemble_composition
-        return assemble_composition(a, band_layers(a, lead, rhythm))
+        return assemble_composition(a, band_layers(a, lead, rhythm, orchestra))
+
+    def generate(_a):
+        # the studio path produces no orchestra; thread an empty orchestra slot into the
+        # Flow's (lead, rhythm, orchestra, events, canvases) contract.
+        lead, rhythm, events, canvases = compose_studio(arr, lead_fn=gen_lead, riff_fn=gen_riff)
+        return lead, rhythm, [], events, canvases
+
+    def regenerate(_a, lead, rhythm, orchestra, ruling, canvases):
+        new_lead, new_rhythm, events, new_canvases = regenerate_layer(
+            arr, canvases, ruling.layer, lead_fn=rev_lead, riff_fn=gen_riff)
+        return new_lead, new_rhythm, orchestra, events, new_canvases
 
     rulings = iter([ConductorRuling(directive="revise", layer="lead", reason="more space"),
                     ConductorRuling(directive="accept", reason="good")])
     stages = Stages(
         interpret=lambda q: (CompositionBrief(mood="dark"), []),
         compose=lambda b: (arr, []),
-        generate=lambda _a: compose_studio(arr, lead_fn=gen_lead, riff_fn=gen_riff),
+        generate=generate,
         assemble=assemble,
         critique=lambda _c, _a: (
             UstadVerdict(verdict="legal", explanation="clean"),
@@ -271,8 +282,7 @@ def test_flow_revise_stays_canvas_aware():
                 balance=3, independence=3, mood_fit=3, repetition=3)),
             []),
         arbitrate=lambda u, r, p, c: (next(rulings), []),
-        regenerate=lambda _a, lead, rhythm, ruling, canvases: regenerate_layer(
-            arr, canvases, ruling.layer, lead_fn=rev_lead, riff_fn=gen_riff),
+        regenerate=regenerate,
         render=lambda c: None)
 
     state = compose_flow("q", stages=stages, max_rounds=2)

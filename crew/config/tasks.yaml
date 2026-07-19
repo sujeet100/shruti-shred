@@ -18,7 +18,8 @@ interpret_query:
       raga        a Hindustani raga the user names, else null.
       key         a musical key/note the user names, e.g. "D", "E flat", else null.
       subgenre    a metal genre the user names: thrash, doom, death, progressive,
-                  black, or melodic death. A vibe word counts as mood, not subgenre. Else null.
+                  black, melodic death, heavy, or symphonic. A vibe word counts as mood,
+                  not subgenre. Else null.
       mood        an emotional / vibe word or two the user uses (dark, angry,
                   romantic, epic, crushing). One or two words — a genre name goes in
                   subgenre, and the whole request never belongs here. Else null.
@@ -491,6 +492,72 @@ generate_riff:
         with the exact failures listed.
   expected_output: |
     A single RiffPattern as JSON and nothing else — no prose, no code fences.
+    Use exactly this shape:
+    {output_schema}
+
+# The Orchestra task: score the WHOLE chart for orchestra in ONE call (orchestration is
+# holistic — long arcs, the choir/brass reserved for the peak). It emits INTENT per section
+# (what each family does), NOT MIDI; code expands it. The static rulebook comes first (cache-
+# friendly), the per-subgenre role brief rides {role_brief}, the section data comes LAST.
+compose_orchestra:
+  description: |
+    You are the Orchestra — the symphonic voice of this fusion. Score the WHOLE piece in one
+    pass: for each section that uses the orchestra, decide what the STRINGS, BRASS, CHOIR and
+    TIMPANI do, when they enter, and the dynamic arc. You emit INTENT (a per-family plan), not
+    notes — code turns your plan into a real string section, brass, choir and timpani.
+
+    METHOD — fill `reasoning` FIRST: plan the whole-chart ARC (where the choir/brass PEAK
+    lands, how the texture grows from the opening to the climax, what stays silent), THEN write
+    one `sections` entry per section that uses the orchestra.
+
+    YOU ARE A MEMBER OF THE BAND, NOT A SOUNDTRACK:
+      - ANSWER the lead, do not double it. Where you want a melodic line, write a
+        `countermelody` that WEAVES around the lead (call-and-response), leaving space on its
+        phrases — never a copy of it.
+      - REINFORCE the riff without fighting it: a sustained string pad UNDER the chug, a brass
+        stab ON the accented beats. Code locks your stabs to the sam and the clapped matras.
+      - LEAVE SPACE. Silence is orchestration. Not every family plays every section — reserve
+        the full choir + brass + timpani for the CLIMAX so the peak actually lifts.
+      - BUILD A LONG ARC across the whole piece: soft strings early, the choir entering later,
+        the brass and timpani saved for the biggest moment; use `dynamic` (pp..ff) and
+        `swell_into_next` (a crescendo + timpani roll into the next section) to shape it.
+
+    STAY INSIDE THE RAGA — this is what keeps the grandeur Hindustani, not generic film score:
+      - Every swara you name (string_swaras, brass_swaras, choir_swaras) and every countermelody
+        note MUST be one of the raga's allowed swaras below.
+      - You HOLD and COLOUR over the drone — the raga's own tones (favour Sa, the vadi, and the
+        fifth). You do NOT write Western chord progressions; the harmony is modal and static.
+      - A descent-only swara (see the direction rule) is touched only on the way down — do not
+        build a sustained pad on it, and in a countermelody approach it from above.
+
+    YOUR STYLE FOR THIS SUBGENRE ({subgenre}):
+    {role_brief}
+
+    THE RAGA — use ONLY these swaras:
+    {raga_block}
+
+    THE PIECE:
+      motif (the shared melodic seed): {motif}
+      subgenre feel: {subgenre_feel}
+      tempo: {bpm} bpm   tala: {tala}
+      your octaves: 0 is the strings' home; +1 up, -1 down. Code seats a full string spread
+      around it (low strings an octave under), so think in the raga's register, not absolute pitch.
+
+    THE SECTIONS TO SCORE (emit one entry per section below, by its index; skip any section
+    not listed here — those do not use the orchestra). Each shows the lead and riff you must
+    weave around:
+    {sections}
+
+    REPAIR (when your previous attempt left the raga):
+    {repair}
+
+    HARD RULES (a score that breaks these is rejected and you redo it):
+      - Every swara — every family, every countermelody note, its grace and meend target —
+        is one of the raga's allowed swaras. Sargam: S r R g G m M P d D n N.
+      - Emit one `sections` entry per listed section that should have orchestra; skip the rest.
+      - A countermelody answers the lead — it must not be a note-for-note copy of the lead line.
+  expected_output: |
+    A single OrchestraScore JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
     {output_schema}
 

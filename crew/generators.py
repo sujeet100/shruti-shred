@@ -88,6 +88,21 @@ VOICES: Final[dict[str, Voice]] = {
     # voicings / fillers on GM #28 Electric Guitar (clean), off-centre LEFT so it
     # shimmers opposite the lead guitar without crowding the sitar.
     "clean": Voice("clean_guitar", 27, 10, pan=52),
+    # The ORCHESTRA — the symphonic-metal cinematic voice (crew/orchestra.py). ONE LLM
+    # agent decides per-section intent; code expands it into these deterministic families,
+    # each its own GM program + channel (channels 6/7/11/12 are free — 0-5,8,9,10 taken):
+    # a wide string section (pads/tremolo/countermelody), brass (stabs/sustain), choir
+    # (aahs), and timpani. Panned into a wide cinematic field, distinct from the hard-L/R
+    # rhythm wall. Only the families a chart actually uses become layers (each *_layer
+    # returns None otherwise), so channels are consumed on demand.
+    "orch_strings": Voice("strings", 48, 6, pan=54),    # GM #49 String Ensemble 1 — left-of-centre
+    "orch_brass": Voice("brass", 61, 7, pan=74),        # GM #62 Brass Section — right-of-centre
+    "orch_choir": Voice("choir", 52, 11, pan=64),       # GM #53 Choir Aahs — centre, the wash
+    "orch_timpani": Voice("timpani", 47, 12, pan=64),   # GM #48 Timpani — centre-low reinforcement
+    # The sitar's JOD drone string — a plucked mandra Sa struck ONCE and left to RING under the
+    # alap (a sustained open string, not a re-attacked pluck). Its OWN channel so the melodic
+    # sitar's meend/bend wheel never bends it; the GM sitar patch gives the plucked attack + ring.
+    "jod": Voice("sitar", 104, 13, pan=64),
 }
 
 
@@ -157,6 +172,40 @@ def drone_layer(arr: Arrangement) -> Layer:
              for swara, velocity in zip(tones, velocities)]
     voice = VOICES["drone"]
     return Layer(role="drone", instrument=voice.instrument, program=voice.program,
+                 channel=voice.channel, pan=voice.pan, notes=notes)
+
+
+# The jod string sits an octave ABOVE the tanpura pad: the pad at the drone octave is a
+# sub-bass rumble that barely reads as Sa, so the jod is the AUDIBLE plucked home the ear
+# hears in the alap (Sujit, 2026-07-19: the alap's Sa is a plucked open string that RINGS
+# and FADES NATURALLY, re-plucked to hold home — not the melodic sitar re-attacking low Sa).
+_JOD_OCT_ABOVE_DRONE: Final[int] = 1
+_JOD_VEL: Final[int] = 78               # the pluck's attack — a present drone-anchor, under the melodic sitar
+
+
+def intro_jod_layer(arr: Arrangement) -> Layer | None:
+    """The sitar's JOD drone string under the alap — a plucked mandra Sa RE-STRUCK once per
+    avartan and left to RING then FADE NATURALLY across the cycle before the next pluck (a real
+    jod: always plucked, allowed to ring, decaying on its own via the `fade` ring-out — never a
+    flat bowed sustain, and never the melodic sitar re-attacking low Sa). It rings over the
+    sustained tanpura pad beneath, and IS the alap's audible 'home', so the melodic sitar need
+    not mark Sa itself. Deterministic and raga-trivially legal (it sounds Sa). None when the
+    chart declares no intro section (every existing fixture: fully backward compatible). Pure.
+    """
+    octave = arr.registers.get("drone", 0) + _JOD_OCT_ABOVE_DRONE
+    cycle = arr.beats_per_bar
+    notes: list[Note] = []
+    for span in section_spans(arr):
+        if span.section.form_role != "intro":
+            continue
+        for bar in range(span.section.bars):
+            start = span.start + bar * cycle
+            notes.append(Note(swara="S", oct=octave, start=round(start, 4),
+                              dur=round(cycle, 4), vel=_JOD_VEL, fade=True))
+    if not notes:
+        return None
+    voice = VOICES["jod"]
+    return Layer(role="jod", instrument=voice.instrument, program=voice.program,
                  channel=voice.channel, pan=voice.pan, notes=notes)
 
 

@@ -83,10 +83,10 @@ def _fake_stages(rulings: list[ConductorRuling], *, counts: dict):
         counts["arbitrate"] = counts.get("arbitrate", 0) + 1
         return next(ruling_iter), [_ev("arbitrate")]
 
-    def regenerate(_arr, lead, rhythm, ruling, canvases):
+    def regenerate(_arr, lead, rhythm, orchestra, ruling, canvases):
         counts["regenerate"] = counts.get("regenerate", 0) + 1
         counts.setdefault("revise_layers", []).append(ruling.layer)
-        return lead, rhythm, [_ev("regenerate")], canvases
+        return lead, rhythm, orchestra, [_ev("regenerate")], canvases
 
     def render(_comp):
         counts["render"] = counts.get("render", 0) + 1
@@ -95,8 +95,8 @@ def _fake_stages(rulings: list[ConductorRuling], *, counts: dict):
     return Stages(
         interpret=interpret,
         compose=lambda brief: (arr, [_ev("compose")]),
-        generate=lambda arr: ([Layer(role="lead")], Layer(role="rhythm"), [_ev("generate")], []),
-        assemble=lambda arr, lead, rhythm: comp,
+        generate=lambda arr: ([Layer(role="lead")], Layer(role="rhythm"), [], [_ev("generate")], []),
+        assemble=lambda arr, lead, rhythm, orchestra: comp,
         critique=critique, arbitrate=arbitrate, regenerate=regenerate, render=render)
 
 
@@ -204,7 +204,8 @@ def test_generate_routes_to_the_studio_when_enabled():
     try:
         result = flow._generate(_arr())
         assert marks == [("studio", 2)]              # routed to the studio, passes threaded
-        assert result == ([], None, [], [])
+        # _arr() uses no orchestra, so orchestra_layers is empty: (lead, rhythm, orchestra, events, canvases)
+        assert result == ([], None, [], [], [])
     finally:
         ss.compose_studio = original
         os.environ.pop("RMA_STUDIO", None)
@@ -226,6 +227,59 @@ def test_generate_routes_to_parallel_by_default():
     finally:
         lead_mod.compose_lead = ol
         riff_mod.compose_riff = orr
+
+
+# --- the orchestra: capability-gated in generate, targetable in a revise ---------
+
+def _symphonic_arr():
+    draft = ArrangementDraft(
+        raga="kirwani", subgenre="symphonic", tala="keherwa", bpm=120, motif=["S", "g", "P"],
+        sections=[Section(kind=SectionKind.RIFF, bars=1,
+                          layers=["rhythm", "orchestra", "drone"], foreground="rhythm",
+                          intent="symphonic riff")])
+    return build_arrangement(draft, CompositionBrief(mood="epic"))
+
+
+def test_generate_scores_the_orchestra_when_the_chart_uses_it():
+    import crew.flow as flow
+    import crew.lead as lead_mod
+    import crew.orchestra as orch_mod
+    import crew.riff as riff_mod
+    marks: list = []
+    ol, orr, oo = lead_mod.compose_lead, riff_mod.compose_riff, orch_mod.compose_orchestra
+    lead_mod.compose_lead = lambda a: ([], [])
+    riff_mod.compose_riff = lambda a, mukhada=None: (Layer(role="rhythm"), [])
+    orch_mod.compose_orchestra = (
+        lambda a, **kw: marks.append("orchestra") or ([Layer(role="orch_strings")], [_ev("orch")]))
+    os.environ.pop("RMA_STUDIO", None)
+    try:
+        _lead, _rhythm, orchestra_layers, _events, _canvases = flow._generate(_symphonic_arr())
+        assert marks == ["orchestra"]                        # the capability gate fired
+        assert [la.role for la in orchestra_layers] == ["orch_strings"]
+    finally:
+        lead_mod.compose_lead = ol
+        riff_mod.compose_riff = orr
+        orch_mod.compose_orchestra = oo
+
+
+def test_regenerate_reworks_the_orchestra_when_flagged():
+    import crew.flow as flow
+    import crew.orchestra as orch_mod
+    marks: list = []
+    oo = orch_mod.compose_orchestra
+    orch_mod.compose_orchestra = lambda a, **kw: marks.append("orch") or ([Layer(role="orch_choir")], [])
+    try:
+        lead = [Layer(role="lead")]
+        rhythm = Layer(role="rhythm")
+        orch = [Layer(role="orch_strings")]
+        ruling = ConductorRuling(directive="revise", layer="orchestra", reason="thin the strings")
+        new_lead, new_rhythm, new_orch, _events, _canvases = flow._regenerate(
+            _symphonic_arr(), lead, rhythm, orch, ruling, [])
+        assert marks == ["orch"]                             # the orchestra re-scored
+        assert [la.role for la in new_orch] == ["orch_choir"]
+        assert new_lead is lead and new_rhythm is rhythm     # the other voices stand
+    finally:
+        orch_mod.compose_orchestra = oo
 
 
 if __name__ == "__main__":

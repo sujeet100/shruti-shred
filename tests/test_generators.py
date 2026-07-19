@@ -35,6 +35,7 @@ from crew.generators import (  # noqa: E402
     double_track,
     drone_layer,
     harmonize_riff_to_lead,
+    intro_jod_layer,
     section_spans,
     total_beats,
 )
@@ -73,6 +74,39 @@ def test_beats_per_bar_follows_the_tala():
     arr = _arr(tala="rupak", bars=(2,))         # rupak = 7 matras
     assert arr.beats_per_bar == 7.0
     assert section_spans(arr)[0].length == 14.0
+
+
+# --- the intro jod string (the alap's ringing home Sa) ------------------------
+
+def _arr_with_intro(intro_bars: int = 3) -> Arrangement:
+    sections = [Section(kind=SectionKind.ALAAP, bars=intro_bars, layers=["lead", "drone"],
+                        foreground="lead", form_role="intro"),
+                Section(kind=SectionKind.RIFF, bars=1, layers=["rhythm", "drone"],
+                        foreground="rhythm", form_role="mukhada")]
+    draft = ArrangementDraft(raga="kirwani", subgenre="symphonic", tala="keherwa", bpm=120,
+                             motif=["S", "g", "P"], sections=sections)
+    return build_arrangement(draft, CompositionBrief(mood="epic"))
+
+
+def test_intro_jod_replucks_home_sa_each_avartan_ringing_and_fading():
+    arr = _arr_with_intro(intro_bars=3)
+    layer = intro_jod_layer(arr)
+    assert layer is not None and layer.role == "jod"
+    intro = section_spans(arr)[0]
+    cycle = arr.beats_per_bar
+    assert len(layer.notes) == 3                            # re-plucked once per avartan (3-bar alap)
+    for bar, n in enumerate(layer.notes):
+        assert n.swara == "S"                               # home
+        assert n.start == intro.start + bar * cycle         # a pluck on each avartan's sam
+        assert abs(n.dur - cycle) < 1e-6                    # rings for one cycle, then re-plucked
+        assert n.fade is True                               # let to ring then FADE NATURALLY
+        assert n.oct == arr.registers["drone"] + 1          # audible mandra, above the tanpura pad
+    comp = assemble_composition(arr, [drone_layer(arr), layer])
+    assert validate_composition(comp.model_dump(exclude_none=True)) == []   # trivially legal (Sa)
+
+
+def test_intro_jod_is_none_without_an_intro():
+    assert intro_jod_layer(_arr(bars=(1, 2))) is None       # no form_role='intro' -> no jod
 
 
 # --- the drone: raga-aware, legal by construction ------------------------------

@@ -142,6 +142,12 @@ _LAYER_DESC: Final[dict[str, str]] = {
     "clean": "the CLEAN electric guitar — arpeggiates the section's harmony plan (a shimmer "
              "under the band): intros, under a melody, a breakdown afterglow; it holds soft "
              "pads under the long taan and sits out the climax's band-drop",
+    "orchestra": "the ORCHESTRA (strings, brass, choir, timpani) — a CINEMATIC layer a separate "
+                 "agent scores. ACTIVATE it throughout a SYMPHONIC chart (there it is a full, "
+                 "equal member of the band), and only SPARINGLY as colour on other subgenres (a "
+                 "string pad under a chorus, a brass stab, a choir at the climax). You just list "
+                 "the layer where you want cinematic depth; the orchestra agent decides what each "
+                 "family plays and reserves the big tutti for the peak",
 }
 
 # The exact JSON shape we want back, injected as an input so CrewAI's {placeholder}

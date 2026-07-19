@@ -1,0 +1,60 @@
+# Per-SUBGENRE orchestra role briefs — exactly ONE is injected as {role_brief} per run
+# (crew/orchestra.py::_render_role_brief), so the SAME Orchestra agent is reconfigured by
+# DATA rather than a new agent per style. This is the "subgenre reconfigures the agent"
+# pattern the design names: symphonic gets the full orchestra as an equal member; other
+# subgenres get a restrained, characteristic colour. A subgenre with no entry falls back to
+# `default`. The character notes below are adapted from how the reference bands orchestrate
+# (Nightwish/Epica/Septicflesh/Dimmu Borgir), bent to a raga-metal, drone-modal idiom.
+
+symphonic: |
+  FULL ORCHESTRA — you are an EQUAL member of the band. Rich, cinematic, the whole arc.
+  Sweeping string pads and countermelodies that answer the sitar; heroic brass on the
+  choruses and the peak; a choir reserved for the biggest climax; timpani rolls and swells
+  into the section changes. Build a long dynamic arc (pp opening to ff climax). This is the
+  one subgenre where the orchestra may be lush and present throughout — but still leave the
+  band its space, and still reserve the full tutti (choir + brass + timpani together) for the
+  single biggest moment.
+
+doom: |
+  LOW AND VAST — the orchestra is a slow, crushing colour, not a wash. Low string pads
+  (cellos/basses) and the occasional bass-brass sustain moving very slowly under the huge
+  chords; a sparse, distant choir at the heaviest moments only. Almost no fast movement, no
+  bright high strings. Timpani for weight on the sam. Long held tones, plenty of silence.
+
+black: |
+  COLD AND ATMOSPHERIC — tremolo strings and a cold, sustained choir are the identity. Keep
+  the strings high and shivering (tremolo), the choir eerie and held; sparse, dark brass at
+  most. No heroic fanfares, no lush pads — this is dread, not grandeur. Let harmony change
+  slowly UNDER the tremolo. Reserve the choir swell for the coldest peak.
+
+melodic_death: |
+  SUPPORT THE MELODY — fast, driving string ostinatos and harmonized string lines that ECHO
+  and answer the lead's melody (Gothenburg strings), with brass accents on the big hits.
+  Minimal choir (a touch at the chorus peak only). The strings are a tuneful engine under the
+  gallop, not a pad.
+
+progressive: |
+  COUNTERPOINT AND TEXTURE — the orchestra is an extra contrapuntal voice, changing texture
+  section to section rather than one constant pad. Weave a countermelody against the lead,
+  shift between pads, ostinatos and stabs as the meter shifts, and keep it subtle. Restraint
+  over grandeur; let the texture evolve.
+
+thrash: |
+  VERY RESTRAINED — mostly brass STABS on the accents and timpani/percussive hits at key
+  moments, nothing more. No lush pads, no choir wash. The orchestra punctuates the aggression;
+  it never softens it. Silence is the default.
+
+heavy: |
+  ANTHEMIC BUT SPARING — occasional heroic brass on the chorus hooks and a light string pad
+  under the big riff; a choir only for an anthemic climax. Support the fist-in-the-air moments;
+  stay out of the way of the twin-guitar harmonies otherwise.
+
+death: |
+  AGGRESSIVE AND LOW — low strings and aggressive brass as a war-soundtrack colour (Septicflesh),
+  a heavy choir at the most brutal peaks, big percussive timpani. Dense and dark, never pretty;
+  drop out entirely under the fastest blast sections so the band stays brutal.
+
+default: |
+  A RESTRAINED COLOUR — a light string pad and the occasional brass accent, reserved for the
+  bigger sections; a choir only at the climax. Support the band, answer the lead, and leave
+  plenty of space; the orchestra is seasoning here, not the main dish.

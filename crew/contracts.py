@@ -313,7 +313,8 @@ def resolve_brief(intent: RawIntent) -> CompositionBrief:
 # the metal kit; `tabla` is Hindustani percussion — the two are distinct voices and
 # may play TOGETHER (tabla laying the theka under a metal groove is a core fusion
 # sound). Rendering tabla is wired in step 4 (the Groove generator + render).
-ROLES: frozenset[str] = frozenset({"drone", "lead", "rhythm", "drums", "tabla", "clean"})
+ROLES: frozenset[str] = frozenset({"drone", "lead", "rhythm", "drums", "tabla", "clean",
+                                   "orchestra"})
 
 
 # How a section MOVES harmonically — the composers' per-section harmony decision
@@ -700,8 +701,11 @@ def voice_registers(subgenre: str) -> dict[str, int]:
     # The clean guitar arpeggiates the harmony BETWEEN the wall and the raga line — an
     # octave under the lead (never below the riff), so its broken chords shimmer in the
     # mid-range without crowding either voice.
+    # The orchestra's strings sing at the lead's height (clear of the rhythm wall); the
+    # expander seats the low strings an octave under this base and the high strings/counter
+    # at or above it, so the section reads as a full string spread without crowding a voice.
     return {"lead": lead, "rhythm": rhythm, "drone": riff_floor,
-            "clean": max(lead - 1, rhythm)}
+            "clean": max(lead - 1, rhythm), "orchestra": lead}
 
 
 def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arrangement:
@@ -1074,6 +1078,78 @@ class RiffPattern(BaseModel):
     """
     reasoning: str = ""
     notes: list[RiffNote] = Field(min_length=1)
+
+
+# --------------------------------------------------------------------------- #
+# Contract 1.55: The Orchestra — the symphonic-metal voice (see crew/orchestra.py)
+#
+# The Orchestra is the fusion's cinematic layer — called for symphonic metal, and more
+# sparingly as colour on other subgenres. ONE LLM agent decides the per-section INTENT
+# (what the strings/brass/choir DO, when they enter, the dynamic arc), and DETERMINISTIC
+# code (crew/orchestra.py) expands that intent into raga-legal Layers: a wide string
+# section, brass, choir, timpani. The raga is the hard constraint that keeps it Hindustani,
+# not generic film score — every pitch is a raga swara, seated so an upward voicing never
+# enters a descent-only tone, and the harmony stays DRONE/MODAL, never Western functional
+# progressions. "The LLM decides the creative call; code owns the mechanics + the legality."
+#
+# The intent emits WHAT, not MIDI notes: closed vocabularies + raga swara LISTS (Gemini
+# controlled-generation-friendly, and something the expander can realise legally), plus ONE
+# optional melodic output — a raga-legal countermelody (LeadNote[], guardrailed like every
+# other written line). Orchestration is HOLISTIC (long arcs, choir/brass reserved for the
+# peak), so unlike the per-section Lead/Riff the whole chart is one call (OrchestraScore).
+# --------------------------------------------------------------------------- #
+
+# What each orchestral family DOES in a section — closed sets (Literal, friendly to Gemini
+# controlled generation, and a fixed vocabulary the deterministic expander realises).
+StringRole = Literal["pad", "tremolo", "counter", "ostinato", "silent"]
+BrassRole = Literal["stabs", "sustain", "silent"]
+ChoirRole = Literal["sustained", "swell", "silent"]
+# The section's orchestral loudness — a fixed dynamic marking the expander maps to a base velocity.
+OrchDynamic = Literal["pp", "p", "mp", "mf", "f", "ff"]
+
+
+class SectionOrchestra(BaseModel):
+    """The Orchestra's INTENT for ONE section — WHAT each family does, not MIDI notes.
+
+    Closed vocabularies + raga swara lists so Gemini controlled generation is happy and the
+    deterministic expander (crew/orchestra.py) can realise every choice legally. The optional
+    `countermelody` is the one genuinely melodic output — a raga-legal ANSWER line (never a
+    double of the lead), guardrailed like every written phrase. LEGALITY of the swara lists /
+    countermelody is the generator's guardrail, not this schema (so `output_pydantic` always
+    parses a well-formed intent); the schema only rejects unknown symbols.
+    """
+    section_index: int = Field(ge=0)                        # which section (0-based) this intent addresses
+    strings: StringRole = "pad"                             # what the string section does here
+    string_swaras: list[str] = Field(default_factory=list)  # raga swaras the strings sustain/tremolo/ostinato on (empty -> code default: Sa + a colour)
+    brass: BrassRole = "silent"                             # brass role (reserve stabs/sustain for weight + peaks)
+    brass_swaras: list[str] = Field(default_factory=list)   # raga swaras the brass sounds (empty -> code default: Sa + fifth)
+    choir: ChoirRole = "silent"                             # choir role (reserve for climaxes)
+    choir_swaras: list[str] = Field(default_factory=list)   # raga swaras the choir holds (empty -> code default)
+    timpani: bool = False                                   # timpani reinforcement (a roll/accent on the sam)
+    swell_into_next: bool = False                           # a crescendo lifting INTO the next section (transition prep)
+    dynamic: OrchDynamic = "mf"                             # the section's orchestral loudness
+    countermelody: list[LeadNote] = Field(default_factory=list)  # optional raga-legal ANSWER line (guardrailed)
+
+    @field_validator("string_swaras", "brass_swaras", "choir_swaras")
+    @classmethod
+    def _known_orch_swaras(cls, v: list[str]) -> list[str]:
+        bad = [s for s in v if s not in SWARAS]
+        if bad:
+            raise ValueError(f"unknown swara(s) {bad} in orchestra swaras")
+        return v
+
+
+class OrchestraScore(BaseModel):
+    """The Orchestra generator's WHOLE-CHART output — ONE LLM call seeing the entire form.
+
+    Orchestration is holistic (long 4-16 bar arcs; the choir/brass reserved for peaks), so
+    unlike the per-section Lead/Riff this is one call for the whole piece. `reasoning` (filled
+    FIRST) plans the arc — where the choir/brass peak lands, how the texture develops — before
+    any section intent. `sections` carries one `SectionOrchestra` per section that uses the
+    orchestra layer (others omitted). Legality is the guardrail's job, not the schema's.
+    """
+    reasoning: str = ""
+    sections: list[SectionOrchestra] = Field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #

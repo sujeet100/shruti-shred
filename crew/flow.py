@@ -80,12 +80,13 @@ def revise_arrangement(arr: Arrangement, ruling: ConductorRuling) -> Arrangement
 
 type Interpret = Callable[[str], tuple[CompositionBrief, list[DebateEvent]]]
 type Compose = Callable[[CompositionBrief], tuple[Arrangement, list[DebateEvent]]]
-# generate/regenerate also carry the studio's per-section canvases (empty for the parallel
-# path), retained in Flow state so a surgical revise can stay CANVAS-AWARE.
+# generate/regenerate also carry: the ORCHESTRA layers (the symphonic voice — empty when the
+# chart doesn't use it), and the studio's per-section canvases (empty for the parallel path),
+# both retained in Flow state so a surgical revise can re-assemble and stay CANVAS-AWARE.
 type Generate = Callable[
     [Arrangement],
-    tuple[list[Layer], Optional[Layer], list[DebateEvent], list[SectionCanvas]]]
-type Assemble = Callable[[Arrangement, list[Layer], Optional[Layer]], Composition]
+    tuple[list[Layer], Optional[Layer], list[Layer], list[DebateEvent], list[SectionCanvas]]]
+type Assemble = Callable[[Arrangement, list[Layer], Optional[Layer], list[Layer]], Composition]
 type Critique = Callable[
     [Composition, Arrangement],
     tuple[UstadVerdict, RasikVerdict, ProducerVerdict, list[DebateEvent]]]
@@ -93,8 +94,8 @@ type Arbitrate = Callable[
     [UstadVerdict, RasikVerdict, ProducerVerdict, Composition],
     tuple[ConductorRuling, list[DebateEvent]]]
 type Regenerate = Callable[
-    [Arrangement, list[Layer], Optional[Layer], ConductorRuling, list[SectionCanvas]],
-    tuple[list[Layer], Optional[Layer], list[DebateEvent], list[SectionCanvas]]]
+    [Arrangement, list[Layer], Optional[Layer], list[Layer], ConductorRuling, list[SectionCanvas]],
+    tuple[list[Layer], Optional[Layer], list[Layer], list[DebateEvent], list[SectionCanvas]]]
 type Render = Callable[[Composition], Optional[str]]
 
 
@@ -123,42 +124,55 @@ def _compose(brief: CompositionBrief) -> tuple[Arrangement, list[DebateEvent]]:
     return compose(brief)
 
 
-def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[DebateEvent],
-                                          list[SectionCanvas]]:
-    """Generate the two creative voices — one of two paths, selected by config:
+def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[Layer],
+                                          list[DebateEvent], list[SectionCanvas]]:
+    """Generate the creative voices — one of two paths for lead + riff, selected by config:
 
       * COOPERATIVE (`RMA_STUDIO=1`): Lead and Riff compose TOGETHER on a shared canvas,
         each answering what the other just played (the studio session — DESIGN.md's second
         named pattern);
       * PARALLEL (default): each composes in isolation against the shared chart.
 
-    Both return (lead_layers, rhythm, events, canvases), so the rest of the Flow — assembly,
-    critics, Conductor, render — is identical either way. `canvases` is empty for the parallel
-    path and the per-section SectionCanvas list for the studio; the Flow keeps it in state so
-    a surgical revise can regenerate the flagged voice CANVAS-AWARE (the collaboration
-    survives the critique loop), while the parallel path revises standalone.
+    Then, on EITHER path, the CAPABILITY-GATED Orchestra joins when the chart calls for it
+    (`uses_orchestra`) — one whole-chart call, scoring AROUND the realized lead + riff.
+
+    Returns (lead_layers, rhythm, orchestra_layers, events, canvases), so the rest of the Flow
+    — assembly, critics, Conductor, render — is identical either way. `orchestra_layers` is
+    empty off a symphonic/orchestral chart; `canvases` is empty for the parallel path and the
+    per-section SectionCanvas list for the studio. Both live in Flow state so a surgical revise
+    re-assembles correctly and stays CANVAS-AWARE.
     """
     from crew.config import canvas_passes, studio_enabled
     if studio_enabled():
         from crew.studio_session import compose_studio
-        return compose_studio(arr, passes=canvas_passes())
-    from crew.lead import compose_lead, mukhada_cell_from_events
-    from crew.riff import compose_riff
-    publish(_running("Lead", "composing the gat…"))   # a RUNNING beat streams AHEAD of the slow work,
-    lead_layers, e1 = compose_lead(arr)               # so the UI spotlights Lead WHILE it composes
-    publish_all(e1)
-    publish(_running("Riff", "laying down the riff…"))
-    # Cross-voice seeding: the riff reduces the cached gat head (fished from the lead's
-    # events), so the band hears the mukhada IN the riff.
-    rhythm, e2 = compose_riff(arr, mukhada=mukhada_cell_from_events(e1))
-    publish_all(e2)
-    return lead_layers, rhythm, [*e1, *e2], []
+        lead_layers, rhythm, events, canvases = compose_studio(arr, passes=canvas_passes())
+    else:
+        from crew.lead import compose_lead, mukhada_cell_from_events
+        from crew.riff import compose_riff
+        publish(_running("Lead", "composing the gat…"))   # a RUNNING beat streams AHEAD of the slow work,
+        lead_layers, e1 = compose_lead(arr)               # so the UI spotlights Lead WHILE it composes
+        publish_all(e1)
+        publish(_running("Riff", "laying down the riff…"))
+        # Cross-voice seeding: the riff reduces the cached gat head (fished from the lead's
+        # events), so the band hears the mukhada IN the riff.
+        rhythm, e2 = compose_riff(arr, mukhada=mukhada_cell_from_events(e1))
+        publish_all(e2)
+        events, canvases = [*e1, *e2], []
+    orchestra_layers: list[Layer] = []
+    from crew.orchestra import compose_orchestra, uses_orchestra
+    if uses_orchestra(arr):
+        publish(_running("Orchestra", "scoring the orchestra…"))
+        orchestra_layers, eo = compose_orchestra(arr, lead_layers=lead_layers, rhythm=rhythm)
+        publish_all(eo)
+        events = [*events, *eo]
+    return lead_layers, rhythm, orchestra_layers, events, canvases
 
 
-def _assemble(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer]) -> Composition:
+def _assemble(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer],
+              orchestra_layers: list[Layer]) -> Composition:
     from crew.band import band_layers
     from crew.generators import assemble_composition
-    return assemble_composition(arr, band_layers(arr, lead_layers, rhythm))
+    return assemble_composition(arr, band_layers(arr, lead_layers, rhythm, orchestra_layers))
 
 
 def _critique(comp: Composition,
@@ -189,28 +203,37 @@ def _arbitrate(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdi
 
 
 def _regenerate(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer],
-                ruling: ConductorRuling, canvases: list[SectionCanvas]
-                ) -> tuple[list[Layer], Optional[Layer], list[DebateEvent], list[SectionCanvas]]:
-    """Regenerate ONLY the flagged creative voice, steered by the directive. If the studio
-    produced canvases (the cooperative path), regenerate CANVAS-AWARE — the voice still sees
-    the other's line, so the collaboration survives the revise; otherwise (the parallel path)
-    do the standalone surgical fix. The derivable voices (drone/bass/drums/tabla) re-derive at
-    reassembly either way. A ruling targeting a non-creative voice has nothing to regenerate."""
+                orchestra_layers: list[Layer], ruling: ConductorRuling,
+                canvases: list[SectionCanvas]
+                ) -> tuple[list[Layer], Optional[Layer], list[Layer], list[DebateEvent],
+                           list[SectionCanvas]]:
+    """Regenerate ONLY the flagged voice, steered by the directive; the others stand and
+    re-derive at reassembly. The orchestra (when flagged) re-scores AROUND the unchanged lead +
+    riff — the directive rides its sections' intent (`revise_arrangement`). Lead/riff: if the
+    studio produced canvases, regenerate CANVAS-AWARE (the collaboration survives the revise),
+    else do the standalone surgical fix. A ruling targeting a non-creative voice regenerates
+    nothing. The orchestra passes through unchanged unless it is the flagged voice."""
     revised = revise_arrangement(arr, ruling)
+    if ruling.layer == "orchestra":
+        from crew.orchestra import compose_orchestra
+        publish(_running("Orchestra", "reworking the orchestra…"))
+        new_orch, events = compose_orchestra(revised, lead_layers=lead_layers, rhythm=rhythm)
+        return lead_layers, rhythm, new_orch, events, canvases
     if canvases:
         from crew.studio_session import regenerate_layer
-        return regenerate_layer(revised, canvases, ruling.layer)
+        new_lead, new_rhythm, events, new_canvases = regenerate_layer(revised, canvases, ruling.layer)
+        return new_lead, new_rhythm, orchestra_layers, events, new_canvases
     from crew.lead import compose_lead
     from crew.riff import compose_riff
     if ruling.layer == "rhythm":
         publish(_running("Riff", "reworking the riff…"))
         new_rhythm, events = compose_riff(revised)
-        return lead_layers, new_rhythm, events, canvases
+        return lead_layers, new_rhythm, orchestra_layers, events, canvases
     if ruling.layer == "lead":
         publish(_running("Lead", "reworking the gat…"))
         new_lead, events = compose_lead(revised)
-        return new_lead, rhythm, events, canvases
-    return lead_layers, rhythm, [], canvases
+        return new_lead, rhythm, orchestra_layers, events, canvases
+    return lead_layers, rhythm, orchestra_layers, [], canvases
 
 
 def _render(comp: Composition, *, soundfont: Path, out_dir: Path, name: str) -> Optional[str]:
@@ -252,6 +275,7 @@ class ComposeState(BaseModel):
     arrangement: Optional[Arrangement] = None
     lead_layers: list[Layer] = Field(default_factory=list)
     rhythm: Optional[Layer] = None
+    orchestra_layers: list[Layer] = Field(default_factory=list)   # the symphonic voice (empty off an orchestral chart)
     canvases: list[SectionCanvas] = Field(default_factory=list)   # studio canvases (empty if parallel) — kept so a revise stays canvas-aware
     composition: Optional[Composition] = None
     ustad: Optional[UstadVerdict] = None
@@ -308,12 +332,13 @@ class ComposeFlow(Flow[ComposeState]):
         publish(_running("Pandit", "negotiating the chart with Riffsmith…", role="composer"))
         arr, e2 = self._stages.compose(brief)
         publish_all(e2)
-        lead_layers, rhythm, e3, canvases = self._stages.generate(arr)   # emits its own RUNNING beats
+        lead_layers, rhythm, orchestra_layers, e3, canvases = self._stages.generate(arr)   # emits its own RUNNING beats
         st.arrangement = arr
         st.lead_layers = lead_layers
         st.rhythm = rhythm
+        st.orchestra_layers = orchestra_layers
         st.canvases = canvases
-        st.composition = self._stages.assemble(arr, lead_layers, rhythm)
+        st.composition = self._stages.assemble(arr, lead_layers, rhythm, orchestra_layers)
         st.events.extend([*e1, *e2, *e3])
 
     @router("revise")
@@ -328,12 +353,13 @@ class ComposeFlow(Flow[ComposeState]):
         """
         st = self.state
         assert st.arrangement is not None and st.ruling is not None
-        lead_layers, rhythm, events, canvases = self._stages.regenerate(
-            st.arrangement, st.lead_layers, st.rhythm, st.ruling, st.canvases)
+        lead_layers, rhythm, orchestra_layers, events, canvases = self._stages.regenerate(
+            st.arrangement, st.lead_layers, st.rhythm, st.orchestra_layers, st.ruling, st.canvases)
         st.lead_layers = lead_layers
         st.rhythm = rhythm
+        st.orchestra_layers = orchestra_layers
         st.canvases = canvases
-        st.composition = self._stages.assemble(st.arrangement, lead_layers, rhythm)
+        st.composition = self._stages.assemble(st.arrangement, lead_layers, rhythm, orchestra_layers)
         publish_all(events)
         st.events.extend(events)
         return "recritique"

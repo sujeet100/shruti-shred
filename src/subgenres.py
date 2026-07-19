@@ -225,6 +225,35 @@ SUBGENRES = {
         "character": "Cold and relentless; tremolo walls over blast beats. A driving Teentaal/Ektaal "
                      "or a raw free feel; the exotic komal-heavy ragas suit its darkness.",
     },
+
+    "symphonic": {
+        "display": "Symphonic",
+        "bpm": [90, 160],
+        "feel": "grand and cinematic — driving mid-tempo power chords under a full orchestra, the "
+                "band and the score as equal members",
+        "subdivision": "steady 8ths and galloping 8th/16th figures under sustained orchestral pads",
+        "groove_brief": "Cinematic heavy metal: palm-muted power-chord riffs and gallops at a "
+                        "grand mid-tempo, LEAVING SPACE for the orchestra to answer (the strings and "
+                        "choir are a member of the band, not a backdrop). Big double-kick swells into "
+                        "the choruses and the climax; drop to a half-time, orchestra-led passage, then "
+                        "slam back. Weight from the low chug PLUS the orchestral wash, never from noise.",
+        "register": [-2, 0],   # mid — the guitars sit clear of the orchestra's low strings and high pads
+        "techniques": ["power_chords", "palm_mute", "tremolo", "harmonized_leads", "sustain", "bends"],
+        "drums": {
+            "voices": ["kick", "snare", "hhat", "ohat", "crash", "ride", "bell", "china",
+                       "tom_hi", "tom_mid", "tom_lo"],
+            "feel": "grand double-kick drive with big crashes and cymbal swells into sections; "
+                    "half-time under the orchestra-led passages",
+            "double_kick": True,
+            "blast_beats": False,    # the odd burst, but power + grandeur is the identity, not extremity
+            "density": "dense",
+            "backbeat": "hard 2 & 4 with a driving double-kick; drops to half-time for orchestral passages",
+        },
+        "raga_affinity": ["kirwani", "yaman", "charukeshi"],   # harmonic-minor + heroic Lydian + Mixolydian b6
+        "character": "Grand and cinematic; a full orchestra as an equal member. The harmonic-minor "
+                     "Kirwani, the heroic Lydian Yaman and Charukeshi fit its sweep; a broad "
+                     "Teentaal/Ektaal gives the score room to build.",
+    },
 }
 
 

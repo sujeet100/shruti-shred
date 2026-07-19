@@ -179,7 +179,11 @@ LEGATO_MAX_GAP = 0.05    # beats: prev note must END this close for a legato con
 # kit (52 -> 78, Sujit's ear 2026-07-16: "tabla is very dry") — the Indian Ensemble strokes
 # are close-miked one-shots that need the room the metal samples carry baked in.
 _REVERB_SEND = {"lead": 68, "drone": 48, "rhythm": 30, "bass": 12, "tabla": 78, "drums": 38,
-                "clean": 62}   # the clean arpeggios live in the room — shimmer, not chug
+                "clean": 62,   # the clean arpeggios live in the room — shimmer, not chug
+                # the orchestra lives in a CONCERT HALL: strings/choir wet and cinematic, brass
+                # tighter so its stabs still punch, timpani drier so the low hits stay defined.
+                "orch_strings": 80, "orch_choir": 85, "orch_brass": 55, "orch_timpani": 45,
+                "jod": 58}     # the jod string rings in a little room, like the sitar lead
 _REVERB_SEND_DEFAULT = 40
 
 
@@ -196,7 +200,11 @@ def _reverb_send(role) -> int:
 # keeps its own CC7=127 (MUTE_LEVEL) — so this cannot disturb the chug parity. None (unlisted
 # role) = leave the channel at its default.
 _MIX_LEVEL = {"lead": 92, "drone": 74, "tabla": 115,
-              "clean": 84}     # the harmony shimmer sits UNDER the lead voices
+              "clean": 84,     # the harmony shimmer sits UNDER the lead voices
+              # the orchestra is an ACCOMPANIST, not the star: strings/choir sit under the
+              # band, brass a touch more present for its accents, timpani solid on the low end.
+              "orch_strings": 82, "orch_choir": 84, "orch_brass": 90, "orch_timpani": 100,
+              "jod": 90}       # the ringing home Sa, present under the melodic sitar (92)
 
 
 def _mix_level(role) -> int | None:

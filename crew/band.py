@@ -31,6 +31,7 @@ from crew.generators import (
     double_track,
     drone_layer,
     harmonize_riff_to_lead,
+    intro_jod_layer,
     render_composition,
 )
 from crew.dynamics import apply_dynamics, apply_taan_exposure
@@ -43,20 +44,24 @@ _SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
 _OUT_DIR: Final[Path] = _ROOT / "out"
 
 
-def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None) -> list[Layer]:
+def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None,
+                orchestra_layers: list[Layer] = ()) -> list[Layer]:
     """Collect every voice into the stable layer order, then BALANCE it. Pure — no LLM.
 
-    Takes the CREATIVE voices already generated (the lead layer(s) and the riff) and
-    derives the rest around them: the drone from the chart, the bass and drums from
-    the riff, and the tabla from the tala. Drone leads the list; percussion trails it.
+    Takes the CREATIVE voices already generated (the lead layer(s), the riff, and — for a
+    symphonic chart — the orchestra's expanded Layers) and derives the rest around them: the
+    drone from the chart, the bass and drums from the riff, and the tabla from the tala.
+    Drone leads the list; the orchestra sits with the melodic voices; percussion trails it.
     Then two deterministic post-assembly passes, each needing every voice at once:
     `apply_taan_exposure` drops the metal band out of the long taan's final avartan (the
-    band-drop window — sitar, drone and tabla carry the peak alone), and `apply_dynamics`
-    shapes the energy arc + layer-by-function balance across the sections (both no-ops on
-    a chart with no declared gat form).
+    band-drop window — sitar, drone, tabla AND the orchestra carry the peak alone), and
+    `apply_dynamics` shapes the energy arc + layer-by-function balance across the sections
+    (both no-ops on a chart with no declared gat form). `orchestra_layers` defaults empty,
+    so every existing caller and fixture is unchanged.
     """
     layers: list[Layer] = [drone_layer(arr)]
     layers.extend(lead_layers)
+    layers.extend(orchestra_layers)   # the cinematic voices (symphonic; sparse colour elsewhere)
     if rhythm is not None:
         # The riff yields to the raga line FIRST (clashing notes thin to a chug), so the
         # double-track and the derived low end all inherit the consonant figure.
@@ -69,8 +74,8 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     # low end and kit stay locked to one rhythm-guitar line, not a smeared pair. The
     # clean guitar realises the chart's per-section HARMONY plan (crew/harmony.py) —
     # deterministic like the rest: the composers decided the modes, code plays them.
-    for derived in (clean_layer(arr), bass_layer(arr, rhythm), groove_layer(arr, rhythm),
-                    tabla_layer(arr)):
+    for derived in (clean_layer(arr), intro_jod_layer(arr), bass_layer(arr, rhythm),
+                    groove_layer(arr, rhythm), tabla_layer(arr)):
         if derived is not None:
             layers.append(derived)
     # The taan exposure runs BEFORE the balance pass: the band-drop window empties first, then
@@ -86,6 +91,7 @@ def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:
     this module stays importable without paying the crewai import cost.
     """
     from crew.lead import compose_lead, mukhada_cell_from_events
+    from crew.orchestra import compose_orchestra, uses_orchestra
     from crew.riff import compose_riff
 
     events: list[DebateEvent] = []
@@ -95,7 +101,15 @@ def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:
     rhythm, riff_events = compose_riff(arr, mukhada=mukhada_cell_from_events(lead_events))
     events.extend(lead_events)
     events.extend(riff_events)
-    return assemble_composition(arr, band_layers(arr, lead_layers, rhythm)), events
+    # The Orchestra is CAPABILITY-GATED: it joins ONLY when the chart calls for it (symphonic
+    # charts always; other subgenres where the composers added it as colour). It runs after
+    # the creative voices so it can ANSWER the realized lead + riff rather than double them.
+    orchestra_layers: list[Layer] = []
+    if uses_orchestra(arr):
+        orchestra_layers, orch_events = compose_orchestra(arr, lead_layers=lead_layers, rhythm=rhythm)
+        events.extend(orch_events)
+    return (assemble_composition(arr, band_layers(arr, lead_layers, rhythm, orchestra_layers)),
+            events)
 
 
 def compose_from_query(query: str) -> tuple[Composition, list[DebateEvent]]:
