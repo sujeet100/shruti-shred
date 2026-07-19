@@ -71,6 +71,13 @@ _CHUG_SUBDIV: Final = 0.5            # ...which code fills with palm-muted groun
 _CHUG_FILL_MIN_GAP: Final = 0.5      # only a gap at least this long is chug-filled
 _CHUG_FILL_BREATH: Final = 0.5       # leave this much silence before the next ring (when the gap allows)
 _CHUG_VEL: Final = 108               # a solid palm-muted chug (never cut — the render sends CC7 full)
+
+# Memorability (GPT review 2026-07-19: the riffs "move move move" instead of "HOOK, variation,
+# HOOK" — a new figure every time (A B C D) reads as AI; restating ONE figure (A A' A B) is what
+# a listener remembers). A metal riff's hook is its recurring MOVEMENT cell; the chug ground is
+# separate. So DRIVE flags a cycle whose movement figures are MANY and ALL distinct — a wandering
+# line with no restated hook. The real lift is the prompt; this is the backstop.
+_HOOK_MIN_FIGURES: Final = 3         # this many movement figures, all distinct, = a wandering riff
 # Colour = a chord tone that seats ABOVE the octave (add9 / tenth): interval class 1-4
 # over the root (see render._seat_chord_tone). Power weight = octave / fourth / fifth.
 _COLOR_CLASSES: Final = frozenset({1, 2, 3, 4})
@@ -117,9 +124,13 @@ MODE_BRIEFS: Final[dict[RiffMode, str]] = {
         "riff's root) and MARK them technique 'palm_mute' — the chug is an articulation, not "
         "just a low note. At least a third of your notes sit on that ground AND at least a "
         "third are palm-muted chugs, and no more than about half of consecutive notes may "
-        "change pitch (a riff is not a melody). Movement is EARNED: a short 2-4 note figure "
-        "from the pakad, then back to the chug. Put POWER-CHORD weight (the root's own swara, "
-        "or P) on the sam and tali; bright colour stacks (add9/tenth — R or G over the root) "
+        "change pitch (a riff is not a melody). Movement is a HOOK, not novelty: pick ONE "
+        "short 2-4 note figure from the pakad and RESTATE it across the cycle — state it, "
+        "chug, restate it (verbatim, or varied/answered) — so the shape is A A' A B and a "
+        "listener recognizes the riff after two hearings; do NOT introduce a new figure every "
+        "time (A B C D is forgettable). Between the figures, back to the chug. Put POWER-CHORD "
+        "weight (the root's own swara, or P) on the sam and tali; bright colour stacks "
+        "(add9/tenth — R or G over the root) "
         "are a spice, at most 2 per cycle. BREATHE attack-then-resonance: at least ~20% of "
         "your sounding time is OPEN ringing chords a beat or longer — a ring is an open "
         "strike, a palm-muted note can never ring (it gates to a short chug whatever its "
@@ -162,6 +173,25 @@ def _ground_share(sounding: list[RiffNote]) -> float:
     """Share of sounding notes on the MODAL pitch — the riff's ground."""
     counts = Counter((n.swara, n.oct) for n in sounding)
     return counts.most_common(1)[0][1] / len(sounding)
+
+
+def _movement_figures(sounding: list[RiffNote],
+                      ground: tuple[str, int]) -> list[tuple[tuple[str, int], ...]]:
+    """The riff's melodic FIGURES — maximal runs of consecutive OFF-ground sounding notes,
+    each as its (swara, oct) pitch sequence (the chug ground separates them). These are the
+    'moves' whose RESTATEMENT (A A' A B) makes a riff memorable rather than wandering (A B C D)."""
+    figures: list[tuple[tuple[str, int], ...]] = []
+    cur: list[tuple[str, int]] = []
+    for n in sounding:
+        if (n.swara, n.oct) == ground:
+            if cur:
+                figures.append(tuple(cur))
+                cur = []
+        else:
+            cur.append((n.swara, n.oct))
+    if cur:
+        figures.append(tuple(cur))
+    return figures
 
 
 def _is_color(note: RiffNote) -> bool:
@@ -248,6 +278,13 @@ def _drive_violations(notes: list[RiffNote], sounding: list[RiffNote],
         viol.append(f"{colors} bright colour stacks (add9/tenth seats) in one cycle — that is "
                     f"what makes the riff sound light and happy; keep at most {_COLOR_MAX} and "
                     f"make the rest power weight (the root's own swara, or P)")
+    ground = Counter((n.swara, n.oct) for n in sounding).most_common(1)[0][0]
+    figures = _movement_figures(sounding, ground)
+    if len(figures) >= _HOOK_MIN_FIGURES and len(set(figures)) == len(figures):
+        viol.append("the riff introduces a NEW figure every time (A B C D) — build it around "
+                    "ONE hook: state a short 2-4 note cell and RESTATE it (A A' A B), repeating "
+                    "or answering that figure instead of always moving on, so the riff is "
+                    "memorable after two hearings")
     return viol
 
 

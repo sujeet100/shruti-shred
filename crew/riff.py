@@ -82,7 +82,7 @@ _SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
 _OUT_DIR: Final[Path] = _ROOT / "out"
 
 _OUTPUT_SCHEMA: Final = """{
-  "reasoning": "which raga swaras and part of the motif the riff is built on, its primary + contrast rhythm cell, and how it lands the sam",
+  "reasoning": "the riff's HOOK — the ONE short cell it states and RESTATES (A A' A B, not a new figure each time) — which raga swaras / part of the motif it is built on, and how it lands the sam",
   "notes": [
     {"swara": "S", "oct": 0, "dur": 0.5, "vel": 118, "chord": ["S"], "technique": "palm_mute"},
     {"swara": "S", "oct": 0, "dur": 0.25, "technique": "palm_mute"},

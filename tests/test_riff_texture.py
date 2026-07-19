@@ -377,6 +377,46 @@ def test_verified_pads_returns_chugs_between_the_rings():
     assert any(n.technique == "palm_mute" for n in result.notes)
 
 
+# --- memorability: the DRIVE riff is built around a restated hook (2026-07-19) ---------
+
+def _drive_wandering() -> RiffPattern:
+    """A chug-grounded drive cycle whose MOVEMENT is a new figure every time (A B C D) —
+    the wandering, forgettable shape GPT flagged."""
+    return RiffPattern(notes=[
+        _n("S", 1.0, chord=["S"]), _n("S", 0.5, technique="palm_mute"),
+        _n("g", 0.5), _n("m", 0.5),                       # figure A
+        _n("S", 0.5, technique="palm_mute"),
+        _n("d", 0.5), _n("n", 0.5),                       # figure B (new)
+        _n("S", 0.5, technique="palm_mute"),
+        _n("m", 0.5), _n("P", 0.5),                       # figure C (new)
+        _n("S", 0.5, technique="palm_mute"), _n("S", 1.0, chord=["P"])])
+
+
+def _drive_hooky() -> RiffPattern:
+    """The SAME figure restated (A A' A) between chugs — a hook, not a wandering line."""
+    return RiffPattern(notes=[
+        _n("S", 1.0, chord=["S"]),
+        _n("S", 0.5, technique="palm_mute"), _n("g", 0.5), _n("m", 0.5),   # figure A
+        _n("S", 0.5, technique="palm_mute"), _n("g", 0.5), _n("m", 0.5),   # figure A again
+        _n("S", 0.5, technique="palm_mute"), _n("g", 0.5), _n("m", 0.5),   # figure A again
+        _n("S", 1.0, chord=["P"])])
+
+
+def test_drive_flags_a_wandering_riff_with_no_hook():
+    viol = verify_riff(_drive_wandering(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert any("A A' A B" in v for v in viol)             # asked to restate a hook
+
+
+def test_drive_accepts_a_restated_hook():
+    viol = verify_riff(_drive_hooky(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert not any("A A' A B" in v for v in viol)         # a repeated figure is not "wandering"
+
+
+def test_drive_brief_asks_for_a_restated_hook():
+    brief = MODE_BRIEFS[RiffMode.DRIVE]
+    assert "A A' A B" in brief and "hook" in brief.lower()
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
