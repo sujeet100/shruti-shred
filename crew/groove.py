@@ -72,6 +72,7 @@ _SEAM_FILL_BEATS: Final[float] = 2.0      # the section-transition fill
 _BIG_FILL_BEATS: Final[float] = 4.0       # ...upgraded when the CLIMAX is next
 _PICKUP_BEATS: Final[float] = 1.0         # the entrance snare roll
 _DOOM_DRAG: Final[float] = 0.02           # doom backbeats land ~15ms late — the drag IS doom
+_RIFF_ACCENT_MIN_RING: Final[float] = 1.0  # a riff note this long (and open) counts as an accent
 
 
 class GrooveEnergy(Enum):
@@ -197,7 +198,9 @@ def _plan_for(section: Section, subgenre: str, energy: GrooveEnergy,
     # ride-led sections punch the BELL on the sam instead of crashing over the line
     sam = ("bell" if cymbal in ("ride", "bell")
            else "china" if cymbal == "china" else "crash")
-    ghosts = (energy in (GrooveEnergy.VERSE, GrooveEnergy.HALF)
+    # ghosts on every roomy groove except the CLIMAX blast walls (they have no gaps) —
+    # widened from VERSE/HALF-only (2026-07-19) so DRIVE grooves breathe too.
+    ghosts = (energy is not GrooveEnergy.CLIMAX
               and profile["density"] in ("sparse", "medium"))
     spread = 1 if subgenre == "black" else 3 if profile["density"] == "very dense" else 4
     return GroovePlan(
@@ -241,13 +244,14 @@ def _phrase_cycles(cycle: int) -> int:
 # --------------------------------------------------------------------------- #
 
 def _one_vibhag(origin: float, vib: _Vibhag, plan: GroovePlan,
-                voices: set[str]) -> list[DrumHit]:
+                voices: set[str], bar: int = 0) -> list[DrumHit]:
     """One vibhag of the plan's pattern, with the tala written into the dynamics:
-    the tali cymbal leans in (bell when riding), the khali vibhag sits back."""
+    the tali cymbal leans in (bell when riding), the khali vibhag sits back. `bar` rotates
+    the ghost pockets so consecutive bars are not identical."""
     local = PATTERNS[plan.pattern](vib.length, plan.cymbal)
     if plan.ghosts and vib.kind != "khali":
         backs = {h.pos for h in local if h.drum == "snare" and h.vel >= 100}
-        local += [g for g in ghost_snares(vib.length)          # never crowd a backbeat
+        local += [g for g in ghost_snares(vib.length, bar)     # never crowd a backbeat
                   if g.pos not in backs and round(g.pos + 0.25, 4) not in backs]
     out: list[DrumHit] = []
     for hit in local:
@@ -327,6 +331,24 @@ def _riff_onsets(rhythm: Layer | None, span: SectionSpan) -> set[float]:
             if span.start <= n.start < span.end}
 
 
+def _riff_accents(rhythm: Layer | None, span: SectionSpan) -> set[float]:
+    """16th-quantized onsets where the riff hits WEIGHT — a power chord or an open ring
+    (>= `_RIFF_ACCENT_MIN_RING` beats, not palm-muted) — the riff's own accents, NOT the
+    chug ground. The kick locks to these (every subgenre, not just prog) so the kit punches
+    WITH the riff's power chords, not only on the tala's sam (Sujit: grooves should feel
+    derived from the riff)."""
+    if rhythm is None or not rhythm.notes:
+        return set()
+    accents: set[float] = set()
+    for n in rhythm.notes:
+        if not (span.start <= n.start < span.end):
+            continue
+        rings = n.dur >= _RIFF_ACCENT_MIN_RING and n.technique != "palm_mute"
+        if n.chord or rings:
+            accents.add(round(round(n.start * 4) / 4, 4))
+    return accents
+
+
 def _stop_hit_entrance(hits: list[DrumHit], rhythm: Layer | None, span: SectionSpan,
                        window: float, voices: set[str]) -> list[DrumHit]:
     """A riff that opens the entrance with 2-3 spaced accents gets matched STOP
@@ -360,11 +382,13 @@ def _dedup(hits: list[DrumHit]) -> list[DrumHit]:
 
 
 def _section_hits(arr: Arrangement, span: SectionSpan, rhythm: Layer | None,
-                  energy: GrooveEnergy, *, entrance: bool,
+                  energy: GrooveEnergy, *, entrance: bool, announce: bool = False,
                   fill_into: Optional[GrooveEnergy]) -> list[DrumHit]:
     """One section's groove: the plan's pattern tiled per vibhag with the tala's
     accents, A-A-A-B phrase turnarounds, a mid-section mini-fill, the kick locked
-    to the riff, and a crescendo seam fill when another kit section follows."""
+    to the riff (its on-beats AND its power-chord accents), and a crescendo seam fill when
+    another kit section follows. `announce` marks a NEW riff/energy arriving after another
+    kit section — its opening sam gets the full-force entrance crash."""
     voices = set(SUBGENRES[arr.subgenre]["drums"]["voices"])
     plan = _plan_for(span.section, arr.subgenre, energy, voices)
     cycle = int(arr.beats_per_bar)
@@ -377,9 +401,9 @@ def _section_hits(arr: Arrangement, span: SectionSpan, rhythm: Layer | None,
         base = span.start + bar * cycle
         bar_hits: list[DrumHit] = []
         for vib in vibs:
-            bar_hits += _one_vibhag(base + vib.start, vib, plan, voices)
+            bar_hits += _one_vibhag(base + vib.start, vib, plan, voices, bar)
         if bar % phrase == 0:              # a crash opens every phrase's sam...
-            vel = VEL_ENTRANCE if (entrance and bar == 0) else VEL_CRASH
+            vel = VEL_ENTRANCE if ((entrance or announce) and bar == 0) else VEL_CRASH
             bar_hits = _sam_accent(bar_hits, round(base, 4), plan, vel)
         else:                              # ...the other sams just get the kick under
             bar_hits.append(DrumHit(drum="kick", start=round(base, 4), vel=VEL_KICK))
@@ -392,8 +416,10 @@ def _section_hits(arr: Arrangement, span: SectionSpan, rhythm: Layer | None,
             hits = _carve_fill(hits, round(base + cycle - _MINI_FILL_BEATS, 4),
                                round(base + cycle, 4), toms, vel_hi=112)
 
-    # the kick locks to the riff: on-beats for everyone, every onset for prog
+    # the kick locks to the riff: on-beats for everyone, the riff's power-chord ACCENTS
+    # wherever they land (so the kit punches with the riff, not only the sam), every onset for prog
     riff_kicks = {(t, VEL_KICK) for t in _riff_onbeats(rhythm, span)}
+    riff_kicks |= {(t, VEL_KICK) for t in _riff_accents(rhythm, span)}
     if plan.follow_riff:
         riff_kicks |= {(t, VEL_KICK_SOFT) for t in _riff_onsets(rhythm, span)}
     hits += [DrumHit(drum="kick", start=round(t, 4), vel=v) for t, v in riff_kicks]
@@ -427,13 +453,19 @@ def groove_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
     energies = [_energy_for(s.section) if _DRUMS_ROLE in s.section.layers else None
                 for s in spans]
     hits: list[DrumHit] = []
+    prev_kit: Optional[int] = None            # index of the previous kit section (skips alaap gaps)
     for i, span in enumerate(spans):
         if energies[i] is None:
             continue
         entrance = i > 0 and energies[i - 1] is None
+        # a NEW riff/energy arriving right after another kit section — announce it with a crash
+        announce = (not entrance and prev_kit is not None
+                    and (energies[i] != energies[prev_kit]
+                         or span.section.riff_slot != spans[prev_kit].section.riff_slot))
         fill_into = energies[i + 1] if i + 1 < len(spans) else None
         hits += _section_hits(arr, span, rhythm, energies[i],
-                              entrance=entrance, fill_into=fill_into)
+                              entrance=entrance, announce=announce, fill_into=fill_into)
+        prev_kit = i
         if entrance:                       # the pickup roll swells out of the silence
             hits += [DrumHit(drum=p.drum,
                              start=round(span.start - _PICKUP_BEATS + p.pos, 4),

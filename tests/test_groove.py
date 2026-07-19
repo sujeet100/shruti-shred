@@ -325,6 +325,60 @@ def test_tabla_and_metal_kit_coexist_on_channel_9():
     assert drums.channel == tabla.channel == 9                # both GM percussion, they mix
 
 
+# --- riff-locked accents + per-bar variation + announce (2026-07-19) ------------
+
+def _riff_of(*specs: tuple[float, float, list[str] | None, str | None]) -> Layer:
+    """A riff layer from (start, dur, chord, technique) specs — to test the accent lock."""
+    v = VOICES["rhythm"]
+    notes = [Note(swara="S", oct=-2, start=s, dur=d, vel=110, chord=c, technique=t)
+             for s, d, c, t in specs]
+    return Layer(role="rhythm", instrument=v.instrument, program=v.program,
+                 channel=v.channel, notes=notes)
+
+
+def test_kick_locks_to_the_riffs_power_chord_accents():
+    # the kit punches WITH the riff's power chords (off the pulse), but NOT its chug ground
+    arr = _arr([SectionKind.RIFF])                       # doom drive (backbeat)
+    riff = _riff_of((5.5, 0.5, ["S"], None),             # an off-beat POWER CHORD -> accent
+                    (3.5, 0.5, None, "palm_mute"))       # an off-beat CHUG -> not an accent
+    kicks = {h.start for h in groove_layer(arr, riff).hits if h.drum == "kick"}
+    assert 5.5 in kicks                                  # locks to the power-chord accent
+    assert 3.5 not in kicks                              # ignores the chug ground
+
+
+def test_a_long_open_ring_is_a_riff_accent():
+    arr = _arr([SectionKind.RIFF])
+    riff = _riff_of((7.5, 2.0, None, None))              # a long OPEN ring (not muted) -> accent
+    assert 7.5 in {h.start for h in groove_layer(arr, riff).hits if h.drum == "kick"}
+
+
+def test_ghosts_now_breathe_in_a_drive_groove():
+    # widened gate (2026-07-19): DRIVE grooves get ghost snares too, not only verses
+    layer = groove_layer(_arr([SectionKind.RIFF], subgenre="heavy"), None)
+    assert any(h.drum == "snare" and h.vel < 60 for h in layer.hits)
+
+
+def test_ghost_pockets_rotate_between_bars():
+    # consecutive bars are no longer identical — the ghost pockets rotate per bar
+    layer = groove_layer(_arr([SectionKind.RIFF], bars=3, subgenre="heavy"), None)
+    def bar_ghosts(lo: float, hi: float) -> set[float]:
+        return {round(h.start - lo, 4) for h in layer.hits
+                if h.drum == "snare" and h.vel < 60 and lo <= h.start < hi}
+    assert bar_ghosts(0.0, 16.0) and bar_ghosts(0.0, 16.0) != bar_ghosts(16.0, 32.0)
+
+
+def test_a_new_riff_is_announced_louder_than_a_continuation():
+    # a NEW energy arriving after another kit section opens with the full-force entrance
+    # crash; a mere continuation of the same feel does not
+    def opener_vel(layer: Layer) -> int:
+        cy = [h.vel for h in layer.hits if h.start == 16.0
+              and h.drum in ("crash", "china", "ride", "bell")]
+        return max(cy) if cy else 0
+    change = groove_layer(_arr([SectionKind.RIFF, SectionKind.BREAKDOWN]), None)
+    same = groove_layer(_arr([SectionKind.RIFF, SectionKind.RIFF]), None)
+    assert opener_vel(change) > opener_vel(same)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

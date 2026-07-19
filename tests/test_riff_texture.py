@@ -23,6 +23,8 @@ from crew.contracts import RiffNote, RiffPattern, Section, SectionKind  # noqa: 
 from crew.riff_texture import (  # noqa: E402
     MODE_BRIEFS,
     RiffMode,
+    _chug_fill_pads,
+    _chug_the_ground,
     open_the_rings,
     riff_mode_for,
     verified_riff,
@@ -322,6 +324,57 @@ def test_a_never_clean_riff_still_comes_back_ringing():
     out = verified_riff(gen, _section(SectionKind.RIFF, "mukhada"), _CYCLE)
     assert len(gen.feedbacks) == 3                                    # tries raised to 2 re-rolls
     assert any(not n.rest and n.dur >= 1.0 and n.technique is None for n in out.notes)
+
+
+# --- chugs: the DRIVE palm-mute floor + the PADS between-ring chug-fill (2026-07-19) ----
+
+def _drive_unchugged() -> RiffPattern:
+    """The clean drive cycle with the palm-mute stripped off the ground — everything else
+    (ground share, ring, rest, weighted sam) is identical, so only the chug floor fails."""
+    return RiffPattern(notes=[
+        n.model_copy(update={"technique": None}) if n.technique == "palm_mute" else n
+        for n in _drive_clean().notes])
+
+
+def test_drive_requires_palm_muted_chugs():
+    # the ground can be on one pitch yet un-muted — a chug is an ARTICULATION, so that must
+    # be caught (Sujit: chugs too few). It is the ONLY thing wrong with this otherwise-clean cycle.
+    viol = verify_riff(_drive_unchugged(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert len(viol) == 1 and "palm-muted CHUGS" in viol[0]
+
+
+def test_chug_the_ground_guarantees_the_floor():
+    # the deterministic backstop marks short ground notes palm_mute until the floor is met,
+    # and the result is clean (articulation-only surgery, nothing else disturbed)
+    repaired = _chug_the_ground(_drive_unchugged())
+    sounding = [n for n in repaired.notes if not n.rest]
+    chug = sum(1 for n in sounding if n.technique == "palm_mute")
+    assert chug / len(sounding) >= 0.30
+    assert not verify_riff(repaired, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+
+
+def test_pads_reject_back_to_back_rings():
+    # rings edge-to-edge leave no room to chug between them — flagged (only the rest floor)
+    no_gap = RiffPattern(notes=[_n("S", 4.0, chord=["S"]), _n("g", 4.0, chord=["g"])])
+    viol = verify_riff(no_gap, mode=RiffMode.PADS, cycle_beats=_CYCLE)
+    assert len(viol) == 1 and "back-to-back" in viol[0]
+
+
+def test_pads_chugs_fill_the_gaps_between_rings():
+    # code drops palm-muted ground chugs into the gaps; the rings and the total length survive
+    pat = RiffPattern(notes=[_n("S", 3.0, chord=["S"]), _n("S", 2.0, rest=True),
+                             _n("S", 2.0, chord=["P"]), _n("S", 1.0, rest=True)])
+    filled = _chug_fill_pads(pat)
+    chugs = [n for n in filled.notes if n.technique == "palm_mute"]
+    assert chugs and all(n.swara == "S" and n.oct == 0 for n in chugs)  # on the ground pitch (Sa)
+    assert abs(sum(n.dur for n in filled.notes) - sum(n.dur for n in pat.notes)) < 1e-6
+    assert any(n.dur == 3.0 and n.chord == ["S"] for n in filled.notes)  # the ring is untouched
+
+
+def test_verified_pads_returns_chugs_between_the_rings():
+    # end-to-end: a clean PADS take (rings + a gap) comes back with chugs in the gap
+    result = verified_riff(lambda _fb: _pads_clean(), _section(SectionKind.TAAN), _CYCLE)
+    assert any(n.technique == "palm_mute" for n in result.notes)
 
 
 if __name__ == "__main__":

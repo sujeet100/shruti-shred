@@ -60,6 +60,17 @@ _BUSY_SHARE_MAX: Final = 0.25       # ...keep them a small minority
 _STAB_WEIGHT_SHARE: Final = 0.5     # STABS: at least half the hits carry weight
 _SCRAPE_MAX: Final = 1              # pick scrapes per cycle (an entrance gesture, not a tic)
 _LONG_SLIDE_MAX: Final = 2          # long slides per cycle
+
+# Chugs (Sujit 2026-07-19 + the external review: the riffs have too FEW palm-muted chugs, and
+# the sustained (PADS) sections want chugs BETWEEN the long chords, not one unbroken drone). A
+# chug is an ARTICULATION (palm_mute), not just a low pitch — DRIVE now owes a real palm-mute
+# floor, and PADS leaves gaps that CODE fills with palm-muted ground chugs (ring -> chug -> ring).
+_CHUG_MIN_SHARE_DRIVE: Final = 0.30  # DRIVE: share of sounding notes MARKED palm_mute (real chugs)
+_PADS_REST_MIN: Final = 0.10         # PADS: leave this much of the cycle as gaps between rings...
+_CHUG_SUBDIV: Final = 0.5            # ...which code fills with palm-muted ground chugs at this rate
+_CHUG_FILL_MIN_GAP: Final = 0.5      # only a gap at least this long is chug-filled
+_CHUG_FILL_BREATH: Final = 0.5       # leave this much silence before the next ring (when the gap allows)
+_CHUG_VEL: Final = 108               # a solid palm-muted chug (never cut — the render sends CC7 full)
 # Colour = a chord tone that seats ABOVE the octave (add9 / tenth): interval class 1-4
 # over the root (see render._seat_chord_tone). Power weight = octave / fourth / fifth.
 _COLOR_CLASSES: Final = frozenset({1, 2, 3, 4})
@@ -102,25 +113,30 @@ def riff_mode_for(section: Section) -> RiffMode:
 MODE_BRIEFS: Final[dict[RiffMode, str]] = {
     RiffMode.DRIVE: (
         "DRIVE — you are the engine. The CHUG GROUND is the default texture: between every "
-        "melodic movement RETURN to repeated short palm-muted strokes on ONE low pitch (Sa, "
-        "or this riff's root) — at least a third of your notes sit on that ground, and no "
-        "more than about half of consecutive notes may change pitch (a riff is not a "
-        "melody). Movement is EARNED: a short 2-4 note figure from the pakad, then back to "
-        "the chug. Put POWER-CHORD weight (the root's own swara, or P) on the sam and tali; "
-        "bright colour stacks (add9/tenth — R or G over the root) are a spice, at most 2 per "
-        "cycle. BREATHE attack-then-resonance: at least ~20% of your sounding time is OPEN "
-        "ringing chords a beat or longer — a ring is an open strike, a palm-muted note can "
-        "never ring (it gates to a short chug whatever its duration). Leave at least one "
-        "true rest; rough space budget: ~40% chug, ~25% ring, ~20% movement, ~15% silence."),
+        "melodic movement RETURN to repeated short strokes on ONE low pitch (Sa, or this "
+        "riff's root) and MARK them technique 'palm_mute' — the chug is an articulation, not "
+        "just a low note. At least a third of your notes sit on that ground AND at least a "
+        "third are palm-muted chugs, and no more than about half of consecutive notes may "
+        "change pitch (a riff is not a melody). Movement is EARNED: a short 2-4 note figure "
+        "from the pakad, then back to the chug. Put POWER-CHORD weight (the root's own swara, "
+        "or P) on the sam and tali; bright colour stacks (add9/tenth — R or G over the root) "
+        "are a spice, at most 2 per cycle. BREATHE attack-then-resonance: at least ~20% of "
+        "your sounding time is OPEN ringing chords a beat or longer — a ring is an open "
+        "strike, a palm-muted note can never ring (it gates to a short chug whatever its "
+        "duration). Leave at least one true rest; rough space budget: ~40% chug, ~25% ring, "
+        "~20% movement, ~15% silence."),
     RiffMode.PADS: (
         "PADS — the sitar carries ALL movement here; you are texture, not motion. Sustain "
         "wide RINGING power chords: one or two per vibhag, most of your sounding time in "
         "notes a beat or longer, at least one chord held 2+ beats — and every long chord "
         "CARRIES a chord stack (own swara / P) so it blooms. Strike the chords OPEN, never "
         "palm-muted — a palm-muted note gates to a short chug and cannot ring; the ring IS "
-        "this section's platform for the sitar. No runs (sixteenths stay a small minority), "
-        "no busy chugging. Think Tool/Opeth weight under a melody: strike, let it decay, "
-        "leave the foreground empty for the raga line."),
+        "this section's platform for the sitar. But do NOT let the chords run edge-to-edge: "
+        "leave a GAP (a true rest of a beat or so) between the sustained rings — code drops "
+        "palm-muted chugs into those gaps, so the section reads ring -> chug-chug -> ring, "
+        "not one unbroken drone. No runs (sixteenths stay a small minority), no busy chugging "
+        "of your own. Think Tool/Opeth weight under a melody: strike, let it decay, chug the "
+        "gap, strike again — the foreground stays empty for the raga line."),
     RiffMode.STABS: (
         "STABS — sparse, low, syncopated POWER-CHORD hits locked to the tala's accents: "
         "hit, then SILENCE (at least a fifth of the cycle is true rest — the silence IS the "
@@ -200,6 +216,12 @@ def _drive_violations(notes: list[RiffNote], sounding: list[RiffNote],
         viol.append(f"only {_ground_share(sounding):.0%} of the notes sit on one ground pitch "
                     f"(need >= {_GROUND_MIN_SHARE:.0%}) — return to the low palm-muted root "
                     f"between figures; the chug ground is the riff's floor")
+    chug = sum(1 for n in sounding if n.technique == "palm_mute")
+    if chug < _CHUG_MIN_SHARE_DRIVE * len(sounding):
+        viol.append(f"only {chug / len(sounding):.0%} of the notes are palm-muted CHUGS "
+                    f"(need >= {_CHUG_MIN_SHARE_DRIVE:.0%}) — MARK the low ground strokes "
+                    f"technique 'palm_mute' so they punch as muted chugs; an unmuted ground "
+                    f"note is not a chug")
     rate = _pitch_change_rate(sounding)
     if rate > _CHANGE_MAX_DRIVE:
         viol.append(f"{rate:.0%} of consecutive notes change pitch (cap {_CHANGE_MAX_DRIVE:.0%})"
@@ -245,6 +267,12 @@ def _pads_violations(notes: list[RiffNote], sounding: list[RiffNote],
     if naked:
         viol.append("a long held note carries no chord stack — give every 2+ beat ring "
                     "power-chord weight (the root's own swara, or P) so it blooms, not thins")
+    rest_beats = sum(n.dur for n in notes if n.rest)
+    if rest_beats < _PADS_REST_MIN * cycle_beats:
+        viol.append(f"the rings run back-to-back with no space ({rest_beats:g} of "
+                    f"{cycle_beats:g} beats silent) — leave GAPS between the sustained chords "
+                    f"(>= {_PADS_REST_MIN:.0%} of the cycle as rests); code fills them with "
+                    f"palm-muted chugs, so the section reads ring -> chug -> ring")
     busy = sum(1 for n in sounding if n.dur <= _BUSY_NOTE)
     if busy > _BUSY_SHARE_MAX * len(sounding):
         viol.append(f"{busy} of {len(sounding)} notes are sixteenths — pads are texture, not "
@@ -337,15 +365,94 @@ def open_the_rings(pattern: RiffPattern, mode: RiffMode) -> RiffPattern:
     return pattern.model_copy(update={"notes": notes})
 
 
+def _chug_the_ground(pattern: RiffPattern) -> RiffPattern:
+    """Guarantee DRIVE's chug floor: MARK short, unchorded ground-pitch notes `palm_mute`
+    (a chug) until `_CHUG_MIN_SHARE_DRIVE` is met — the deterministic backstop behind the
+    chug budget (Sujit: chugs were too sparse). Articulation-only surgery (pitches, rhythm,
+    order untouched), disjoint from `open_the_rings` (which UN-mutes long chorded notes to
+    ring), so the two guarantees never fight. Pure; a no-op when the floor is already met."""
+    notes = list(pattern.notes)
+    sounding = [i for i, n in enumerate(notes) if not n.rest]
+    if not sounding:
+        return pattern
+    ground = Counter((notes[i].swara, notes[i].oct) for i in sounding).most_common(1)[0][0]
+    chug = sum(1 for i in sounding if notes[i].technique == "palm_mute")
+    need = _CHUG_MIN_SHARE_DRIVE * len(sounding)
+    for i in sounding:
+        if chug >= need:
+            break
+        n = notes[i]
+        if ((n.swara, n.oct) == ground and n.technique is None
+                and not n.chord and n.dur < _WEIGHT_DUR):
+            notes[i] = n.model_copy(update={"technique": "palm_mute"})
+            chug += 1
+    if notes == list(pattern.notes):
+        return pattern
+    return pattern.model_copy(update={"notes": notes})
+
+
+def _chug_run(swara: str, octave: int, gap: float) -> list[RiffNote]:
+    """A gap-filling run of palm-muted ground chugs summing EXACTLY to `gap` beats: chugs at
+    `_CHUG_SUBDIV`, leaving `_CHUG_FILL_BREATH` of silence before the next ring when the gap
+    is long enough for one. Pure."""
+    breath = _CHUG_FILL_BREATH if gap - _CHUG_FILL_BREATH >= _CHUG_SUBDIV else 0.0
+    play = gap - breath
+    run: list[RiffNote] = []
+    t = 0.0
+    while t + _CHUG_SUBDIV <= play + 1e-9:
+        run.append(RiffNote(swara=swara, oct=octave, dur=_CHUG_SUBDIV, vel=_CHUG_VEL,
+                            technique="palm_mute"))
+        t += _CHUG_SUBDIV
+    rem = round(gap - t, 4)
+    if rem > 1e-9:
+        run.append(RiffNote(swara=swara, oct=octave, dur=rem, rest=True))
+    return run
+
+
+def _chug_fill_pads(pattern: RiffPattern) -> RiffPattern:
+    """Fill the SPACE between PADS' sustained rings with palm-muted ground chugs (Sujit: add
+    chugs between the long sustained chords). Every rest >= `_CHUG_FILL_MIN_GAP` becomes a
+    chug run on the cycle's ground pitch (its most common sounding pitch), leaving a breath
+    before the next ring — so the section reads ring -> chug-chug -> ring. Deterministic and
+    applied AFTER verification, so it never fights the ring budget (rests are not sounding
+    time). Pure; a no-op with no fillable gap."""
+    sounding = _sounding(pattern.notes)
+    if not sounding:
+        return pattern
+    ground_sw, ground_oct = Counter((n.swara, n.oct) for n in sounding).most_common(1)[0][0]
+    out: list[RiffNote] = []
+    changed = False
+    for n in pattern.notes:
+        if n.rest and n.dur >= _CHUG_FILL_MIN_GAP:
+            out.extend(_chug_run(ground_sw, ground_oct, n.dur))
+            changed = True
+        else:
+            out.append(n)
+    return pattern.model_copy(update={"notes": out}) if changed else pattern
+
+
+def _finalize_texture(pattern: RiffPattern, mode: RiffMode) -> RiffPattern:
+    """Apply the deterministic texture GUARANTEES to a finished cycle: open enough rings
+    (`open_the_rings`), then — per mode — guarantee DRIVE's chug floor or drop PADS'
+    between-ring chugs. Pure; each step is a no-op when its budget is already met / off-mode."""
+    pattern = open_the_rings(pattern, mode)
+    if mode is RiffMode.DRIVE:
+        return _chug_the_ground(pattern)
+    if mode is RiffMode.PADS:
+        return _chug_fill_pads(pattern)
+    return pattern
+
+
 def verified_riff(gen: Callable[[Optional[list[str]]], RiffPattern], section: Section,
                   cycle_beats: float) -> RiffPattern:
     """Generate a VERIFIED riff cycle: call `gen(feedback)` and re-roll a cycle that
     misses its mode's budgets up to `RIFF_REPAIR_TRIES` times, feeding back the EXACT
     violations (a targeted re-roll, not a blind one). Bounded, best-of-N (fewest
     violations) when none come back clean — a weak riff plays; a live run never dies on
-    taste. A never-clean best take gets the deterministic `open_the_rings` repair, so the
-    sustain budget is a guarantee, not a hope. Pure control flow: `gen` is injected, so
-    this tests with no LLM."""
+    taste. Every returned cycle (clean or best-of-N) passes through `_finalize_texture`,
+    the deterministic guarantees: enough open ring, DRIVE's palm-mute chug floor, and PADS'
+    between-ring chugs — so those textures are guarantees, not hopes. Pure control flow:
+    `gen` is injected, so this tests with no LLM."""
     mode = riff_mode_for(section)
     best: Optional[RiffPattern] = None
     best_viol: Optional[list[str]] = None
@@ -354,9 +461,9 @@ def verified_riff(gen: Callable[[Optional[list[str]]], RiffPattern], section: Se
         pattern = gen(feedback)
         viol = verify_riff(pattern, mode=mode, cycle_beats=cycle_beats)
         if not viol:
-            return pattern
+            return _finalize_texture(pattern, mode)
         feedback = viol                       # the re-roll sees EXACTLY what failed
         if best_viol is None or len(viol) < len(best_viol):
             best, best_viol = pattern, viol
     assert best is not None                   # the loop ran at least once
-    return open_the_rings(best, mode)
+    return _finalize_texture(best, mode)

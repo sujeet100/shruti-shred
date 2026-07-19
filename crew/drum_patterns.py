@@ -227,12 +227,20 @@ PATTERNS: Final[dict[str, PatternFn]] = {
 # Idiomatic ghost pockets in a 4-beat window: the "e" after a backbeat and the
 # "a" of 2 — never directly before a backbeat, singles/doubles only (Toontrack's
 # physical-playability rules). Ghosts belong to roomy grooves; blasts have no gaps.
-_GHOST_POCKETS: Final[tuple[float, ...]] = (1.25, 1.75, 3.25)
+# The set ROTATES per bar so consecutive bars are not identical — the cheapest lever
+# against the "same pattern tiled every bar" blandness (Sujit + review, 2026-07-19).
+_GHOST_POCKET_SETS: Final[tuple[tuple[float, ...], ...]] = (
+    (1.25, 1.75, 3.25),      # the classic: the "e" after the backbeat + the "a" of 2
+    (1.75, 2.75, 3.75),      # shifted late — a different bar feel
+    (1.25, 2.25, 3.25),      # the "a of 1" variant
+)
 
 
-def ghost_snares(beats: float) -> list[PatternHit]:
-    """Ghost 16ths for one window — the single biggest realism lever."""
-    return [PatternHit("snare", p, VEL_GHOST) for p in _GHOST_POCKETS if p < beats - 0.2]
+def ghost_snares(beats: float, bar: int = 0) -> list[PatternHit]:
+    """Ghost 16ths for one window — the single biggest realism lever. The pocket set
+    ROTATES per bar (`bar`) so consecutive bars breathe differently, not identically."""
+    pockets = _GHOST_POCKET_SETS[bar % len(_GHOST_POCKET_SETS)]
+    return [PatternHit("snare", p, VEL_GHOST) for p in pockets if p < beats - 0.2]
 
 
 def tom_run(beats: float, toms: list[str], *,
