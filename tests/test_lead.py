@@ -37,14 +37,19 @@ from crew.contracts import (  # noqa: E402
     build_arrangement,
 )
 from crew.generators import VOICES, section_spans  # noqa: E402
+from crew.generators import SectionSpan  # noqa: E402
 from crew.lead import (  # noqa: E402
     LeadMemo,
     Voicing,
+    _intro_gen_span,
     _LeadContext,
     _lead_guardrail,
+    _next_sam,
+    _place_intro_phrases,
     _role_briefs,
     _render_canvas_for_lead,
     _render_previous,
+    _split_phrases,
     _voice_line,
     apply_ornaments,
     apply_strokes,
@@ -1030,6 +1035,84 @@ def test_intro_is_verified_and_rerolled_with_feedback():
     assert fn.seen_feedback[1] and any("Sa" in v for v in fn.seen_feedback[1])
     rr = next(e for e in events if e.data.get("gat_verify"))
     assert rr.data["cell"] == "intro"
+
+
+# --- the intro alap LOCKS to the clean arpeggio (Sujit 2026-07-19, avartan-locked) ------
+
+def _intro_arr(*, clean: bool, bars: int = 4) -> Arrangement:
+    """A one-section intro chart (teentaal, 16-beat cycles). With `clean` the intro carries the
+    arpeggio the alap should lock to; without it, the old flush-left placement stands."""
+    layers = ["lead", "clean", "drone"] if clean else ["lead", "drone"]
+    sec = Section(kind=SectionKind.ALAAP, bars=bars, layers=layers,
+                  foreground="lead", form_role="intro")
+    draft = ArrangementDraft(raga="malkauns", subgenre="doom", tala="teentaal", bpm=72,
+                             motif=["d", "n", "S", "m"], sections=[sec])
+    return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def test_next_sam_snaps_forward_to_the_avartan_grid():
+    assert _next_sam(0.0, origin=0.0, cycle_beats=16.0) == 0.0     # already on a sam
+    assert _next_sam(0.01, origin=0.0, cycle_beats=16.0) == 16.0   # just past -> next sam
+    assert _next_sam(16.0, origin=0.0, cycle_beats=16.0) == 16.0   # exactly on a sam
+    assert _next_sam(20.0, origin=0.0, cycle_beats=16.0) == 32.0
+    assert _next_sam(5.0, origin=4.0, cycle_beats=16.0) == 20.0    # grid anchored at origin 4
+
+
+def test_split_phrases_breaks_on_long_rests_only():
+    # a >= 1-beat rest ends a phrase (a real breath); a shorter rest stays inside as a micro-gap
+    notes = [LeadNote(swara="S", dur=2.0), LeadNote(swara="g", dur=0.5, rest=True),
+             LeadNote(swara="m", dur=2.0), LeadNote(swara="S", dur=1.0, rest=True),
+             LeadNote(swara="d", dur=2.0), LeadNote(swara="S", dur=3.0)]
+    phrases = _split_phrases(notes)
+    assert len(phrases) == 2                                       # only the 1.0 rest splits
+    assert [n.swara for n in phrases[0]] == ["S", "g", "m"]        # the 0.5 rest is kept inside
+    assert [n.swara for n in phrases[1]] == ["d", "S"]
+
+
+def test_place_intro_phrases_starts_each_phrase_on_a_sam():
+    sec = Section(kind=SectionKind.ALAAP, bars=5, layers=["lead", "clean", "drone"],
+                  foreground="lead", form_role="intro")
+    section_span = SectionSpan(index=0, section=sec, start=0.0, end=80.0)
+    gen_span = SectionSpan(index=0, section=sec, start=16.0, end=64.0)   # lead-in 1 avartan
+    notes = [LeadNote(swara="S", dur=2.0), LeadNote(swara="g", dur=2.0),
+             LeadNote(swara="S", dur=1.5, rest=True),
+             LeadNote(swara="m", dur=2.0), LeadNote(swara="d", dur=2.0),
+             LeadNote(swara="S", dur=1.5, rest=True),
+             LeadNote(swara="S", dur=3.0)]
+    placed = _place_intro_phrases(notes, gen_span=gen_span, section_span=section_span,
+                                  register=0, cycle_beats=16.0)
+    starts = [n.start for n in placed]
+    # phrase A at the lead-in sam (16), B nudged to the next sam past A's end (32), C to 48
+    assert starts == [16.0, 18.0, 32.0, 34.0, 48.0]
+    assert placed[0].start == 16.0                                # no note in the lead-in bar
+
+
+def test_intro_alap_locks_to_the_clean_arpeggio_cycle():
+    # with the clean arpeggio present: bar 0 is arpeggio ALONE (no lead), and every alap phrase
+    # begins on a sam (a multiple of the 16-beat cycle), then the final Sa rings to the edge
+    arr = _intro_arr(clean=True, bars=4)
+    layers = lead_layers_from({0: _good_intro()}, arr)
+    notes = sorted(layers[0].notes, key=lambda n: n.start)
+    assert notes[0].start == 16.0                                 # lead-in: nothing sounds in bar 0
+    on_sam = {n.start for n in notes if n.start % 16.0 == 0.0}
+    assert {16.0, 32.0, 48.0} <= on_sam                           # a phrase begins on each sam
+    assert notes[-1].swara == "S" and notes[-1].fade is True      # resolves, rings out
+    assert notes[-1].start + notes[-1].dur == 64.0                # to the section edge
+
+
+def test_intro_without_the_clean_arpeggio_stays_flush_left():
+    # no arpeggio to lock to -> the old behavior: the alap starts at the section head (beat 0)
+    arr = _intro_arr(clean=False, bars=4)
+    layers = lead_layers_from({0: _good_intro()}, arr)
+    notes = sorted(layers[0].notes, key=lambda n: n.start)
+    assert notes[0].start == 0.0                                  # flush-left, no lead-in
+
+
+def test_intro_gen_span_reserves_a_lead_in_only_with_the_clean_arpeggio():
+    span_clean = list(section_spans(_intro_arr(clean=True, bars=4)))[0]
+    span_plain = list(section_spans(_intro_arr(clean=False, bars=4)))[0]
+    assert _intro_gen_span(span_clean, 16.0).start == 16.0        # one avartan of lead-in
+    assert _intro_gen_span(span_plain, 16.0).start == 0.0         # none without the arpeggio
 
 
 # --- the mukhada taan FILLS: distinct cells, spliced into the middle statements --

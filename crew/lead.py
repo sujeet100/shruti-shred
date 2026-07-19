@@ -26,6 +26,7 @@ Entry point (ONE live LLM call — the lead over a bare drone):
 
 from __future__ import annotations
 
+import math
 import shutil
 import sys
 from collections.abc import Callable
@@ -53,6 +54,7 @@ from crew.contracts import (
     Note,
     PhrasePlan,
     RiffNote,
+    Section,
     SectionCanvas,
     SectionKind,
     motif_illegal_in_raga,
@@ -92,6 +94,15 @@ _CELL_REPAIR_TRIES: Final = 1              # extra re-rolls of a weak verified c
 # an LLM told to "leave a long gap" reliably fills it.
 _INTRO_GAP_FRACTION: Final = 0.35          # up to this fraction of the intro window...
                                            # ...capped at one tala cycle (see _intro_gen_span)
+
+# The intro's clean-guitar arpeggio establishes the pulse; the alap then LOCKS to it (Sujit,
+# 2026-07-19, avartan-locked): a lead-in of whole avartan(s) plays the arpeggio ALONE before the
+# sitar enters, and every alap phrase begins on a sam (`_place_intro_phrases`) so it rides the
+# arpeggio's cycle instead of drifting against it. Both apply only when the intro carries the
+# clean arpeggio — without a pulse there is nothing to lock to (the old flush-left placement).
+_CLEAN_ROLE: Final = "clean"               # the harmony/arpeggio layer the alap locks onto
+_INTRO_LEAD_IN_BARS: Final = 1             # avartan(s) of arpeggio ALONE before the alap enters
+_PHRASE_BREAK_MIN_BEATS: Final = 1.0       # a rest this long ends a phrase; shorter rests stay within
 
 # The manjha is a SHORT lower-register bridge (Pandit Arvind Parikh; Masitkhani-gat descriptions):
 # at most one avartan, and we reserve a small breath before the mukhada re-enters — so it lands
@@ -300,14 +311,93 @@ def _ring_out_intro(line: list[Note], span: SectionSpan) -> list[Note]:
         "meend_swara": None, "meend_oct": None, "andolan": None})]
 
 
+def _intro_lead_in_beats(section: Section, cycle_beats: float) -> float:
+    """The arpeggio-alone lead-in at the FRONT of the intro, in beats: `_INTRO_LEAD_IN_BARS`
+    whole avartan(s) when the intro carries the clean arpeggio (there is a pulse to establish
+    before the sitar enters), else zero — with no arpeggio nothing would sound, so keep the old
+    flush-left placement."""
+    return cycle_beats * _INTRO_LEAD_IN_BARS if _CLEAN_ROLE in section.layers else 0.0
+
+
 def _intro_gen_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
-    """The intro's SHORTENED generation window: the trailing gap (up to one cycle, at most
-    `_INTRO_GAP_FRACTION` of the window) is reserved by CODE — the alap's final Sa rings and
-    fades across it (`_ring_out_intro`) before the mukhada's entry. The LLM composes into the
-    shortened window; placement lays the phrase from the section start."""
-    gap = min(cycle_beats, span.length * _INTRO_GAP_FRACTION)
+    """The intro's SHORTENED generation window. CODE reserves two silences around the alap so
+    the LLM composes only the sounding phrases:
+      * a LEAD-IN of `_INTRO_LEAD_IN_BARS` avartan(s) at the FRONT — the clean-guitar arpeggio
+        establishes the pulse ALONE before the sitar enters (only when the intro carries that
+        arpeggio; see `_intro_lead_in_beats`);
+      * a TRAILING gap (up to one cycle, at most `_INTRO_GAP_FRACTION` of the REMAINING window)
+        the alap's final Sa rings and fades across (`_ring_out_intro`) before the mukhada's entry.
+    The LLM composes into what is left; `_place_intro_phrases` then snaps each phrase onto a sam.
+    An alap SHORTER than the window is fine (more silence, never less)."""
+    start = span.start + _intro_lead_in_beats(span.section, cycle_beats)
+    gap = min(cycle_beats, (span.end - start) * _INTRO_GAP_FRACTION)
     return SectionSpan(index=span.index, section=span.section,
-                       start=span.start, end=span.end - gap)
+                       start=start, end=span.end - gap)
+
+
+def _next_sam(t: float, *, origin: float, cycle_beats: float) -> float:
+    """The first sam (avartan downbeat) at or after `t`, on the grid anchored at `origin` — the
+    intro's start, where the clean arpeggio restarts its figure each bar. Pure."""
+    steps = max(0, math.ceil((t - origin - 1e-9) / cycle_beats))
+    return origin + steps * cycle_beats
+
+
+def _split_phrases(notes: list[LeadNote]) -> list[list[LeadNote]]:
+    """Split an alap into PHRASES at its breathing rests: a rest of at least
+    `_PHRASE_BREAK_MIN_BEATS` ends a phrase (the true silence the alap leaves between ideas),
+    while a shorter rest stays inside its phrase as a micro-gap. The long rests are dropped —
+    `_place_intro_phrases` replaces them with the snap-to-sam gap. Non-empty phrases, in order."""
+    phrases: list[list[LeadNote]] = []
+    current: list[LeadNote] = []
+    for n in notes:
+        if n.rest and n.dur >= _PHRASE_BREAK_MIN_BEATS:
+            if current:
+                phrases.append(current)
+                current = []
+        else:
+            current.append(n)
+    if current:
+        phrases.append(current)
+    return phrases
+
+
+def _is_mandra_pluck(phrase: list[LeadNote]) -> bool:
+    """A between-phrases mandra-Sa PLUCK (the alap-vistar drone anchor `verify_intro` expects
+    in every gap): a phrase whose every sounding note is a LOW (mandra) Sa. In the avartan-locked
+    intro the clean arpeggio holds Sa between phrases, so the pluck's anchoring role is already
+    covered — placement drops it, letting the MELODIC phrases land cleanly on the sams. The
+    closing madhya Sa (oct 0, held) is not a pluck, so the resolution always survives."""
+    sounding = [n for n in phrase if not n.rest]
+    return bool(sounding) and all(n.swara == "S" and n.oct < 0 for n in sounding)
+
+
+def _place_intro_phrases(notes: list[LeadNote], *, gen_span: SectionSpan,
+                         section_span: SectionSpan, register: int, cycle_beats: float,
+                         andolan_swaras: frozenset[str] = frozenset()) -> list[Note]:
+    """Place the alap so each PHRASE begins on a sam (Sujit's avartan-locked intro): the first
+    phrase enters at `gen_span.start` — one arpeggio avartan in, after the clean-guitar lead-in —
+    and every later phrase is nudged forward to the next sam, so it locks to the clean arpeggio's
+    cycle instead of drifting against it. Notes flow freely WITHIN a phrase (the alap keeps its
+    free rhythm); only phrase STARTS snap. The between-phrases mandra-Sa plucks are dropped (the
+    arpeggio anchors Sa now — `_is_mandra_pluck`). Phrases fill the sams up to the section edge;
+    the final resolving Sa is ring-extended across the tail by the caller (`_ring_out_intro`) —
+    the trailing silence the LLM leaves is a compose-window reserve, not a placement barrier. Pure."""
+    placed: list[Note] = []
+    cursor = gen_span.start
+    for phrase in _split_phrases(notes):
+        if _is_mandra_pluck(phrase):                    # the arpeggio holds Sa between phrases now
+            continue
+        start = _next_sam(cursor, origin=section_span.start, cycle_beats=cycle_beats)
+        if start >= section_span.end - 1e-9:            # no whole sam left before the edge — stop
+            break
+        seg = place_phrase(phrase, start=start, end=section_span.end, register=register,
+                           andolan_swaras=andolan_swaras)
+        if not seg:                                     # fully truncated — try the next sam
+            cursor = start + cycle_beats
+            continue
+        placed.extend(seg)
+        cursor = seg[-1].start + seg[-1].dur
+    return placed
 
 
 def _manjha_gen_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
@@ -1306,14 +1396,24 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
             for bar in _fill_bars(span.section):
                 bar_fills[bar] = fill_notes[fill_cursor % len(fill_notes)]
                 fill_cursor += 1
-        line = _place_lead_section(apply_strokes(apply_ornaments(strip_noop_meends(phrase.notes),
-                                                                 arr.raga)),
-                                   span=span, register=arr.registers[_LEAD_ROLE],
-                                   cycle_beats=arr.beats_per_bar,
-                                   andolan_swaras=andolan_swaras,
-                                   bar_fills=bar_fills)
-        if is_intro(span.section):
+        processed = apply_strokes(apply_ornaments(strip_noop_meends(phrase.notes), arr.raga))
+        if is_intro(span.section) and _CLEAN_ROLE in span.section.layers:
+            # The alap LOCKS to the clean arpeggio: a lead-in avartan of arpeggio alone, then
+            # each phrase enters on a sam (`_place_intro_phrases`) instead of drifting flush-left.
+            gen_span = _intro_gen_span(span, arr.beats_per_bar)
+            line = _place_intro_phrases(processed, gen_span=gen_span, section_span=span,
+                                        register=arr.registers[_LEAD_ROLE],
+                                        cycle_beats=arr.beats_per_bar,
+                                        andolan_swaras=andolan_swaras)
             line = _ring_out_intro(line, span)        # the final Sa rings into the reserved gap
+        elif is_intro(span.section):
+            line = _place_lead_section(processed, span=span, register=arr.registers[_LEAD_ROLE],
+                                       cycle_beats=arr.beats_per_bar, andolan_swaras=andolan_swaras)
+            line = _ring_out_intro(line, span)        # the final Sa rings into the reserved gap
+        else:
+            line = _place_lead_section(processed, span=span, register=arr.registers[_LEAD_ROLE],
+                                       cycle_beats=arr.beats_per_bar,
+                                       andolan_swaras=andolan_swaras, bar_fills=bar_fills)
         if span.section.kind is SectionKind.TAAN:     # the solo trades bars, then joins
             sitar_line, guitar_line = _voice_taan_call_response(
                 line, span, arr.beats_per_bar, arr.raga)
@@ -1418,8 +1518,12 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
             phrase, tries, viol = _generate_verified_cell(
                 gen_span, arr, intro_memory, gen_fn=gen_fn,
                 verify=lambda c: verify_intro(c, window_beats=window, raga=raga, mukhada=head))
-            line = _place_lead_section(phrase.notes, span=span, register=register,
-                                       cycle_beats=cycle_beats)
+            if _CLEAN_ROLE in section.layers:         # the event shows the real avartan-locked placement
+                line = _place_intro_phrases(phrase.notes, gen_span=gen_span, section_span=span,
+                                            register=register, cycle_beats=cycle_beats)
+            else:
+                line = _place_lead_section(phrase.notes, span=span, register=register,
+                                           cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
             if tries > 1:
                 events.append(_gat_repair_event(_INTRO, tries, viol))
