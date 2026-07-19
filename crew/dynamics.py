@@ -149,7 +149,7 @@ def apply_dynamics(layers: list[Layer], arr: Arrangement) -> list[Layer]:
 # the re-entry sam is FELT). The band re-enters on the next section's downbeat, which the drums'
 # band-entrance machinery already marks with a crash. Notes struck BEFORE the window keep their
 # tails — a chord rings INTO the exposure, exactly like the guitar tails on Sujit's track.
-_EXPOSED_ROLES: frozenset[str] = frozenset({"rhythm", "bass", "drums"})
+_EXPOSED_ROLES: frozenset[str] = frozenset({"rhythm", "bass", "drums", "clean"})
 _TAAN_LONG_ROLE: str = "taan_long"
 _EXPOSURE_MIN_BARS: int = 2     # a 1-bar taan has no band statement to drop out FROM
 _STOP_HIT_RING: float = 1.0     # the sam stop hit rings at most this long before the silence

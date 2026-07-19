@@ -1532,3 +1532,76 @@ client — unknowable from outside). Consequences:
   the preferred base font). Chug-parity fixes this session: PM velocity cut removed,
   companion CC7=127, distorted body under chugs at FULL vel (MUTE_BODY_VEL=1.0),
   PALM_MUTE_MS=80.
+
+## DARBARI ANDOLAN — the slow sway, research + gesture v2 (2026-07-17, this session)
+
+Sujit's finding on `fusion_20260716_233308` (Darbari x death, teentaal @160): the
+andolan on komal g/d — the ornament that IS Darbari — was inaudible/wrong. Evidence
+from the composition JSON + trace, all four causes distinct:
+1. **Holds too short.** At 160 bpm the longest ga hold was 2.5 beats = 0.94 s; the old
+   420 ms symmetric sine got ~1-2 wobbles — vibrato, not the grave sway.
+2. **Tempo negotiation lost the raga's stake** (talk-gold): Pandit's turn-1 reasoning
+   SAID "the slow oscillation on komal ga and dha must be allowed to breathe" and
+   drafted 140 (death's floor); Riffsmith pushed 160 "too sluggish for a true blasting
+   subgenre"; Pandit folded. Nothing in the prompts arms the raga's pace character.
+   AND: death is encoded blast-only (`bpm [140, 240]`) — Obituary-style mid-tempo
+   groove death (~100-140, Sujit's reference) is UNREACHABLE in the current menu.
+3. **Gesture shape wrong.** Symmetric ±0.4 st sine around the note; real Darbari sways
+   BELOW the swara only.
+4. **Perfect periodicity** reads as machine LFO (confirmed by ear on gesture v1's
+   half-semitone 850 ms sin² too — "does not sound natural").
+
+**Research (verified across sources 2026-07-17):**
+- AUTRIM/NCPA "Music in Motion" (pitch graphs, autrimncpa.wordpress.com/darbari-kanada):
+  ga's intonation is "a progressive series of movements that occur between Re and Ga"
+  (i.e. BELOW the swara), "the oscillation on Ga and Dha is slow and subtle",
+  "all the movements are slow and dignified"; symmetrical treatment `S R g~ m \ r` /
+  `m P d~ n \ P`.
+- Rajan Parrikar (parrikar.org/hindustani/kanada): approach notes are the identity —
+  ascending `(R)g`, descending `(m)g`; dha mirrored via P (ascent) / n (descent); dha
+  often SKIPPED in descent (langhan) while ga is indispensable; "much is made of its
+  ati-komal nature" but the nuanced swara-uccharana (kan, volume, attack direction)
+  is the defining feature. (Our kan table already encodes exactly these approaches.)
+- Practical MIDI corroboration (GPT notes Sujit supplied): depth ±20-35 cents only;
+  settle ~250 ms after landing BEFORE the sway; ~1 oscillation/s; aperiodic (every
+  wave different); mostly below the note; subtle CC11/brightness tracking the dip;
+  meend-into-andolan (R -> g~) is the most convincing entry; don't overuse — alap/
+  vilambit heavy, taans nearly none.
+
+**Gesture v2 (built, `src/render.py`):** land -> settle (ANDOLAN_DELAY_MS 250) ->
+slow waves BELOW the note only; depth ANDOLAN_DEPTH_ST 0.30 (~30 cents, in the
+research band); period ~900 ms; per-wave length (±15%) and depth (65-100%) jittered
+DETERMINISTICALLY (the drum machine's `humanized` hash idiom, keyed on note start +
+wave index — reproducible renders, unison doubles sway in phase); each wave sinks
+faster than it rises (trough ~40% via sin²(π·frac^0.8)); last sample exactly 0 at
+note end. CC11 shimmer rides the same curve (ANDOLAN_CC11_DIP 8, full at the swara,
+dipped at the trough), disabled when the note carries a fade (fade owns CC11).
+**Real-time gate moved into the renderer:** holds < ANDOLAN_MIN_MS (1000) play plain —
+only the renderer knows the tempo; the generator flags the swara (raga fact), real
+time decides the gesture. `crew/lead.py` keeps its coarse 1-beat cut. Verified: 36
+render tests (settle/uneven/deterministic/below-only/gate) + full suite green; demo
+MIDI shows every dip below the note, deepest exactly -30 cents, CC11 riding each
+wheel event. Sound check: `out/andolan_demo.wav` (A/B plain vs swayed, kan graces on).
+
+**v2.1 — the krintan iteration (same day, Sujit's ear on the v2 demo):** the two
+swayed holds entered via a struck kan grace (GRACE_LEN crushed notes = TWO attacks)
+read as KRINTAN, and the subtle 30-cent sway underneath couldn't carry the note.
+Research answer (AUTRIM; GPT note 8): the Darbari entry is a GLIDE — "R -> g~~", one
+attack. Built: meend + andolan now COMPOSE on one note (previously mutually
+exclusive) — `_andolan_wheel(after_glide=True)` drops the settle-at-0 event so the
+glide owns the onset (safe because ANDOLAN_DELAY_MS 250 > MEEND_GLIDE_MAX_MS 220 —
+the first wave always departs from a settled swara). Placement fix that fell out of
+the MIDI check: the andolan flag now keys on the note's RESTING swara (the meend
+TARGET when it glides, else its own) — the contract is attack-on-written-swara,
+glide-to-target, so "R -> g" rests (and sways) on ga, "g -> m" plays straight; the
+old check against the written swara could never flag a glide-entered ga. Demo MIDI
+verified: attack -100 cents (R), ease onto ga, settle, sway 0..-27 cents below.
+
+**Queued from the same feedback (Sujit's meend notes, GPT-corroborated):** meend is
+THREE ornaments, not one — alap meend (300-1500+ ms, ease-in-out, may dwell on an
+intermediate swara, destination held), gat meend (~50-300 ms quick connection, glide
+belongs to the END of the previous note, lands ON the beat), taan meend (20-80 ms
+legato flick — our current capped pull IS this). Plan: a code-set per-note style tag
+(from section kind — alap/outro slow, gat medium, sub-beat fast), renderer picks
+duration range + curve; LLM never emits bend points. Also queued:
+death subgenre widened to the groove pole + per-raga pace/saptak facts (chunk D).

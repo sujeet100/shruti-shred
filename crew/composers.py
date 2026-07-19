@@ -139,6 +139,9 @@ _LAYER_DESC: Final[dict[str, str]] = {
     "drums": "the metal drum kit (kick/snare/cymbals) — the metal groove",
     "tabla": "Hindustani tabla — lays the tala's theka; may play ALONGSIDE the metal drums",
     "drone": "the tanpura drone — a sustained Sa+Pa pad anchoring the tonality",
+    "clean": "the CLEAN electric guitar — arpeggiates the section's harmony plan (a shimmer "
+             "under the band): intros, under a melody, a breakdown afterglow; it holds soft "
+             "pads under the long taan and sits out the climax's band-drop",
 }
 
 # The exact JSON shape we want back, injected as an input so CrewAI's {placeholder}
@@ -153,10 +156,10 @@ _OUTPUT_SCHEMA: Final = """{
     "anchor": "gat_first",
     "motif": ["d", "n", "S", "m"],
     "sections": [
-      {"kind": "alaap", "form_role": "intro", "bars": 2, "layers": ["lead", "tabla", "drone"], "foreground": "lead", "intent": "unfold the raga slowly over soft tabla", "transition": "tabla settles into the theka"},
-      {"kind": "melody", "form_role": "mukhada", "bars": 4, "layers": ["lead", "rhythm", "drums", "tabla", "drone"], "foreground": "lead", "riff_slot": "main", "intent": "state the gat hook on the sitar; the riff answers it as a rhythmic reduction", "transition": "a shared tihai lands on the sam into the breakdown"},
+      {"kind": "alaap", "form_role": "intro", "bars": 2, "layers": ["lead", "clean", "drone"], "foreground": "lead", "harmony": {"mode": "drone"}, "intent": "unfold the raga slowly; clean guitar breaks the drone dyad gently", "transition": "tabla settles into the theka"},
+      {"kind": "melody", "form_role": "mukhada", "bars": 4, "layers": ["lead", "rhythm", "drums", "tabla", "drone"], "foreground": "lead", "riff_slot": "main", "harmony": {"mode": "modal_pedal"}, "intent": "state the gat hook on the sitar; the riff answers it as a rhythmic reduction", "transition": "a shared tihai lands on the sam into the breakdown"},
       {"kind": "breakdown", "form_role": "breakdown", "bars": 2, "layers": ["rhythm", "drums", "drone"], "foreground": "rhythm", "riff_slot": "breakdown", "intent": "half-time crush on the komal notes", "transition": "feedback swells; the mukhada returns"},
-      {"kind": "riff", "form_role": "mukhada", "bars": 4, "layers": ["lead", "rhythm", "drums", "drone"], "foreground": "rhythm", "riff_slot": "main", "intent": "bring the mukhada hook back, full band", "transition": "ring out"}
+      {"kind": "riff", "form_role": "mukhada", "bars": 4, "layers": ["lead", "rhythm", "drums", "clean", "drone"], "foreground": "rhythm", "riff_slot": "main", "harmony": {"mode": "progression", "roots": ["S", "m", "d", "S"]}, "intent": "bring the mukhada hook back, full band, the clean arpeggio cycling home", "transition": "ring out"}
     ],
     "registers": {"lead": 0, "rhythm": -3, "drone": -3}
   },
@@ -164,6 +167,7 @@ _OUTPUT_SCHEMA: Final = """{
   "agree": false
 }
 "reasoning" comes FIRST. "registers" is OPTIONAL — omit it to use sensible defaults. "intent" and "transition" are short free-text hints and may be empty.
+"harmony" (OPTIONAL per section) is how the section MOVES under the melody: {"mode": "drone"} (no motion — the tanpura dyad; alaap and climax territory), {"mode": "modal_pedal", "roots": [...]} (the DEFAULT — a Sa pedal under changing colour tones; roots = the colours, empty = the raga's vadi/samvadi), or {"mode": "progression", "roots": [...]} (a short per-avartan chord-root cycle for a CHORUS-like section: 2-4 raga swaras, the LAST one "S" so the cycle comes home). Activate the "clean" layer wherever this harmony should be HEARD as arpeggios.
 "anchor" is the ONE idea the whole piece derives from: "gat_first" (the sitar mukhada is the source; the riff is a rhythmic reduction of it) or "riff_first" (the riff is the source; the mukhada quotes its accented notes).
 Set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (above, the last section is the mukhada coming back). Reserve at most ONE "taan_long" for the peak. A MANJHA must sit between mukhada statements — place a "mukhada" section IMMEDIATELY after every "manjha" (head -> manjha -> head, one cohesive cycle), and give that returning mukhada at least 2 bars so the head re-establishes itself. The whole form gets AT MOST ONE section that RESTS the lead (riff-only/breakdown), no longer than 2 bars — the gat is the star and must never vanish for long.
 Every rhythm section needs a "riff_slot" naming which riff it plays — "main"/"chorus"/"breakdown". Sections that SHARE a slot replay the SAME riff, so REUSE "main" wherever the mukhada/main riff returns, and give the chorus/breakdown their OWN slots to contrast. Lead-only sections need no slot."""
@@ -282,7 +286,8 @@ def _section_line(s) -> str:
     (for a rhythm section) its riff slot, so the counterpart can align on the same gat + riffs."""
     role = f"{s.form_role}:" if s.form_role else ""
     slot = f", riff={s.riff_slot}" if s.riff_slot else ""
-    return f"{role}{s.kind.value}[{s.bars}b, {'+'.join(s.layers)}, fg={s.foreground}{slot}]"
+    harm = f", harm={s.harmony.mode}" if s.harmony else ""
+    return f"{role}{s.kind.value}[{s.bars}b, {'+'.join(s.layers)}, fg={s.foreground}{slot}{harm}]"
 
 
 def _render_draft(draft: ArrangementDraft | None) -> str:
@@ -358,6 +363,54 @@ def _turn_from_output(output: Any) -> ComposerTurn | None:
         return ComposerTurn.model_validate_json(raw) if raw else None
     except ValidationError:
         return None
+
+
+# A progression is a CHORUS device: on the melodic-gravity sections (the alap, the
+# taan's climax, the settling outro) harmony must stay a drone or pedal — a root cycle
+# there would fight Sa's pull, the musical-accuracy red line of the harmony design.
+_NO_PROGRESSION_ROLES: Final = frozenset({"intro", "taan_long", "outro"})
+_PROGRESSION_MIN_ROOTS: Final = 2
+_PROGRESSION_MAX_ROOTS: Final = 4
+
+
+def _harmony_error(draft) -> str | None:
+    """The harmony rules the schema can't hold (the raga is only known here): every root
+    a legal raga swara; a PROGRESSION is 2-4 roots resolving to Sa, on a chorus-like
+    section only, with no descent-only swara as a harmonic centre (a tone the raga only
+    brushes on the way down cannot carry a chord)."""
+    from raga import directional_varjya
+    restricted = directional_varjya(draft.raga)
+    allowed = " ".join(RAGAS[draft.raga]["allowed"])
+    for i, s in enumerate(draft.sections):
+        plan = s.harmony
+        if plan is None:
+            continue
+        where = f"section #{i + 1} ({s.kind.value})"
+        illegal = motif_illegal_in_raga(plan.roots, draft.raga)
+        if illegal:
+            return (f"harmony roots {illegal} in {where} are illegal in raga "
+                    f"{draft.raga}. Use only these swaras: {allowed}. Fix and resend.")
+        if plan.mode == "progression":
+            if s.form_role in _NO_PROGRESSION_ROLES:
+                return (f"{where} is a {s.form_role} — a progression there fights Sa's "
+                        f"melodic gravity. Use 'drone' or 'modal_pedal' on intro/"
+                        f"taan_long/outro sections; save progressions for chorus-like "
+                        f"sections. Fix and resend.")
+            if not (_PROGRESSION_MIN_ROOTS <= len(plan.roots) <= _PROGRESSION_MAX_ROOTS):
+                return (f"a progression needs {_PROGRESSION_MIN_ROOTS}-"
+                        f"{_PROGRESSION_MAX_ROOTS} roots ({where} has {len(plan.roots)}). "
+                        f"Fix and resend.")
+            if plan.roots[-1] != "S":
+                return (f"the progression in {where} must RESOLVE: its last root is "
+                        f"'{plan.roots[-1]}', not 'S' — the cycle comes home to Sa. "
+                        f"Fix and resend.")
+            bad_roots = sorted({r for r in plan.roots if restricted.get(r) == "avaroha"})
+            if bad_roots:
+                return (f"root(s) {bad_roots} in {where} are DESCENT-only swaras in "
+                        f"{draft.raga} — a tone the raga only brushes on the way down "
+                        f"cannot carry a chord. Pick roots the raga dwells on. Fix and "
+                        f"resend.")
+    return None
 
 
 def _validate_turn(output: Any):
@@ -455,6 +508,9 @@ def _validate_turn(output: Any):
                        f"whole form — one instrumental interlude is a contrast, a second is a "
                        f"hole in the gat. Add the lead to (or merge/cut) some of: "
                        f"{', '.join(leadless)} and resend.")
+    harmony_error = _harmony_error(turn.draft)
+    if harmony_error:
+        return (False, harmony_error)
     return (True, turn)
 
 

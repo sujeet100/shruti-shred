@@ -35,6 +35,7 @@ from crew.generators import (
 )
 from crew.dynamics import apply_dynamics, apply_taan_exposure
 from crew.groove import groove_layer, tabla_layer
+from crew.harmony import clean_layer
 from raga import validate_composition
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[1]
@@ -65,8 +66,11 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
         if double is not None:
             layers.append(double)
     # Bass, groove and tabla derive from the ORIGINAL riff (never the double), so the
-    # low end and kit stay locked to one rhythm-guitar line, not a smeared pair.
-    for derived in (bass_layer(arr, rhythm), groove_layer(arr, rhythm), tabla_layer(arr)):
+    # low end and kit stay locked to one rhythm-guitar line, not a smeared pair. The
+    # clean guitar realises the chart's per-section HARMONY plan (crew/harmony.py) —
+    # deterministic like the rest: the composers decided the modes, code plays them.
+    for derived in (clean_layer(arr), bass_layer(arr, rhythm), groove_layer(arr, rhythm),
+                    tabla_layer(arr)):
         if derived is not None:
             layers.append(derived)
     # The taan exposure runs BEFORE the balance pass: the band-drop window empties first, then

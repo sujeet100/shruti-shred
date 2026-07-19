@@ -546,5 +546,35 @@ and build order.
   no PM velocity cut, companion CC7=127, distorted body under chugs at FULL vel.
   Songsterr facts (DESIGN.md "SONGSTERR"): their client has NO mastering; premium sound
   = offline Vir2/Kontakt stems; synth fallback = FluidSynth-WASM + this exact font.
+- **LEAD LATENCY CAMPAIGN — ✅ BUILT (2026-07-16):** the >120s stalls diagnosed from traces:
+  CrewAI 1.15.2's native Gemini provider SILENTLY DROPS `reasoning_effort` (only OpenAI/Azure
+  forward it) — thinking ran at the model default (medium, uncapped; 4k–18.5k thinking tokens
+  per lead call → 40–137s + 504s). `build_llm` now passes `thinking_config` (thinking_level:
+  low; Interpreter runs `minimal`) — verify any knob in a trace (`reasoning_tokens`), never
+  trust it was accepted. generate_lead rebuilt: per-role briefs (`crew/config/lead_roles.yaml`,
+  ONE injected per call as `{role_brief}`), static-first ordering (implicit-cache-friendly
+  prefix), data + "compose now" at the END, anti-over-fill schema example (~50% smaller prompt).
+- **LISTEN-BACK FIXES — ✅ BUILT (2026-07-16, Sujit's ear on `fusion_20260716_213707`):**
+  tabla reverb 52→78; the returning mukhada no longer fades (lead exempt from background
+  scaling in mukhada sections + a mukhada ALWAYS voices UNISON); the intro is a miniature
+  **ALAP VISTAR** (phrases hold TENSION — no per-phrase homecoming; the mandra Sa is PLUCKED
+  between phrases as a drone anchor; only the close resolves to a held Sa); **directional
+  varjya** derived from aroha/avaroha (`directional_varjya` — Bageshree's P/R descent-only
+  etc.) enforced in the lead/gat/riff guardrails + stated in the prompts (deliberately NOT in
+  `validate_composition`: code-derived harmony could false-positive a forced revise live);
+  **bends are raga-seated** (`ascent_step` → per-note `Note.bend_st`; a seat >3 st away plays
+  plain — no more out-of-raga bend apexes).
+- **HARMONY + CLEAN GUITAR — ✅ BUILT (2026-07-16;** song-quality campaign #1+#2**):** the
+  composers now make a per-section HARMONY decision (`Section.harmony`: `drone` /
+  `modal_pedal` (default — Sa pedal + rotating colour tones) / `progression` (chorus-only,
+  2-4 raga roots ENDING ON S, no descent-only roots — guardrail-enforced; a Western V-I is
+  unspellable by construction)), and a new deterministic **clean electric guitar** voice
+  (`crew/harmony.py`, role `clean`, GM #28 clean, ch 10) realises it: raga-ladder voicings
+  (descent-only tones re-seated) arpeggiated per avartan — slow broken chords in an
+  alaap/outro, 8th-note up-down in metered sections, HELD pads under the long taan — and it
+  drops out of the taan's band-drop with the band. Backward compatible (no `clean` in the
+  chart → no layer). No-LLM sound check: `uv run python -m crew.harmony` →
+  `out/harmony_demo.wav`. Deferred from this campaign: a Producer `harmony_flow` criterion.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
-  Conductor's composer tie-break. **Then Phase 3** — the live UI/SSE over the `DebateEvent` stream.
+  Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
+  live UI/SSE over the `DebateEvent` stream.

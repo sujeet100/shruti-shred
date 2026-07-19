@@ -177,10 +177,13 @@ from the raga's own neighbour swaras. Durations are in beats and must be positiv
 _MEEND_MIN_BEATS: Final = 1.0
 
 # Andolan is a SLOW sway — it needs a held note to speak, exactly like a meend, so code flags
-# it only on a sustained note (and never on a note already carrying a meend). Which swaras sway
+# it only on a sustained note (a note may carry BOTH: the renderer glides in, then sways —
+# the "R -> g~~" Darbari entry). Which swaras sway
 # is a RAGA FACT (raga["andolan"]), passed in from the layer that knows the raga; the renderer
 # then draws the oscillation. "Code decides the checkable (which komal notes, how long); the
-# renderer draws the gesture" — the LLM never asks for andolan (it can't hear it).
+# renderer draws the gesture" — the LLM never asks for andolan (it can't hear it). This beat
+# floor is only the coarse "is it held at all" cut; the REAL gate is wall-clock, in the
+# renderer (ANDOLAN_MIN_MS — only it knows the tempo), so a flagged-but-short note plays plain.
 _ANDOLAN_MIN_BEATS: Final = 1.0
 
 
@@ -214,12 +217,14 @@ def _placed_note(ln: LeadNote, *, register: int, start: float, dur: float,
                  andolan_swaras: frozenset[str] = frozenset()) -> Note:
     """One placed Note, with the meend guard and andolan flag applied. A glide is kept only
     on a note at least `_MEEND_MIN_BEATS` long, so fast-run notes articulate cleanly instead
-    of sagging. Andolan is flagged on a held note (>= `_ANDOLAN_MIN_BEATS`) whose swara is one
-    the raga oscillates — but NOT if the note already glides (meend and andolan both drive the
-    wheel, so they are mutually exclusive)."""
+    of sagging. Andolan is flagged on a held note (>= `_ANDOLAN_MIN_BEATS`) whose RESTING
+    swara — the meend target when the note glides, else its own — is one the raga
+    oscillates: a gliding note spends its hold ON the target, so "R -> g" rests (and
+    sways) on ga while "g -> m" rests on ma and plays straight. The renderer composes
+    the two gestures (glide in, settle, sway — the research-correct Darbari entry)."""
     keep_meend = ln.meend_swara is not None and dur >= _MEEND_MIN_BEATS
-    andolan = (not keep_meend and ln.swara in andolan_swaras
-               and dur >= _ANDOLAN_MIN_BEATS) or None
+    resting = ln.meend_swara if keep_meend else ln.swara
+    andolan = (resting in andolan_swaras and dur >= _ANDOLAN_MIN_BEATS) or None
     return Note(swara=ln.swara, oct=register + ln.oct, start=round(start, 4),
                 dur=round(dur, 4), vel=ln.vel, grace=ln.grace,
                 meend_swara=ln.meend_swara if keep_meend else None,

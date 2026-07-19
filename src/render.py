@@ -62,13 +62,18 @@ dragged-pick fall), or "bend" (up from the note). Because pitch-bend is channel-
 a gesture on a chorded rhythm channel moves the whole chord together — correct for a
 slid/scraped power chord.
 
-Andolan (oscillation): a held note may carry "andolan": true — a slow, shallow pitch
-sway (a fraction of a semitone, ~2.4 Hz) rendered on the pitch wheel. It is the komal
-note that DEFINES ragas like Darbari (komal g/d) and Bhairav (komal r/d); a straight,
-un-oscillated komal there sounds like a different raga. Set deterministically by the lead
-generator on the raga's own andolan swaras (never by the LLM). Like meend it is a wheel
-gesture, so it lives on a monophonic melodic channel and is mutually exclusive with a
-meend on the same note.
+Andolan (oscillation): a held note may carry "andolan": true — the slow Darbari-style
+sway, rendered on the pitch wheel: the note lands and SETTLES (~250 ms), then undulates
+below itself toward the lower sruti in shallow (~30 cent), slow (~1/s), deliberately
+non-identical waves (deterministic jitter — a periodic dip reads as machine vibrato),
+while the expression (CC11) dips a hair alongside. It is the komal note that DEFINES
+ragas like Darbari (komal g/d) and Bhairav (komal r/d); a straight, un-oscillated komal
+there sounds like a different raga. Set deterministically by the lead generator on the
+raga's own andolan swaras (never by the LLM); the renderer only sways holds long enough
+in REAL time (ANDOLAN_MIN_MS) to carry the settle plus a slow wave — shorter flagged
+notes play plain. Like meend it is a wheel gesture on a monophonic melodic channel; a
+note carrying BOTH glides in first and then sways ("R -> g~~" — the research-correct
+Darbari entry: the glide establishes the swara, one attack, no struck grace).
 """
 
 import math
@@ -109,15 +114,23 @@ MEEND_GLIDE_PER_ST_MS = 25   # + this per semitone of interval (wider bends read
 MEEND_GLIDE_MIN_MS = 80      # never faster than this (else it stops reading as a glide)
 MEEND_GLIDE_MAX_MS = 220     # never slower than this (else it's a swoop again)
 
-# Andolan — the SLOW, SHALLOW pitch oscillation that IS the komal note in ragas like Darbari
-# (komal g/d) and Bhairav (komal r/d): the note "sways" a fraction of a semitone rather than
-# gliding to a target. Kept slow (a gentle sway, not a fast vibrato/gamak) and shallow (a
-# sruti-width waver, not a full bend). Rendered as a sine on the pitch wheel over WHOLE cycles,
-# so it starts and ends at 0 and never bleeds into the next note. Rate is real-time (ms) so
-# tempo doesn't stretch it. Depth is scaled to the armed bend range in `_wheel`.
-ANDOLAN_DEPTH_ST = 0.4       # semitones of sway either side of the note (shallow — a sruti waver)
-ANDOLAN_PERIOD_MS = 420      # one oscillation ~0.42s (~2.4 Hz) — slow enough to read as andolan
-ANDOLAN_STEPS_PER_CYCLE = 16 # wheel events per cycle — dense enough that the sine has no zipper
+# Andolan — the SLOW pitch oscillation that IS the komal note in ragas like Darbari
+# (komal g/d) and Bhairav (komal r/d). Research-grounded (AUTRIM/NCPA pitch graphs;
+# Parrikar — see DESIGN.md): the note lands and SETTLES first, then undulates BELOW
+# itself toward the lower sruti ("a progressive series of movements between Re and Ga"
+# — never above), each wave slow (~1/s) and SHALLOW (~30 cents, research bound 20-35),
+# and no two waves alike — a perfectly periodic dip is exactly what reads as machine
+# vibrato (both the ±0.4 st sine at 420 ms and the half-semitone sin² at 850 ms we
+# shipped first failed Sujit's ear this way). Waves are jittered DETERMINISTICALLY
+# (the drum machine's humanization idiom — same input, same output, no RNG), keyed on
+# the note's start so unison doubles sway in phase. Each wave sinks a little faster
+# than it rises and the whole gesture ends at exactly 0 — nothing bleeds onward.
+ANDOLAN_DEPTH_ST = 0.30      # deepest dip below the note (~30 cents)
+ANDOLAN_DELAY_MS = 250       # land and settle on the swara before the sway begins
+ANDOLAN_PERIOD_MS = 900      # one slow undulation — about one per second
+ANDOLAN_MIN_MS = 1000        # shortest hold that carries the settle + one slow wave
+ANDOLAN_STEPS_PER_CYCLE = 16 # wheel events per wave — dense enough that the curve has no zipper
+ANDOLAN_CC11_DIP = 8         # expression dips a hair with the pitch (a pulled string darkens)
 
 # Rhythm-guitar technique shaping (see _apply_technique / _render_slide / _render_bend).
 PALM_MUTE_MS = 80        # a chug gates to a FIXED wall-clock length (industry-converged:
@@ -165,7 +178,8 @@ LEGATO_MAX_GAP = 0.05    # beats: prev note must END this close for a legato con
 # reverb, sounds like noise" tone of the first live render. The tabla sits WETTER than the
 # kit (52 -> 78, Sujit's ear 2026-07-16: "tabla is very dry") — the Indian Ensemble strokes
 # are close-miked one-shots that need the room the metal samples carry baked in.
-_REVERB_SEND = {"lead": 68, "drone": 48, "rhythm": 30, "bass": 12, "tabla": 78, "drums": 38}
+_REVERB_SEND = {"lead": 68, "drone": 48, "rhythm": 30, "bass": 12, "tabla": 78, "drums": 38,
+                "clean": 62}   # the clean arpeggios live in the room — shimmer, not chug
 _REVERB_SEND_DEFAULT = 40
 
 
@@ -181,7 +195,8 @@ def _reverb_send(role) -> int:
 # Rhythm / bass / drums keep their ear-calibrated default level, and the palm-mute companion
 # keeps its own CC7=127 (MUTE_LEVEL) — so this cannot disturb the chug parity. None (unlisted
 # role) = leave the channel at its default.
-_MIX_LEVEL = {"lead": 92, "drone": 74, "tabla": 115}
+_MIX_LEVEL = {"lead": 92, "drone": 74, "tabla": 115,
+              "clean": 84}     # the harmony shimmer sits UNDER the lead voices
 
 
 def _mix_level(role) -> int | None:
@@ -366,29 +381,69 @@ def _render_fade(mf: MIDIFile, track: int, ch: int, start: float, dur: float) ->
         mf.addControllerEvent(track, ch, t, 11, val)
 
 
-def _andolan_wheel(start: float, dur: float, bpm: float) -> list[tuple[float, int]]:
-    """Pure: the (time, wheel) ramp for an andolan — a slow, shallow sine sway on the pitch
-    wheel, spanning the note. The number of cycles is chosen so a WHOLE number of oscillations
-    fits the note (start and end land on 0 — no bleed into the next note); the rate is held
-    near ANDOLAN_PERIOD_MS in real time so tempo doesn't stretch the sway into a swoop. A note
-    too short for even one slow cycle gets no andolan (it can't read as a sway)."""
+def _andolan_jitter(start: float, k: int) -> float:
+    """Deterministic fraction in [0, 1) keyed on (note start, wave index) — the drum
+    machine's no-RNG humanization idiom (`drum_patterns.humanized`), so renders stay
+    reproducible and unison doubles at the same start sway in phase."""
+    key = (int(round(start * 8)) * 2654435761 + k * 40503 + 12289) & 0xFFFFFFFF
+    return (key % 1024) / 1024.0
+
+
+def _andolan_wheel(start: float, dur: float, bpm: float,
+                   after_glide: bool = False) -> list[tuple[float, int]]:
+    """Pure: the (time, wheel) ramp for an andolan — land, settle, then a slow, one-sided
+    undulation dipping BELOW the note toward its lower sruti. The pitch holds steady for
+    ANDOLAN_DELAY_MS, then sways in waves of deterministically varied length and depth
+    (periodic dips read as machine vibrato); each wave sinks a little faster than it
+    rises (trough at ~40%) and the last sample lands exactly on 0 at the note's end —
+    no bleed into the next note. A hold shorter than ANDOLAN_MIN_MS in real time plays
+    plain (the gate lives HERE because only the renderer knows the tempo; the generator
+    flags the swara, real time decides the gesture). `after_glide` = a meend leads INTO
+    the sway ("R -> g~~"): the glide owns the onset, so the settle-at-0 event is dropped
+    (it would yank the wheel to 0 mid-glide); the settle window always outlasts the
+    glide (ANDOLAN_DELAY_MS 250 > MEEND_GLIDE_MAX_MS 220), so the first wave still
+    departs from a settled swara."""
     dur_ms = dur * 60000.0 / bpm
-    cycles = int(round(dur_ms / ANDOLAN_PERIOD_MS))
-    if cycles < 1:
+    if dur_ms < ANDOLAN_MIN_MS:
         return []                                        # too short to sway — leave it clean
-    steps = cycles * ANDOLAN_STEPS_PER_CYCLE
-    ramp: list[tuple[float, int]] = []
-    for k in range(steps + 1):
-        frac = k / steps
-        sway = math.sin(2.0 * math.pi * cycles * frac)   # whole cycles: sin is 0 at frac 0 and 1
-        ramp.append((round(start + dur * frac, 4), _wheel(ANDOLAN_DEPTH_ST * sway)))
-    return ramp
+    delay = ANDOLAN_DELAY_MS * bpm / 60000.0             # the settle, in beats
+    sway = dur - delay                                   # the swaying span, in beats
+    n = max(1, int(round((dur_ms - ANDOLAN_DELAY_MS) / ANDOLAN_PERIOD_MS)))
+    lengths = [0.85 + 0.3 * _andolan_jitter(start, k) for k in range(n)]        # ±15% per wave
+    depths = [ANDOLAN_DEPTH_ST * (0.65 + 0.35 * _andolan_jitter(start, n + k))  # 65-100% depth
+              for k in range(n)]
+    total = sum(lengths)
+    ramp: list[tuple[float, int]] = [(round(start, 4), 0)]   # settle flat until the first wave
+    left, cum = start + delay, 0.0
+    for k in range(n):
+        cum += lengths[k]
+        right = start + delay + sway * (cum / total)     # wave k ends here; wave n-1 at dur
+        span = right - left
+        for i in range(1, ANDOLAN_STEPS_PER_CYCLE + 1):
+            frac = i / ANDOLAN_STEPS_PER_CYCLE
+            dip = math.sin(math.pi * frac ** 0.8) ** 2   # trough ~40% in: sink fast, rise slow
+            ramp.append((round(left + span * frac, 4), _wheel(-depths[k] * dip)))
+        left = right
+    return ramp[1:] if after_glide else ramp
+
+
+def _andolan_cc(wheel_val: int) -> int:
+    """Expression (CC11) tracking the sway: the level dips a hair as the pitch dips — a
+    pulled string darkens — and recenters to full (127) as the wheel returns to 0."""
+    full = abs(_wheel(-ANDOLAN_DEPTH_ST))
+    depth = abs(wheel_val) / full if full else 0.0
+    return 127 - round(ANDOLAN_CC11_DIP * min(1.0, depth))
 
 
 def _render_andolan(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
-                    bpm: float) -> None:
-    for t, val in _andolan_wheel(start, dur, bpm):
+                    bpm: float, *, shimmer: bool = True, after_glide: bool = False) -> None:
+    """Draw the sway on the wheel, with the expression shimmer riding the same curve.
+    `shimmer` is off when the note also carries a fade — the fade owns CC11 then.
+    `after_glide` is set when a meend leads INTO the sway (see `_andolan_wheel`)."""
+    for t, val in _andolan_wheel(start, dur, bpm, after_glide=after_glide):
         mf.addPitchWheelEvent(track, ch, t, val)
+        if shimmer:
+            mf.addControllerEvent(track, ch, t, 11, _andolan_cc(val))
 
 
 def _mute_channel(mf: MIDIFile, track: int, layer: dict,
@@ -555,14 +610,18 @@ def build_midi(comp: dict, path: str) -> None:
             # wheel gestures below — CC11, not pitch).
             if n.get("fade"):
                 _render_fade(mf, i, ch, n["start"], dur)
-            # Pitch-wheel gestures (mutually exclusive per note): a meend glide to a target
-            # swara, a riff slide/bend/legato, or a slow andolan sway on a held komal note.
+            # Pitch-wheel gestures: a meend glide to a target swara, a riff
+            # slide/bend/legato, or a slow andolan sway on a held komal note. One per
+            # note, EXCEPT meend + andolan, which compose (glide in, settle, sway).
             # Legato and slide read the PREVIOUS note's pitch — a hammer-on/pull-off is a
             # finger moving from where the line just was, and a slide travels in the line's
             # own direction; a fixed offset reads as a synth blip, not a hand.
             connected = prev_pitch if n["start"] - prev_end <= LEGATO_MAX_GAP else None
             if target is not None:
                 _render_meend(mf, i, ch, n["start"], dur, pitch, target, bpm)
+                if n.get("andolan"):             # meend INTO the sway: glide, settle, undulate
+                    _render_andolan(mf, i, ch, n["start"], dur, bpm,
+                                    shimmer=not n.get("fade"), after_glide=True)
             elif n.get("technique") == "slide":
                 st = _pull_offset(connected, sounding, SLIDE_FROM_PREV_MAX) or SLIDE_IN_ST
                 _render_slide(mf, i, ch, n["start"], dur, st=st)
@@ -579,7 +638,8 @@ def build_midi(comp: dict, path: str) -> None:
             elif n.get("technique") == "bend":
                 _render_bend(mf, i, ch, n["start"], dur, st=n.get("bend_st") or BEND_ST)
             elif n.get("andolan"):
-                _render_andolan(mf, i, ch, n["start"], dur, bpm)
+                _render_andolan(mf, i, ch, n["start"], dur, bpm,
+                                shimmer=not n.get("fade"))
             prev_pitch, prev_end = sounding, n["start"] + n["dur"]
     with open(path, "wb") as f:
         mf.writeFile(f)

@@ -10,9 +10,10 @@ __pycache__/
 # Secrets — never commit real keys (commit .env.example instead)
 .env
 
-# Generated audio — reproducible via `uv run python src/demo.py`
+# Generated audio + render artifacts — reproducible via `uv run python src/demo.py`
 out/*.wav
 out/*.mid
+out/*.json
 
 # Soundfont — 38MB binary asset, downloaded separately (see soundfonts/README.md)
 soundfonts/*.sf3

@@ -864,8 +864,17 @@ def test_place_phrase_no_andolan_on_a_short_note():
     assert placed[0].andolan is None          # too short to read as a slow sway
 
 
-def test_place_phrase_andolan_and_meend_are_mutually_exclusive():
-    # a note that glides (meend) must not also andolan — both drive the one pitch wheel
+def test_place_phrase_andolan_composes_with_a_meend_resting_on_the_swara():
+    # "R -> g~~": the note attacks on R and RESTS on ga, so it sways — the renderer
+    # composes glide + settle + sway (the research-correct Darbari entry; a struck
+    # kan grace here reads as krintan)
+    placed = place_phrase([LeadNote(swara="R", dur=2.0, meend_swara="g")], start=0.0, end=16.0,
+                          register=0, andolan_swaras=frozenset({"g"}))
+    assert placed[0].meend_swara == "g" and placed[0].andolan is True
+
+
+def test_place_phrase_no_andolan_when_the_meend_glides_away_from_the_swara():
+    # "g -> m" spends its hold on ma, not ga — nothing sways
     placed = place_phrase([LeadNote(swara="g", dur=2.0, meend_swara="m")], start=0.0, end=16.0,
                           register=0, andolan_swaras=frozenset({"g"}))
     assert placed[0].meend_swara == "m" and placed[0].andolan is None

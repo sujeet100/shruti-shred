@@ -84,6 +84,10 @@ VOICES: Final[dict[str, Voice]] = {
     "rhythm": Voice("overdrive_guitar", 29, 0, pan=20),      # GM #30 Overdriven — hard LEFT
     "rhythm_double": Voice("dist_guitar", 30, 5, pan=108),   # GM #31 Distortion — hard RIGHT
     "bass": Voice("electric_bass", 33, 3, pan=64),    # GM #34 Electric Bass — the low-end anchor (centre)
+    # The clean electric guitar — the HARMONY voice (crew/harmony.py): arpeggiated
+    # voicings / fillers on GM #28 Electric Guitar (clean), off-centre LEFT so it
+    # shimmers opposite the lead guitar without crowding the sitar.
+    "clean": Voice("clean_guitar", 27, 10, pan=52),
 }
 
 

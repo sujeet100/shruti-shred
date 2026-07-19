@@ -132,6 +132,15 @@ compose_turn:
         main riff should RETURN (the hook — repetition is what makes it a song, and a
         recurring riff on the sam is a mukhda coming back); give the chorus and breakdown
         their OWN slots so they contrast. Sections sharing a slot replay the SAME riff.
+      - DECIDE THE HARMONY per section (`harmony`) — how the music moves UNDER the melody:
+        "drone" (no motion — the tanpura dyad; the alap and the taan climax), "modal_pedal"
+        (the raga-metal DEFAULT — a Sa pedal under CHANGING colour tones; set `roots` to the
+        colour swaras or leave them empty for the vadi/samvadi), or "progression" (a short
+        per-avartan chord-root cycle, for a CHORUS-like section only: 2-4 raga swaras with
+        the LAST one S, so the cycle comes home — this music's gravity is melodic, and a
+        cycle that ends away from Sa is rejected). Activate the `clean` layer wherever the
+        harmony should be HEARD as arpeggios — an intro shimmer, colour under a melody, a
+        breakdown afterglow.
       - For a climactic section (taan/breakdown), negotiate a RHYTHMIC UNISON — a tihai
         (a phrase thrice, resolving on the sam) doubling as the metal breakdown, or the
         double-kick locked to the tabla's bols. Shape an ENERGY CURVE: don't run every
@@ -164,6 +173,9 @@ compose_turn:
           returning mukhada has at least 2 bars
       [ ] the taan_long section includes the TABLA (its final avartan drops the metal band
           — the theka carries that naked cycle)
+      [ ] harmony roots are raga swaras; any progression has 2-4 roots ENDING ON S, sits on
+          a chorus-like section (never intro/taan_long/outro), and roots avoid the raga's
+          descent-only swaras
       [ ] bpm within the subgenre's range
   expected_output: |
     A single ComposerTurn as JSON and nothing else — no prose, no code fences.

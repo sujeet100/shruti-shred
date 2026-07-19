@@ -24,6 +24,7 @@ from crew.contracts import (  # noqa: E402
     CompositionBrief,
     ComposerTurn,
     EventType,
+    HarmonyPlan,
     Section,
     SectionKind,
     build_arrangement,
@@ -321,6 +322,52 @@ def test_guardrail_rejects_more_than_one_long_taan():
         sections=_gat_sections("mukhada", "taan_long", "taan_long", "mukhada"))
     ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
     assert ok is False and "taan_long" in msg
+
+
+def _with_harmony(draft: ArrangementDraft, index: int, plan: HarmonyPlan) -> ArrangementDraft:
+    sections = list(draft.sections)
+    sections[index] = sections[index].model_copy(update={"harmony": plan})
+    return draft.model_copy(update={"sections": sections})
+
+
+def test_guardrail_accepts_a_valid_harmony_plan():
+    draft = _with_harmony(_draft(), 0, HarmonyPlan(mode="progression", roots=["m", "d", "S"]))
+    ok, value = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is True and isinstance(value, ComposerTurn)
+
+
+def test_guardrail_rejects_an_illegal_harmony_root():
+    # P is absent from malkauns — a harmony root faces the same grammar as the motif
+    draft = _with_harmony(_draft(), 0, HarmonyPlan(mode="modal_pedal", roots=["P"]))
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "harmony roots" in msg and "P" in msg
+
+
+def test_guardrail_requires_a_progression_to_come_home():
+    draft = _with_harmony(_draft(), 0, HarmonyPlan(mode="progression", roots=["m", "d"]))
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "RESOLVE" in msg
+
+
+def test_guardrail_keeps_progressions_off_the_melodic_gravity_sections():
+    # a progression on the taan_long fights Sa's pull — drone/pedal only there
+    draft = _draft()
+    sections = list(draft.sections)
+    sections.append(Section(kind=SectionKind.TAAN, bars=2,
+                            layers=["lead", "rhythm", "drums", "tabla", "drone"],
+                            foreground="lead", riff_slot="main", form_role="taan_long",
+                            harmony=HarmonyPlan(mode="progression", roots=["m", "S"])))
+    draft = draft.model_copy(update={"sections": sections})
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "gravity" in msg
+
+
+def test_guardrail_rejects_a_descent_only_progression_root():
+    # bageshree's P is descent-only — a tone the raga only brushes cannot carry a chord
+    draft = _with_harmony(_draft(raga="bageshree", motif=("D", "n", "S", "m")), 0,
+                          HarmonyPlan(mode="progression", roots=["P", "S"]))
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is False and "DESCENT-only" in msg
 
 
 def test_anchor_defaults_to_gat_first_and_round_trips_to_the_arrangement():

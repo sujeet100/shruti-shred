@@ -18,10 +18,16 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from render import (  # noqa: E402
+    ANDOLAN_CC11_DIP,
+    ANDOLAN_DELAY_MS,
     ANDOLAN_DEPTH_ST,
+    ANDOLAN_MIN_MS,
+    ANDOLAN_PERIOD_MS,
+    ANDOLAN_STEPS_PER_CYCLE,
     BEND_ST,
     PALM_MUTE_MS,
     SLIDE_IN_ST,
+    _andolan_cc,
     _andolan_wheel,
     _apply_technique,
     _bends,
@@ -248,25 +254,33 @@ def test_bends_flags_andolan_so_the_channel_arms_its_range():
     assert _bends({"swara": "g", "andolan": None}) is False
 
 
-# --- _andolan_wheel: a slow, shallow sway that starts and ends at 0 -------------
+# --- _andolan_wheel: settle, then a slow, uneven, downward undulation -----------
 
 def test_andolan_starts_and_ends_at_zero():
-    # whole cycles -> the sine returns to centre, so nothing bleeds into the next note
+    # every wave returns to the swara and the gesture ends at 0 — no bleed onward
     events = _andolan_wheel(0.0, 4.0, bpm=120)
     assert events[0][1] == 0 and events[-1][1] == 0
 
 
-def test_andolan_stays_within_its_shallow_depth():
+def test_andolan_stays_within_its_depth():
     events = _andolan_wheel(0.0, 4.0, bpm=120)
     cap = abs(_wheel(ANDOLAN_DEPTH_ST))
     assert all(abs(v) <= cap for _, v in events)
     assert max(abs(v) for _, v in events) > 0          # it actually sways
 
 
-def test_andolan_sways_both_ways():
-    # a real oscillation goes both sharp and flat of the note, not just one side
+def test_andolan_dips_below_the_note_only():
+    # AUTRIM: ga's movements occur BETWEEN Re and Ga — the wheel never rises above
+    # the swara's own pitch (ga leans toward Re, dha toward Pa)
     vals = [v for _, v in _andolan_wheel(0.0, 4.0, bpm=120)]
-    assert max(vals) > 0 and min(vals) < 0
+    assert max(vals) == 0 and min(vals) < 0
+
+
+def test_andolan_settles_before_it_sways():
+    # the note lands and holds steady for the settle window before the first dip
+    delay_beats = ANDOLAN_DELAY_MS * 120 / 60000.0
+    events = _andolan_wheel(0.0, 4.0, bpm=120)
+    assert all(v == 0 for t, v in events if t < delay_beats)
 
 
 def test_andolan_none_when_note_too_short_for_a_cycle():
@@ -274,9 +288,60 @@ def test_andolan_none_when_note_too_short_for_a_cycle():
     assert _andolan_wheel(0.0, 0.1, bpm=120) == []
 
 
+def test_andolan_none_on_a_hold_below_the_real_time_gate():
+    # 2 beats at 160 bpm = 750 ms — long enough for the OLD fast wobble, but a slow
+    # sway squeezed in would read as vibrato -> plays plain (the Darbari-render bug)
+    dur_ms = 2.0 * 60000.0 / 160
+    assert dur_ms < ANDOLAN_MIN_MS                     # the premise of the test
+    assert _andolan_wheel(0.0, 2.0, bpm=160) == []
+
+
+def test_andolan_waves_are_slow():
+    # 4 beats at 120 = 2000 ms -> settle + two waves, each near the ~900 ms period
+    events = _andolan_wheel(0.0, 4.0, bpm=120)
+    waves = (len(events) - 1) / ANDOLAN_STEPS_PER_CYCLE
+    assert waves == 2
+    sway_ms = 4.0 * 60000.0 / 120 - ANDOLAN_DELAY_MS
+    assert sway_ms / waves >= 0.75 * ANDOLAN_PERIOD_MS
+
+
+def test_andolan_waves_are_uneven():
+    # no two waves alike — a perfectly periodic dip reads as machine vibrato
+    events = _andolan_wheel(0.0, 4.0, bpm=120)
+    vals = [v for _, v in events[1:]]                  # drop the settle event
+    per_wave = [vals[k * ANDOLAN_STEPS_PER_CYCLE:(k + 1) * ANDOLAN_STEPS_PER_CYCLE]
+                for k in range(len(vals) // ANDOLAN_STEPS_PER_CYCLE)]
+    assert len({min(w) for w in per_wave}) > 1         # depths differ wave to wave
+
+
+def test_andolan_is_deterministic():
+    # jitter is hash-keyed, not RNG — same note, same sway (re-renders reproducible,
+    # and unison doubles at the same start sway in phase)
+    assert _andolan_wheel(3.0, 4.0, bpm=120) == _andolan_wheel(3.0, 4.0, bpm=120)
+
+
 def test_andolan_span_covers_the_note():
     events = _andolan_wheel(2.0, 4.0, bpm=120)
     assert events[0][0] == 2.0 and events[-1][0] == 6.0   # spans start..start+dur
+
+
+def test_andolan_cc_shimmer_tracks_the_dip_and_recenters():
+    # expression rides the sway: full (127) at the swara, dipped at the trough
+    assert _andolan_cc(0) == 127
+    assert _andolan_cc(_wheel(-ANDOLAN_DEPTH_ST)) == 127 - ANDOLAN_CC11_DIP
+
+
+def test_andolan_after_a_glide_leaves_the_onset_to_the_meend():
+    # meend INTO the sway ("R -> g~~"): the sway drops its settle-at-0 event — a 0 at
+    # the onset would yank the wheel mid-glide — and the waves are otherwise identical
+    full = _andolan_wheel(0.0, 4.0, bpm=120)
+    composed = _andolan_wheel(0.0, 4.0, bpm=120, after_glide=True)
+    assert composed == full[1:]
+    assert all(t > 0.0 for t, _ in composed)
+    # the invariant that makes the composition safe: the settle outlasts any glide,
+    # so the first wave always departs from an in-tune, settled swara
+    from render import ANDOLAN_DELAY_MS as delay, MEEND_GLIDE_MAX_MS as glide_max
+    assert delay > glide_max
 
 
 # --- build_midi smoke: chords + techniques render without crashing --------------

@@ -313,7 +313,38 @@ def resolve_brief(intent: RawIntent) -> CompositionBrief:
 # the metal kit; `tabla` is Hindustani percussion — the two are distinct voices and
 # may play TOGETHER (tabla laying the theka under a metal groove is a core fusion
 # sound). Rendering tabla is wired in step 4 (the Groove generator + render).
-ROLES: frozenset[str] = frozenset({"drone", "lead", "rhythm", "drums", "tabla"})
+ROLES: frozenset[str] = frozenset({"drone", "lead", "rhythm", "drums", "tabla", "clean"})
+
+
+# How a section MOVES harmonically — the composers' per-section harmony decision
+# (DESIGN.md "song-quality campaign" #1). Hindustani music is MELODIC — Sa's gravity is
+# the music — so the modes are ordered by how much motion they dare: `drone` = none (the
+# tanpura dyad is the harmony; alaap/taan-climax territory); `modal_pedal` = a Sa pedal
+# under CHANGING legal colour tones (the raga-metal default — motion without leaving
+# home); `progression` = a short root cycle for chorus-like sections ONLY, always
+# resolving back to Sa. A Western V-I is never available by construction: roots are raga
+# swaras, voicings are built up the raga's own ladder.
+HarmonyMode = Literal["drone", "modal_pedal", "progression"]
+
+
+class HarmonyPlan(BaseModel):
+    """One section's harmony decision: the mode, plus its root/colour material.
+
+    `roots` means: for `progression`, the per-avartan chord roots (2-4 raga swaras,
+    the LAST one Sa — the cycle comes home); for `modal_pedal`, the colour tones
+    rotated above the Sa pedal (empty = code defaults to the raga's vadi/samvadi);
+    for `drone`, unused. Swara legality IN THE RAGA is the composer guardrail's job
+    (the raga isn't known here); this schema only rejects unknown symbols."""
+    mode: HarmonyMode = "modal_pedal"
+    roots: list[str] = Field(default_factory=list)
+
+    @field_validator("roots")
+    @classmethod
+    def _known_roots(cls, v: list[str]) -> list[str]:
+        bad = [r for r in v if r not in SWARAS]
+        if bad:
+            raise ValueError(f"unknown swara(s) {bad} in harmony roots")
+        return v
 
 
 class SectionKind(str, Enum):
@@ -386,6 +417,10 @@ class Section(BaseModel):
                                      # None -> falls back to the section kind.
     form_role: Optional[FormRole] = None  # its place in the gat form (mukhada/manjha/antara/...);
                                           # required by the composer guardrail, not the schema.
+    harmony: Optional[HarmonyPlan] = None  # how this section moves harmonically (drone /
+                                           # modal_pedal / progression) — read by the CLEAN
+                                           # guitar (crew/harmony.py); None = modal_pedal
+                                           # defaults when a clean layer plays.
 
     @field_validator("riff_slot", mode="before")
     @classmethod
@@ -662,7 +697,11 @@ def voice_registers(subgenre: str) -> dict[str, int]:
     # is a muddy rumble that reads as bass, not a guitar. Floor it at -2 (~D2) so the
     # bass (an octave below it) owns the sub and the guitar keeps its crunch.
     rhythm = max(riff_floor, RHYTHM_FLOOR)
-    return {"lead": lead, "rhythm": rhythm, "drone": riff_floor}
+    # The clean guitar arpeggiates the harmony BETWEEN the wall and the raga line — an
+    # octave under the lead (never below the riff), so its broken chords shimmer in the
+    # mid-range without crowding either voice.
+    return {"lead": lead, "rhythm": rhythm, "drone": riff_floor,
+            "clean": max(lead - 1, rhythm)}
 
 
 def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arrangement:
