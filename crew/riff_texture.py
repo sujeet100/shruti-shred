@@ -78,6 +78,12 @@ _CHUG_VEL: Final = 108               # a solid palm-muted chug (never cut — th
 # separate. So DRIVE flags a cycle whose movement figures are MANY and ALL distinct — a wandering
 # line with no restated hook. The real lift is the prompt; this is the backstop.
 _HOOK_MIN_FIGURES: Final = 3         # this many movement figures, all distinct, = a wandering riff
+
+# Rhythmic contrast (GPT: riffs read as straight "8th 8th 8th 8th" — mix quarter/dotted/8th/
+# 16th-burst/triplet/rest). Lenient backstop: flag only NEAR-total monotony (one note value
+# dominating), so a chug-plus-ring riff passes and the prompt does the real shaping.
+_RHYTHM_UNIFORM_MAX: Final = 0.85    # DRIVE: one note value may cover at most this share...
+_RHYTHM_MIN_NOTES: Final = 6         # ...checked only once the cycle has enough notes to judge
 # Colour = a chord tone that seats ABOVE the octave (add9 / tenth): interval class 1-4
 # over the root (see render._seat_chord_tone). Power weight = octave / fourth / fifth.
 _COLOR_CLASSES: Final = frozenset({1, 2, 3, 4})
@@ -135,7 +141,8 @@ MODE_BRIEFS: Final[dict[RiffMode, str]] = {
         "your sounding time is OPEN ringing chords a beat or longer — a ring is an open "
         "strike, a palm-muted note can never ring (it gates to a short chug whatever its "
         "duration). Leave at least one true rest; rough space budget: ~40% chug, ~25% ring, "
-        "~20% movement, ~15% silence."),
+        "~20% movement, ~15% silence. VARY the note lengths against the chug (16ths, 8ths, a "
+        "dotted or held accent, a rest) — never one steady value."),
     RiffMode.PADS: (
         "PADS — the sitar carries ALL movement here; you are texture, not motion. Sustain "
         "wide RINGING power chords: one or two per vibhag, most of your sounding time in "
@@ -285,6 +292,12 @@ def _drive_violations(notes: list[RiffNote], sounding: list[RiffNote],
                     "ONE hook: state a short 2-4 note cell and RESTATE it (A A' A B), repeating "
                     "or answering that figure instead of always moving on, so the riff is "
                     "memorable after two hearings")
+    if len(sounding) >= _RHYTHM_MIN_NOTES:
+        dur_counts = Counter(round(n.dur, 4) for n in sounding)
+        if dur_counts.most_common(1)[0][1] > _RHYTHM_UNIFORM_MAX * len(sounding):
+            viol.append("almost every note is the same length (straight 8ths) — VARY the note "
+                        "values against the chug: a 16th burst, a dotted or held accent, a "
+                        "triplet, a rest, so the riff has rhythmic contrast")
     return viol
 
 

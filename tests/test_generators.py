@@ -184,6 +184,33 @@ def test_bass_doubles_a_riff_that_is_all_on_the_beat():
     assert [(n.swara, n.start) for n in bass.notes] == [("S", 0.0), ("g", 1.0)]
 
 
+def _sustained_change_riff() -> Layer:
+    """A root HELD two beats, then a different root — a sustained bass note should walk
+    up into the change (momentum), not just jump."""
+    v = VOICES["rhythm"]
+    notes = [Note(swara="S", oct=-2, start=0.0, dur=2.0, vel=110),
+             Note(swara="m", oct=-2, start=2.0, dur=2.0, vel=110)]
+    return Layer(role="rhythm", instrument=v.instrument, program=v.program,
+                 channel=v.channel, notes=notes)
+
+
+def test_bass_walks_up_into_a_sustained_root_change():
+    # the held S is shortened and a raga-legal step (g, between S and m in Malkauns) leads
+    # into the m — GPT's "climb into the next chord" momentum
+    bass = bass_layer(_arr(), _sustained_change_riff())
+    root = next(n for n in bass.notes if n.start == 0.0)
+    assert root.swara == "S" and root.dur == 1.5              # shortened to make room
+    approach = next(n for n in bass.notes if n.start == 1.5)
+    assert approach.swara == "g" and approach.dur == 0.5      # the walk-up step into m
+    assert approach.vel < root.vel                            # a lead-in, softer than the root
+
+
+def test_bass_does_not_walk_up_on_short_roots():
+    # a quick root change (each root under the min) stays a plain root line — no clutter
+    bass = bass_layer(_arr(), _onbeat_riff())
+    assert [(n.swara, n.start) for n in bass.notes] == [("S", 0.0), ("g", 1.0)]
+
+
 def _guitar_riff(oct_: int = -2) -> Layer:
     """A riff seated at the (clamped) rhythm register, for the octave-below bass test."""
     v = VOICES["rhythm"]

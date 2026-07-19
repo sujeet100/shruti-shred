@@ -46,7 +46,7 @@ from crew.contracts import (
     SectionKind,
     build_arrangement,
 )
-from raga import SWARAS, drone_swaras, validate_composition
+from raga import SWARAS, direction_violations, drone_swaras, scale_step_up, validate_composition
 
 
 # --------------------------------------------------------------------------- #
@@ -166,6 +166,32 @@ def drone_layer(arr: Arrangement) -> Layer:
 
 _BASS_VEL_SCALE: Final[float] = 0.9    # the bass sits just under the guitar it follows
 _BASS_FLOOR: Final[int] = -3           # deepest octave the bass drops to (~D1) — never subsonic
+# Bass momentum (GPT: "climbing into the next chord before the riff changes creates momentum").
+# A SUSTAINED root leans up/down one raga step in its last half-beat, INTO the next root.
+_APPROACH_BEATS: Final[float] = 0.5    # the walk-up takes the last half-beat before a root change
+_APPROACH_MIN_DUR: Final[float] = 1.5  # only a held root (>= this) earns one — occasional, not every change
+_APPROACH_VEL_SCALE: Final[float] = 0.85  # a lead-in, a touch under the root it walks from
+
+
+def _bass_approach(cur: tuple[str, int], nxt: tuple[str, int],
+                   raga: str) -> tuple[str, int] | None:
+    """A raga-legal WALK-UP note into the next bass root: one scale step toward the change
+    (from below when the target is higher, from above when lower), so a held root gains
+    forward momentum INTO a new chord. Returns (swara, oct), or None when there is no legal,
+    distinct, non-subsonic step to walk (then the bass just holds its root). Pure."""
+    cur_pitch = SWARAS[cur[0]] + 12 * cur[1]
+    nxt_pitch = SWARAS[nxt[0]] + 12 * nxt[1]
+    if cur_pitch == nxt_pitch:
+        return None
+    step = -1 if nxt_pitch > cur_pitch else 1              # approach the target from below / above
+    sw, od = scale_step_up(nxt[0], raga, step)
+    ap = (sw, nxt[1] + od)
+    ap_pitch = SWARAS[sw] + 12 * ap[1]
+    if ap[1] < _BASS_FLOOR or ap_pitch in (cur_pitch, nxt_pitch):
+        return None                                        # subsonic, or no real step between roots
+    if direction_violations([cur, ap, nxt], raga):         # respect directional varjya (aroha/avaroha)
+        return None
+    return ap
 
 
 def bass_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
@@ -192,9 +218,22 @@ def bass_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
     notes: list[Note] = []
     for i, n in enumerate(on_beat):
         end = on_beat[i + 1].start if i + 1 < len(on_beat) else riff_end
-        notes.append(Note(swara=n.swara, oct=max(n.oct - 1, _BASS_FLOOR),
-                          start=n.start, dur=round(end - n.start, 4),
-                          vel=max(1, round(n.vel * _BASS_VEL_SCALE))))
+        b_oct = max(n.oct - 1, _BASS_FLOOR)
+        vel = max(1, round(n.vel * _BASS_VEL_SCALE))
+        dur = end - n.start
+        nxt = on_beat[i + 1] if i + 1 < len(on_beat) else None
+        approach = (_bass_approach((n.swara, b_oct), (nxt.swara, max(nxt.oct - 1, _BASS_FLOOR)),
+                                   arr.raga)
+                    if nxt is not None and dur >= _APPROACH_MIN_DUR else None)
+        if approach is not None:                          # hold the root, then walk into the change
+            notes.append(Note(swara=n.swara, oct=b_oct, start=n.start,
+                              dur=round(dur - _APPROACH_BEATS, 4), vel=vel))
+            notes.append(Note(swara=approach[0], oct=approach[1],
+                              start=round(end - _APPROACH_BEATS, 4), dur=_APPROACH_BEATS,
+                              vel=max(1, round(vel * _APPROACH_VEL_SCALE))))
+        else:
+            notes.append(Note(swara=n.swara, oct=b_oct, start=n.start,
+                              dur=round(dur, 4), vel=vel))
     return Layer(role="bass", instrument=voice.instrument, program=voice.program,
                  channel=voice.channel, pan=voice.pan, notes=notes)
 

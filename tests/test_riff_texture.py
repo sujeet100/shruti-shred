@@ -417,6 +417,19 @@ def test_drive_brief_asks_for_a_restated_hook():
     assert "A A' A B" in brief and "hook" in brief.lower()
 
 
+def test_drive_flags_straight_eighths():
+    # every note the same length -> flagged for rhythmic monotony (GPT's "8th 8th 8th 8th")
+    monotone = RiffPattern(notes=[_n("S", 0.5, technique="palm_mute") for _ in range(16)])
+    viol = verify_riff(monotone, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert any("same length" in v for v in viol)
+
+
+def test_drive_clean_keeps_its_rhythmic_contrast():
+    # the clean fixture (chugs + longer rings) is NOT flagged — the check is a lenient backstop
+    viol = verify_riff(_drive_clean(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert not any("same length" in v for v in viol)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
