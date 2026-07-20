@@ -293,12 +293,14 @@ def test_guardrail_rejects_an_illegal_chord_tone():
     assert ok is False and "illegal" in msg.lower() and "P" in msg
 
 
-def test_riffnote_rejects_an_unknown_chord_swara():
-    try:
-        RiffNote(swara="S", dur=1.0, chord=["Q"])
-        assert False, "expected ValueError"
-    except Exception as e:  # noqa: BLE001
-        assert "chord" in str(e).lower()
+def test_riffnote_absorbs_junk_chord_tones_and_techniques():
+    # ABSORB, don't raise (2026-07-20 live failure): junk in an OPTIONAL decoration must
+    # degrade — a thinner chord / plain note — never kill the parse at the structured-output
+    # layer (that fires before any guardrail feedback loop can see it).
+    assert RiffNote(swara="S", dur=1.0, chord=["Q"]).chord is None
+    assert RiffNote(swara="S", dur=1.0, chord=["P", "Q"]).chord == ["P"]
+    assert RiffNote(swara="S", dur=1.0, technique="chug").technique is None
+    assert RiffNote(swara="S", dur=1.0, technique="palm_mute").technique == "palm_mute"
 
 
 # --- the legality guardrail ----------------------------------------------------

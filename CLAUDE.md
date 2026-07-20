@@ -575,6 +575,25 @@ and build order.
   drops out of the taan's band-drop with the band. Backward compatible (no `clean` in the
   chart → no layer). No-LLM sound check: `uv run python -m crew.harmony` →
   `out/harmony_demo.wav`. Deferred from this campaign: a Producer `harmony_flow` criterion.
+- **GAT CATCHINESS CAMPAIGN — ✅ BUILT (2026-07-20;** research + full record: DESIGN.md "GAT
+  CATCHINESS CAMPAIGN"**):** Sujit's "gats aren't memorable like Vilayat Khan" → researched the
+  Imdadkhani sources (Parikh's article/FAQ, Deepak Raja, Vishwamohini notation) and built the 5
+  gaps: (1) fill geometry FIXED — taan fills now take the FRONT of the avartan (launch from the
+  sam) and the head's APPROACH (`approach_cut`, the boundary nearest the 5/16 mukhda line)
+  re-enters to land the next sam (the old back-half cut deleted exactly the traditional mukhda);
+  (2) sam-note rule — the head's first note (sounds on EVERY sam) must be Sa/vadi/samvadi;
+  (3) **`src/gats.py`** — the verified Masitkhani bol grid (dir on 4/6/12/14, mukhda = 12-16) +
+  Razakhani vocabulary (NO invented grid — flexibility is the sourced fact) as knowledge,
+  `frame_for_bpm` (<90 = masitkhani/doom), `verify_bol_frame` (sam struck "da"; dir doublings —
+  grid-pinned for masitkhani, density for razakhani; bols on ≥half the notes), `{bol_frame}`
+  prompt block; (4) TIHAI, code-built (`make_tihai`/`splice_tihai`) — the verified taan's own
+  closing phrase ×3 + equal gaps exactly filling its final avartan, taan_long only (Parikh:
+  adjunct to a taan, never sthayi); (5) AMAD — `Gat.amad`, Parikh's 4th line riding the antara
+  section's final avartan (`needs_amad` when ≥2 bars), `verify_amad` (opens at the antara's
+  landing, net descent, no re-peak, seams into the head), antara verified `with_amad`.
+  Suite 686 green; live-untested (batch a confirmation with the next approved render). Deferred:
+  singability verifier; Razakhani matra-7 start (cross-bar anacrusis); antara on the head's
+  stroke skeleton.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

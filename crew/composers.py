@@ -125,7 +125,7 @@ _FORM_DESC: Final[dict[str, str]] = {
               "mukhada must re-enter IMMEDIATELY after it (head -> manjha -> head, one cohesive cycle)",
     "antara": "the second theme — lifts into the higher (taar) octave",
     "taan_short": "a short cadential taan filler (half/one cycle) that resolves into the next mukhada",
-    "taan_long": "the ONE developed taan/solo — the peak; place it after the antara or before the final mukhada",
+    "taan_long": "the ONE developed taan/solo — the peak; place it after the antara or before the final mukhada. By DEFAULT the band DRIVES it (the metal-solo climax: sustained rhythm chords + climax drums under the traded sitar/guitar taan); set climax_style 'exposed' only for a spacious alap-style band-drop reveal",
     "breakdown": "a heavy, sparse rhythmic climax",
     "tihai": "a phrase stated thrice, landing on the sam — a cadence",
     "outro": "settle back down to a held Sa",
@@ -140,8 +140,9 @@ _LAYER_DESC: Final[dict[str, str]] = {
     "tabla": "Hindustani tabla — lays the tala's theka; may play ALONGSIDE the metal drums",
     "drone": "the tanpura drone — a sustained Sa+Pa pad anchoring the tonality",
     "clean": "the CLEAN electric guitar — arpeggiates the section's harmony plan (a shimmer "
-             "under the band): intros, under a melody, a breakdown afterglow; it holds soft "
-             "pads under the long taan and sits out the climax's band-drop",
+             "under the band): intros, under a melody, a breakdown afterglow; it holds ringing "
+             "pads under the long taan (driving the climax; it sits out only an 'exposed' taan's "
+             "band-drop)",
     "orchestra": "the ORCHESTRA (strings, brass, choir, timpani) — a CINEMATIC layer a separate "
                  "agent scores. ACTIVATE it throughout a SYMPHONIC chart (there it is a full, "
                  "equal member of the band), and only SPARINGLY as colour on other subgenres (a "
@@ -174,6 +175,7 @@ _OUTPUT_SCHEMA: Final = """{
 }
 "reasoning" comes FIRST. "registers" is OPTIONAL — omit it to use sensible defaults. "intent" and "transition" are short free-text hints and may be empty.
 "harmony" (OPTIONAL per section) is how the section MOVES under the melody: {"mode": "drone"} (no motion — the tanpura dyad; alaap and climax territory), {"mode": "modal_pedal", "roots": [...]} (the DEFAULT — a Sa pedal under changing colour tones; roots = the colours, empty = the raga's vadi/samvadi), or {"mode": "progression", "roots": [...]} (a short per-avartan chord-root cycle for a CHORUS-like section: 2-4 raga swaras, the LAST one "S" so the cycle comes home). Activate the "clean" layer wherever this harmony should be HEARD as arpeggios.
+"climax_style" (OPTIONAL, only meaningful on the "taan_long" peak): "driven" (the DEFAULT — the metal-solo climax: sustained rhythm chords + climax drums DRIVE the peak while the sitar/guitar taan trades over them) or "exposed" (the alap-style reveal — the band drops out of the taan's final avartan, sitar + tabla carrying it alone). Prefer "driven" for a metal-leaning peak; reserve "exposed" for a deliberately spacious, classical reveal.
 "anchor" is the ONE idea the whole piece derives from: "gat_first" (the sitar mukhada is the source; the riff is a rhythmic reduction of it) or "riff_first" (the riff is the source; the mukhada quotes its accented notes).
 Set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (above, the last section is the mukhada coming back). Reserve at most ONE "taan_long" for the peak. A MANJHA must sit between mukhada statements — place a "mukhada" section IMMEDIATELY after every "manjha" (head -> manjha -> head, one cohesive cycle), and give that returning mukhada at least 2 bars so the head re-establishes itself. The whole form gets AT MOST ONE section that RESTS the lead (riff-only/breakdown), no longer than 2 bars — the gat is the star and must never vanish for long.
 Every rhythm section needs a "riff_slot" naming which riff it plays — "main"/"chorus"/"breakdown". Sections that SHARE a slot replay the SAME riff, so REUSE "main" wherever the mukhada/main riff returns, and give the chorus/breakdown their OWN slots to contrast. Lead-only sections need no slot."""

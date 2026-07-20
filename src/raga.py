@@ -607,6 +607,21 @@ def drone_swaras(raga: str) -> list[str]:
     return ["S"]
 
 
+def resting_swaras(raga: str) -> set[str]:
+    """The raga's resting / cadence notes — where a phrase can SETTLE: Sa (the home, always a
+    nyas), plus the vadi and samvadi (the raga's two most prominent swaras, and so its natural
+    resting points).
+
+    Used to snap a trading solo's handoff to a CLEAN LANDING — a taan phrase ends on a resting
+    note and the next voice starts fresh (Sujit's steer: 'the previous solo ends on a beat /
+    resting note / Sa'). Pure: reads only the encoded, source-verified raga facts, invents
+    nothing. A dedicated per-raga `nyas` set could refine this later; Sa + vadi + samvadi is a
+    faithful, grounded approximation.
+    """
+    r = RAGAS[raga]
+    return {"S", r["vadi"], r["samvadi"]}
+
+
 def scale_step_up(swara: str, raga: str, steps: int = 1) -> tuple[str, int]:
     """The swara `steps` scale-degrees above `swara` in the raga's ascending ladder,
     with the octave delta (0, +1, ...) when it wraps past Sa.

@@ -22,7 +22,7 @@ the second gate, never the first.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Callable, Final, Literal, Optional
+from typing import Any, Callable, Final, Literal, Optional, get_args
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
@@ -377,6 +377,14 @@ FormRole = Literal[
     "taan_short", "taan_long", "breakdown", "tihai", "outro",
 ]
 
+# How a peak (`taan_long`) section is REALISED under the metal band — orthogonal to its
+# form_role (which says WHERE it sits). `driven` (the DEFAULT): the band DRIVES the climax —
+# sustained ringing rhythm chords + climax drums hold the floor while the sitar/guitar taan
+# TRADES over them (the metal-solo climax). `exposed`: the alap-style reveal — the band drops
+# out of the taan's FINAL avartan so the sitar + tabla + drone carry the peak alone. Only
+# consulted for the long taan (see crew/dynamics.py::apply_taan_exposure); ignored elsewhere.
+ClimaxStyle = Literal["driven", "exposed"]
+
 # Which idea SEEDS the composition — the shared anchor both creative voices derive from, so
 # one idea (not two colliding ones) runs through the piece. `gat_first`: the sitar mukhada is
 # the source and the riff is its rhythmic reduction; `riff_first`: the riff is the source and
@@ -422,6 +430,10 @@ class Section(BaseModel):
                                            # modal_pedal / progression) — read by the CLEAN
                                            # guitar (crew/harmony.py); None = modal_pedal
                                            # defaults when a clean layer plays.
+    climax_style: ClimaxStyle = "driven"  # how a taan_long peak is realised: `driven` (the band
+                                          # DRIVES the climax — the default, metal-solo side) or
+                                          # `exposed` (the alap-style band-drop reveal). Ignored
+                                          # off a taan_long. See dynamics.py::apply_taan_exposure.
 
     @field_validator("riff_slot", mode="before")
     @classmethod
@@ -439,6 +451,15 @@ class Section(BaseModel):
         # Literal; a genuinely-unknown role still fails the Literal (fed back as a retry).
         if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
             return None
+        return str(v).strip().lower()
+
+    @field_validator("climax_style", mode="before")
+    @classmethod
+    def _norm_climax_style(cls, v):
+        # a blank / nullish value from an LLM defaults to the metal-solo `driven`; a genuinely
+        # unknown value still fails the Literal (fed back as a retry).
+        if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
+            return "driven"
         return str(v).strip().lower()
 
     @field_validator("layers")
@@ -741,17 +762,22 @@ def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arran
 # --------------------------------------------------------------------------- #
 
 def _clean_meend_swara(v):
-    """Normalize an LLM `meend_swara` (the glide TARGET) to a legal swara or None.
+    """Normalize a `meend_swara` (the glide TARGET) to a legal swara or None.
 
     The meend target was once a `str | {swara, oct}` union — but Gemini's native
     controlled generation (`response_json_schema`) handles `anyOf`/union schemas poorly,
-    so we flattened it to two flat scalar fields (`meend_swara` + `meend_oct`). This still
-    absorbs the nullish sentinels an LLM emits for "no glide" (JSON null, '', 'null',
-    'none'); a genuinely unknown target swara still raises."""
-    if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
+    so we flattened it to two flat scalar fields (`meend_swara` + `meend_oct`). It absorbs
+    the nullish sentinels an LLM emits for "no glide" (JSON null, '', 'null', 'none') AND
+    any junk that isn't a swara at all — the note then plays plain, without the glide.
+
+    ABSORB, DON'T RAISE (2026-07-20 live failure): a raising validator here fires inside
+    the provider's structured-output validation — BEFORE any guardrail/verify feedback
+    loop can see it — so one junk value (a live run emitted ':' as a target) killed the
+    entire compose. A meend is an OPTIONAL ornament: junk degrades to no-ornament; only
+    the core fields (the note's own swara) may be strict. In-vocabulary-but-illegal
+    targets are still caught by the raga guardrail, which DOES feed back."""
+    if not isinstance(v, str) or v.strip().lower() in _NULLISH or v not in SWARAS:
         return None
-    if v not in SWARAS:
-        raise ValueError(f"unknown meend target '{v}' (expected one of {' '.join(SWARAS)})")
     return v
 
 
@@ -922,10 +948,12 @@ class LeadNote(BaseModel):
     @field_validator("grace")
     @classmethod
     def _known_grace(cls, v):
-        bad = [g for g in (v or []) if g not in SWARAS]
-        if bad:
-            raise ValueError(f"unknown grace swara(s) {bad}")
-        return v
+        # ABSORB junk (see _clean_meend_swara): keep the legal grace swaras, drop the rest —
+        # a kan is an optional ornament; junk in it must never kill the parse.
+        if not v:
+            return v
+        kept = [g for g in v if g in SWARAS]
+        return kept or None
 
     @field_validator("meend_swara", mode="before")
     @classmethod
@@ -935,18 +963,24 @@ class LeadNote(BaseModel):
     @field_validator("bol", mode="before")
     @classmethod
     def _norm_bol(cls, v):
-        # absorb nullish sentinels so a blank doesn't trip the Literal; an unknown bol still fails.
-        if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
+        # Normalize the stroke: nullish sentinels and junk both absorb to None (an unknown
+        # stroke plays plain — see _clean_meend_swara for why raising here is fatal), and the
+        # names the prompts use informally map to their canonical bols ("dir" is the pair's
+        # NAME in the grids; the note-level bol is "diri").
+        if v is None or not isinstance(v, str):
             return None
-        return str(v).strip().lower()
+        s = v.strip().lower()
+        s = {"dir": "diri", "dara": "darada"}.get(s, s)
+        return s if s in get_args(Bol) else None
 
     @field_validator("ornament", mode="before")
     @classmethod
     def _norm_ornament(cls, v):
-        # same nullish absorption as bol; an unknown ornament still fails the Literal (retryable).
-        if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
+        # same absorption as bol: nullish or unknown -> no ornament, never a dead parse.
+        if v is None or not isinstance(v, str):
             return None
-        return str(v).strip().lower()
+        s = v.strip().lower()
+        return s if s in get_args(Ornament) else None
 
 
 # A phrase's overall shape, and the transformations that develop its seed — closed sets
@@ -1008,20 +1042,25 @@ class LeadPhrase(BaseModel):
 
 class Gat(BaseModel):
     """The whole gat as ONE composition (the way a musician conceives it — Pandit Arvind Parikh's
-    mukhada -> manjha -> antara). The three lines are generated TOGETHER, in a single LLM call, so
-    they share a motif and a PLANNED REGISTER ARC — the mukhada in the madhya (home), the manjha
-    dipping into the mandra (the low bridge), the antara lifting into the taar (the second theme)
-    — instead of three lines composed in isolation that only happen to be in the same raga.
+    FOUR-line model: mukhada -> manjha -> antara -> amad). The lines are generated TOGETHER, in a
+    single LLM call, so they share a motif and a PLANNED REGISTER ARC — the mukhada in the madhya
+    (home), the manjha dipping into the mandra (the low bridge), the antara lifting into the taar
+    (the second theme), and the amad composing the DESCENT that "brings you down to the point
+    where the composition started" — instead of lines composed in isolation that only happen to
+    be in the same raga. The full circuit spans the tradition's 2.5-3 octaves.
 
-    `manjha`/`antara` are optional: an arrangement may omit either, and only the parts it needs are
-    generated. Legality is the generator's guardrail (as for LeadPhrase); each part is then held to
-    its own gat verifier, and a part that fails is repaired IN ISOLATION (the others held fixed) —
-    nobody rewrites a whole gat because one antara phrase isn't convincing.
+    `manjha`/`antara`/`amad` are optional: an arrangement may omit any, and only the parts it
+    needs are generated (the amad rides the antara section's final avartan, so it exists only
+    when an antara section has room for it). Legality is the generator's guardrail (as for
+    LeadPhrase); each part is then held to its own gat verifier, and a part that fails is
+    repaired IN ISOLATION (the others held fixed) — nobody rewrites a whole gat because one
+    antara phrase isn't convincing.
     """
-    anchor: str = ""                              # the ONE idea seeding all three (a short note to self)
+    anchor: str = ""                              # the ONE idea seeding all the parts (a short note to self)
     mukhada: LeadPhrase
     manjha: Optional[LeadPhrase] = None
     antara: Optional[LeadPhrase] = None
+    amad: Optional[LeadPhrase] = None             # the composed descent re-entering the head
 
 
 class RiffNote(BaseModel):
@@ -1061,10 +1100,22 @@ class RiffNote(BaseModel):
     @field_validator("chord")
     @classmethod
     def _known_chord(cls, v):
-        bad = [c for c in (v or []) if c not in SWARAS]
-        if bad:
-            raise ValueError(f"unknown chord swara(s) {bad}")
-        return v
+        # ABSORB junk (see _clean_meend_swara): keep the legal chord tones, drop the rest —
+        # a thinner voicing beats a dead parse; raga legality of the kept tones is the
+        # guardrail's job (which feeds back, unlike a raising validator here).
+        if not v:
+            return v
+        kept = [c for c in v if c in SWARAS]
+        return kept or None
+
+    @field_validator("technique", mode="before")
+    @classmethod
+    def _norm_technique(cls, v):
+        # nullish or unknown -> no technique, never a dead parse (same rule as LeadNote.bol).
+        if v is None or not isinstance(v, str):
+            return None
+        s = v.strip().lower()
+        return s if s in get_args(RiffTechnique) else None
 
 
 class RiffPattern(BaseModel):

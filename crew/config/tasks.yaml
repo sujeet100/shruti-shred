@@ -256,6 +256,9 @@ generate_lead:
     YOUR SECTION'S JOB in the whole composition:
     {role_brief}
 
+    THE STROKE FRAME — the gat's bol identity (applies when your section is the head):
+    {bol_frame}
+
     THE RAGA — use ONLY these swaras; the pakad and chalan below are your raw material:
     {raga_block}
 
@@ -303,9 +306,10 @@ generate_lead:
 generate_gat:
   description: |
     You are the gat composer for a Hindustani-raga x metal fusion. Compose the WHOLE gat as ONE
-    coherent composition — the mukhada, the manjha and the antara TOGETHER — sharing one motif and
-    a deliberate REGISTER ARC. A gat is not three separate tunes; it is one identity revealed across
-    three registers, exactly as a musician conceives it.
+    coherent composition — the mukhada, manjha, antara and amad TOGETHER — sharing one motif and a
+    deliberate REGISTER ARC (Pandit Arvind Parikh's four-line model, spanning 2.5-3 octaves). A gat
+    is not separate tunes; it is one identity revealed across the registers, exactly as a musician
+    conceives it.
 
     THE RAGA (the single source of truth — every swara you write, in every part, must be legal here):
     {raga_block}
@@ -313,14 +317,20 @@ generate_gat:
     THE MOTIF (your seed — quote/derive the mukhada from it and the raga's pakad): {motif}
     Metal feel: {subgenre_feel}    Tempo: {bpm} bpm    Tala: {tala}    One avartan = {cycle_beats} beats.
 
-    ONE ANCHOR FIRST: write a short `anchor` naming the single idea that seeds all three parts (a
-    pakad phrase, a rhythmic cell, a register plan), then compose the parts as three faces of it.
+    THE STROKE FRAME — the mukhada's rhythmic identity (bols are strokes, not pitches):
+    {bol_frame}
+
+    ONE ANCHOR FIRST: write a short `anchor` naming the single idea that seeds all the parts (a
+    pakad phrase, a rhythmic cell, a register plan), then compose the parts as faces of it.
 
     THE PARTS — compose EXACTLY these and no others: {parts_needed}
       - mukhada: the GAT HEAD — a compact, memorable ~one-avartan hook in the MADHYA (home) octave,
-        built ON THE PAKAD, landing on the sam (the vadi or Sa), written so its LAST note leads back
-        into its FIRST (it loops). This is the identity the other parts develop; pour everything in.
-      - manjha: the LOWER-REGISTER BRIDGE (Pandit Parikh — the manjha takes the melody DOWN into the
+        built ON THE PAKAD. Its FIRST note sounds ON the sam every avartan: make it Sa or the vadi,
+        struck "da". Land the LAST note on a resting swara, written to lead back into the FIRST (it
+        loops), and make the final ~5 matras a driving APPROACH into the next sam. Follow the
+        stroke frame above — sam struck "da", the dir doublings in place, most notes carrying a
+        bol. This is the identity the other parts develop; pour everything in.
+      - manjha: the LOWER-REGISTER BRIDGE (Parikh — the manjha takes the melody DOWN into the
         mandra). SHORT (about one avartan), CALM: ONE spacious idea, longer nyas and meend, NOT a
         busy run. Keep the centre of gravity in the mandra / lower-madhya and do NOT climb into the
         taar (the antara owns the upper octave). Contrast the mukhada by register and contour (dip
@@ -328,19 +338,25 @@ generate_gat:
         the mukhada's first swara.
       - antara: the SECOND MOVEMENT — the SAME gat lifted into the TAAR (upper) octave. Open in the
         madhya QUOTING the mukhada's opening swaras, climb, reach ONE peak past the midpoint, then
-        descend to rest on madhya Sa. Never a new tune — the mukhada's DNA, higher.
+        begin the descent. When an amad is also asked for, the amad owns the final homecoming — you
+        need not come all the way down yourself. Never a new tune — the mukhada's DNA, higher.
+      - amad: the COMPOSED DESCENT (Parikh's fourth line — it "brings you down to the point where
+        the composition started"). ONE avartan: open on or near the antara's landing swara, come
+        down through the madhya without ever climbing above your opening, and end at or below home
+        as a stepwise lead-in to the mukhada's first swara — the head re-enters the moment you land.
 
     Fill each part's `phrase_plan` FIRST, then its `notes`. Return ONE Gat JSON:
     {gat_output_schema}
 
     HARD RULES (a gat that breaks these is rejected and you redo it):
       - Use ONLY the raga's allowed swaras — every part, every note, each grace and meend target.
-      - The three parts SHARE the anchor/motif — one composition, not three unrelated tunes.
-      - Register arc: mukhada madhya; manjha centred in the mandra (NO taar); antara reaches the taar.
+      - The parts SHARE the anchor/motif — one composition, not unrelated tunes.
+      - Register arc: mukhada madhya; manjha centred in the mandra (NO taar); antara reaches the
+        taar; amad descends home.
       - Compose ONLY the parts listed in {parts_needed} (omit the others from the JSON).
   expected_output: |
-    A single Gat JSON object: an `anchor` string, `mukhada` always, and `manjha`/`antara` only when
-    listed in parts_needed — each a phrase_plan + notes using ONLY the raga's legal swaras.
+    A single Gat JSON object: an `anchor` string, `mukhada` always, and `manjha`/`antara`/`amad`
+    only when listed in parts_needed — each a phrase_plan + notes using ONLY the raga's legal swaras.
 
 # The Riff generator writes ONE tala cycle; code repeats it across the section's bars
 # and punches the notes that land on the accented matras. No literal braces here; the

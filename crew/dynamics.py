@@ -145,9 +145,13 @@ def apply_dynamics(layers: list[Layer], arr: Arrangement) -> list[Layer]:
 
 
 # --- THE TAAN EXPOSURE — the band-drop window (Sujit's own Yaman fusion, 2026-07-16) --------
+# The OPT-IN `exposed` climax (a taan_long section with climax_style == "exposed"). The DEFAULT
+# is `driven` — the band DRIVES the peak (sustained rhythm chords + climax drums holding the
+# floor while the sitar/guitar taan trades over them, the metal-solo side) — and gets NO window
+# here. This exposure is the alap-style reveal, reached only when a section asks for it.
 # Measured on his track: its most dramatic moments are the ones where rhythm/bass/drums vanish
 # and the sitar plays exposed, the band slamming back in. Made structural: in the FINAL avartan
-# of every long taan (the piece's peak), the metal band — rhythm (and its double), bass, kit —
+# of every EXPOSED long taan (the piece's peak), the metal band — rhythm (and its double), bass, kit —
 # drops out: ONE stop hit on that avartan's sam (clamped to ring at most a beat), then true
 # silence, while the sitar's taan (with its tihai), the drone, and the TABLA carry the cycle
 # alone (sitar+tabla is the classic Hindustani exposure, and the theka keeps the tala audible so
@@ -163,10 +167,12 @@ _EPS: float = 1e-6
 
 def taan_exposure_windows(arr: Arrangement) -> list[tuple[float, float]]:
     """The [start, end) beat windows where the band drops out: the FINAL avartan of every
-    `taan_long` section of at least `_EXPOSURE_MIN_BARS` bars. Pure."""
+    EXPOSED `taan_long` section (climax_style == "exposed") of at least `_EXPOSURE_MIN_BARS`
+    bars. A `driven` taan (the default) keeps the band and yields no window. Pure."""
     return [(span.end - arr.beats_per_bar, span.end)
             for span in section_spans(arr)
             if span.section.form_role == _TAAN_LONG_ROLE
+            and span.section.climax_style == "exposed"
             and span.section.bars >= _EXPOSURE_MIN_BARS]
 
 

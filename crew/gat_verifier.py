@@ -29,6 +29,7 @@ from __future__ import annotations
 from typing import Final
 
 from crew.contracts import LeadNote, LeadPhrase
+from gats import GAT_FRAMES
 from raga import RAGAS, SWARAS
 
 # A mukhada should fill about ONE avartan so it loops as a cycle. Too short == a fragment; well
@@ -97,6 +98,20 @@ def _real_meend(note: LeadNote) -> bool:
 # Manjha / taan-fill seam — "fluid" made checkable: the cell's last note sits within this many
 # scale-degrees of the mukhada's first swara, so the head re-enters as a step, not a leap.
 _SEAM_MAX_STEPS: Final = 2
+
+# Bol frame (2026-07-20 gat research — see src/gats.py for the sourced facts): the stroke
+# pattern is the gat's rhythmic IDENTITY, checkable without dictating melody. Three tolerant
+# rules: the sam is struck STRONG (da), the dir doublings are present (position-pinned to the
+# verified Masitkhani grid on a 16-matra cycle; density-only for the flexible Razakhani), and
+# most notes carry an explicit stroke at all. Coverage is deliberately lenient (a hold is one
+# stroke): the goal is an identity, not a transcription exam.
+_BOL_MIN_COVERAGE: Final = 0.5     # at least this share of sounding notes carry a bol
+_FRAME_MIN_DOUBLES: Final = 2      # (razakhani) at least this many dir double-attack matras
+
+# Amad (Parikh's FOURTH line): the composed descent that "brings you down to the point where
+# the composition started". Checkable: net descent, no re-peak (a descent may eddy, never
+# re-climb past its opening), lands at/below home, and seams into the returning head.
+_AMAD_RISE_MAX: Final = 2          # semitones the line may eddy above its opening note
 
 # Antara — the second movement of the SAME gat, whose arc is checkable: opens in the middle
 # octave QUOTING the head, climbs, peaks ONCE in the taar past the midpoint, then descends to
@@ -189,28 +204,50 @@ def _first_swara(cell: LeadPhrase) -> str | None:
     return _landing_swara(sounding[0]) if sounding else None
 
 
-def _seam_violation(last: LeadNote, mukhada: LeadPhrase, raga: str, cell_name: str) -> str | None:
-    """The shared RETURN-SEAM rule: the cell's last note must lead fluidly into the mukhada's
-    first swara (within `_SEAM_MAX_STEPS` on the raga's ladder — same note or a stepwise pull),
-    so the head re-enters on the sam as a resolution, not a jump-cut."""
-    head_first = _first_swara(mukhada)
-    if head_first is None:
+def _seam_violation_to(last: LeadNote, target: str | None, raga: str, cell_name: str,
+                       target_desc: str) -> str | None:
+    """The shared RETURN-SEAM rule against an explicit target swara: the cell's last note must
+    lead fluidly into it (within `_SEAM_MAX_STEPS` on the raga's ladder — same note or a
+    stepwise pull), so the head re-enters as a resolution, not a jump-cut."""
+    if target is None:
         return None                       # a degenerate head is the mukhada verifier's problem
     landing = _landing_swara(last)
-    if _scale_steps_between(landing, head_first, raga) <= _SEAM_MAX_STEPS:
+    if _scale_steps_between(landing, target, raga) <= _SEAM_MAX_STEPS:
         return None
-    return (f"the {cell_name} ends on {landing}, which does not lead into the mukhada's first "
-            f"swara {head_first} — end on {head_first} itself or within a step or two of it "
-            f"(a stepwise lead-in), so the head re-enters fluidly on the sam")
+    return (f"the {cell_name} ends on {landing}, which does not lead into {target_desc} "
+            f"({target}) — end on {target} itself or within a step or two of it "
+            f"(a stepwise lead-in), so the head re-enters fluidly")
+
+
+def _seam_violation(last: LeadNote, mukhada: LeadPhrase, raga: str, cell_name: str) -> str | None:
+    """The return seam against the mukhada's FIRST swara — the head statement that follows."""
+    return _seam_violation_to(last, _first_swara(mukhada), raga, cell_name,
+                              "the mukhada's first swara")
+
+
+def reentry_swara(mukhada: LeadPhrase, from_beat: float) -> str | None:
+    """The first swara the head SOUNDS at or after `from_beat` of its avartan — the note the
+    head's APPROACH re-enters on after a front-spliced taan fill (cumulative time over the
+    cell's notes, rests included). Falls back to the head's first swara when nothing starts
+    that late (a degenerate head)."""
+    t = 0.0
+    for n in mukhada.notes:
+        if not n.rest and t >= from_beat - 1e-6:
+            return _landing_swara(n)
+        t += n.dur
+    return _first_swara(mukhada)
 
 
 def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[str]:
     """Return the mukhada head's TIME-legality violations (empty == a clean hook). Pure.
 
-    Three checks the pitch guardrail can't make, each targeting a diagnosed failure of the first
-    live gat:
+    Four checks the pitch guardrail can't make, each targeting a diagnosed failure of the first
+    live gat (the fourth from the 2026-07-20 gat research):
       * FILLS THE AVARTAN — the head's total duration is about one cycle, so looping it re-lands on
         the sam instead of repeating a fragment (or being truncated mid-cadence);
+      * OPENS ON A STRUCTURAL SWARA — the head's FIRST note sounds ON every sam (the loop restates
+        it there each avartan), and the tradition places a deliberate swara on the sam: Sa or the
+        vadi, ideally the pakad's landing (JETIR bandish craft; Deepak Raja's mukhda analyses);
       * CADENCES TO A RESTING SWARA — the last sounding note is Sa, the vadi, or the samvadi, so the
         head resolves to the sam and the loop seam lands rather than restarts;
       * NOT RHYTHMICALLY FLAT — the durations vary (the diagnosed failure was a gat of even quarter
@@ -224,6 +261,12 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
         return ["the mukhada has no sounding notes — it must state a melodic head"]
 
     viol: list[str] = []
+    resting = _resting_swaras(raga)
+    first = _landing_swara(sounding[0])
+    if first not in resting:
+        viol.append(f"the mukhada opens on {first}, but its first note sounds ON every sam — "
+                    f"open on Sa or the vadi ({' '.join(sorted(resting))}), ideally the pakad's "
+                    f"strong landing, so the cycle's downbeat carries a structural swara")
     total = sum(n.dur for n in notes)
     if total < _FILL_MIN * cycle_beats:
         viol.append(f"the mukhada fills only {total:g} of {cycle_beats:g} beats — a fragment, not a "
@@ -232,7 +275,6 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
         viol.append(f"the mukhada runs {total:g} beats, well over the {cycle_beats:g}-beat avartan — "
                     f"keep the head to about one cycle or it gets truncated mid-phrase")
 
-    resting = _resting_swaras(raga)
     last = sounding[-1]
     landing = _landing_swara(last)   # a chikari sounds taar Sa (a resting note)
     if landing not in resting:
@@ -249,6 +291,69 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
     if not any(d <= _MUKHADA_SHORT for d in durations):
         viol.append(f"the mukhada has no short note (<= {_MUKHADA_SHORT:g} beats) — 8ths are "
                     f"the movement between the resting notes; all-quarters reads as a metronome")
+
+    return viol
+
+
+def _double_attack_matras(notes: list[LeadNote]) -> set[int]:
+    """The 1-indexed matras (1 matra == 1 beat) carrying a DOUBLE attack — a 'dir': either two
+    or more sounding notes starting within the matra, or one note there whose bol is itself a
+    compound stroke (diri/darada — `apply_strokes` splits those into multiple attacks)."""
+    starts: dict[int, int] = {}
+    t = 0.0
+    for n in notes:
+        if not n.rest:
+            matra = int(t + 1e-6) + 1
+            attacks = 2 if n.bol in ("diri", "darada") else 1
+            starts[matra] = starts.get(matra, 0) + attacks
+        t += n.dur
+    return {m for m, count in starts.items() if count >= 2}
+
+
+def verify_bol_frame(cell: LeadPhrase, *, cycle_beats: float, frame: str) -> list[str]:
+    """Return the mukhada head's STROKE-FRAME violations (empty == it has a bol identity). Pure.
+
+    The 2026-07-20 gat research finding: the stroke pattern is what makes a gat a gat (Parikh:
+    a gat without the bol pattern "is just a vilambit gat"), and our heads had none — bols were
+    optional colour. The frame facts live in `src/gats.py`; this checks the tolerant core:
+      * STRUCK ON THE SAM — the first note (which sounds ON every sam) carries the strong 'da';
+      * THE DIR DOUBLINGS — masitkhani on a 16-matra cycle pins them to the verified grid's
+        approach positions (matras 12 and 14, the dir-da-dir-da-ra surge into the next sam);
+        razakhani (or any other cycle) requires only their DENSITY (>= 2 double-attack matras)
+        because flexibility is the sourced fact — position would be a guess;
+      * A STROKE IDENTITY AT ALL — at least half the sounding notes carry an explicit bol.
+    Melody is never judged here — the frame is rhythm; which swaras ride it stays the LLM's.
+    """
+    sounding = _sounding(cell.notes)
+    if not sounding:
+        return []                       # verify_mukhada owns the degenerate-cell complaint
+
+    viol: list[str] = []
+    if sounding[0].bol != "da":
+        viol.append("the head's first note is not struck 'da' — it sounds ON every sam, and "
+                    "the gat frame lands its arrival stroke there strong; set bol \"da\" on it")
+
+    doubles = _double_attack_matras(cell.notes)
+    grid_matras = GAT_FRAMES[frame].get("bols") is not None and cycle_beats == GAT_FRAMES[frame]["matras"]
+    if grid_matras:
+        approach = [m for m in GAT_FRAMES[frame]["double_stroke_matras"]
+                    if m > GAT_FRAMES[frame]["mukhda_start"] - 1]      # the dir's in the mukhda span
+        missing = [m for m in approach if m not in doubles]
+        if missing:
+            viol.append(f"the {GAT_FRAMES[frame]['display']} approach needs a dir DOUBLE stroke "
+                        f"on matra(s) {' '.join(map(str, missing))} (the dir-da-dir-da-ra surge "
+                        f"into the next sam) — put two fast notes, or one note with bol "
+                        f"\"diri\", starting in each of those matras")
+    elif len(doubles) < _FRAME_MIN_DOUBLES:
+        viol.append(f"the head has {len(doubles)} dir doubling(s) — a "
+                    f"{GAT_FRAMES[frame]['display']} gat drives on double strokes: at least "
+                    f"{_FRAME_MIN_DOUBLES} matras with two fast notes (or a \"diri\" bol)")
+
+    with_bol = sum(1 for n in sounding if n.bol is not None)
+    if with_bol < _BOL_MIN_COVERAGE * len(sounding):
+        viol.append(f"only {with_bol} of {len(sounding)} notes carry a mizrab bol — the stroke "
+                    f"pattern is the gat's identity: give most notes their da/ra (dir doublings "
+                    f"where the frame asks), so the head has a rhythm signature, not just pitches")
 
     return viol
 
@@ -649,7 +754,7 @@ def _arc_violations(sounding: list[LeadNote], cell_name: str) -> list[str]:
 
 
 def verify_antara(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
-                  raga: str) -> list[str]:
+                  raga: str, with_amad: bool = False) -> list[str]:
     """Return the antara's structural violations (empty == a true second movement). Pure.
 
     The diagnosed failure: "lift into the upper octave" produced random high notes — the LLM
@@ -667,6 +772,9 @@ def verify_antara(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
       * FITS ITS WINDOW — end-anchored, so an overrun truncates its own resolution (this exact
         failure was heard live: a verified ends-on-Sa antara clipped at the window edge and the
         piece heard it end on Re).
+    With `with_amad` (Parikh's four-line model, 2026-07-20), the AMAD owns the homecoming —
+    the antara keeps its whole arc (climb, late peak, descend after it) but is NOT required to
+    come all the way down to madhya Sa itself; `verify_amad` holds the descent line to that.
     """
     notes = cell.notes
     sounding = _sounding(notes)
@@ -694,7 +802,7 @@ def verify_antara(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     viol.extend(_arc_violations(sounding, "antara"))
 
     last = sounding[-1]
-    if _landing_swara(last) != "S" or _landing_oct(last) >= 1:
+    if not with_amad and (_landing_swara(last) != "S" or _landing_oct(last) >= 1):
         viol.append(f"the antara ends on {_landing_swara(last)} (oct {_landing_oct(last):+d}) — "
                     f"descend and come to rest on madhya Sa, handing off into the returning mukhada")
 
@@ -705,6 +813,68 @@ def verify_antara(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
         viol.append(f"the antara uses fewer than {_TAAN_MIN_DURATIONS} distinct note values — a "
                     f"wall of even long notes reads as a drone, not a theme; mix 8ths and "
                     f"quarters against the held notes")
+
+    return viol
+
+
+def verify_amad(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
+                raga: str, antara_last: str | None = None) -> list[str]:
+    """Return the amad's structural violations (empty == a true composed return). Pure.
+
+    The amad is Parikh's FOURTH line — the composed descent that "brings you down to the
+    point where the composition started, and thus completes the cycle" (2026-07-20 gat
+    research). It occupies the antara section's final avartan, so the return to the head is
+    COMPOSED, not left to the antara's tail. The checkable core:
+      * FLOWS OUT OF THE ANTARA — when the antara's landing swara is known, the amad opens
+        within a step or two of it (the fourth line continues the third, no jump-cut);
+      * NET DESCENT, NO RE-PEAK — the line ends below where it began and never eddies more
+        than a couple of semitones above its opening (a descent may breathe, never re-climb);
+      * LANDS AT HOME — the final note sits at or below the madhya and leads into the
+        mukhada's first swara (the shared return-seam rule): down to where it all started;
+      * FITS ITS WINDOW — end-anchored like the manjha/antara (an overrun clips the very
+        re-entry it composes);
+      * HAS A RHYTHMIC SHAPE — not a run of identical durations.
+    """
+    notes = cell.notes
+    sounding = _sounding(notes)
+    if not sounding:
+        return ["the amad has no sounding notes — it must compose the descent back to the head"]
+
+    viol: list[str] = []
+    total = sum(n.dur for n in notes)
+    if total < _CELL_FILL_MIN * window_beats:
+        viol.append(f"the amad fills only {total:g} of its {window_beats:g}-beat window — carry "
+                    f"the descent all the way to the closing sam, where the mukhada re-enters")
+    else:
+        over = _overrun_violation(notes, window_beats, "amad",
+                                  "land the re-entry note ON the closing sam")
+        if over:
+            viol.append(over)
+
+    first, last = sounding[0], sounding[-1]
+    if antara_last is not None:
+        steps = _scale_steps_between(_landing_swara(first), antara_last, raga)
+        if steps > _SEAM_MAX_STEPS:
+            viol.append(f"the amad opens on {_landing_swara(first)}, a leap from the antara's "
+                        f"landing {antara_last} — the amad is the antara's own second line: "
+                        f"open on or within a step or two of {antara_last} and descend from there")
+    first_pitch = _landing_pitch(first)
+    if _landing_pitch(last) >= first_pitch:
+        viol.append("the amad does not DESCEND — it must end lower than it begins; the amad's "
+                    "whole job is bringing the melody down to where the composition started")
+    if max(map(_landing_pitch, sounding)) > first_pitch + _AMAD_RISE_MAX:
+        viol.append("the amad climbs above its opening — the peak belongs to the antara; the "
+                    "amad may eddy a step but its direction is DOWN, all the way home")
+    if _landing_oct(last) > 0:
+        viol.append(f"the amad ends in the taar (oct {_landing_oct(last):+d}) — come to rest at "
+                    f"or below the madhya, where the returning mukhada picks up")
+    seam = _seam_violation(last, mukhada, raga, "amad")
+    if seam:
+        viol.append(seam)
+
+    if _rhythmically_flat(sounding):
+        viol.append("the amad is rhythmically flat — every note is the same length; a composed "
+                    "descent still phrases (mix note values on the way down)")
 
     return viol
 
@@ -801,14 +971,19 @@ def verify_fill(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
                 raga: str) -> list[str]:
     """Return a mukhada taan-FILL's structural violations (empty == a clean splice). Pure.
 
-    The fill is the classic gat move: cut a few matras out of a head statement, burst a short
-    sixteenth-note taan there, and resolve back so the head re-enters fluently on the next sam.
-    Code owns the splice (where the head is cut); this owns the fill's checkable grammar:
+    The fill is the classic gat move, and since the 2026-07-20 gat research it follows the
+    tradition's geometry: the taan LAUNCHES FROM THE SAM and runs the FRONT of the avartan
+    (the improvised region, matras ~1-11), then the head's own APPROACH — its final matras,
+    the mukhda anacrusis — re-enters and lands the next sam. (The old splice cut the BACK
+    half, deleting exactly the approach the tradition keeps sacrosanct.) Code owns the splice
+    (where the head re-enters); this owns the fill's checkable grammar:
       * IT IS A TAAN — sixteenth notes (<= 0.25 beats) throughout, with at most one longer
         final landing note;
-      * IT FITS THE CUT — the cell fills its half-avartan window almost exactly (a splice has
-        no room for slack);
-      * IT RESOLVES INTO THE HEAD — the same return-seam rule as the manjha.
+      * IT FITS THE CUT — the cell fills its front-of-avartan window almost exactly (a splice
+        has no room for slack; `window_beats` IS the re-entry beat);
+      * IT RESOLVES INTO THE RE-ENTERING APPROACH — the return-seam rule, aimed at the swara
+        the head sounds AT the re-entry beat (not the head's first note, which lands the
+        NEXT sam after the approach has run).
     """
     notes = cell.notes
     sounding = _sounding(notes)
@@ -826,7 +1001,8 @@ def verify_fill(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
         viol.append(f"the fill lasts {total:g} beats but must fill its {window_beats:g}-beat cut "
                     f"almost exactly — it is spliced into the mukhada, so there is no slack")
 
-    seam = _seam_violation(sounding[-1], mukhada, raga, "taan fill")
+    seam = _seam_violation_to(sounding[-1], reentry_swara(mukhada, window_beats), raga,
+                              "taan fill", "the head's re-entering approach")
     if seam:
         viol.append(seam)
 

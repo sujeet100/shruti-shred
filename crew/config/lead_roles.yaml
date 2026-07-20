@@ -35,15 +35,22 @@ roles:
     yourself), so pour everything into this single cycle:
       - BUILD IT ON THE PAKAD — the raga's signature phrase IS the natural hook; quote
         or closely derive the head from it.
-      - Fill the whole avartan and LAND ON THE SAM: resolve onto a resting swara
+      - OPEN ON THE SAM'S SWARA: your FIRST note sounds ON the sam every single avartan
+        — make it Sa or the vadi (ideally the pakad's strong landing), struck with a
+        strong "da". A weak or stray swara on the sam is rejected.
+      - Fill the whole avartan and LAND: resolve the last note onto a resting swara
         (ideally the vadi or Sa).
       - LOOP SEAMLESSLY: write the LAST note to lead melodically into the FIRST, so
-        each repeat feels like it lands rather than restarts.
+        each repeat feels like it lands rather than restarts. The final ~5 matras are
+        the head's APPROACH — the anacrusis that surges into the next sam; make them
+        the most driving part of the cycle (this is what a listener hums).
       - MIX THE NOTE VALUES — at least THREE distinct durations: 8ths (0.5) for the
         movement, quarters, and at least one HELD note (2+ beats) as the nyas resting
         point. A head of even values reads as a metronome and is rejected.
-      - Give it a short recurring bol signature (e.g. da diri da ra) — its rhythmic
-        identity, restated on every return.
+      - FOLLOW THE STROKE FRAME (given below): the bol pattern is the gat's IDENTITY —
+        strike the sam "da", place the dir doublings where the frame asks (two fast
+        notes, or one note with bol "diri"), and give most notes an explicit da/ra. A
+        head without a stroke signature is rejected.
   manjha: |
     The MANJHA — the LOWER-REGISTER BRIDGE (part of the sthayi; short and calm):
       - ONE clear, spacious idea filling the window (about one avartan) — longer nyas,
@@ -68,11 +75,13 @@ roles:
         note values (8ths and quarters against the held notes) — a wall of even long
         notes reads as a drone and is rejected.
   taan_short: |
-    A TAAN FILL — a short cadential burst spliced into the mukhada:
+    A TAAN FILL — a short burst spliced into the FRONT of the mukhada's avartan, the
+    way the tradition improvises: YOU launch from the sam and run the open region;
+    then the head's own APPROACH re-enters after you and lands the next sam.
       - SIXTEENTH-NOTES only (dur 0.25); only the final landing note may be longer.
-      - Fill the cut window exactly.
-      - Resolve stepwise into the head's first swara (see THE GAT HEAD below), arriving
-        on the next sam. A connective flourish, not a solo.
+      - Fill the cut window exactly — the head re-enters the instant you finish.
+      - Resolve stepwise into the RE-ENTERING approach's first swara (the section
+        intent names it). A connective flourish, not a solo.
   taan_long: |
     The TAAN — THE CLIMAX of the whole composition. A taan is ONE musical journey grown
     from the piece's MOTIF, not "the scale, quickly":
@@ -94,8 +103,9 @@ roles:
         bols rather than more notes.
       - END IN FLIGHT: the final approach is itself a dense sixteenth run resolving
         STRAIGHT onto the closing sam, landing on a resting swara — a landing walked to
-        on long notes is rejected. The classic cadence is a TIHAI (one short phrase
-        stated THREE times, the last landing exactly on the sam). A brilliant landing
+        on long notes is rejected. Make the closing phrase SHORT and conclusive: code
+        restates it as a TIHAI (your closing phrase three times, the last landing
+        exactly on the sam — the gharana's signature cadence). A brilliant landing
         matters more than maximum speed.
   intro: |
     The AOCHAR — a SHORT ALAP VISTAR developing ONE MUSICAL THOUGHT. Make THIS raga
@@ -128,6 +138,17 @@ roles:
       - ONLY the FINAL phrase RESOLVES: descend and come home to a long HELD Sa (2+
         beats, the longest of the intro — it finally feels like home); code then lets
         it ring into a reserved silence before the gat enters.
+  amad: |
+    The AMAD — the FOURTH line of the gat (Parikh: it "brings you down to the point
+    where the composition started"), riding the antara's final avartan:
+      - OPEN where the antara landed (on or within a step of its last swara) and
+        DESCEND — one composed line, down through the madhya, in ONE avartan.
+      - Direction is DOWN: never climb above your opening (the peak was the antara's);
+        the line may eddy a step, never re-peak.
+      - END at or below madhya as a stepwise LEAD-IN to the returning head's first
+        swara, arriving at the closing sam — the mukhada re-enters the moment you land.
+      - PHRASE the descent: mix note values (a meend into a landing is idiomatic);
+        an even wall of notes is rejected.
   outro: |
     The OUTRO: settle onto a held Sa. A tihai — one phrase stated THREE times, the
     last landing on the sam — is the classic close.

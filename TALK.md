@@ -569,6 +569,21 @@ convincing than a hypothetical.)*
   prompt is rarely the only guilty layer. *Line:* "The model had written the slides all
   along; the renderer was swallowing them."
 
+- **"Not catchy" was a geometry bug, not a taste bug (2026-07-20).** Sujit's feedback — the
+  gats aren't memorable "like Vilayat Khan" — sounded like a prompt/taste problem. Research
+  into the gharana's own pedagogy (Arvind Parikh's writings) showed the tradition had
+  ENGINEERED catchiness centuries ago: the mukhda is a five-matra pickup landing ON the
+  sam, and improvisation replaces the FRONT of the cycle while that approach stays
+  sacrosanct. Our code did the exact opposite — the taan fill cut the BACK half of the
+  head's avartan, deleting the hook's approach every time. One constant's semantics
+  (`_FILL_FRACTION` back-half → `approach_cut` front-cut) carried more catchiness than any
+  prompt rewrite could. The rest of the fix was the same encode-the-tradition move: the
+  stroke grid as data (`src/gats.py`), the tihai as ARITHMETIC (phrase ×3 + 2 gaps == one
+  avartan — counting is code's job, the phrase is the model's), the amad as a verified
+  fourth line. *Lesson:* when a domain has a centuries-old craft, the craft IS the spec —
+  research it and encode it as checkable geometry; don't ask the model to rediscover it.
+  *Line:* "Vilayat Khan's catchiness was an algorithm all along — we just had it backwards."
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —

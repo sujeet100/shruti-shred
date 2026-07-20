@@ -155,6 +155,17 @@ def test_directional_varjya_is_derived_from_the_ladders():
     assert directional_varjya("malkauns") == {}
 
 
+def test_resting_swaras_are_sa_vadi_samvadi_and_legal():
+    # the raga's settling points — Sa (always) plus vadi + samvadi — used to snap a trading
+    # solo's handoff to a clean landing. Every resting note must be a legal swara of the raga.
+    from raga import resting_swaras
+    for name, r in RAGAS.items():
+        rs = resting_swaras(name)
+        assert "S" in rs and r["vadi"] in rs and r["samvadi"] in rs
+        assert rs <= set(r["allowed"])                  # every resting note is legal in the raga
+    assert resting_swaras("darbari") == {"S", "R", "P"}  # vadi R, samvadi P
+
+
 def test_ascent_step_skips_descent_only_swaras():
     # the next swara ENTERABLE from below — the seat for any code gesture rising into
     # a pitch (a riff bend's apex): a plain step in a symmetric raga, the skip in a

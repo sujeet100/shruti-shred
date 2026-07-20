@@ -109,6 +109,9 @@
   }
   .status.running .dot { background: var(--neon-magenta); animation: rec 1.1s steps(2) infinite; }
   .status.done .dot { background: var(--drone-cyan); box-shadow: 0 0 10px var(--drone-cyan); }
+  .status.failed { color: var(--neon-magenta); border-color: var(--neon-magenta); }
+  .status.failed .dot { background: var(--neon-magenta); box-shadow: 0 0 10px var(--neon-magenta); }
+  .logline.lg-fail .lg-agent, .logline.lg-fail .lg-text { color: var(--neon-magenta); }
   @keyframes rec { 50% { opacity: .25; } }
 
   /* ---- The stage (the studio floor) ---- */
@@ -1364,6 +1367,25 @@
     director.comp = comp; director.audio = audio;
     finishRun(true);                               // reveal the score + play
   }
+  // A live run DIED — say so, loudly, and stop. The events streamed so far stay on
+  // screen (they show exactly how far the crew got); nothing is silently replaced by
+  // demo content (that read as "still working" and hid real failures — Sujit, 2026-07-20).
+  function liveFail(err) {
+    director.active = false;
+    const msg = String(err && err.message || err);
+    setStatus("live compose FAILED", "status failed");
+    dom.sWho.textContent = "System"; dom.sWho.style.color = "var(--neon-magenta)";
+    dom.sWhat.textContent = `live compose failed — ${msg}`;
+    const line = document.createElement("div");
+    line.className = "logline lg-fail";
+    line.innerHTML = `<span class="lg-agent">FAILED</span>` +
+                     `<span class="lg-text">${escapeHtml(msg)} — press COMPOSE to retry, ` +
+                     `or flip Source to Demo for the replay.</span>`;
+    dom.logfeed.appendChild(line);
+    dom.logfeed.scrollTop = dom.logfeed.scrollHeight;
+    dom.logTag.textContent = "— failed";
+    dom.composeBtn.disabled = false;               // retry is one click away
+  }
 
   // POST the query, then read the NDJSON body chunk-by-chunk: each line is one event
   // (render it live), and a final {done:…} line carries the composition + audio URL.
@@ -1414,11 +1436,11 @@
       dom.sWhat.textContent = "running the live crew — interpret → compose → critique → conductor…";
       try {
         await streamCompose(query);      // streams events live and drives the whole run + reveal
-        return;
       } catch (err) {
-        console.warn("live compose failed, falling back to demo", err);
-        setStatus("live failed — demo", "status running");
+        console.warn("live compose failed", err);
+        liveFail(err);                   // show the failure — NEVER silently swap in the demo
       }
+      return;
     }
     startRun(events, comp, audio);
   }

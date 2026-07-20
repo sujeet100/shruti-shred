@@ -19,7 +19,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) 
 
 from crew.contracts import LeadNote, LeadPhrase, PhrasePlan  # noqa: E402
 from crew.gat_verifier import (  # noqa: E402
+    reentry_swara,
+    verify_amad,
     verify_antara,
+    verify_bol_frame,
     verify_fill,
     verify_intro,
     verify_manjha,
@@ -594,11 +597,159 @@ def test_fill_must_match_its_cut_length():
 
 
 def test_fill_must_resolve_into_the_head():
-    # darbari ladder: ends on P, 3 steps from the head's opening S -> the seam fails
-    swaras = (["R", "g", "m", "P", "d", "P", "m", "g"] * 2)[:15] + ["P"]
+    # the seam targets the head's RE-ENTRY swara (the note it sounds AT the cut — g at beat 4
+    # of _HEAD), not its first note: ending on n (3 darbari steps from g) fails the seam
+    swaras = (["R", "g", "m", "P", "d", "P", "m", "g"] * 2)[:15] + ["n"]
     cell = _cell(*[_n(s, 0.25) for s in swaras])
     viol = verify_fill(cell, mukhada=_HEAD, window_beats=4.0, raga="darbari")
     assert any("taan fill" in v and "fluid" in v for v in viol)
+
+
+# --- the sam-note rule: the head's FIRST note sounds ON every sam ---------------
+
+def test_mukhada_opening_off_a_structural_swara_is_flagged():
+    # malkauns resting = {S, m}: a head opening on d puts a stray swara on every sam
+    cell = _cell(_n("d", 2.0), _n("g", 1.0), _n("m", 0.5), _n("m", 2.5), _n("S", 2.0))
+    viol = verify_mukhada(cell, cycle_beats=8.0, raga="malkauns")
+    assert any("opens on d" in v for v in viol)
+
+
+def test_mukhada_opening_on_the_vadi_is_accepted():
+    cell = _cell(_n("m", 2.0), _n("g", 1.0), _n("d", 0.5), _n("n", 2.5), _n("S", 2.0))
+    assert not any("opens on" in v for v in verify_mukhada(cell, cycle_beats=8.0, raga="malkauns"))
+
+
+# --- verify_bol_frame: the stroke pattern is the gat's identity ------------------
+
+def _framed_head(**overrides) -> LeadPhrase:
+    # a 16-beat head following the Masitkhani frame: struck "da" on the sam, double attacks
+    # in matras 12 (beats 11-12) and 14 (beats 13-14), every note carrying a bol
+    notes = [_n("S", 4.0, bol="da"), _n("m", 4.0, bol="da"), _n("g", 2.0, bol="ra"),
+             _n("d", 1.0, bol="da"),
+             _n("n", 0.5, bol="da"), _n("d", 0.5, bol="ra"),      # matra 12: the dir double
+             _n("m", 1.0, bol="da"),
+             _n("g", 0.5, bol="da"), _n("m", 0.5, bol="ra"),      # matra 14: the dir double
+             _n("S", 2.0, bol="da")]
+    return _cell(*notes)
+
+
+def test_a_frame_following_head_passes_masitkhani():
+    assert verify_bol_frame(_framed_head(), cycle_beats=16.0, frame="masitkhani") == []
+
+
+def test_frame_requires_da_on_the_sam():
+    cell = _framed_head()
+    cell.notes[0] = _n("S", 4.0, bol="ra")                       # a soft stroke on the sam
+    viol = verify_bol_frame(cell, cycle_beats=16.0, frame="masitkhani")
+    assert any("first note" in v for v in viol)
+
+
+def test_masitkhani_pins_the_dir_doublings_to_the_grid():
+    # merge matra 12's pair into one plain note -> the approach loses its dir at matra 12
+    cell = _cell(_n("S", 4.0, bol="da"), _n("m", 4.0, bol="da"), _n("g", 2.0, bol="ra"),
+                 _n("d", 1.0, bol="da"), _n("n", 1.0, bol="da"), _n("m", 1.0, bol="da"),
+                 _n("g", 0.5, bol="da"), _n("m", 0.5, bol="ra"), _n("S", 2.0, bol="da"))
+    viol = verify_bol_frame(cell, cycle_beats=16.0, frame="masitkhani")
+    assert any("matra(s) 12" in v for v in viol)
+
+
+def test_a_diri_bol_counts_as_the_double_stroke():
+    # matra 12's double comes from ONE note with bol "diri" (apply_strokes splits it)
+    cell = _cell(_n("S", 4.0, bol="da"), _n("m", 4.0, bol="da"), _n("g", 2.0, bol="ra"),
+                 _n("d", 1.0, bol="da"), _n("n", 1.0, bol="diri"), _n("m", 1.0, bol="da"),
+                 _n("g", 0.5, bol="da"), _n("m", 0.5, bol="ra"), _n("S", 2.0, bol="da"))
+    assert not any("matra" in v for v in verify_bol_frame(cell, cycle_beats=16.0,
+                                                          frame="masitkhani"))
+
+
+def test_razakhani_requires_double_density_not_position():
+    # the same doubles sit NOWHERE near matras 12/14 — razakhani (flexible) accepts them
+    cell = _cell(_n("S", 0.5, bol="da"), _n("g", 0.5, bol="ra"),      # matra 1: a double
+                 _n("m", 0.5, bol="da"), _n("d", 0.5, bol="ra"),      # matra 2: a double
+                 _n("n", 4.0, bol="da"), _n("d", 4.0, bol="da"), _n("m", 3.0, bol="ra"),
+                 _n("S", 3.0, bol="da"))
+    assert verify_bol_frame(cell, cycle_beats=16.0, frame="razakhani") == []
+    # ...but a head with a single double is under the density floor
+    thin = _cell(_n("S", 0.5, bol="da"), _n("g", 0.5, bol="ra"),
+                 _n("m", 5.0, bol="da"), _n("d", 4.0, bol="da"), _n("n", 3.0, bol="ra"),
+                 _n("S", 3.0, bol="da"))
+    assert any("doubling" in v for v in verify_bol_frame(thin, cycle_beats=16.0,
+                                                         frame="razakhani"))
+
+
+def test_frame_requires_bols_on_most_notes():
+    cell = _framed_head()
+    cell.notes = [n.model_copy(update={"bol": None}) for n in cell.notes[:-1]] + [cell.notes[-1]]
+    viol = verify_bol_frame(cell, cycle_beats=16.0, frame="masitkhani")
+    assert any("mizrab bol" in v for v in viol)
+
+
+# --- reentry_swara: what the head sounds at the fill's re-entry beat -------------
+
+def test_reentry_swara_reads_the_note_at_the_cut():
+    assert reentry_swara(_HEAD, 4.0) == "g"        # _HEAD: S@0(3) m@3(2) g@5(1) S@6(2)
+    assert reentry_swara(_HEAD, 0.0) == "S"
+    assert reentry_swara(_HEAD, 99.0) == "S"       # nothing that late -> falls back to the first
+
+
+# --- verify_antara with an amad: the homecoming is the amad's job ----------------
+
+def test_antara_with_amad_need_not_come_home():
+    cell = _good_antara()
+    cell.notes[-1] = _n("g", 3.0)                            # ends away from home
+    viol = verify_antara(cell, mukhada=_HEAD, window_beats=21.0, raga="malkauns",
+                         with_amad=True)
+    assert not any("madhya Sa" in v for v in viol)           # the amad owns the descent home
+    # the arc itself is still enforced: never reaching the taar still fails
+    flat = _cell(_n("S", 7.0), _n("m", 7.0), _n("g", 4.0), _n("S", 3.0))
+    assert any("taar" in v for v in verify_antara(flat, mukhada=_HEAD, window_beats=21.0,
+                                                  raga="malkauns", with_amad=True))
+
+
+# --- verify_amad: the composed descent back into the head ------------------------
+
+def _good_amad() -> LeadPhrase:
+    # opens on the antara's landing (d), descends with no re-peak, mixes durations, fills its
+    # 16-beat window, and ends on S — the head's first swara, at home
+    return _cell(_n("d", 2.0), _n("m", 2.0), _n("g", 1.5), _n("m", 1.0), _n("g", 1.5),
+                 _n("S", 2.0), _n("d", 1.5, oct=-1), _n("n", 1.5, oct=-1), _n("S", 3.0))
+
+
+def test_a_good_amad_passes():
+    assert verify_amad(_good_amad(), mukhada=_HEAD, window_beats=16.0, raga="malkauns",
+                       antara_last="d") == []
+
+
+def test_amad_must_descend():
+    cell = _cell(_n("S", 4.0), _n("g", 4.0), _n("m", 4.0), _n("d", 2.0), _n("n", 2.0))
+    viol = verify_amad(cell, mukhada=_HEAD, window_beats=16.0, raga="malkauns")
+    assert any("DESCEND" in v for v in viol)
+
+
+def test_amad_must_not_repeak():
+    # rises a fourth above its opening mid-line — the peak belongs to the antara
+    cell = _cell(_n("d", 3.0), _n("S", 3.0, oct=1), _n("n", 2.5), _n("m", 2.5),
+                 _n("g", 2.0), _n("S", 3.0))
+    viol = verify_amad(cell, mukhada=_HEAD, window_beats=16.0, raga="malkauns")
+    assert any("climbs above" in v for v in viol)
+
+
+def test_amad_opens_where_the_antara_landed():
+    viol = verify_amad(_good_amad(), mukhada=_HEAD, window_beats=16.0, raga="malkauns",
+                       antara_last="S")                      # d is 2 malkauns steps from S — ok
+    assert viol == []
+    # darbari has a 7-note ladder where a leap is measurable: opening on P against a landing
+    # of S is a 3-step jump-cut
+    leap = _cell(_n("P", 4.0), _n("m", 3.0), _n("g", 3.5), _n("R", 2.5), _n("S", 3.0))
+    viol = verify_amad(leap, mukhada=_HEAD, window_beats=16.0, raga="darbari",
+                       antara_last="S")
+    assert any("leap from the antara" in v for v in viol)
+
+
+def test_amad_must_fill_its_window():
+    cell = _cell(_n("d", 2.0), _n("m", 1.5), _n("g", 1.0), _n("S", 2.0))   # 6.5 of 16 beats
+    viol = verify_amad(cell, mukhada=_HEAD, window_beats=16.0, raga="malkauns")
+    assert any("fills only" in v for v in viol)
 
 
 if __name__ == "__main__":

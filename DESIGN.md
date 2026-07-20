@@ -1605,3 +1605,99 @@ legato flick — our current capped pull IS this). Plan: a code-set per-note sty
 (from section kind — alap/outro slow, gat medium, sub-beat fast), renderer picks
 duration range + curve; LLM never emits bend points. Also queued:
 death subgenre widened to the groove pole + per-raga pace/saptak facts (chunk D).
+
+## GAT CATCHINESS CAMPAIGN — Vilayat Khan / Parikh research → five gaps built (2026-07-20, this session)
+
+Sujit's feedback: gats are "not very memorable or catchy — like Vilayat Khan style".
+Researched (web agent) against the Imdadkhani-Etawah tradition's own sources — Pandit
+Arvind Parikh's "Bandish on the Instruments" + FAQ (the gharana's senior-most voice),
+Deepak Raja, Lokogandhar's Masitkhani-baaj articles, a Vishwamohini matra-by-matra gat
+notation. Verified findings (full citations in the 2026-07-20 conversation; distilled
+facts now encoded in `src/gats.py`):
+
+- **The mukhda is a 5-matra ANACRUSIS** — matras 12-16 of teentaal, launching inside the
+  khali vibhag and landing its arrival stroke ON the sam. The anticipation→arrival engine
+  is the catchiness mechanism of the form.
+- **The stroke pattern IS the gat's identity** (Parikh: without the bol pattern "they are
+  just vilambit gats"). Masitkhani grid verified: "da da ra dir da dir da ra" ×2,
+  phase-locked, dir on matras 4/6/12/14. Razakhani: bol set "da ra dir dir dar dar da,
+  da dir dara da da ra", flexible; mukhda starts sam/7/khali. FLAGGED: no source gives a
+  trustworthy Razakhani matra grid (one paper mislabels the Masitkhani grid) — encoded as
+  vocabulary + start options, never an invented grid.
+- **Parikh's FOUR-line model**: mukhda (home) → manjha (mandra) → antara (taar) → AMAD,
+  the composed descent "down to the point where the composition started". 2.5-3 octaves.
+- **Tihai** (phrase ×3, last stroke exactly on sam): an adjunct to a taan, antara-only
+  within the gat; introduced on sitar by Enayat Khan — this gharana's signature cadence.
+- **Improvisation etiquette**: the taan runs matras ~1-11; the mukhda re-enters at 12 to
+  land the next sam. **Sam-note rule** (JETIR/Raja): the swara ON the sam is deliberate —
+  Sa or the vadi, ideally the pakad's landing.
+- **Vilayat Khan** kept the teentaal + Masitkhani/Razakhani frames; composed gats AS VOCAL
+  BANDISHES first ("you have to sing to be able to play"), ornaments written INTO the line.
+
+**Built (all five, ~60 new/updated pure tests, suite 686 green):**
+
+1. **Fill geometry inverted → fixed** (`crew/lead.py`): the old splice cut the BACK half of
+   a mukhada statement — deleting exactly the approach-to-sam the tradition keeps
+   sacrosanct. Now the taan fill LAUNCHES FROM THE SAM and takes the front; the head's own
+   APPROACH (its notes from `approach_cut` — the boundary nearest the 5/16 mukhda line,
+   tie later) re-enters at its natural beat and lands the next sam. `verify_fill`'s seam
+   now targets `reentry_swara` (what the head sounds AT the cut), not the head's first note.
+2. **Sam-note rule** (`verify_mukhada`): the head's FIRST note (it sounds on every sam)
+   must be a resting swara — Sa/vadi/samvadi, ideally the pakad's landing.
+3. **Bol frames as knowledge + verifier + prompt** (`src/gats.py`, `verify_bol_frame`,
+   `_render_bol_frame` → `{bol_frame}` in generate_lead/generate_gat): frames picked by
+   laya (`frame_for_bpm`: <90 bpm = masitkhani i.e. doom; else razakhani). Three tolerant
+   checks — sam struck "da"; dir doublings (position-PINNED to grid matras 12/14 for
+   masitkhani-on-16, density-only ≥2 for the flexible razakhani); bols on ≥half the notes.
+   A dir = two attacks in one matra (two fast notes or one "diri" — `apply_strokes`
+   already splits it). Melody is never judged — the frame is rhythm.
+4. **Tihai primitive, code-built** (`make_tihai`/`splice_tihai` in lead.py): the verified
+   taan's own closing phrase ×3 + two equal gaps sized so 3P+2G exactly fills the taan's
+   final avartan; landing = the section edge where the returning mukhada's arrival IS the
+   sam. Applied on `taan_long` only (Parikh's discipline: adjunct to a taan, never sthayi).
+   Rejects thin material (<2 sounding notes) and stranded statements (gap > phrase).
+5. **Amad — Gat's fourth line** (`Gat.amad`, `verify_amad`, roles.amad brief): rides the
+   antara section's FINAL avartan when it has ≥2 bars (`needs_amad`); antara proper is then
+   verified `with_amad` (keeps its whole arc, homecoming handed to the amad). Checks: opens
+   within 2 steps of the antara's landing, net descent, no re-peak (>2 st above opening),
+   ends ≤ madhya, seams into the head's first swara, fills its window, not flat. Placed as
+   one combined phrase (antara + pad rest + amad) so the pipeline is untouched. The
+   synthetic `amad` form_role rides `model_copy` (no re-validation) — deliberately NOT in
+   `FormRole`, so composers can't emit chart-level amad sections.
+
+**Also updated:** mukhada/taan_short/taan_long role briefs (approach framing, tihai now
+code's), generate_gat prompt (4 parts + stroke frame), `_good_head` test fixture (frame-
+conformant; approach cut at beat 11). NOT built (deferred): #6 singability verifier (leap
+cap + survives-ornament-stripping); Razakhani start-option variety (mukhda from matra 7 —
+would need cross-bar anacrusis placement); antara riding the head's stroke skeleton.
+
+**Flagged discrepancies (recorded, not resolved):** manjha "middle" vs Parikh's "lower
+octave" (we follow Parikh — already built that way); taan-return matra 11 vs 12; Vilayat
+Khan's pen name (Nath Piya vs Sajan Piya); tihai landing convention — ours ends AT the
+window edge so the NEXT section's downbeat is the landing (the returning head's arrival),
+matching the mukhda-as-landing reading.
+
+**Not yet heard** — prompts/verifiers are live-untested; batch a live confirmation with
+the next approved render (ask Sujit first, per the standing rule).
+
+### Live fallout (2026-07-20, same day): absorb-don't-raise at the structured-output boundary
+
+First live runs after the campaign died hard: three separate composes each crashed at a Lead
+per-section call — the model emitted junk (`meend_swara: ":"`) and the raising pydantic
+validator fired INSIDE the native provider's structured-output validation, BEFORE any
+guardrail/verify feedback loop could see it → the whole flow died, and the UI silently fell
+back to the demo replay (Sujit couldn't even tell it had failed). Three fixes:
+  * **Contracts**: every OPTIONAL decoration now ABSORBS junk instead of raising —
+    meend targets, grace lists, bols (with "dir"→"diri", "dara"→"darada" aliases: today's
+    frame prompts say "dir" everywhere, a Literal landmine), ornaments, riff chord tones and
+    techniques. Junk degrades to a plain note / thinner chord; ONLY the core `swara` stays
+    strict. In-vocabulary-but-illegal values still hit the raga guardrail, which DOES feed back.
+  * **Lead resilience**: `_generate_verified_cell` keeps its best-of-N when a re-roll call
+    crashes; `_verify_or_repair_part` keeps the jointly-composed part (legal, flagged) when the
+    isolated repair crashes — a dead LLM call downgrades quality, never kills the compose.
+  * **UI honesty**: live failure now shows a loud FAILED status + error line in the log and
+    re-enables Compose; the silent swap-to-demo on live failure is gone (it was the stage
+    failsafe, but it hid real failures — demo is one Source-toggle away when wanted).
+Rule of thumb going forward: a validator that RAISES belongs only on fields where wrong data
+is meaningless; anything optional/decorative absorbs, because the structured-output layer has
+no retry-with-feedback path.

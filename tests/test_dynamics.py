@@ -36,9 +36,10 @@ from render import DRUMS  # noqa: E402
 _DRUM = sorted(DRUMS)[0]
 
 
-def _sec(form_role, foreground, layers, bars=1):
+def _sec(form_role, foreground, layers, bars=1, climax="driven"):
     return Section(kind=SectionKind.RIFF, bars=bars, layers=layers, foreground=foreground,
-                   riff_slot="main" if "rhythm" in layers else None, form_role=form_role)
+                   riff_slot="main" if "rhythm" in layers else None, form_role=form_role,
+                   climax_style=climax)
 
 
 def _arr(sections):
@@ -160,11 +161,12 @@ def test_a_formless_chart_is_unchanged():
 # --- apply_taan_exposure: the band-drop window ----------------------------------
 
 def _taan_arr(bars=2):
-    """mukhada [0,16) then a taan_long of `bars` 16-beat cycles — the exposure window is
-    the taan's FINAL avartan."""
+    """mukhada [0,16) then an EXPOSED taan_long of `bars` 16-beat cycles — the exposure window
+    is the taan's FINAL avartan (a `driven` taan, the default, would keep the band)."""
     return _arr([
         _sec("mukhada", "rhythm", ["rhythm", "drums", "drone"]),
-        _sec("taan_long", "lead", ["lead", "rhythm", "drums", "tabla", "drone"], bars=bars),
+        _sec("taan_long", "lead", ["lead", "rhythm", "drums", "tabla", "drone"], bars=bars,
+             climax="exposed"),
     ])
 
 
@@ -209,6 +211,32 @@ def test_exposure_is_a_noop_outside_the_window():
     rhythm = Layer(role="rhythm", notes=[Note(swara="S", start=16.0, dur=1, vel=110)])
     out = apply_taan_exposure([rhythm], arr)
     assert out[0].notes[0].start == 16.0 and out[0].notes[0].dur == 1
+
+
+# --- the DRIVEN taan (the default, metal-solo side): no band-drop, the band drives -----------
+
+def _driven_taan_arr(bars=2):
+    """mukhada [0,16) then a DRIVEN taan_long — the default: the band drives the peak, so there
+    is NO exposure window (the window would be the final avartan if it were `exposed`)."""
+    return _arr([
+        _sec("mukhada", "rhythm", ["rhythm", "drums", "drone"]),
+        _sec("taan_long", "lead", ["lead", "rhythm", "drums", "tabla", "drone"], bars=bars),
+    ])
+
+
+def test_a_driven_taan_gets_no_exposure_window():
+    assert taan_exposure_windows(_driven_taan_arr(bars=2)) == []
+
+
+def test_driven_taan_keeps_the_whole_band_playing():
+    arr = _driven_taan_arr(bars=2)                    # would expose [32, 48) if it were 'exposed'
+    rhythm = Layer(role="rhythm", notes=[Note(swara="S", start=36.0, dur=1.0, vel=110)])
+    bass = Layer(role="bass", notes=[Note(swara="S", oct=-1, start=40.0, dur=1, vel=100)])
+    drums = Layer(role="drums", hits=[DrumHit(drum=_DRUM, start=44.0)])
+    out = {ly.role: ly for ly in apply_taan_exposure([rhythm, bass, drums], arr)}
+    assert [n.start for n in out["rhythm"].notes] == [36.0]      # nothing dropped —
+    assert [n.start for n in out["bass"].notes] == [40.0]        # the sustained chords + bass
+    assert [h.start for h in out["drums"].hits] == [44.0]        # + drums DRIVE the climax
 
 
 if __name__ == "__main__":
