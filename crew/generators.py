@@ -514,7 +514,7 @@ _OUT_DIR: Final[Path] = _ROOT / "out"
 
 
 def render_composition(comp: Composition, *, out_dir: Path, name: str,
-                       soundfont: Path) -> Path:
+                       soundfont: Path, arrangement: "Arrangement | None" = None) -> Path:
     """Render a Composition to WAV via the Phase-0 renderer. The shell edge.
 
     Dumps the validated contract to the plain dict `render.build_midi` expects
@@ -534,6 +534,13 @@ def render_composition(comp: Composition, *, out_dir: Path, name: str,
     # octave fixes, seated chord pitches), so diagnosing a live run needs the actual
     # contract — free to write now, free to inspect later (no re-run, no LLM).
     (out_dir / f"{name}.json").write_text(comp.model_dump_json(exclude_none=True, indent=2))
+    # ...and the CHART beside it. The composition alone cannot say where a section begins, so
+    # diagnosing a render meant guessing at boundaries (2026-09-14: "the lead vanishes for 20
+    # beats" could not be attributed to a section without it). Free to write, and the pair is
+    # everything needed to replay or measure a run with no LLM.
+    if arrangement is not None:
+        (out_dir / f"{name}.arrangement.json").write_text(
+            arrangement.model_dump_json(exclude_none=True, indent=2))
     payload = comp.model_dump(exclude_none=True)
     # Route voices to their dedicated banks (guitars -> Dethmetal, sitar/tabla -> Indian
     # Ensemble; each a no-op if that soundfont is absent) and stack every present extra

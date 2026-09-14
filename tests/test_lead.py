@@ -46,6 +46,7 @@ from crew.lead import (  # noqa: E402
     _lead_guardrail,
     _doubled_hook,
     _next_sam,
+    _restated_to_window,
     _next_vibhag,
     _place_intro_phrases,
     _role_briefs,
@@ -1101,6 +1102,26 @@ def _intro_arr(*, clean: bool, bars: int = 4) -> Arrangement:
     draft = ArrangementDraft(raga="malkauns", subgenre="doom", tala="teentaal", bpm=72,
                              motif=["d", "n", "S", "m"], sections=[sec])
     return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def test_a_short_taan_restates_itself_rather_than_leaving_the_peak_empty():
+    """The repair loop is bounded and keeps the best-of-N, so a taan that fails its own fill
+    check twice still plays. Measured on the 2026-09-14 render, the taan covered 20 of its 40
+    beats and the other TWENTY were silent — the composition's peak, half empty, with the band
+    vamping under nothing."""
+    cell = [LeadNote(swara=s, dur=1.0) for s in "Sgmp".replace("p", "P")]
+    out = _restated_to_window(cell, 16.0)
+    assert sum(n.dur for n in out) >= 16.0
+    assert {n.swara for n in out} == {n.swara for n in cell}, "restating invented a pitch"
+
+
+def test_a_taan_that_already_fills_its_window_is_untouched():
+    cell = [LeadNote(swara="S", dur=4.0), LeadNote(swara="g", dur=4.0)]
+    assert _restated_to_window(cell, 8.0) == cell
+
+
+def test_restating_never_loops_forever_on_an_empty_cell():
+    assert _restated_to_window([], 16.0) == []
 
 
 def test_the_unison_guitar_doubles_the_theme_and_lays_out_through_a_run():

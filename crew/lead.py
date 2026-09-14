@@ -1425,6 +1425,36 @@ def _gat_repair_event(role: str, tries: int, violations: list[str]) -> DebateEve
 type CellVerifier = Callable[[LeadPhrase], list[str]]
 
 
+# A verified cell can still come back SHORT: the repair loop is bounded and keeps the
+# best-of-N, so a taan that fails its own fill check twice still plays. Measured on the
+# 2026-09-14 render, the taan covered 20 of its 40 beats and the remaining TWENTY were
+# silent — the composition's peak, half empty, with the band vamping under nothing. A weak
+# taan is a tolerable outcome; an absent one is not, so code restates the cell's own material
+# to cover the window rather than leaving the hole.
+_TAAN_MIN_COVER: Final[float] = 0.85
+_TAAN_RESTATE_CAP: Final[int] = 500      # a guard: never loop on zero-length notes
+
+
+def _restated_to_window(notes: list[LeadNote], window_beats: float) -> list[LeadNote]:
+    """Restate a short cell's OWN notes until they cover the window. Pure.
+
+    Restating is what a player does when a taan has further to run — the material develops
+    again rather than stopping. It uses no new pitches, so the cell stays as legal and as
+    motif-grown as the verifier found it; placement clips whatever overruns the edge.
+    """
+    total = sum(n.dur for n in notes)
+    if not notes or total <= 0 or total >= _TAAN_MIN_COVER * window_beats:
+        return notes
+    out = list(notes)
+    for index in range(_TAAN_RESTATE_CAP):
+        if total >= window_beats - 1e-6:
+            break
+        source = notes[index % len(notes)]
+        out.append(source.model_copy())
+        total += source.dur
+    return out
+
+
 def _generate_verified_cell(gen_span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], *,
                             gen_fn: LeadFn, verify: CellVerifier) -> tuple[LeadPhrase, int, list[str]]:
     """Generate a VERIFIED gat cell (mukhada / intro / manjha / taan fill), RE-ROLLING a weak
@@ -1849,6 +1879,11 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
                 span, arr, memory, gen_fn=gen_fn,
                 verify=lambda c: verify_taan(c, motif=arr.motif, window_beats=span.length,
                                              raga=raga))
+            # A short taan is RESTATED to cover its window before anything else touches it —
+            # the tihai must land on the section's final sam, so it is spliced onto the
+            # full-length line, never onto a cell that stops halfway.
+            phrase = phrase.model_copy(
+                update={"notes": _restated_to_window(phrase.notes, span.length)})
             # the gharana cadence, CODE-built (see the _TIHAI_* block): the verified taan's own
             # closing phrase stated three times across its final avartan, landing on the sam
             spliced, has_tihai = splice_tihai(phrase.notes, cycle_beats)

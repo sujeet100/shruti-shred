@@ -2226,3 +2226,26 @@ weight, so the existing budget passed it — weight on paper, a click in the air
 requires at least one OPEN ring, with the brief asking for it on the downbeat.
 
 Suite 774 green.
+
+### Post-render fixes, batch 2 — the empty peak, and saving the chart (2026-09-14)
+
+**Half the taan was silence, and the verifier had already said so.** `verify_taan` requires the
+cell to fill 85% of its window, the live taan covered 20 of its 40 beats, and it played anyway:
+`_generate_verified_cell` is a BOUNDED repair loop that keeps the best-of-N, so a cell failing
+twice still ships. That is the right call for a weak cell and the wrong one for an absent
+one — the composition's peak ran for twenty beats with the band vamping under nothing.
+`_restated_to_window` now restates the cell's OWN notes until they cover the window (no new
+pitches, so it stays as legal and as motif-grown as the verifier found it), applied BEFORE the
+tihai splice so the cadence still lands on the section's final sam.
+
+The general lesson, third time this campaign: a bounded verifier guarantees a *bounded number
+of attempts*, not an outcome. Wherever the fallback is "ship the best failure", code has to
+decide what the failure degrades TO.
+
+**Renders now save the chart.** `flow.finish` writes `<name>.arrangement.json` beside the WAV
+and the composition, and `render_composition` takes an optional `arrangement` for direct
+callers. Diagnosing this render meant reconstructing section boundaries by guesswork — "the
+lead vanishes for 20 beats" could not be attributed to a section. Free to write, never fatal
+if it fails, and the triple is everything needed to measure or replay a run with no LLM.
+
+Suite 777 green.

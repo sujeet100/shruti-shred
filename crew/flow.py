@@ -431,11 +431,31 @@ class ComposeFlow(Flow[ComposeState]):
 
     @listen("done")
     def finish(self) -> None:
-        """Render the accepted composition to a WAV (skipped if fluidsynth is absent)."""
+        """Render the accepted composition to a WAV (skipped if fluidsynth is absent), and
+        save the CHART beside it.
+
+        The composition alone cannot say where a section begins, so diagnosing a finished
+        render meant guessing at boundaries — "the lead vanishes for twenty beats" could not
+        be attributed to a section without the arrangement (2026-09-14). Writing it costs
+        nothing and makes the pair replayable and measurable with no LLM.
+        """
         st = self.state
         assert st.composition is not None
         publish(_running("System", "rendering the audio…", role="system"))
         st.wav_path = self._stages.render(st.composition)
+        _save_arrangement(st.wav_path, st.arrangement)
+
+
+def _save_arrangement(wav_path: Optional[str], arrangement: Optional[Arrangement]) -> None:
+    """Write the chart next to a rendered WAV. Silent when there is no render (a test or a
+    machine without fluidsynth) and never fatal: a diagnostic must not fail a finished run."""
+    if not wav_path or arrangement is None:
+        return
+    try:
+        path = Path(wav_path).with_suffix("").with_suffix(".arrangement.json")
+        path.write_text(arrangement.model_dump_json(exclude_none=True, indent=2))
+    except OSError:
+        pass
 
 
 def compose_flow(query: str, *, stages: Optional[Stages] = None,
