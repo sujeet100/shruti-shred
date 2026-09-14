@@ -2407,3 +2407,32 @@ encoded, `chikari_swaras`) with weighted velocities and a few ms of stroke sprea
 the `LeadNote` contract change noted earlier.
 
 Suite 794 green.
+
+### The climax belongs to the sitar (2026-09-14)
+
+Sujit, on the second render: remove the dedicated lead-guitar solo; build the climax with long
+sitar taans or back-to-back taans instead.
+
+The reasoning is the strongest argument in the whole review round. Handing the melody to the
+guitar mid-taan stops the arc dead — the sitar builds, reaches intensity, and the piece pauses
+to give the other instrument a turn before resuming. It also costs the raga exactly where the
+raga matters most, since the sitar's taan is now the most faithful Bageshree playing in the
+piece (measured: the taan's longest stepwise run is 2 notes, against 6 across the line). And
+the distinctive thing about this project is a SITAR fronting a metal band; a conventional
+guitar solo makes it less distinctive, not more. The metal identity is already carried by the
+rhythm guitars, bass, drums, breakdown and the riff/gat interaction.
+
+**Built:**
+* `_voice_taan_call_response` no longer TRADES. The sitar plays the whole taan and the guitar
+  joins for the final avartan(s) in UNISON — weight on the peak, not a second melody. The
+  resting-note handoff logic (2026-07-20) is gone with the trade it served.
+* The composers may now write **back-to-back taans** (`_MAX_TAAN_LONG = 2`, was 1), with the
+  form rule stating the climax is built by a long taan or consecutive taans accelerating into
+  each other, and explicitly NOT by giving another instrument a solo section. Two is the cap:
+  a third stops being a climb and becomes the piece.
+* The guardrail message says so too, so a composer that tries three is told why.
+
+The principle worth keeping: **the agents should not distribute the spotlight democratically.**
+Musicians do not need equal turns; the arrangement serves the composition.
+
+Suite 794 green.

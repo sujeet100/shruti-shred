@@ -85,7 +85,6 @@ from raga import (
     RAGAS,
     direction_violations,
     directional_varjya,
-    resting_swaras,
     scale_step_up,
     validate_composition,
 )
@@ -781,16 +780,18 @@ def _harmony_note(base: Note, swara: str, octave: int) -> Note:
     return Note(swara=swara, oct=octave, start=base.start, dur=base.dur, vel=base.vel)
 
 
-# The call-and-response taan (Sujit, 2026-07-15): sitar and lead guitar playing the whole
-# taan in constant harmony flattens the drama — instead they TRADE the line (sitar calls,
-# guitar answers, ...) and JOIN in a raga third only for the final avartan(s), so the two
-# voices arriving together IS the climax. Deterministic: code owns which voice plays which
-# stretch; the line itself is untouched.
+# THE TAAN BELONGS TO THE SITAR (Sujit, 2026-09-14). The voices used to TRADE it — sitar
+# calls, guitar answers, both join for the last avartan(s) — which was the right instinct
+# against constant harmony but the wrong shape for the climax. Handing the melody to the
+# guitar mid-taan stops the arc dead: the sitar builds, reaches intensity, and then the piece
+# pauses to give the other instrument a turn before resuming. It also costs the raga exactly
+# where the raga matters most, since the sitar's taan is now the most faithful Bageshree in
+# the piece. And the distinctive thing about this project is a SITAR fronting a metal band;
+# a conventional guitar solo makes it less distinctive, not more.
 #
-# The handoff snaps to a CLEAN LANDING, not an arbitrary bar boundary (Sujit, 2026-07-20): a
-# trade ends on a RESTING note (Sa/vadi/samvadi) once it has run at least one avartan, so no
-# voice is cut mid-phrase — the previous solo settles, the next starts fresh. This is what
-# makes the two timbres read as one connected conversation rather than two stray phrases.
+# So the sitar carries the whole taan and the guitar JOINS it for the final avartan(s) in
+# unison — two voices arriving together as the peak, straight into the breakdown. The guitar
+# is not owed equal solo time; the arrangement serves the composition.
 _JOIN_BARS_SHORT: Final = 1     # taans up to _JOIN_THRESHOLD bars join for the last bar...
 _JOIN_BARS_LONG: Final = 2      # ...longer taans for the last two
 _JOIN_THRESHOLD: Final = 4
@@ -799,36 +800,19 @@ _TRADE_EPS: Final = 1e-6
 
 def _voice_taan_call_response(line: list[Note], span: SectionSpan, cycle_beats: float,
                               raga: str) -> tuple[list[Note], list[Note]]:
-    """Split a taan/solo section's placed line into (sitar, guitar) as CONNECTED trades.
+    """Split a taan/solo section's placed line into (sitar, guitar): the SITAR plays it all,
+    and the guitar joins in UNISON for the final avartan(s).
 
-    The voices trade the line (sitar calls first, guitar answers, ...), but every handoff
-    falls on a clean landing — a resting note (Sa/vadi/samvadi) once the current trade has run
-    at least one avartan — so no solo is chopped mid-thought and each settles before the next
-    picks up. The final avartan(s) JOIN: both voices, guitar a raga-diatonic third above, so
-    arriving together IS the climax. Pure; the line's pitches/timing are untouched.
+    The climb belongs to one voice so it can actually climb; the guitar entering at the end
+    is what makes the arrival sound big. Unison rather than a harmonised third, because the
+    point is weight on the peak, not a second melody. Pure; the line's pitches and timing are
+    untouched — code decides only who plays what.
     """
     bars = span.section.bars
     join_bars = _JOIN_BARS_SHORT if bars <= _JOIN_THRESHOLD else _JOIN_BARS_LONG
     join_from = span.start + max(0, bars - join_bars) * cycle_beats  # a 1-bar taan just joins
-    resting = resting_swaras(raga)
-    sitar: list[Note] = []
-    guitar: list[Note] = []
-    on_sitar = True
-    trade_start = span.start
-    for n in line:
-        if n.start >= join_from - _TRADE_EPS:         # the JOIN — both voices, harmonized third
-            sitar.append(n)
-            swara, octave_delta = scale_step_up(n.swara, raga, 2)
-            guitar.append(_harmony_note(n, swara, n.oct + octave_delta))
-            continue
-        if on_sitar:
-            sitar.append(n)
-        else:
-            guitar.append(n.model_copy())
-        # hand off on a clean landing: a resting note, once this trade has run a full avartan
-        if n.swara in resting and (n.start + n.dur) - trade_start >= cycle_beats - _TRADE_EPS:
-            on_sitar = not on_sitar
-            trade_start = n.start + n.dur
+    sitar = list(line)
+    guitar = [n.model_copy() for n in line if n.start >= join_from - _TRADE_EPS]
     return sitar, guitar
 
 

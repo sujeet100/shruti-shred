@@ -298,73 +298,39 @@ def test_melody_is_voiced_in_unison_on_two_layers():
     assert [[n.swara for n in x.notes] for x in layers] == [["S", "m"], ["S", "m"]]
 
 
-def test_taan_is_voiced_as_a_harmonized_third_on_two_layers():
-    # a ONE-bar taan has no room to trade — both voices join immediately, guitar a third up
+def test_a_one_bar_taan_is_played_by_both_voices_in_unison():
     arr = _arr(("lead", "drone"), kind=SectionKind.TAAN, raga="darbari")
     fn, _ = _fake([_phrase("S", "R", "g")])        # legal in darbari
     layers, _ = generate_lead(arr, gen_fn=fn)
-    assert len(layers) == 2
     sitar = next(x for x in layers if x.instrument == VOICES["sitar"].instrument)
     guitar = next(x for x in layers if x.instrument == VOICES["lead_guitar"].instrument)
     assert [n.swara for n in sitar.notes] == ["S", "R", "g"]
-    # a raga-diatonic third up in darbari (S R g m P d n): S->g, R->m, g->P
-    assert [n.swara for n in guitar.notes] == ["g", "m", "P"]
+    assert [n.swara for n in guitar.notes] == ["S", "R", "g"]   # unison: weight, not a 2nd melody
 
 
-def test_taan_trades_bars_then_joins_in_harmony():
-    # a 3-bar taan: bar 0 sitar's CALL (solo), bar 1 guitar's RESPONSE (solo), bar 2 both
-    # JOIN — sitar the line, guitar a raga third above (the dramatic arrival)
-    arr = _gat_arr((SectionKind.TAAN, 3, "taan_long"), raga="darbari")
-    cell = LeadPhrase(phrase_plan=_plan("S"),                # 48 beats: 16 per teentaal bar
-                      notes=[LeadNote(swara="d", dur=0.5), LeadNote(swara="n", dur=0.5),
-                             LeadNote(swara="S", dur=0.5), LeadNote(swara="m", dur=0.5),
-                             LeadNote(swara="m", dur=6.0), LeadNote(swara="R", dur=8.0),
-                             LeadNote(swara="g", dur=0.25), LeadNote(swara="m", dur=0.25),
-                             LeadNote(swara="P", dur=0.25), LeadNote(swara="d", dur=0.25),
-                             LeadNote(swara="n", dur=0.25), LeadNote(swara="S", dur=0.25, oct=1),
-                             LeadNote(swara="R", dur=0.25, oct=1), LeadNote(swara="g", dur=0.25, oct=1),
-                             LeadNote(swara="g", dur=8.0, oct=1), LeadNote(swara="m", dur=6.0, oct=1),
-                             LeadNote(swara="R", dur=4.0, oct=1), LeadNote(swara="n", dur=4.0),
-                             LeadNote(swara="d", dur=2.0), LeadNote(swara="P", dur=2.0),
-                             LeadNote(swara="d", dur=0.25), LeadNote(swara="n", dur=0.25),
-                             LeadNote(swara="d", dur=0.25), LeadNote(swara="P", dur=0.25),
-                             LeadNote(swara="m", dur=0.25), LeadNote(swara="g", dur=0.25),
-                             LeadNote(swara="R", dur=0.25), LeadNote(swara="g", dur=0.25),
-                             LeadNote(swara="S", dur=2.0)])
-    fn, _ = _fake([cell])
-    layers, _ = generate_lead(arr, gen_fn=fn)
-    sitar = next(x for x in layers if x.instrument == VOICES["sitar"].instrument)
-    guitar = next(x for x in layers if x.instrument == VOICES["lead_guitar"].instrument)
-    assert all(n.start < 16.0 or n.start >= 32.0 for n in sitar.notes)   # sitar sits out bar 1
-    assert all(n.start >= 16.0 for n in guitar.notes)                     # guitar enters at bar 1
-    join_s = [n for n in sitar.notes if n.start >= 32.0]
-    join_g = [n for n in guitar.notes if n.start >= 32.0]
-    assert len(join_s) == len(join_g) > 0                                 # both play the join...
-    assert [n.swara for n in join_g] != [n.swara for n in join_s]         # ...guitar a third up
-
-
-def test_taan_trades_hand_off_on_a_resting_note_not_the_barline():
-    # Sujit's steer (2026-07-20): a trade ends on a RESTING note (Sa/vadi/samvadi), the next
-    # voice then starts fresh — the handoff snaps to a clean landing, NOT an arbitrary bar line.
-    # darbari resting notes = {S, R (vadi), P (samvadi)}. This 3-bar cell has NO resting note
-    # until R at beat 18 (past the bar line at 16), so the sitar plays INTO bar 1 to land, and
-    # the guitar's answer enters only AFTER that landing. (lead_layers_from places+voices the
-    # given phrase directly — no verify_taan re-roll — so the test isolates the trade voicing.)
+def test_the_sitar_plays_the_WHOLE_taan_and_the_guitar_joins_at_the_end():
+    """The voices used to TRADE the taan — sitar calls, guitar answers. That stopped the arc
+    dead at the climax: the sitar builds, reaches intensity, and the piece pauses to give the
+    other instrument a turn (Sujit, 2026-09-14). It also cost the raga exactly where the raga
+    matters most, since the sitar's taan is the most faithful playing in the piece. The climb
+    now belongs to ONE voice so it can actually climb, and the guitar arriving for the last
+    avartan is what makes the peak land."""
     arr = _gat_arr((SectionKind.TAAN, 3, "taan_long"), raga="darbari")
     cell = LeadPhrase(phrase_plan=_plan("g"),
-                      notes=[LeadNote(swara="g", dur=8.0), LeadNote(swara="m", dur=8.0),   # bar 0: no rest
-                             LeadNote(swara="d", dur=2.0), LeadNote(swara="R", dur=2.0),    # R lands at 20
-                             LeadNote(swara="m", dur=6.0), LeadNote(swara="n", dur=6.0),    # guitar's answer
-                             LeadNote(swara="S", dur=8.0, oct=1),                           # join (bar 2)
+                      notes=[LeadNote(swara="g", dur=8.0), LeadNote(swara="m", dur=8.0),
+                             LeadNote(swara="d", dur=2.0), LeadNote(swara="R", dur=2.0),
+                             LeadNote(swara="m", dur=6.0), LeadNote(swara="n", dur=6.0),
+                             LeadNote(swara="S", dur=8.0, oct=1),
                              LeadNote(swara="m", dur=8.0, oct=1)])
     layers = lead_layers_from({0: cell}, arr)
     sitar = next(x for x in layers if x.instrument == VOICES["sitar"].instrument)
     guitar = next(x for x in layers if x.instrument == VOICES["lead_guitar"].instrument)
-    sitar_trade = [n for n in sitar.notes if n.start < 32.0]           # before the join
-    guitar_trade = [n for n in guitar.notes if n.start < 32.0]
-    assert max(n.start for n in sitar_trade) >= 16.0                   # sitar plays PAST the bar line...
-    assert sitar_trade[-1].swara == "R"                                # ...to land on a resting note
-    assert guitar_trade and min(n.start for n in guitar_trade) >= 20.0  # guitar answers only after it
+    assert min(n.start for n in sitar.notes) == 0.0                  # the sitar opens...
+    assert max(n.start for n in sitar.notes) >= 32.0                 # ...and never sits out
+    assert all(n.start >= 32.0 for n in guitar.notes)                # guitar only in the last bar
+    join_s = [n for n in sitar.notes if n.start >= 32.0]
+    join_g = list(guitar.notes)
+    assert [n.swara for n in join_g] == [n.swara for n in join_s]    # in UNISON, not a third
 
 
 def test_voice_line_octave_puts_the_guitar_an_octave_up():

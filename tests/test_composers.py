@@ -316,10 +316,22 @@ def test_guardrail_accepts_a_returning_mukhada():
     assert ok is True and isinstance(value, ComposerTurn)
 
 
-def test_guardrail_rejects_more_than_one_long_taan():
+def test_back_to_back_taans_are_allowed_for_the_climax():
+    """The climax belongs to the sitar and is allowed to be BIG: a long taan, or two running
+    into each other (Sujit, 2026-09-14 — replacing the guitar solo that used to interrupt the
+    arc by handing the melody away mid-climb)."""
     draft = ArrangementDraft(
         raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
         sections=_gat_sections("mukhada", "taan_long", "taan_long", "mukhada"))
+    ok, _ = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+    assert ok is True
+
+
+def test_a_THIRD_long_taan_is_rejected():
+    """Two is a climb; three stops being a climax and becomes the piece."""
+    draft = ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        sections=_gat_sections("mukhada", "taan_long", "taan_long", "taan_long", "mukhada"))
     ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
     assert ok is False and "taan_long" in msg
 

@@ -125,7 +125,7 @@ _FORM_DESC: Final[dict[str, str]] = {
               "mukhada must re-enter IMMEDIATELY after it (head -> manjha -> head, one cohesive cycle)",
     "antara": "the second theme — lifts into the higher (taar) octave",
     "taan_short": "a short cadential taan filler (half/one cycle) that resolves into the next mukhada",
-    "taan_long": "the ONE developed taan/solo — the peak; place it after the antara or before the final mukhada. By DEFAULT the band DRIVES it (the metal-solo climax: sustained rhythm chords + climax drums under the traded sitar/guitar taan); set climax_style 'exposed' only for a spacious alap-style band-drop reveal",
+    "taan_long": "the developed taan — the SITAR's peak; place it after the antara or before the final mukhada. The climax belongs to the sitar: build it with a LONG taan, or with back-to-back taan sections that accelerate into each other, rather than handing the melody to another instrument. By DEFAULT the band DRIVES it (sustained rhythm chords + climax drums under the taan, the lead guitar joining in unison only for the final avartan); set climax_style 'exposed' only for a spacious alap-style band-drop reveal",
     "breakdown": "a heavy, sparse rhythmic climax",
     "tihai": "a phrase stated thrice, landing on the sam — a cadence",
     "outro": "settle back down to a held Sa",
@@ -177,7 +177,7 @@ _OUTPUT_SCHEMA: Final = """{
 "harmony" (OPTIONAL per section) is how the section MOVES under the melody: {"mode": "drone"} (no motion — the tanpura dyad; alaap and climax territory), {"mode": "modal_pedal", "roots": [...]} (the DEFAULT — a Sa pedal under changing colour tones; roots = the colours, empty = the raga's vadi/samvadi), or {"mode": "progression", "roots": [...]} (a short per-avartan chord-root cycle for a CHORUS-like section: 2-4 raga swaras, the LAST one "S" so the cycle comes home). Activate the "clean" layer wherever this harmony should be HEARD as arpeggios.
 "climax_style" (OPTIONAL, only meaningful on the "taan_long" peak): "driven" (the DEFAULT — the metal-solo climax: sustained rhythm chords + climax drums DRIVE the peak while the sitar/guitar taan trades over them) or "exposed" (the alap-style reveal — the band drops out of the taan's final avartan, sitar + tabla carrying it alone). Prefer "driven" for a metal-leaning peak; reserve "exposed" for a deliberately spacious, classical reveal.
 "anchor" is the ONE idea the whole piece derives from: "gat_first" (the sitar mukhada is the source; the riff is a rhythmic reduction of it) or "riff_first" (the riff is the source; the mukhada quotes its accented notes).
-Set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (above, the last section is the mukhada coming back). Reserve at most ONE "taan_long" for the peak. A MANJHA must sit between mukhada statements — place a "mukhada" section IMMEDIATELY after every "manjha" (head -> manjha -> head, one cohesive cycle), and give that returning mukhada at least 2 bars so the head re-establishes itself. The whole form gets AT MOST ONE section that RESTS the lead (riff-only/breakdown), no longer than 2 bars — the gat is the star and must never vanish for long.
+Set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (above, the last section is the mukhada coming back). The CLIMAX IS THE SITAR'S: build it with a long "taan_long", or with back-to-back taan sections (a "taan_short" running straight into the "taan_long", or two consecutive taans) that accelerate into the peak — do NOT give another instrument a solo section to share the spotlight. At most TWO "taan_long" sections, and only back-to-back if you use two. A MANJHA must sit between mukhada statements — place a "mukhada" section IMMEDIATELY after every "manjha" (head -> manjha -> head, one cohesive cycle), and give that returning mukhada at least 2 bars so the head re-establishes itself. The whole form gets AT MOST ONE section that RESTS the lead (riff-only/breakdown), no longer than 2 bars — the gat is the star and must never vanish for long.
 Every rhythm section needs a "riff_slot" naming which riff it plays — "main"/"chorus"/"breakdown". Sections that SHARE a slot replay the SAME riff, so REUSE "main" wherever the mukhada/main riff returns, and give the chorus/breakdown their OWN slots to contrast. Lead-only sections need no slot."""
 
 
@@ -376,6 +376,12 @@ def _turn_from_output(output: Any) -> ComposerTurn | None:
 # A progression is a CHORUS device: on the melodic-gravity sections (the alap, the
 # taan's climax, the settling outro) harmony must stay a drone or pedal — a root cycle
 # there would fight Sa's pull, the musical-accuracy red line of the harmony design.
+# The climax is the SITAR's, and it is allowed to be BIG: a long taan, or two taans running
+# into each other (Sujit, 2026-09-14 — "long sitar taans or back-to-back taans to build the
+# climax", replacing the guitar solo that used to interrupt the arc). Two is the cap: a third
+# stops being a climb and becomes the piece.
+_MAX_TAAN_LONG: Final = 2
+
 _NO_PROGRESSION_ROLES: Final = frozenset({"intro", "taan_long", "outro"})
 _PROGRESSION_MIN_ROOTS: Final = 2
 _PROGRESSION_MAX_ROOTS: Final = 4
@@ -466,9 +472,11 @@ def _validate_turn(output: Any):
         return (False, "The gat needs a MUKHADA that RETURNS: mark the recurring hook 'mukhada' "
                        "where it is first stated AND again where it comes back (at least two "
                        "sections). Add the mukhada return and resend.")
-    if sum(s.form_role == "taan_long" for s in turn.draft.sections) > 1:
-        return (False, "Reserve ONE developed taan/solo for the peak: at most one section may be "
-                       "'taan_long' (use 'taan_short' for cadential fillers). Fix and resend.")
+    if sum(s.form_role == "taan_long" for s in turn.draft.sections) > _MAX_TAAN_LONG:
+        return (False, f"The climax is the sitar's, but it is a CLIMB, not the piece: at most "
+                       f"{_MAX_TAAN_LONG} sections may be 'taan_long' (back-to-back is fine — "
+                       f"that is how you build a peak without handing the melody to another "
+                       f"instrument). Use 'taan_short' for cadential fillers. Fix and resend.")
     # The intro/alap needs room to breathe — the aochar establishes Sa and the raga in phrases
     # separated by real silence, and code reserves a further pause at its end.
     short_intro = [f"#{i + 1}" for i, s in enumerate(turn.draft.sections)
