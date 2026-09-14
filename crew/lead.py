@@ -739,6 +739,34 @@ def _voicing_for(section) -> Voicing:
     return _VOICING_BY_KIND.get(section.kind, Voicing.SITAR)
 
 
+# A unison double THICKENS the hook; it must not shadow the whole line. Measured on the
+# 2026-09-14 render, the lead guitar shared onset AND swara with the sitar on 86% of its
+# notes — so the sitar stopped being the distinctive voice, every meend became an ensemble
+# gesture, and the fast passages turned thick and unarticulated. A guitarist doubling a
+# soloist plays the theme WITH them and lays out through the flurries.
+_DOUBLE_MIN_DUR: Final[float] = 0.5   # the guitar doubles notes this long or longer...
+_DOUBLE_MIN_RUN: Final[int] = 2       # ...and only where a few such notes run together
+
+
+def _doubled_hook(line: list[Note]) -> list[Note]:
+    """The unison guitar's part: the line's SUSTAINED stretches, not its fast runs.
+
+    Keeping only notes of `_DOUBLE_MIN_DUR`+ leaves the guitar on the theme and silent
+    through sixteenth-note development; requiring `_DOUBLE_MIN_RUN` consecutive such notes
+    stops it from punctuating a run with the odd isolated hit, which would read as a mistake
+    rather than a part. Pure."""
+    keep: list[Note] = []
+    run: list[Note] = []
+    for note in line:
+        if note.dur >= _DOUBLE_MIN_DUR:
+            run.append(note)
+            continue
+        keep.extend(run if len(run) >= _DOUBLE_MIN_RUN else [])
+        run = []
+    keep.extend(run if len(run) >= _DOUBLE_MIN_RUN else [])
+    return [n.model_copy() for n in keep]
+
+
 def _harmony_note(base: Note, swara: str, octave: int) -> Note:
     """A clean harmony note taken from a base note — NO kan/meend (the ornaments live
     on the melody line; doubling them on the harmony would clash)."""
@@ -809,7 +837,7 @@ def _voice_line(line: list[Note], voicing: Voicing, raga: str) -> tuple[list[Not
     if voicing is Voicing.GUITAR:
         return [], line
     if voicing is Voicing.UNISON:
-        return line, [n.model_copy() for n in line]
+        return line, _doubled_hook(line)
     if voicing is Voicing.OCTAVE:
         return line, [_harmony_note(n, n.swara, n.oct + 1) for n in line]
     if voicing is Voicing.THIRD:

@@ -2194,3 +2194,35 @@ supported subgenre, so either the Interpreter did not extract it from "symphonic
 composers did not add the layer. Worth a look before the next run.
 
 Suite 767 green.
+
+### Post-render fixes, batch 1 — the drone's Pa, the doubling, the breakdown (2026-09-14)
+
+**The drone was sounding the raga's weakest swara.** `drone_swaras` picked its companion from
+a fixed Pa → Ma → Ni list, which cannot see a Pa that is present but WEAK. Bageshree is exactly
+that: its Pancham is vakra and avaroha-only (dropped from the aroha in our own encoded entry),
+with Ma as vadi and Dha the strong nyas — and the live render droned Sa+Pa for the whole piece
+while the clean guitar, which reads the same function for `harmony.mode == "drone"`, spent 34
+of its 72 notes on Pa. The raga's most deliberately weakened swara was its most-sounded
+accompaniment tone, in every bar. The companion now skips a swara the raga omits in ASCENT.
+
+**CORRECTION to what I predicted:** I told Sujit this would change Bageshree and leave Todi on
+Pa. It changes BOTH — Todi's encoded aroha (S r g M d N S) also drops Pa, so Todi now takes its
+tivra Ma. That is defensible rather than accidental (madhyam tanpura is standard practice for
+Todi, and our own notes record its Pa as sparse), but the prediction was wrong and the change
+is wider than advertised. Darbari, Yaman, Bhairavi and the rest keep Pa — they have no
+directional varjya at all.
+
+**The unison guitar was shadowing the whole sitar line** — 86% of its notes shared onset AND
+swara with the sitar. So the sitar stopped being the distinctive voice, every meend became an
+ensemble gesture, and the fast passages turned thick and unarticulated. `_doubled_hook` now
+gives the guitar the line's SUSTAINED stretches only: it plays the theme and lays out through
+sixteenth-note development, and a lone long note inside a flurry is skipped (one hit in the
+middle of a run reads as a mistake, not a part). The mukhada keeps its unison override — that
+exists because the returning hook came back audibly thinner without it.
+
+**The breakdown had nothing to drop from.** The live render's breakdown was 14 notes, all 14
+palm-muted, with not one open note of a beat or more. `_weighted` counts a chorded palm-mute as
+weight, so the existing budget passed it — weight on paper, a click in the air. STABS now
+requires at least one OPEN ring, with the brief asking for it on the downbeat.
+
+Suite 774 green.

@@ -173,9 +173,12 @@ MODE_BRIEFS: Final[dict[RiffMode, str]] = {
     RiffMode.STABS: (
         "STABS — sparse, low, syncopated POWER-CHORD hits locked to the tala's accents: "
         "hit, then SILENCE (at least a fifth of the cycle is true rest — the silence IS the "
-        "heaviness). Stay in the low register (oct 0 or below), give at least half the hits "
-        "chord weight, hammer ONE root and move only for the final stab into the sam; a "
-        "displaced 16th before an accent gives the lurch."),
+        "heaviness). OPEN THE DOWNBEAT: strike at least one OPEN chord of a beat or more and "
+        "let it hang — a breakdown needs something ringing to drop away from, and a "
+        "palm-muted hit can never provide it however heavily you chord it. Stay in the low "
+        "register (oct 0 or below), give at least half the hits chord weight, hammer ONE root "
+        "and move only for the final stab into the sam; a displaced 16th before an accent "
+        "gives the lurch."),
 }
 
 
@@ -444,6 +447,11 @@ def _stabs_violations(notes: list[RiffNote], sounding: list[RiffNote],
     if weighted < _STAB_WEIGHT_SHARE * len(sounding):
         viol.append(f"only {weighted} of {len(sounding)} hits carry weight — chord the stabs "
                     f"(own swara / P) or hold them; a naked short stab is a poke, not a crush")
+    if not any(_rings(n) for n in sounding):
+        viol.append("nothing in the breakdown RINGS — every hit is a damped chug, so there is "
+                    "no weight to drop from. Strike at least one OPEN chord of a beat or more "
+                    "(the downbeat is where it belongs) and let it hang before the crush; "
+                    "a chorded palm-mute carries weight on paper and a click in the air")
     rate = _pitch_change_rate(sounding)
     if rate > _CHANGE_MAX_STABS:
         viol.append(f"{rate:.0%} of consecutive stabs change pitch — hammer ONE root and move "

@@ -44,6 +44,7 @@ from crew.lead import (  # noqa: E402
     _intro_gen_span,
     _LeadContext,
     _lead_guardrail,
+    _doubled_hook,
     _next_sam,
     _next_vibhag,
     _place_intro_phrases,
@@ -1100,6 +1101,25 @@ def _intro_arr(*, clean: bool, bars: int = 4) -> Arrangement:
     draft = ArrangementDraft(raga="malkauns", subgenre="doom", tala="teentaal", bpm=72,
                              motif=["d", "n", "S", "m"], sections=[sec])
     return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def test_the_unison_guitar_doubles_the_theme_and_lays_out_through_a_run():
+    """Measured on the 2026-09-14 render: the lead guitar shared onset AND swara with the
+    sitar on 86% of its notes, so the sitar stopped being the distinctive voice and the fast
+    passages turned thick. A guitarist doubling a soloist plays the theme with them and lays
+    out through the flurries."""
+    theme = [Note(swara=s, oct=0, start=float(i), dur=1.0) for i, s in enumerate("Sgm")]
+    run = [Note(swara="P", oct=0, start=3.0 + i * 0.25, dur=0.25) for i in range(8)]
+    doubled = _doubled_hook(theme + run)
+    assert [n.swara for n in doubled] == ["S", "g", "m"], "the guitar followed the run"
+
+
+def test_an_isolated_long_note_inside_a_run_is_not_doubled():
+    """One hit in the middle of a flurry reads as a mistake, not a part."""
+    run = [Note(swara="P", oct=0, start=i * 0.25, dur=0.25) for i in range(4)]
+    lone = [Note(swara="m", oct=0, start=1.0, dur=1.0)]
+    more = [Note(swara="g", oct=0, start=2.0 + i * 0.25, dur=0.25) for i in range(4)]
+    assert _doubled_hook(run + lone + more) == []
 
 
 def test_a_phrase_enters_on_a_MEASURE_not_only_the_sam():

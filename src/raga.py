@@ -639,7 +639,19 @@ def drone_swaras(raga: str) -> list[str]:
     encoded raga facts, invents nothing.
     """
     allowed = set(RAGAS[raga]["allowed"])
+    # A swara the raga drops on the way UP is not a resting tone, whatever the convention
+    # says. Bageshree is the case that exposed this: its Pancham is present but vakra and
+    # avaroha-only (dropped from the aroha, encoded above), with Ma as vadi and Dha the
+    # strong nyas — yet a Pa-first preference list droned Pa continuously. Measured on the
+    # 2026-09-14 live render: the tanpura sounded Sa+Pa for the whole piece while the clean
+    # guitar, which reads the same function, spent 34 of its 72 notes on Pa. The raga's most
+    # deliberately weakened swara was its most-sounded accompaniment tone.
+    descent_only = {sw for sw, direction in directional_varjya(raga).items()
+                    if direction == "avaroha"}
     for companion in _DRONE_COMPANIONS:
+        if companion in allowed and companion not in descent_only:
+            return ["S", companion]
+    for companion in _DRONE_COMPANIONS:          # every candidate is descent-only: take one
         if companion in allowed:
             return ["S", companion]
     return ["S"]

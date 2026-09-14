@@ -125,6 +125,25 @@ def test_every_mode_has_a_prompt_brief():
         assert MODE_BRIEFS[mode].strip(), mode
 
 
+def test_a_breakdown_with_nothing_ringing_is_rejected():
+    """Measured on the 2026-09-14 live render: the breakdown was 14 notes, ALL palm-muted, not
+    one open note of a beat or more — so there was no weight to drop away from. A chorded
+    palm-mute passes the weight check on paper and is a click in the air."""
+    muted = RiffPattern(notes=[_n("S", 0.5, chord=["S"], technique="palm_mute"),
+                               _n("S", 1.5, rest=True),
+                               _n("S", 0.5, chord=["S"], technique="palm_mute"),
+                               _n("S", 1.5, rest=True),
+                               _n("S", 0.5, chord=["S"], technique="palm_mute"),
+                               _n("S", 3.0, rest=True)])
+    text = " ".join(verify_riff(muted, mode=RiffMode.STABS, cycle_beats=_CYCLE))
+    assert "RINGS" in text and "OPEN chord" in text
+
+
+def test_a_breakdown_that_opens_its_downbeat_passes():
+    assert not [v for v in verify_riff(_stabs_clean(), mode=RiffMode.STABS, cycle_beats=_CYCLE)
+                if "RINGS" in v]
+
+
 # --- DRIVE: the chug ground is enforced, melody is rejected ----------------------
 
 def test_a_clean_drive_cycle_passes():

@@ -226,6 +226,32 @@ def test_a_raga_without_pa_takes_the_madhyam_string():
     assert "m" in chikari_swaras("malkauns")
 
 
+def test_the_drone_never_sounds_a_swara_the_raga_drops_in_ASCENT():
+    """A swara the raga omits on the way up is not a resting tone, whatever the tanpura
+    convention says. Bageshree exposed this: its Pancham is present but vakra and
+    avaroha-only, yet a Pa-first preference list droned it continuously — measured on the
+    2026-09-14 render, the tanpura held Sa+Pa for the whole piece while the clean guitar
+    spent 34 of 72 notes on Pa, in the raga whose identity IS the weakened Pa."""
+    from raga import directional_varjya, drone_swaras
+    for name in RAGAS:
+        descent_only = {sw for sw, d in directional_varjya(name).items() if d == "avaroha"}
+        for swara in drone_swaras(name):
+            assert swara not in descent_only, f"{name}: drone sounds descent-only {swara}"
+
+
+def test_bageshree_and_todi_take_the_madhyam_drone():
+    """Both drop Pa from the aroha (encoded, source-verified), so both tune to Ma — the same
+    substitution a player makes for a raga whose Pancham is weak."""
+    from raga import drone_swaras
+    assert drone_swaras("bageshree") == ["S", "m"]
+    assert drone_swaras("todi") == ["S", "M"]      # Todi's Ma is tivra
+
+
+def test_a_raga_with_a_free_pa_keeps_it():
+    from raga import drone_swaras
+    assert drone_swaras("darbari") == ["S", "P"]   # no directional varjya — Pa is a real rest
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
