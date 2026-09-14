@@ -2465,3 +2465,26 @@ peak (dugun, denser bols, phrase-ending answers, a sam pickup). That needs a sec
 `tabla_layer` with a laya mode per section role, which is the next piece of this thread.
 
 Suite 794 green.
+
+### The tabla is muted (2026-09-14)
+
+Sujit's call after the teentaal render. The part holds ONE onset per matra everywhere in the
+piece, so against a sixteenth-note taan and a double-kick groove it reads as dropping into
+half-time even though the tala never changes — and most matras strike both tabla pitches
+together, which is a two-sample accented pulse rather than an articulated theka with distinct
+bols. Until it responds to the section it is under, it costs more than it gives.
+
+A FLAG, not a deletion: `config.tabla_enabled()` (env `RMA_TABLA`, default OFF) gates
+`band_layers`. `crew/groove.tabla_layer` and the Indian-Ensemble routing (bank offset, the
+dayan tuned to the piece's Sa via RPN coarse-tune) are good code and stay exactly as they are —
+`RMA_TABLA=1` brings the part back for a listen at any time, and its tests still run.
+
+The composers are no longer told a taan must include the tabla, and the layer description says
+it is muted at render so no section gets built around it.
+
+**What it would take to bring it back:** a section-aware `tabla_layer` — theka under the gat,
+rising density into the taan (dugun, denser bols, phrase-ending answers), a pickup into the
+sam — i.e. the tabla responding to the soloist the way the kit already responds to the riff.
+That is a real piece of work, not a constant to change, and it is the open item on this thread.
+
+Suite 795 green.

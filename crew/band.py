@@ -45,6 +45,14 @@ _SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
 _OUT_DIR: Final[Path] = _ROOT / "out"
 
 
+def _tabla_if_enabled(arr: Arrangement) -> Layer | None:
+    """The tabla, when it is switched on (`config.tabla_enabled`, default OFF since
+    2026-09-14). Kept as a gate rather than a deletion — the theka generation and its
+    soundfont routing are wanted back once the part responds to the section it is under."""
+    from crew.config import tabla_enabled
+    return tabla_layer(arr) if tabla_enabled() else None
+
+
 def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None,
                 orchestra_layers: list[Layer] = ()) -> list[Layer]:
     """Collect every voice into the stable layer order, then BALANCE it. Pure — no LLM.
@@ -84,7 +92,7 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     guide = harmonic_guide(lead_layers, arr)
     for derived in (clean_layer(arr, guide=guide), intro_jod_layer(arr, lead_layers),
                     bass_layer(arr, rhythm),
-                    groove_layer(arr, rhythm), tabla_layer(arr)):
+                    groove_layer(arr, rhythm), _tabla_if_enabled(arr)):
         if derived is not None:
             layers.append(derived)
     # The taan exposure runs BEFORE the balance pass: the band-drop window empties first, then

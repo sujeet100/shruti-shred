@@ -163,6 +163,22 @@ def _env_flag(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def tabla_enabled() -> bool:
+    """Whether the TABLA plays; env `RMA_TABLA` (default OFF as of 2026-09-14).
+
+    Sujit's call, after the teentaal render: the tabla holds one onset per matra everywhere in
+    the piece, so against a sixteenth-note taan and a double-kick groove it reads as dropping
+    into half-time even though the tala never changes — and most matras strike both tabla
+    pitches together, which is a two-sample pulse rather than an articulated theka. It hurts
+    more than it helps until it becomes section-aware (theka under the gat, denser bols into
+    the taan, a pickup into the sam).
+
+    A FLAG, not a deletion: `crew/groove.tabla_layer` and its Indian-Ensemble routing (bank,
+    Sa-tuning) are good code that will be wanted back — set RMA_TABLA=1 to hear it.
+    """
+    return _env_flag("RMA_TABLA")
+
+
 def studio_enabled() -> bool:
     """True iff the COOPERATIVE studio session is the generation path; env `RMA_STUDIO`.
 

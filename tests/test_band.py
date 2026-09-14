@@ -57,14 +57,31 @@ def test_band_layers_collects_every_voice():
     arr = _arr((SectionKind.RIFF, ["rhythm", "drums", "tabla", "drone"]))
     roles = [layer.role for layer in band_layers(arr, _lead(), _rhythm())]
     assert roles[0] == "drone"                                    # drone anchors the list
-    assert {"drone", "lead", "rhythm", "bass", "drums", "tabla"} <= set(roles)
+    assert {"drone", "lead", "rhythm", "bass", "drums"} <= set(roles)
+
+
+def test_the_tabla_is_off_unless_switched_on(monkeypatch=None):
+    """Sujit's call (2026-09-14): the tabla holds one onset per matra everywhere, so under a
+    sixteenth-note taan it reads as half-time even though the tala never changes. A FLAG, not
+    a deletion — the theka generation and its soundfont routing come back with RMA_TABLA=1."""
+    import os
+    arr = _arr((SectionKind.RIFF, ["rhythm", "drums", "tabla", "drone"]))
+    was = os.environ.pop("RMA_TABLA", None)
+    try:
+        assert "tabla" not in [ly.role for ly in band_layers(arr, _lead(), _rhythm())]
+        os.environ["RMA_TABLA"] = "1"
+        assert "tabla" in [ly.role for ly in band_layers(arr, _lead(), _rhythm())]
+    finally:
+        os.environ.pop("RMA_TABLA", None)
+        if was is not None:
+            os.environ["RMA_TABLA"] = was
 
 
 def test_band_without_a_riff_has_no_bass_or_drums():
     arr = _arr((SectionKind.ALAAP, ["lead", "tabla", "drone"]))
     roles = [layer.role for layer in band_layers(arr, _lead(), None)]
     assert "bass" not in roles and "drums" not in roles           # no riff -> no bass/drums
-    assert {"drone", "lead", "tabla"} <= set(roles)               # tabla still plays the theka
+    assert {"drone", "lead"} <= set(roles)
 
 
 def test_band_layers_derive_bass_and_drums_from_the_riff():

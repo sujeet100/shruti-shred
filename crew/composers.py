@@ -137,7 +137,7 @@ _LAYER_DESC: Final[dict[str, str]] = {
     "lead": "the melodic voice (sitar-like lead / lead guitar) — the raga line, taans, solos",
     "rhythm": "the metal rhythm guitar — downtuned riffs and power chords",
     "drums": "the metal drum kit (kick/snare/cymbals) — the metal groove",
-    "tabla": "Hindustani tabla — lays the tala's theka; may play ALONGSIDE the metal drums",
+    "tabla": "Hindustani tabla — lays the tala's theka; may play ALONGSIDE the metal drums. Currently MUTED at render (it does not yet respond to the section it is under), so do not build a section around it",
     "drone": "the tanpura drone — a sustained Sa+Pa pad anchoring the tonality",
     "clean": "the CLEAN electric guitar — arpeggiates the section's harmony plan (a shimmer "
              "under the band): intros, under a melody, a breakdown afterglow; it holds ringing "
