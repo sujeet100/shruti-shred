@@ -36,6 +36,7 @@ from crew.contracts import (  # noqa: E402
     UstadVerdict,
     build_arrangement,
 )
+from crew.contracts import repair_layer, repair_operation  # noqa: E402
 from crew.flow import Stages, compose_flow, revise_arrangement  # noqa: E402
 
 
@@ -118,6 +119,38 @@ def test_revise_arrangement_threads_directive_into_flagged_sections_only():
     assert "REVISE" not in by_kind[SectionKind.RIFF].intent      # riff has no lead -> untouched
     # the original chart is not mutated
     assert all("REVISE" not in (s.intent or "") for s in arr.sections)
+
+
+def test_an_operation_routes_to_the_repair_the_fault_needs():
+    """Naming a LAYER could only ever mean 'compose that voice again'. A relationship fault
+    — the parts each good but fighting — now routes to the pass that repairs the
+    relationship, instead of throwing away a working voice to re-roll the dice."""
+    relationship = ConductorRuling(directive="revise", operation="arrange_riff_against_lead",
+                                   reason="the guitar argues under the held sitar notes")
+    assert repair_operation(relationship) == "arrange_riff_against_lead"
+    assert repair_layer(relationship) is None, "a relationship repair regenerates nothing"
+
+
+def test_a_ruling_that_names_only_a_layer_still_works():
+    """The old shape stays valid, so a model answering the previous way is never a failed
+    run — it simply means 'regenerate that voice'."""
+    assert repair_operation(_revise("lead")) == "regenerate_lead"
+    assert repair_operation(_revise("rhythm")) == "regenerate_riff"
+    assert repair_layer(_revise("rhythm")) == "rhythm"
+
+
+def test_an_accept_asks_for_no_repair():
+    assert repair_operation(_accept()) is None
+
+
+def test_a_relationship_repair_threads_no_directive_into_the_chart():
+    """A regeneration needs its directive in the section intents; a relationship repair has
+    no generator to steer, so the chart must come back untouched."""
+    arr = _arr()
+    revised = revise_arrangement(
+        arr, ConductorRuling(directive="revise", operation="arrange_riff_against_lead",
+                             reason="settle the guitar"))
+    assert all("REVISE" not in (s.intent or "") for s in revised.sections)
 
 
 # --- the loop --------------------------------------------------------------

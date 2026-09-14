@@ -206,13 +206,20 @@ generate_lead:
     described, tracing the contour you chose.
 
     BUILD FROM THE RAGA, NOT THE SCALE — most of the phrase is the raga's own material:
-      - Draw roughly 80% of the notes from the pakad and chalan (vakra / zig-zag) fragments
-        below, and use the other ~20% as connective tissue. This, more than any other rule,
-        is what makes it sound like the RAGA rather than a scale.
+      - The phrase OPENINGS, the RESOLUTIONS and every phrase boundary are built from the
+        pakad and chalan (vakra / zig-zag) fragments below — that is where a listener hears
+        which raga this is. Connective passages may move more freely inside the grammar.
+        This, more than any other rule, is what makes it sound like the RAGA rather than a
+        scale; a line that merely paraphrases the pakad end to end is the opposite failure.
       - OPEN with a RECOGNISABLE pakad/chalan fragment before you develop it, and return to
         one at the cadence — the signature phrase should be heard often, not buried.
-      - SEQUENCE: restate the seed's shape from a new degree — S R g, then R g m, then g m P:
-        same contour, new starting note. Deeply idiomatic.
+      - DEVELOP the seed the way this music does: repeat it, FRAGMENT it, answer it, compress
+        or stretch it rhythmically (layakari), move it to another octave, or shift where it
+        comes to rest (nyas) — these are the raga's own devices and always safe.
+      - SEQUENCE — restating the shape from a new degree — only where the chalan actually
+        supports that move. Marching one contour up through successive degrees is a Western
+        device: it can be perfectly legal and still erase the raga, especially in a vakra
+        raga whose zig-zag IS its identity. When in doubt, develop rhythmically instead.
       - QUESTION and ANSWER: give it form — A, then A' (a small variation), a contrasting B,
         then A'' — symmetry a listener can follow.
       - Worked example of developing ONE seed (illustrative — use THIS raga's swaras): seed
@@ -274,7 +281,8 @@ generate_lead:
       creative intent: {section_intent}
       the SEAM into the next section (the composers designed this handoff — shape your
       final notes to serve it): {section_transition}
-      length: about {window_beats} beats — aim to fill it.
+      length: compose WITHIN about {window_beats} beats. Do not fill time merely because it
+      is there — a held note and a deliberate silence are part of the phrase, not a gap in it.
 
     TALA POSITION — LAND ON THE SAM: {tala_position}
 
@@ -643,10 +651,14 @@ assess_legality:
 # arrives via {output_schema}.
 assess_taste:
   description: |
-    You are Rasik. Your one question about this finished composition in raga {raga}:
-    does it sound like the raga? — not whether it is legal (Ustad's job) or whether it
-    works as a song (the Producer's job), only its raga authenticity. Legality is a fact;
-    this is your judgment — but you judge against criteria, not vibes.
+    You are Rasik. Your one question about the MELODIC LINE of this composition in raga
+    {raga}: does it sound like the raga? — not whether it is legal (Ustad's job) or whether
+    it works as a song (the Producer's job), only the raga authenticity of the melody.
+    Legality is a fact; this is your judgment — but you judge against criteria, not vibes.
+
+    Judge the lead line below and nothing else. The guitar, bass and orchestra are not shown
+    to you and are not yours to score: their notes are kept legal by code, and how they sit
+    under the melody is the Arranger's job. Score what you can actually hear here.
 
     THE RAGA — its encoded character, the single source of truth you judge against:
     {raga_facts}
@@ -832,9 +844,13 @@ arbitrate:
     Legality is non-negotiable and is already enforced by code, so your call is an
     aesthetic one: soul versus works-as-music. Is Rasik's case that the raga needs more
     soul, or the Producer's case that the songwriting needs work, strong enough to justify
-    regenerating ONE voice — or does the piece already land well enough to ship? A revise
-    costs another pass — spend it only when it will clearly make the music better, and on
-    the ONE voice that most addresses the stronger objection; otherwise accept and move on.
+    another pass — or does the piece already land well enough to ship? A revise costs time,
+    so spend it only when it will clearly make the music better; otherwise accept and move on.
+
+    MATCH THE REPAIR TO THE FAULT. Some complaints are about a PART being weak, and those
+    want that part composed again. Others are about how the parts SIT TOGETHER — and
+    regenerating a good voice to fix a relationship throws away work and re-rolls the dice
+    on the same problem. Pick the operation that addresses what the critics actually said.
 
     METHOD — fill `reasoning` FIRST (weigh the two sides against the evidence), then rule.
 
@@ -847,13 +863,15 @@ arbitrate:
     THE DEBATE:
     {transcript}
 
+    THE REPAIRS YOU MAY CALL FOR:
+    {operations}
+
     YOUR RULING:
       - `directive`: "accept" or "revise".
-      - If "revise": `layer` = the ONE voice to regenerate, and `reason` = a SHORT
-        surgical directive the generator can act on (WHAT to fix, e.g. "regenerate the
-        lead to state the raga's pakad and lean on the vadi", or "regenerate the rhythm
-        with a catchier, more varied riff") — concrete enough for a generator to act on,
-        not a vague "improve it".
+      - If "revise": `operation` = one of the repairs above, and `reason` = a SHORT
+        surgical directive the performer of that repair can act on (WHAT to fix, e.g.
+        "state the raga's pakad and lean on the vadi", or "a catchier, more varied riff
+        built on one restated hook") — concrete enough to act on, not a vague "improve it".
       - If "accept": `reason` = one line on why the piece is good enough to ship.
   expected_output: |
     A single ConductorRuling as JSON and nothing else — no prose, no code fences.

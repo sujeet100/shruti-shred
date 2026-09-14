@@ -47,6 +47,8 @@ from crew.contracts import (
     RasikVerdict,
     SectionCanvas,
     UstadVerdict,
+    repair_layer,
+    repair_operation,
 )
 from crew.live import publish, publish_all
 
@@ -67,8 +69,9 @@ def revise_arrangement(arr: Arrangement, ruling: ConductorRuling) -> Arrangement
     the directive as creative intent. Pure; the original chart is untouched."""
     revised = arr.model_copy(deep=True)
     note = f" [REVISE — {ruling.reason}]" if ruling.reason else " [REVISE]"
+    layer = repair_layer(ruling)
     for section in revised.sections:
-        if ruling.layer and ruling.layer in section.layers:
+        if layer and layer in section.layers:
             section.intent = (section.intent or "") + note
     return revised
 
@@ -158,6 +161,13 @@ def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[Laye
         rhythm, e2 = compose_riff(arr, mukhada=mukhada_cell_from_events(e1))
         publish_all(e2)
         events, canvases = [*e1, *e2], []
+    # THE ARRANGER — the two lines are made to COEXIST before anything derives from them
+    # (bass, drums and the double-track all inherit the riff) and before the orchestra scores
+    # AROUND them. Evidence-gated: a piece with no clashes makes no call.
+    from crew.arranger import arrange_against_lead
+    rhythm, lead_layers, ea = arrange_against_lead(rhythm, lead_layers, arr)
+    publish_all(ea)
+    events = [*events, *ea]
     orchestra_layers: list[Layer] = []
     from crew.orchestra import compose_orchestra, uses_orchestra
     if uses_orchestra(arr):
@@ -213,23 +223,33 @@ def _regenerate(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Lay
     studio produced canvases, regenerate CANVAS-AWARE (the collaboration survives the revise),
     else do the standalone surgical fix. A ruling targeting a non-creative voice regenerates
     nothing. The orchestra passes through unchanged unless it is the flagged voice."""
+    operation = repair_operation(ruling)
+    if operation == "arrange_riff_against_lead":
+        # A RELATIONSHIP repair: neither voice is bad, they fight. Regenerating either would
+        # discard work and re-roll against the same information that produced the clash, so
+        # the Arranger re-decides the guitar's voicing/articulation against THIS lead instead.
+        from crew.arranger import arrange_against_lead
+        publish(_running("Arranger", "settling the guitar under the gat…"))
+        new_rhythm, new_lead, events = arrange_against_lead(rhythm, lead_layers, arr)
+        return new_lead, new_rhythm, orchestra_layers, events, canvases
     revised = revise_arrangement(arr, ruling)
-    if ruling.layer == "orchestra":
+    if operation == "regenerate_orchestra":
         from crew.orchestra import compose_orchestra
         publish(_running("Orchestra", "reworking the orchestra…"))
         new_orch, events = compose_orchestra(revised, lead_layers=lead_layers, rhythm=rhythm)
         return lead_layers, rhythm, new_orch, events, canvases
     if canvases:
         from crew.studio_session import regenerate_layer
-        new_lead, new_rhythm, events, new_canvases = regenerate_layer(revised, canvases, ruling.layer)
+        new_lead, new_rhythm, events, new_canvases = regenerate_layer(revised, canvases,
+                                                                       repair_layer(ruling))
         return new_lead, new_rhythm, orchestra_layers, events, new_canvases
     from crew.lead import compose_lead
     from crew.riff import compose_riff
-    if ruling.layer == "rhythm":
+    if operation == "regenerate_riff":
         publish(_running("Riff", "reworking the riff…"))
         new_rhythm, events = compose_riff(revised)
         return lead_layers, new_rhythm, orchestra_layers, events, canvases
-    if ruling.layer == "lead":
+    if operation == "regenerate_lead":
         publish(_running("Lead", "reworking the gat…"))
         new_lead, events = compose_lead(revised)
         return new_lead, rhythm, orchestra_layers, events, canvases

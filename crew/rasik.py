@@ -5,7 +5,12 @@ The pattern on show: LLM-AS-JUDGE, and the discipline it needs. This is the
 deliberate OPPOSITE of Ustad. Legality is a fact, so code owns Ustad's verdict; but
 taste — is the raga's soul present, does the line move idiomatically, does it serve
 the rasa — is NOT checkable, so here the model genuinely judges. Rasik owns exactly
-ONE dimension: RAGA AUTHENTICITY (the uniquely Hindustani questions). Whether the
+ONE dimension: the RAGA AUTHENTICITY OF THE MELODIC LINE (the uniquely Hindustani
+questions). The scope is narrower than it once claimed: the only evidence Rasik is given
+is the lead line, so judging "the composition" was a promise the prompt could not keep — a
+piece with a beautiful sitar line over strange guitar colours would have scored 5/5.
+Accompaniment legality is code's, and how the accompaniment SITS under the melody is the
+Arranger's (crew/arranger.py); Rasik scores what it can actually hear. Whether the
 piece works AS A SONG — structure, motif, dynamics, arrangement — is the Producer's
 job, deliberately kept out of Rasik so each critic owns a sharp responsibility.
 LLM judges are biased (verbosity, gestalt "vibe" scoring, self-preference), and the

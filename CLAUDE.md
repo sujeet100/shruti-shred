@@ -666,6 +666,23 @@ and build order.
   (±10%) per note, each salted independently, deterministic (crc32-keyed like the drum
   machine, never an RNG) and capped under ~25ms so the pair fuses instead of flamming.
   test_riff_texture 36->44, test_generators 32->35; suite 732 green.
+- **CONDUCTOR REPAIR VOCABULARY + PROMPT BATCH — ✅ BUILT (2026-09-14;** DESIGN.md "RIFF
+  RENDERING CAMPAIGN" step 5**):** `ConductorRuling` named a LAYER, so a RELATIONSHIP fault
+  ("the guitar fights the sitar") could only be answered by re-rolling a good riff. Now
+  `RepairOperation` (`regenerate_lead`/`regenerate_riff`/`regenerate_orchestra`/
+  **`arrange_riff_against_lead`**) says WHAT to do and the Flow dispatches on it;
+  `repair_operation` reads a layer-only ruling as "regenerate that voice" so the old shape
+  never fails a run, and a relationship repair threads no directive into the chart. **Caught
+  while wiring: the Arranger was only reachable from `compose_band`, never from the Flow —
+  the real pipeline — so it would not have run live.** Now in `_compose_voices`, before the
+  orchestra and the derived voices. Prompt batch (each verified first): Rasik's prompt
+  claimed to judge "this finished composition" but is only given the LEAD (renamed to melodic
+  authenticity, and told what it is not shown); the SEQUENCE instruction taught marching a
+  contour up successive degrees — legal but raga-erasing in vakra ragas — now conditional on
+  the chalan with the Hindustani devices listed first; "aim to fill it" removed; the 80% pakad
+  quota became a placement rule. REJECTED GPT's Performance critic (every criterion is a
+  number -> verifier/metrics, not a paid judge). REVERTED relaxing the 3-avartan intro — it is
+  guardrail-enforced and records Sujit's own ear. Suite 736 green; live-untested.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

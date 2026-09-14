@@ -69,6 +69,7 @@ from crew.contracts import (
     ProducerVerdict,
     RasikVerdict,
     UstadVerdict,
+    repair_operation,
 )
 
 
@@ -111,10 +112,25 @@ _DEBATE_SCHEMA: Final = """{
 _RULING_SCHEMA: Final = """{
   "reasoning": "weigh both sides against the evidence, then decide",
   "directive": "revise",
-  "layer": "lead",
+  "operation": "regenerate_lead",
   "reason": "a short surgical directive the generator can act on"
 }
-"layer" is required only when directive is "revise"; use null otherwise."""
+"operation" is required only when directive is "revise"; use null otherwise."""
+
+# The repairs the Conductor may call for, as the prompt lists them. Kept beside the schema
+# so the ask and what the Flow can actually dispatch never drift apart.
+_OPERATIONS_BRIEF: Final = """      - regenerate_lead: the RAGA LINE itself is weak — it does not sound like the raga,
+        or the phrasing is dull. Compose the melody again with your directive.
+      - regenerate_riff: the RIFF itself is weak — unmemorable, not heavy, no hook.
+        Compose the rhythm guitar again with your directive.
+      - regenerate_orchestra: the orchestration is wrong — too thick, too thin, doubling
+        instead of answering. Re-score it around the unchanged band.
+      - arrange_riff_against_lead: the two parts are each GOOD but they FIGHT — the guitar
+        clashes with the sitar, its chords feel random under the melody, or it argues where
+        it should hold a floor. Nothing is regenerated: the guitar's voicing, articulation
+        and sustain are re-decided against THIS lead. Choose this whenever the complaint is
+        about how the parts sit TOGETHER rather than about one part being bad — regenerating
+        a good voice to fix a relationship throws the good voice away."""
 
 
 # --------------------------------------------------------------------------- #
@@ -247,7 +263,8 @@ def _debate_event(critic: Critic, turn: DebateTurn, round_no: int) -> DebateEven
 def _ruling_event(ruling: ConductorRuling) -> DebateEvent:
     return DebateEvent(type=EventType.VERDICT, agent="Conductor", role=_ROLE_CONDUCTOR,
                        text=ruling.reason, verdict=ruling.directive,
-                       data={"reasoning": ruling.reasoning, "layer": ruling.layer})
+                       data={"reasoning": ruling.reasoning, "layer": ruling.layer,
+                             "operation": repair_operation(ruling)})
 
 
 # --------------------------------------------------------------------------- #
@@ -268,6 +285,7 @@ def _forced_revise_ruling(ustad: UstadVerdict) -> ConductorRuling:
     first = ustad.violations[0] if ustad.violations else None
     return ConductorRuling(
         directive="revise",
+        operation="regenerate_lead" if first and first.layer == "lead" else "regenerate_riff",
         layer=first.layer if first else None,
         reason=f"Illegal in the raga — {first.reason}" if first else "Illegal in the raga.",
         reasoning="Legality is non-negotiable; code forces the revise with no debate.")
@@ -370,7 +388,7 @@ class _DebateContext:
 
     def rule_inputs(self, transcript: list[tuple[str, str]]) -> dict[str, Any]:
         return {**self._static, "transcript": _render_transcript(transcript),
-                "output_schema": _RULING_SCHEMA}
+                "operations": _OPERATIONS_BRIEF, "output_schema": _RULING_SCHEMA}
 
 
 class _ConductorCrew:

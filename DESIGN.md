@@ -1943,3 +1943,58 @@ the note (the drum machine's idiom), never an RNG, so re-renders stay reproducib
 stay stable; capped under ~25 ms so the pair still fuses instead of flamming.
 
 Tests: `test_riff_texture` 36 → 44, `test_generators` 32 → 35. Suite 732 green.
+
+### Step 5 — the Conductor's repair vocabulary + a prompt batch (BUILT 2026-09-14)
+
+Triage of GPT's whole-prompt review (my verdicts per item are in the session record; the two
+I acted on are below, the one I rejected is noted).
+
+**The repair vocabulary (GPT #14 — adopted, and the reason it mattered).** `ConductorRuling`
+named a LAYER, which was the only vocabulary available while every repair was a regeneration.
+That forced the wrong operation on a whole class of faults: told "the guitar fights the
+sitar", the referee could only re-roll the riff — discarding a working hook AND re-rolling it
+against the same information that produced the clash. `RepairOperation` now names WHAT to do
+(`regenerate_lead` / `regenerate_riff` / `regenerate_orchestra` / `arrange_riff_against_lead`),
+the Flow dispatches on it, and a relationship complaint routes to the Arranger instead of a
+generator. `repair_operation` reads a layer-only ruling as "regenerate that voice", so a model
+answering in the old shape is never a failed run. A relationship repair threads no directive
+into the chart (there is no generator to steer) — a test pins that.
+
+**Found while wiring it:** the Arranger was only reachable from `compose_band`, and the real
+pipeline is the Flow, which calls `compose_lead`/`compose_riff`/`band_layers` directly. So the
+pass we built would never have run in a live composition. It is now in `_compose_voices`,
+before the orchestra scores around the two lines and before bass/drums/double derive from the
+riff.
+
+**Prompt batch** (all verified against the code first):
+* **Rasik's scope was a false claim.** The prompt asked about "this finished composition" but
+  `_RasikCrew.run` passes only the lead line — so a beautiful sitar line over strange guitar
+  colours scored 5/5 on raga authenticity. Renamed to the melodic line's authenticity, with
+  the prompt saying explicitly what it is not being shown and why (accompaniment legality is
+  code's; how it SITS under the melody is the Arranger's).
+* **The sequence instruction was a real musical bug.** "S R g, then R g m, then g m P" teaches
+  marching one contour up successive degrees — a Western device that can be perfectly legal
+  and still erase the raga, especially in the vakra ragas whose zig-zag IS their identity
+  (Bageshree, Jog), and which can walk straight through a `directional_varjya` rule. Now
+  conditional on the chalan supporting it, with the Hindustani devices (repeat, fragment,
+  layakari, register shift, nyas displacement, question/answer) listed ahead of it as always-safe.
+* **"aim to fill it"** rewarded density in the one voice whose silences are the point — the
+  same failure the lead-latency campaign fought with its anti-over-fill schema example. Now
+  "compose WITHIN the window; a held note and a deliberate silence are part of the phrase".
+* **The 80% pakad quota** is now a placement rule (openings, resolutions and phrase boundaries
+  carry the pakad; connective passages move more freely) rather than arithmetic, with the
+  opposite failure — a line that paraphrases the pakad end to end — named explicitly.
+
+**REJECTED — GPT #13's Performance critic.** The gap is real (no critic could hear an 80 ms
+chug, a rubber chord or a hollow sustain), but every criterion it proposes — gate distribution,
+sustain continuity, bend realism, velocity dynamics, double-track realism, density — is a
+NUMBER. By our own rule those belong in `verify_riff` and `crew/metrics.py`, where several now
+are, not in a paid judge with a debate surface.
+
+**REVERTED mid-change:** GPT #4 wanted the intro's 3-avartan minimum relaxed as over-rigid. It
+is enforced by the composer guardrail (`_MIN_INTRO_BARS`) and the comment records it as Sujit's
+own ear ("a 2-avartan intro was heard as rushed", 2026-07-15). Relaxing the prompt alone would
+have fought the guardrail; a recorded listening judgement outranks a reviewer's prior.
+
+Also cleared three stale unused imports in `crew/orchestra.py` so `ruff check crew/` is usable
+as a gate again. Suite 736 green.

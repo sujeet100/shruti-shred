@@ -1474,18 +1474,65 @@ class DebateTurn(BaseModel):
     target_layer: Optional[str] = None
 
 
+# What a revise may actually DO. Naming a LAYER was the only vocabulary the Conductor had
+# while every repair was a regeneration, and it forced the wrong operation on a whole class
+# of faults: several things that go wrong are RELATIONSHIPS between voices, not a bad voice.
+# Told "the guitar fights the sitar", a layer-only ruling can only re-roll the riff — throwing
+# away a working hook, and re-rolling it against the same information that produced the clash.
+# An operation vocabulary lets the referee ask for the repair the fault actually needs.
+RepairOperation = Literal[
+    "regenerate_lead",            # the raga line itself is weak — compose it again
+    "regenerate_riff",            # the riff itself is weak — compose it again
+    "regenerate_orchestra",       # the orchestration is wrong — re-score around the band
+    "arrange_riff_against_lead",  # the parts are each fine but FIGHT — repair the relationship
+]
+
+# Which voice a repair operates on, so a directive still reaches the right sections'
+# `intent` (see flow.revise_arrangement). A relationship repair carries no regeneration,
+# so it threads no directive.
+_OPERATION_LAYER: dict[str, Optional[str]] = {
+    "regenerate_lead": "lead",
+    "regenerate_riff": "rhythm",
+    "regenerate_orchestra": "orchestra",
+    "arrange_riff_against_lead": None,
+}
+
+
 class ConductorRuling(BaseModel):
     """The Conductor's FINAL call on a critiqued composition — the referee's verdict.
 
     Always terminating by design (the round cap is the guarantee, not organic
-    consensus). `directive` is accept or revise; on a revise, `layer` is the single
-    voice to regenerate and `reason` is the SURGICAL directive a generator can act on
-    (what to fix, not a vague complaint). `reasoning` weighs the two sides first.
+    consensus). `directive` is accept or revise; on a revise, `operation` is WHAT to do and
+    `reason` is the SURGICAL directive a generator can act on (what to fix, not a vague
+    complaint). `reasoning` weighs the two sides first.
+
+    `layer` predates `operation` and remains as the voice a regeneration targets; a ruling
+    that names only a layer still works (`repair_operation` reads it as "regenerate that
+    voice"), so a model answering in the old shape is never a failed run.
     """
     reasoning: str = ""
     directive: Literal["accept", "revise"]
+    operation: Optional[RepairOperation] = None
     layer: Optional[str] = None
     reason: str = ""
+
+
+def repair_operation(ruling: ConductorRuling) -> Optional[str]:
+    """The operation a ruling asks for — its own, or a regeneration of the layer it named.
+    None when the ruling accepts or names nothing actionable. Pure."""
+    if ruling.directive != "revise":
+        return None
+    if ruling.operation is not None:
+        return ruling.operation
+    return {"lead": "regenerate_lead", "rhythm": "regenerate_riff",
+            "orchestra": "regenerate_orchestra"}.get(ruling.layer or "")
+
+
+def repair_layer(ruling: ConductorRuling) -> Optional[str]:
+    """The voice a ruling's repair targets — used to thread the directive into that voice's
+    sections. None for a relationship repair, which regenerates nothing. Pure."""
+    operation = repair_operation(ruling)
+    return _OPERATION_LAYER.get(operation) if operation else None
 
 
 # --------------------------------------------------------------------------- #

@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import shutil
 import sys
-from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final, Protocol
@@ -44,7 +43,6 @@ from crew.config import (
     GENERATOR_MAX_ITER,
     GENERATOR_RETRIES,
     generator_llm,
-    load_env,
 )
 from crew.contracts import (
     Arrangement,
@@ -61,7 +59,6 @@ from crew.generators import (
     VOICES,
     SectionSpan,
     assemble_composition,
-    drone_layer,
     render_composition,
     section_spans,
 )
