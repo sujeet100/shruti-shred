@@ -161,15 +161,25 @@ def apply_dynamics(layers: list[Layer], arr: Arrangement) -> list[Layer]:
 _EXPOSED_ROLES: frozenset[str] = frozenset({"rhythm", "bass", "drums", "clean"})
 _TAAN_LONG_ROLE: str = "taan_long"
 _EXPOSURE_MIN_BARS: int = 2     # a 1-bar taan has no band statement to drop out FROM
+# HOW LONG the band stays out. It used to be the taan's whole final avartan, and that
+# DEFLATED the climax instead of sharpening it (Sujit, 2026-09-14, on the teentaal render):
+# the sitar builds, the drums get dense, and then every metal voice vanishes for sixteen
+# beats while the tabla carries a cycle alone — the genre changes at exactly the wrong moment,
+# after two minutes spent establishing a band. A brief exposure just before the re-entry sam
+# does the opposite: the hole is short enough to read as a held breath, and the band slamming
+# back in IS the arrival. Measured in MATRAS so it scales across talas.
+_EXPOSURE_MATRAS: float = 4.0
 _STOP_HIT_RING: float = 1.0     # the sam stop hit rings at most this long before the silence
 _EPS: float = 1e-6
 
 
 def taan_exposure_windows(arr: Arrangement) -> list[tuple[float, float]]:
-    """The [start, end) beat windows where the band drops out: the FINAL avartan of every
-    EXPOSED `taan_long` section (climax_style == "exposed") of at least `_EXPOSURE_MIN_BARS`
-    bars. A `driven` taan (the default) keeps the band and yields no window. Pure."""
-    return [(span.end - arr.beats_per_bar, span.end)
+    """The [start, end) beat windows where the band drops out: the LAST `_EXPOSURE_MATRAS`
+    matras of every EXPOSED `taan_long` section (climax_style == "exposed") of at least
+    `_EXPOSURE_MIN_BARS` bars — a short breath before the re-entry sam, not a whole cycle
+    without the band. A `driven` taan (the default) keeps the band and yields no window.
+    Pure."""
+    return [(span.end - min(_EXPOSURE_MATRAS, arr.beats_per_bar), span.end)
             for span in section_spans(arr)
             if span.section.form_role == _TAAN_LONG_ROLE
             and span.section.climax_style == "exposed"

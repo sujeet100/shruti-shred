@@ -2436,3 +2436,32 @@ The principle worth keeping: **the agents should not distribute the spotlight de
 Musicians do not need equal turns; the arrangement serves the composition.
 
 Suite 794 green.
+
+### The taan's band-drop was deflating the climax (2026-09-14)
+
+Sujit on the teentaal render: the last avartan of the taan loses all momentum. Confirmed in the
+file — the chart set `climax_style: "exposed"`, and its own section intent quotes our prompt
+back at us ("the final avartan drops the metal guitars to expose the sitar and tabla"), so
+`apply_taan_exposure` removed rhythm, bass and kit for a full 16-beat cycle.
+
+The shape that produced: the taan builds, the drums get dense, the melodic climax approaches —
+and every metal voice vanishes for sixteen beats while the tabla carries a cycle alone. After
+two minutes spent establishing a band, the genre changes at exactly the wrong moment. The
+device was taken from Sujit's own Yaman fusion (2026-07-16), where the band dropping out IS the
+drama — but there it is a moment, and we had made it a cycle.
+
+**Built:** `_EXPOSURE_MATRAS = 4` — the window is now the last few matras before the re-entry
+sam rather than the whole final avartan, measured in matras so it scales across talas. Short
+enough to read as a held breath, with the band slamming back in as the arrival. The prompt no
+longer teaches a full-avartan dropout, and the checklist now asks the opposite: the metal drums
+keep driving the taan, because **the sitar gets more virtuosic BECAUSE the band underneath
+pushes harder** — the accompaniment simplifies HARMONICALLY (the riff prompt already asks for
+sustained ringing chords under a taan) rather than dropping out RHYTHMICALLY.
+
+**Still open — the tabla does not respond to the taan.** It plays one onset per matra
+everywhere, so against a sixteenth-note taan and a double-kick groove it reads as half-time
+even though the tala is unchanged. A tabla player keeps the theka but raises density into a
+peak (dugun, denser bols, phrase-ending answers, a sam pickup). That needs a section-aware
+`tabla_layer` with a laya mode per section role, which is the next piece of this thread.
+
+Suite 794 green.

@@ -91,9 +91,12 @@ compose_turn:
     Layers (voices) you may activate per section — tabla and the metal drums CAN
     play together (tabla holding the theka under the metal groove is a core fusion
     sound); honor any instruments the user named in the request above. Give the
-    taan_long section the TABLA: its final avartan drops the metal band out (a coded
-    exposure — the sitar flies alone), and the theka is what carries the tala through
-    that naked cycle into the re-entry sam:
+    taan_long section the TABLA: the theka carries the tala under the taan and through the
+    short breath before the re-entry sam. The taan is a RISING energy section, not a band
+    dropout — the sitar becomes more virtuosic BECAUSE the drums underneath push harder,
+    while the guitars simplify to sustained weight. Code thins the band for a few matras
+    just before the sam when a section asks for it (`climax_style: exposed`); that hole is a
+    held breath the band slams back into, never a whole cycle without the band:
     {layer_roles}
     Pakad seeds — idiomatic phrases to inspire your motif (quote them, vary them, or
     depart from them, but the motif must stay inside the raga's allowed swaras):
@@ -172,8 +175,9 @@ compose_turn:
       [ ] the intro/alap has at least 3 avartans (bars)
       [ ] every manjha sits AFTER a mukhada and is IMMEDIATELY followed by one, and that
           returning mukhada has at least 2 bars
-      [ ] the taan_long section includes the TABLA (its final avartan drops the metal band
-          — the theka carries that naked cycle)
+      [ ] the taan_long section includes the TABLA (the theka carries the tala under it)
+      [ ] the metal drums keep driving the taan — the sitar's speed rides the band's
+          propulsion; any exposure is a brief breath before the sam, not a cycle off
       [ ] harmony roots are raga swaras; any progression has 2-4 roots ENDING ON S, sits on
           a chorus-like section (never intro/taan_long/outro), and roots avoid the raga's
           descent-only swaras

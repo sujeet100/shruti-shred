@@ -125,7 +125,7 @@ _FORM_DESC: Final[dict[str, str]] = {
               "mukhada must re-enter IMMEDIATELY after it (head -> manjha -> head, one cohesive cycle)",
     "antara": "the second theme — lifts into the higher (taar) octave",
     "taan_short": "a short cadential taan filler (half/one cycle) that resolves into the next mukhada",
-    "taan_long": "the developed taan — the SITAR's peak; place it after the antara or before the final mukhada. The climax belongs to the sitar: build it with a LONG taan, or with back-to-back taan sections that accelerate into each other, rather than handing the melody to another instrument. By DEFAULT the band DRIVES it (sustained rhythm chords + climax drums under the taan, the lead guitar joining in unison only for the final avartan); set climax_style 'exposed' only for a spacious alap-style band-drop reveal",
+    "taan_long": "the developed taan — the SITAR's peak; place it after the antara or before the final mukhada. The climax belongs to the sitar: build it with a LONG taan, or with back-to-back taan sections that accelerate into each other, rather than handing the melody to another instrument. By DEFAULT the band DRIVES it (sustained rhythm chords + climax drums under the taan, the lead guitar joining in unison only for the final avartan); set climax_style 'exposed' only when you want a short exposed breath (a few matras) before the re-entry sam — code thins the band there; it is a held breath, not a cycle without the band",
     "breakdown": "a heavy, sparse rhythmic climax",
     "tihai": "a phrase stated thrice, landing on the sam — a cadence",
     "outro": "settle back down to a held Sa",

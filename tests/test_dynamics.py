@@ -170,8 +170,14 @@ def _taan_arr(bars=2):
     ])
 
 
-def test_exposure_window_is_the_taans_final_avartan():
-    assert taan_exposure_windows(_taan_arr(bars=2)) == [(32.0, 48.0)]
+def test_exposure_is_a_BREATH_before_the_sam_not_a_whole_avartan():
+    """A full avartan without the band DEFLATED the climax (Sujit, 2026-09-14, on the teentaal
+    render): the sitar builds, the drums get dense, and then every metal voice vanishes for
+    sixteen beats while the tabla carries a cycle alone — the genre changes at exactly the
+    wrong moment, after two minutes spent establishing a band. A short hole reads as a held
+    breath, and the band slamming back in IS the arrival."""
+    (start, end), = taan_exposure_windows(_taan_arr(bars=2))
+    assert (start, end) == (44.0, 48.0)          # the last 4 matras, not the last 16
 
 
 def test_a_one_bar_taan_gets_no_exposure():
@@ -180,30 +186,30 @@ def test_a_one_bar_taan_gets_no_exposure():
 
 
 def test_exposure_drops_the_band_and_keeps_the_raga_voices():
-    arr = _taan_arr(bars=2)                          # window [32, 48)
-    lead = Layer(role="lead", notes=[Note(swara="S", start=36.0, dur=1, vel=90)])
+    arr = _taan_arr(bars=2)                          # window [44, 48)
+    lead = Layer(role="lead", notes=[Note(swara="S", start=45.0, dur=1, vel=90)])
     rhythm = Layer(role="rhythm", notes=[
-        Note(swara="S", start=30.0, dur=4.0, vel=100),   # struck BEFORE — its tail rings in
-        Note(swara="S", start=36.0, dur=1.0, vel=100),   # inside the window — dropped
+        Note(swara="S", start=42.0, dur=4.0, vel=100),   # struck BEFORE — its tail rings in
+        Note(swara="S", start=45.0, dur=1.0, vel=100),   # inside the window — dropped
     ])
-    bass = Layer(role="bass", notes=[Note(swara="S", oct=-1, start=40.0, dur=1, vel=100)])
-    drums = Layer(role="drums", hits=[DrumHit(drum=_DRUM, start=33.0)])
-    tabla = Layer(role="tabla", hits=[DrumHit(drum="tabla_lo", start=36.0)])
+    bass = Layer(role="bass", notes=[Note(swara="S", oct=-1, start=46.0, dur=1, vel=100)])
+    drums = Layer(role="drums", hits=[DrumHit(drum=_DRUM, start=45.0)])
+    tabla = Layer(role="tabla", hits=[DrumHit(drum="tabla_lo", start=45.0)])
     out = {ly.role: ly for ly in apply_taan_exposure([lead, rhythm, bass, drums, tabla], arr)}
-    assert [n.start for n in out["rhythm"].notes] == [30.0]     # the ring-in survives, whole
+    assert [n.start for n in out["rhythm"].notes] == [42.0]     # the ring-in survives, whole
     assert out["rhythm"].notes[0].dur == 4.0
     assert out["bass"].notes == [] and out["drums"].hits == []  # the band is out
     assert len(out["lead"].notes) == 1 and len(out["tabla"].hits) == 1   # sitar + tabla carry it
 
 
-def test_exposure_keeps_one_clamped_stop_hit_on_the_sam():
-    arr = _taan_arr(bars=2)
-    rhythm = Layer(role="rhythm", notes=[Note(swara="S", start=32.0, dur=4.0, vel=110)])
-    drums = Layer(role="drums", hits=[DrumHit(drum=_DRUM, start=32.0), DrumHit(drum=_DRUM, start=32.5)])
+def test_exposure_keeps_one_clamped_stop_hit_where_it_opens():
+    arr = _taan_arr(bars=2)                                     # window [44, 48)
+    rhythm = Layer(role="rhythm", notes=[Note(swara="S", start=44.0, dur=4.0, vel=110)])
+    drums = Layer(role="drums", hits=[DrumHit(drum=_DRUM, start=44.0), DrumHit(drum=_DRUM, start=44.5)])
     out = {ly.role: ly for ly in apply_taan_exposure([rhythm, drums], arr)}
-    assert [n.start for n in out["rhythm"].notes] == [32.0]
+    assert [n.start for n in out["rhythm"].notes] == [44.0]
     assert out["rhythm"].notes[0].dur == 1.0                    # the stop hit rings, briefly
-    assert [h.start for h in out["drums"].hits] == [32.0]       # the kit hits the sam, then silence
+    assert [h.start for h in out["drums"].hits] == [44.0]       # the kit stops it, then silence
 
 
 def test_exposure_is_a_noop_outside_the_window():
