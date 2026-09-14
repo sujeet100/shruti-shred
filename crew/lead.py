@@ -68,6 +68,7 @@ from crew.gat_verifier import (
     verify_intro,
     verify_manjha,
     verify_mukhada,
+    verify_outro,
     verify_taan,
 )
 from crew.generators import (
@@ -96,6 +97,7 @@ _INTRO: Final = "intro"                    # the alap — Sa-anchored, verified,
 _MANJHA: Final = "manjha"                  # the development — verified to RETURN into the head
 _ANTARA: Final = "antara"                  # the second movement — verified arc: quote, climb, peak, descend
 _TAAN_LONG: Final = "taan_long"            # the developed peak — verified: motif-grown, arced, burst+space
+_OUTRO: Final = "outro"                    # the close — verified to RESOLVE the raga, not just land on Sa
 _CELL_REPAIR_TRIES: Final = 1              # extra re-rolls of a weak verified cell (bounded; best-of-N kept)
 
 # The intro reserves a TRAILING SILENCE before the gat enters — the long breath between the
@@ -320,6 +322,12 @@ def is_antara(section) -> bool:
 def is_taan_long(section) -> bool:
     """Whether this section is the developed taan — the verified peak of the composition."""
     return section.form_role == _TAAN_LONG
+
+
+def is_outro(section) -> bool:
+    """Whether this section closes the piece — verified so the ending RESOLVES the raga
+    rather than merely landing on Sa."""
+    return section.form_role == _OUTRO or section.kind is SectionKind.OUTRO
 
 
 def _one_cycle_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
@@ -1895,6 +1903,16 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
             if tries > 1:
                 events.append(_gat_repair_event(_TAAN_LONG, tries, viol))
+        elif is_outro(section):                     # the close — it must RESOLVE the raga
+            head = gat.mukhada if gat is not None else None
+            phrase, tries, viol = _generate_verified_cell(
+                span, arr, memory, gen_fn=gen_fn,
+                verify=lambda c: verify_outro(c, mukhada=head, raga=raga))
+            line = _place_lead_section(phrase.notes, span=span, register=register,
+                                       cycle_beats=cycle_beats)
+            events.append(_lead_event(span, phrase, line, _voicing_for(section)))
+            if tries > 1:
+                events.append(_gat_repair_event(_OUTRO, tries, viol))
         else:
             beat("Lead", f"composing the {section.kind.value} line…")
             phrase = gen_fn(span, arr, list(memory))   # a COPY, so gen_fn can't mutate history

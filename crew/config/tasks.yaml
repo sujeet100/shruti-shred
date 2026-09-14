@@ -663,6 +663,13 @@ assess_taste:
     THE RAGA — its encoded character, the single source of truth you judge against:
     {raga_facts}
 
+    HOW THE LINE MOVES — measured for you, because a raga is a grammar of MOVEMENT and not a
+    permitted pitch set. A piece can use nothing but this raga's swaras and stop sounding like
+    it the moment the line walks the ladder; these numbers are where that shows. Judge whether
+    they matter musically here — a straight dash inside a fast taan is idiomatic, the same
+    figure across a whole piece is the scale wearing the raga's notes:
+    {motion}
+
     GROUNDING — a fact computed for you, so your pakad score is anchored rather than
     guessed (a phrase can be evoked without a literal quote — judge that with your ear):
     {pakad_hint}

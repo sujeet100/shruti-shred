@@ -2249,3 +2249,61 @@ lead vanishes for 20 beats" could not be attributed to a section. Free to write,
 if it fails, and the triple is everything needed to measure or replay a run with no LLM.
 
 Suite 777 green.
+
+## RAGA AS A GRAMMAR OF MOVEMENT (2026-09-14)
+
+Sujit: what would make the taans and the composition faithful to the raga? Measured the live
+Bageshree render first, and the finding reframed the problem: **the piece has the raga's
+GRAVITY and not its MOTION.** Phrase landings fell on m 34 times, S 23, D 21 — exactly vadi,
+samvadi, strong nyas — and both pakads were present, Pa correctly rare at 4%. Yet 63% of
+melodic moves were a single ladder step, the longest unbroken stepwise run was NINE notes, and
+the manjha contained NO Ma at all in a raga whose vadi is Ma.
+
+### On the external review's "build a RagaGrammar object"
+
+Rejected as a schema, adopted as a reading. Its proposed YAML (hierarchy, strong paths per
+direction, signature angs, weak-in-ascent) is almost entirely DERIVABLE from what `RAGAS`
+already encodes and source-verified: the allowed ladder, the aroha/avaroha (hence
+`directional_varjya`), vadi/samvadi, and the pakad/chalan phrases. Re-encoding that as a second
+object would duplicate verified knowledge and invite the two copies to disagree — and every
+entry would need the two-source check again. What was genuinely missing was anything that READ
+those facts as MOVEMENT. That is `src/chalan.py`:
+  * `ladder(raga)` — a raga's "step" is a rung of ITS ladder, not a semitone (in a pentatonic
+    raga a minor third IS adjacent, and calling it a leap makes every Malkauns phrase disjunct);
+  * `longest_scalar_run` — the scale tell;
+  * `direction_change_share` — the vakra character;
+  * `angs(raga)` / `ang_matches` / `ang_coverage` — the raga's own phrases and their fragments
+    as a vocabulary of movement, so we can ask what share of a line MOVES the way the raga
+    moves. This replaces "what % of notes came from the pakad?", a question every legal line
+    answers well because the pakad contains nearly every swara. Identity is ORDER, not membership.
+
+### The three-tier split (adopted from the review, and it immediately paid)
+
+  * **Wrong** → hard rule. The scalar-run cap (`_TAAN_SCALAR_MAX = 6` notes): one straight
+    dash is a sapat and idiomatic, a ladder is not.
+  * **Weakly characteristic** → critic evidence. The vakra share is measured for Rasik and is
+    NOT a rule — trying it as one proved the point twice over: a hand-written phrase that
+    descends then climbs reads as idiomatic while scoring 25%, and the render that prompted
+    all this scored 38%, so a floor tight enough to catch the real failure rejects real music.
+  * **Illegal** → already `validate_composition`.
+
+### Built
+
+* `verify_taan` rejects a line that walks more than six notes in one unbroken stepwise
+  direction. The taan brief ALREADY named koot (vakra) as its default style and called a
+  straight run "ONE dash, never the whole taan" — nothing measured it, so nothing happened.
+* `verify_manjha` requires the raga's VADI to sound at all, and requires the part to state one
+  of the raga's own movements (or quote the head).
+* **`verify_outro` is new** — the outro was the last unverified part of the gat, and it showed:
+  the render closed on `D R S` plus a held Sa, which resolves the pitch and could belong to any
+  raga sharing the scale. It now must quote a raga ang or the head, and come home on a held Sa.
+* **Rasik is grounded in motion**: stepwise share, longest scalar run, vakra share and ang
+  coverage, with the prompt telling it to judge whether the numbers matter musically here (a
+  dash inside a fast taan is idiomatic; the same figure across a piece is not). This is the
+  cheap 80% of the review's "score section by section" without changing the rubric contract.
+
+Measured on the live render for reference: stepwise 63%, longest run 10, turns 38%, **ang
+coverage 67%** — two thirds of the line already sits inside real Bageshree movements, which is
+why the piece sounds like the raga in places. The connective tissue is what walks the ladder.
+
+Suite 791 green.

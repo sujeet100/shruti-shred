@@ -752,6 +752,75 @@ def test_amad_must_fill_its_window():
     assert any("fills only" in v for v in viol)
 
 
+# --- the raga is a grammar of MOVEMENT, not a permitted pitch set ---------------
+
+def test_a_taan_that_walks_the_ladder_is_rejected():
+    """Measured on the 2026-09-14 render: 63% of moves were single steps and the longest
+    unbroken stepwise run was NINE notes. The taan brief already calls a straight run "ONE
+    dash, never the whole taan" — nothing measured it, so nothing happened."""
+    from crew.gat_verifier import _motion_violations
+    ladder = [LeadNote(swara=s, dur=0.25) for s in "SRgmPDn"] * 2
+    text = " ".join(_motion_violations(ladder, "bageshree", "taan"))
+    assert "unbroken stepwise" in text and "SCALE" in text
+
+
+def test_a_line_that_descends_and_climbs_is_left_alone():
+    """The vakra SHARE is measured for Rasik but is not a rule: this phrase reads as
+    idiomatic and scores only 25% turns, while the render that prompted all this scored 38% —
+    so a floor tight enough to catch the real failure would reject real music."""
+    from crew.gat_verifier import _motion_violations
+    line = [LeadNote(swara=s, dur=0.25) for s in "mDnDmgRSgmDnDm"]
+    assert _motion_violations(line, "bageshree", "taan") == []
+
+
+def test_a_part_that_states_no_raga_movement_is_flagged():
+    """A part built only from legal swaras can belong to any raga sharing the scale — the
+    2026-09-14 outro closed on D R S and a held Sa, which resolves the pitch and says nothing
+    about Bageshree."""
+    from crew.gat_verifier import _ang_violation
+    generic = [LeadNote(swara=s, dur=1.0) for s in "DRS"]
+    assert _ang_violation(generic, "bageshree", "outro") is not None
+    idiomatic = [LeadNote(swara=s, dur=1.0) for s in "mDnDmgRS"]
+    assert _ang_violation(idiomatic, "bageshree", "outro") is None
+
+
+def test_quoting_the_HEAD_counts_as_stating_the_raga():
+    """Restating the gat's own phrase is as much the raga as quoting the pakad is."""
+    from crew.gat_verifier import _ang_violation
+    part = [LeadNote(swara=s, dur=1.0) for s in "DRS"]
+    assert _ang_violation(part, "bageshree", "outro", also_accept=list("DRS")) is None
+
+
+def test_the_outro_must_resolve_the_raga_and_come_home():
+    from crew.gat_verifier import verify_outro
+    stops = LeadPhrase(phrase_plan=_PLAN,
+                       notes=[LeadNote(swara=s, dur=1.0) for s in "DR"]
+                       + [LeadNote(swara="g", dur=3.0)])
+    text = " ".join(verify_outro(stops, mukhada=None, raga="bageshree"))
+    assert "states none of this raga's own movements" in text
+    assert "not Sa" in text
+
+
+def test_an_outro_that_quotes_the_raga_and_holds_sa_passes():
+    from crew.gat_verifier import verify_outro
+    good = LeadPhrase(phrase_plan=_PLAN,
+                      notes=[LeadNote(swara=s, dur=0.5) for s in "mDnDmgR"]
+                      + [LeadNote(swara="S", dur=4.0)])
+    assert verify_outro(good, mukhada=None, raga="bageshree") == []
+
+
+def test_a_manjha_that_never_sounds_the_vadi_is_flagged():
+    """The 2026-09-14 manjha contained no Ma at all, in a raga whose vadi is Ma — a whole
+    section spent away from the note the raga gravitates to."""
+    from crew.gat_verifier import verify_manjha
+    head = LeadPhrase(phrase_plan=_PLAN,
+                      notes=[LeadNote(swara=s, dur=1.0) for s in "mDnDmgRS"])
+    no_ma = LeadPhrase(phrase_plan=_PLAN,
+                       notes=[LeadNote(swara=s, dur=1.0) for s in "gRRnnSSg"])
+    text = " ".join(verify_manjha(no_ma, mukhada=head, window_beats=8.0, raga="bageshree"))
+    assert "VADI" in text
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

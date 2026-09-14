@@ -30,6 +30,7 @@ from typing import Final
 
 from crew.contracts import LeadNote, LeadPhrase
 from gats import GAT_FRAMES
+from chalan import ang_matches, longest_scalar_run
 from raga import RAGAS, SWARAS
 
 # A mukhada should fill about ONE avartan so it loops as a cycle. Too short == a fragment; well
@@ -160,6 +161,14 @@ _CELL_FILL_MIN: Final = 0.85
 _CELL_FILL_MAX: Final = 1.02
 # A taan fill is a precise splice into a cut avartan: tighter floor, same hard ceiling.
 _TAAN_FILL_MIN: Final = 0.9
+# A raga is a grammar of MOVEMENT, not a permitted pitch set — Bageshree shares its scale
+# with Bhimpalasi, so a line can be perfectly legal and stop sounding like the raga the moment
+# it walks the ladder. Measured on the 2026-09-14 render: 63% of moves were single steps, the
+# longest unbroken stepwise run was NINE notes, and only 35% of moves turned. The taan brief
+# already asks for koot (vakra) as its default style and calls a straight run "ONE dash, never
+# the whole taan" — nothing measured it, so nothing happened. These budgets are what make that
+# instruction enforceable. Deliberately loose: one sapat dash is idiomatic, a ladder is not.
+_TAAN_SCALAR_MAX: Final = 6         # notes in one unbroken stepwise direction (one dash's worth)
 _TAAN_NOTE_MAX: Final = 0.25        # a short taan moves in sixteenths...
 _TAAN_LANDING_MAX: Final = 1.0      # ...but may land on one longer resolving note
 
@@ -556,6 +565,53 @@ def _intro_breath_violations(notes: list[LeadNote]) -> list[str]:
     return viol
 
 
+def _ang_violation(sounding: list[LeadNote], raga: str, cell: str, *,
+                   also_accept: list[str] | None = None) -> str | None:
+    """Does this part state one of the raga's OWN movements, or just its notes?
+
+    A part built only from legal swaras can belong to any raga sharing the scale — the
+    2026-09-14 outro closed on `D R S` and a held Sa, which resolves the pitch and says
+    nothing about Bageshree. `also_accept` lets a part qualify by quoting the head instead,
+    since restating the gat's own phrase is as much the raga as quoting the pakad is.
+    """
+    seq = [(_landing_swara(n), _landing_oct(n)) for n in sounding]
+    if ang_matches(seq, raga):
+        return None
+    swaras = [sw for sw, _ in seq]
+    if also_accept and _quote_present(swaras, also_accept, _QUOTE_MAX_GAP):
+        return None
+    library = " | ".join(" ".join(a) for a in RAGAS[raga]["pakad"])
+    return (f"the {cell} states none of this raga's own movements — it uses legal swaras in an "
+            f"order that could belong to any raga sharing the scale. Build it from a phrase the "
+            f"raga actually moves in ({library}), or from the gat head's own line")
+
+
+def _motion_violations(sounding: list[LeadNote], raga: str, cell: str) -> list[str]:
+    """Does the line MOVE like the raga, or merely use its notes? Pure.
+
+    ONE measure, derived from already-encoded facts (the raga's own ladder): how far the line
+    walks in one unbroken stepwise direction. That is the scale showing through, and it is
+    unambiguous enough to reject.
+
+    The VAKRA share — how often the line turns — is deliberately NOT a rule here, though it
+    is measured for Rasik. Two reasons, both learned by trying it: a hand-written phrase that
+    descends and then climbs reads as perfectly idiomatic while scoring only 25%, and the
+    2026-09-14 render that prompted all this scored 38% — so a floor tight enough to catch the
+    real failure would reject real music. Turn share is "legal but weakly characteristic",
+    which belongs in a score a critic weighs, not a rule that rejects. Making every aesthetic
+    property a hard rule produces stiff, uniform music.
+    """
+    seq = [(_landing_swara(n), _landing_oct(n)) for n in sounding]
+    viol: list[str] = []
+    run = longest_scalar_run(seq, raga)
+    if run > _TAAN_SCALAR_MAX:
+        viol.append(f"the {cell} walks {run} notes in one unbroken stepwise direction — that is "
+                    f"the SCALE, not the raga. One straight dash is idiomatic (a sapat); past "
+                    f"{_TAAN_SCALAR_MAX} notes turn back, skip, or repeat a swara. Build the fast "
+                    f"passages out of the raga's own movements, not out of its note list")
+    return viol
+
+
 def _is_sa_pluck(note: LeadNote) -> bool:
     """The between-phrase DRONE anchor: a mandra (or lower) Sa sounding — the guitarist's low
     open string, the sitar's jod string. Analysis treats it as PUNCTUATION, not melody: it
@@ -728,6 +784,18 @@ def verify_manjha(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
         return ["the manjha has no sounding notes — it must develop the mukhada's material"]
 
     viol: list[str] = []
+    # The manjha is the raga's LOW, unhurried stretch — the one place with room to state the
+    # raga's central swara plainly. The 2026-09-14 render's manjha contained no Ma AT ALL, in a
+    # raga whose vadi is Ma: a section spent entirely away from the note the raga gravitates to.
+    ang = _ang_violation(sounding, raga, "manjha",
+                         also_accept=[_landing_swara(n) for n in _sounding(mukhada.notes)])
+    if ang:
+        viol.append(ang)
+    vadi = RAGAS[raga]["vadi"]
+    if vadi not in {_landing_swara(n) for n in sounding}:
+        viol.append(f"the manjha never sounds {vadi}, this raga's VADI — the bridge is the "
+                    f"calmest stretch in the piece and the natural place to let the raga's "
+                    f"central swara ring; a manjha that avoids it develops the scale, not the raga")
     total = sum(n.dur for n in notes)
     if total < _CELL_FILL_MIN * window_beats:
         viol.append(f"the manjha fills only {total:g} of its {window_beats:g}-beat window — carry "
@@ -930,6 +998,36 @@ def verify_amad(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     return viol
 
 
+def verify_outro(cell: LeadPhrase, *, mukhada: LeadPhrase | None, raga: str) -> list[str]:
+    """Return the outro's violations (empty == an ending that RESOLVES the raga). Pure.
+
+    The outro was the last unverified part of the gat, and it showed: the 2026-09-14 render
+    ended on `D R S` and a long Sa — legal, and so unspecific it could close any raga sharing
+    the scale. An ending should compress what the listener has learned, so the requirements
+    are the two that make it a conclusion rather than a stop:
+      * IT QUOTES THE RAGA — one of the raga's own movements, or the gat head's own line;
+      * IT COMES HOME — the final note is Sa, held, so the piece resolves rather than halting.
+    Everything else about an outro (how long, how ornamented, whether a tihai closes it) stays
+    the composer's.
+    """
+    sounding = _sounding(cell.notes)
+    if not sounding:
+        return ["the outro has no sounding notes — it is the piece's resolution"]
+    viol: list[str] = []
+    head = [_landing_swara(n) for n in _sounding(mukhada.notes)] if mukhada else None
+    ang = _ang_violation(sounding, raga, "outro", also_accept=head)
+    if ang:
+        viol.append(ang)
+    last = sounding[-1]
+    if _landing_swara(last) != "S":
+        viol.append(f"the outro ends on {_landing_swara(last)}, not Sa — the piece comes HOME: "
+                    f"the last note is Sa, held long enough to feel final")
+    elif last.dur < _INTRO_HELD_SA:
+        viol.append(f"the outro's final Sa lasts only {last.dur:g} beats — hold it (>= "
+                    f"{_INTRO_HELD_SA:g}) so the ending lands instead of stopping")
+    return viol
+
+
 def verify_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
                 raga: str) -> list[str]:
     """Return the developed taan's (taan_long/solo) structural violations. Pure.
@@ -952,6 +1050,8 @@ def verify_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
         return ["the taan has no sounding notes — it is the composition's developed peak"]
 
     viol: list[str] = []
+    viol += _motion_violations(sounding, raga, "taan")
+
     total = sum(n.dur for n in notes)
     if total < _CELL_FILL_MIN * window_beats:
         viol.append(f"the taan fills only {total:g} of its {window_beats:g}-beat window — the "

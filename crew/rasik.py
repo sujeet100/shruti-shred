@@ -192,6 +192,32 @@ def _render_pakad_hint(comp: Composition) -> str:
         for phrase, match in pakad_presence(lead, comp.raga))
 
 
+def _render_motion(comp: Composition) -> str:
+    """The line's MOVEMENT, measured — the grounding that stops a pakad count standing in for
+    raga character.
+
+    `pakad_presence` answers "is the signature phrase here?", which a piece can satisfy once
+    and then walk the scale for three minutes. These numbers answer the other half: how far
+    the line travels in one unbroken stepwise direction (the scale tell), how often it turns
+    (the vakra character), and how much of it sits inside the raga's OWN movements rather than
+    merely its note set. Code measures; Rasik decides whether the numbers matter musically —
+    a high scalar run in a fast dash is idiomatic, the same number across a whole piece is not.
+    """
+    from chalan import motion_report
+    lead = [(n.swara, n.oct) for layer in comp.layers if layer.role == "lead"
+            for n in sorted(layer.notes or [], key=lambda x: x.start)]
+    if not lead:
+        return "  (no lead voice to measure)"
+    report = motion_report(lead, comp.raga)
+    return "\n".join((
+        f"  - {report.stepwise_share:.0%} of melodic moves are a single step of the raga's "
+        f"ladder, and the longest unbroken stepwise run is {report.longest_scalar_run} notes "
+        f"(a run is the SCALE showing through; one dash is idiomatic, a ladder is not)",
+        f"  - {report.direction_changes:.0%} of moves change direction (the vakra character)",
+        f"  - {report.ang_coverage:.0%} of the notes sit inside one of this raga's own encoded "
+        f"movements (its pakad/chalan phrases), rather than merely using its swaras"))
+
+
 def _swara_with_oct(swara: str, oct_: int) -> str:
     return swara if oct_ == 0 else f"{swara}({oct_:+d})"
 
@@ -244,6 +270,7 @@ class _RasikCrew:
             "raga": comp.raga,
             "raga_facts": _render_raga_facts(comp.raga),
             "pakad_hint": _render_pakad_hint(comp),
+            "motion": _render_motion(comp),
             "lead_line": _render_lead_line(comp),
             "output_schema": _RUBRIC_SCHEMA,
         })
