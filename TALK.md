@@ -645,3 +645,37 @@ to the `PALM_MUTE_MS = 80` constant it was describing.
 audio, so the diagnosis was measurement on a file we already had — gate ratios, gap
 distributions, wheel-gestures-on-chords — and the fix was A/B'd by re-rendering that same
 saved composition. Zero LLM calls to find or to verify a fault in an LLM pipeline.
+
+### The rule that was backwards (2026-09-14) — ★ confirmed by ear
+
+Sujit said the generated Bageshree gat didn't sound good, and sang me two he was learning:
+`MaMa GaGa ReRe SaSa | Ni Dha NiNi Sa | Ga Ma — | Ma Ga Re Sa`, then sent Vilayat Khan's
+notated Bageshree and Yaman gats. Measuring his against ours found the difference, and it was
+not the notes — both lines were 50% stepwise, both sat in one octave, ours quoted the pakad and
+landed on the vadi correctly.
+
+**His gat used two note values, one covering 95% of the notes. Ours used five, the commonest
+covering 31%.** A gat is sung and plucked: it moves at one pulse, with paired mizrab strokes
+("dara") as its subdivision. You can clap it on a single pitch and still recognise it.
+
+And our prompt was demanding the opposite, in as many words: *"MIX THE NOTE VALUES — at least
+THREE distinct durations… A head of even values reads as a metronome and is rejected."* We had
+written a rule that rejects the shape a real gat has. The instinct is right for a taan and
+exactly wrong for the head.
+
+Two more rules turned out tighter than the tradition in the same session. A vakra floor I tried
+would have rejected a hand-written idiomatic phrase. And the sam-note rule — Sa, vadi or
+samvadi — is refuted three times over by Sujit's own repertoire: Vilayat Khan's Yaman gat lands
+its sam on Pa, a Bageshree bandish he is learning lands on Re (a swara our data marks
+descent-only), another gat lands on Ma. That check is gone rather than widened, and its old
+test is now its refutation, so nobody re-adds it from the docstring.
+
+*The verdict, from the practitioner, on the next render:* **"intro and gat sound convincingly
+Bageshree."** The head came back with three note values instead of five, the commonest covering
+50%, and — unprompted — the paired strokes: `D D · P P · R R · S S`.
+
+*The lesson, and it generalises past music:* **every one of those rules came from reasoning
+about what the tradition "should" do, and every one was corrected by a real piece of it.** When
+you encode a domain you do not practise, your rules will be confidently, plausibly, and
+invisibly wrong until a practitioner hears the output. Build for that, and keep the refutation
+as the test.
