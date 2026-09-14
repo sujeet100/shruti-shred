@@ -66,6 +66,12 @@ _REPORTED: Final[frozenset[LeadStability]] = frozenset(
     {LeadStability.HELD, LeadStability.STABLE})
 
 
+def stability_of(note: Note) -> LeadStability:
+    """How settled a melody note is — public, because the harmonic guide asks the same
+    question of the same notes and the two must never disagree about what 'held' means."""
+    return _stability(note)
+
+
 def _stability(note: Note) -> LeadStability:
     if note.dur >= _HELD_MIN:
         return LeadStability.HELD

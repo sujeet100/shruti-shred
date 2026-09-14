@@ -683,6 +683,23 @@ and build order.
   quota became a placement rule. REJECTED GPT's Performance critic (every criterion is a
   number -> verifier/metrics, not a paid judge). REVERTED relaxing the 3-avartan intro — it is
   guardrail-enforced and records Sujit's own ear. Suite 736 green; live-untested.
+- **HARMONIC GUIDE + BRASS HIERARCHY + PERFORMANCE METRICS — ✅ BUILT (2026-09-14;** DESIGN.md
+  "RIFF RENDERING CAMPAIGN" step 6**):** `crew/harmonic_guide.py` (pure) is ONE derived answer
+  to "what does the melody settle on here, and what would grind under it" — the clean guitar
+  (`harmony.bar_voicings`) and the orchestra's SUSTAINING families (`orchestra._voicing`:
+  strings + choir; brass/timpani are too short to stack) filter their held tones through it,
+  so four voices each choosing LEGALLY can no longer assemble a cluster nobody designed. It
+  speaks only about sustained tones, and `supported()` can never filter a voice to nothing;
+  both default to no guide, so existing callers are unchanged. It reuses coexistence's
+  `stability_of` so the two never disagree about "settled". **Brass stabs** now follow a
+  HIERARCHY (`_stab_beats`: the sam every avartan, a later accent on alternate ones) instead
+  of hitting every sam AND tali with the whole band — the epic-soundtrack tell. **Performance
+  metrics** (`crew/metrics.py`): `rhythm_ring_share` / `rhythm_chug_share` /
+  `rhythm_silence_share` / `flat_chug_runs` / `accompaniment_grinds`, a "HOW IT PLAYS" prompt
+  block, and a 10th Producer criterion `performance` — the answer to GPT's proposed
+  Performance CRITIC, which we rejected (every criterion it listed is a number). On the
+  2026-07-20 render: 65% chugs, 37% ringing, 21% silent, **9 flat chug runs**. Suite 753 green.
+  **Everything from this campaign is LIVE-UNTESTED — the Arranger has never made a real call.**
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

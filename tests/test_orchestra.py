@@ -244,6 +244,24 @@ def test_band_layers_carries_the_orchestra_and_is_backward_compatible():
     assert not (orch_roles & {la.role for la in without})   # default empty -> no orchestra
 
 
+def test_the_brass_answers_chosen_accents_not_every_one():
+    """Guitar + kick + tabla + brass on every sam and every tali is the epic-soundtrack tell:
+    if everything arrives at once every cycle, nothing is an arrival."""
+    from crew.orchestra import _stab_beats
+    accents = [0.0, 4.0, 12.0]
+    assert _stab_beats(accents, 0) == [0.0]              # the sam is the one constant
+    assert _stab_beats(accents, 1) == [0.0, 12.0]        # ...and a later answer on alternate bars
+    assert _stab_beats([], 0) == []
+    assert _stab_beats([0.0], 1) == [0.0]                # a single accent cannot be varied
+
+
+def test_the_brass_still_lands_on_every_sam():
+    """Hierarchy must not turn into absence — the downbeat is the brass's anchor."""
+    from crew.orchestra import _stab_beats
+    accents = [0.0, 8.0]
+    assert all(_stab_beats(accents, bar)[0] == 0.0 for bar in range(4))
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

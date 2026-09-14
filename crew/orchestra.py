@@ -55,6 +55,7 @@ from crew.contracts import (
     SectionOrchestra,
     motif_illegal_in_raga,
 )
+from crew.harmonic_guide import HarmonicWindow, avoided_at, harmonic_guide, supported
 from crew.generators import (
     VOICES,
     SectionSpan,
@@ -123,11 +124,18 @@ def _seat(swara: str, raga: str) -> tuple[str, int]:
     return ascent_step(swara, raga)
 
 
-def _voicing(swaras: list[str], raga: str, *, default: list[str]) -> list[tuple[str, int]]:
+def _voicing(swaras: list[str], raga: str, *, default: list[str],
+             avoid: frozenset[str] = frozenset()) -> list[tuple[str, int]]:
     """A section's orchestral voicing: the given swaras (or a raga-derived default when the
-    LLM left them empty), each seated ascendable, deduped. (swara, octave-delta) pairs."""
+    LLM left them empty), each seated ascendable, deduped. (swara, octave-delta) pairs.
+
+    `avoid` is the harmonic guide's verdict for this section — swaras that would grind under
+    what the melody settles on. The orchestra scores before it can know the finished melody
+    note by note, and four accompanying voices each choosing legally is how a piece ends up
+    sustaining a cluster nobody designed. Filtering here keeps the orchestration and drops
+    only the colours that fight; it can never empty a voicing."""
     tones = [t for t in swaras if t in SWARAS] or default
-    seated = [_seat(sw, raga) for sw in tones]
+    seated = [_seat(sw, raga) for sw in supported(tones, avoid)]
     return list(dict.fromkeys(seated)) or [("S", 0)]
 
 
@@ -189,13 +197,31 @@ def _ostinato(voicing: list[tuple[str, int]], bars: list[tuple[float, float]], b
     return notes
 
 
+def _stab_beats(accent_beats: list[float], bar_index: int) -> list[float]:
+    """WHICH accents this avartan's brass answers — a hierarchy, not reinforcement everywhere.
+
+    The tala's accents are candidate locations, not a schedule. Punching the guitar, kick,
+    tabla AND brass together on every sam and every tali is the "epic soundtrack" tell:
+    everything arrives at once, every cycle, so nothing is an arrival. So the brass takes the
+    sam every avartan (the cycle's one true downbeat) and answers a LATER accent only on
+    alternate cycles — the bar you expect it and the bar you don't, which is what makes the
+    hit land. Pure."""
+    if not accent_beats:
+        return []
+    sam = accent_beats[:1]
+    if bar_index % 2 == 0 or len(accent_beats) < 2:
+        return sam
+    return sam + accent_beats[-1:]
+
+
 def _stabs(voicing: list[tuple[str, int]], bars: list[tuple[float, float]],
            accent_beats: list[float], base: int, vel: int) -> list[Note]:
-    """Brass STABS — short accented hits on the tala's sam/tali beats of each avartan, so the
-    brass locks to the kick and the riff's accents (register-separated above the guitars)."""
+    """Brass STABS — short accented hits on the tala's structural beats, so the brass locks
+    to the kick and the riff's accents (register-separated above the guitars). It answers a
+    CHOSEN few of the accents rather than all of them (see `_stab_beats`)."""
     notes: list[Note] = []
-    for start, end in bars:
-        for beat in accent_beats:
+    for bar_index, (start, end) in enumerate(bars):
+        for beat in _stab_beats(accent_beats, bar_index):
             hit = start + beat
             if hit >= end - 1e-9:
                 continue
@@ -253,12 +279,12 @@ def _strings_sustained(intent: SectionOrchestra, voicing: list[tuple[str, int]],
 
 
 def _strings_notes(intent: SectionOrchestra, span: SectionSpan, arr: Arrangement, base: int,
-                   base_vel: int) -> list[Note]:
+                   base_vel: int, avoid: frozenset[str] = frozenset()) -> list[Note]:
     raga = arr.raga
     r = RAGAS[raga]
     vel = _vel(base_vel, _STRINGS_VEL)
     bars = _bars(span, arr.beats_per_bar)
-    voicing = _voicing(intent.string_swaras, raga, default=["S", r["vadi"]])
+    voicing = _voicing(intent.string_swaras, raga, default=["S", r["vadi"]], avoid=avoid)
     sustained = _strings_sustained(intent, voicing, bars, base, vel)
     counter = (_place_countermelody(intent.countermelody, start=span.start, end=span.end, base=base)
                if intent.countermelody else [])
@@ -285,11 +311,12 @@ def _brass_notes(intent: SectionOrchestra, span: SectionSpan, arr: Arrangement, 
 
 
 def _choir_notes(intent: SectionOrchestra, span: SectionSpan, arr: Arrangement, base: int,
-                 base_vel: int) -> list[Note]:
+                 base_vel: int, avoid: frozenset[str] = frozenset()) -> list[Note]:
     if intent.choir == "silent":
         return []
     raga = arr.raga
-    voicing = _voicing(intent.choir_swaras, raga, default=["S", RAGAS[raga]["vadi"]])
+    voicing = _voicing(intent.choir_swaras, raga, default=["S", RAGAS[raga]["vadi"]],
+                       avoid=avoid)
     bars = _bars(span, arr.beats_per_bar)
     if intent.choir == "swell":
         return _choir_swell(voicing, bars, base, base_vel)
@@ -320,7 +347,8 @@ def _timpani_notes(intent: SectionOrchestra, span: SectionSpan, arr: Arrangement
     return notes
 
 
-def orchestra_layers_from(arr: Arrangement, score: OrchestraScore) -> list[Layer]:
+def orchestra_layers_from(arr: Arrangement, score: OrchestraScore, *,
+                          guide: tuple[HarmonicWindow, ...] = ()) -> list[Layer]:
     """Expand a whole-chart OrchestraScore into the orchestral Layers — one per family that
     actually sounds. Each intent addresses a section by index; an intent for a section that
     does not list the `orchestra` layer is ignored. Returns [] when no family sounds (a chart
@@ -334,9 +362,12 @@ def orchestra_layers_from(arr: Arrangement, score: OrchestraScore) -> list[Layer
         if span is None or _SECTION_ROLE not in span.section.layers:
             continue
         base_vel = _DYNAMIC_VEL[intent.dynamic]
-        by_role[_STRINGS].extend(_strings_notes(intent, span, arr, base, base_vel))
+        # Only the SUSTAINING families are filtered: a held string pad or choir tone is what
+        # the ear stacks into a cluster, while brass stabs and timpani are over too quickly.
+        avoid = avoided_at(guide, span.start)
+        by_role[_STRINGS].extend(_strings_notes(intent, span, arr, base, base_vel, avoid))
         by_role[_BRASS].extend(_brass_notes(intent, span, arr, base, base_vel))
-        by_role[_CHOIR].extend(_choir_notes(intent, span, arr, base, base_vel))
+        by_role[_CHOIR].extend(_choir_notes(intent, span, arr, base, base_vel, avoid))
         by_role[_TIMPANI].extend(_timpani_notes(intent, span, arr, base, base_vel))
     layers: list[Layer] = []
     for role in _ORCH_ROLES:
@@ -636,7 +667,10 @@ def generate_orchestra(arr: Arrangement, *, gen_fn: OrchestraFn,
         if best is None:
             best = score
     assert best is not None
-    layers = orchestra_layers_from(arr, best)
+    # The orchestra scored from the lead as PROSE; the guide reads the same lead as pitches,
+    # so a sustained pad cannot sit on a swara that grinds under what the melody settles on.
+    layers = orchestra_layers_from(arr, best,
+                                   guide=harmonic_guide(list(lead_layers), arr))
     events.append(_orchestra_event(best, layers))
     return layers, events
 

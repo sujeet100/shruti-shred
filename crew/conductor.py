@@ -473,7 +473,8 @@ def _demo_case() -> tuple[UstadVerdict, RasikVerdict, ProducerVerdict, Compositi
                "into Darbari's andolan on komal ga and dha, so the raga's soul is thin."))
     producer = ProducerVerdict(
         scores=ProducerScores(structure=4, dynamics=4, climax=4, motif=4, hook=4,
-                              balance=4, independence=4, mood_fit=4, repetition=4),
+                              balance=4, independence=4, mood_fit=4, repetition=4,
+                              performance=4),
         notes="As a song it moves — the riff hooks, the arc builds; a lead revise risks the drive.")
     return ustad, rasik, producer, comp
 

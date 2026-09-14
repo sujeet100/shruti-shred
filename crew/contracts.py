@@ -1436,6 +1436,12 @@ class ProducerScores(BaseModel):
     independence: int = Field(ge=1, le=5)   # does each voice contribute (lead != riff, bass != riff, drums != tabla)?
     mood_fit: int = Field(ge=1, le=5)       # does the whole piece hold the requested SUBGENRE mood?
     repetition: int = Field(ge=1, le=5)     # enough return (hook/motif reinforced) without becoming monotonous?
+    performance: int = Field(ge=1, le=5)    # does the score behave like PLAYED music — sustain where it
+                                            # should ring, chugs that breathe, an accompaniment that
+                                            # supports rather than clashes? (A piece can be written well
+                                            # and still arrive as clicks in dead air; nobody here hears
+                                            # audio, so this is judged from the computed performance
+                                            # numbers, not from listening.)
 
 
 class ProducerVerdict(BaseModel):

@@ -1998,3 +1998,46 @@ have fought the guardrail; a recorded listening judgement outranks a reviewer's 
 
 Also cleared three stale unused imports in `crew/orchestra.py` so `ruff check crew/` is usable
 as a gate again. Suite 736 green.
+
+### Step 6 — the harmonic guide, the brass hierarchy, performance metrics (BUILT 2026-09-14)
+
+The rest of the queue from the prompt review, and the end of this campaign.
+
+**The harmonic guide (`crew/harmonic_guide.py`, pure)** — GPT #10, adapted. The failure is
+assembled entirely out of correct decisions: the clean guitar rotates its composer-chosen
+colours, the orchestra sustains its string/choir voicing, the riff stacks its own swaras, each
+LEGAL and each chosen independently — and the piece ends up holding S, P, g, m and n at once,
+a cluster nobody designed. The guide is DERIVED, not decided: per section it reads what the
+melody actually settles on (held/stable notes, by sounding pitch so a meend counts where it
+lands) and names the swaras that would grind underneath. The accompanying voices filter their
+SUSTAINED tones through it and keep everything else — their orchestration, register and
+rhythm are untouched. Two deliberate limits: it says nothing about passing notes (policing
+every eighth note would flatten the writing), and `supported()` can never filter a voice to
+nothing (a pad that drops out is a worse answer than a pad with one colour) — both are tests.
+Rather than building GPT's new artefact from scratch it reuses the coexistence detector's
+`stability_of`, so the two can never disagree about what "settled" means.
+Wired at exactly two tone-picking points: `harmony.bar_voicings` (clean guitar) and
+`orchestra._voicing` (strings + choir only — brass stabs and timpani are over too quickly to
+stack into a cluster). Both default to no guide, so every existing caller is unchanged.
+
+**The brass hierarchy** — GPT #11, adopted. Stabs landed on every sam AND every tali of every
+avartan, so guitar + kick + tabla + brass arrived together, every cycle: if everything is an
+arrival, nothing is. `_stab_beats` keeps the sam every avartan and answers a later accent only
+on alternate cycles — the bar you expect it and the bar you don't.
+
+**Performance metrics** — GPT #13's gap, our shape. Five piece-level numbers in
+`crew/metrics.py`: `rhythm_ring_share`, `rhythm_chug_share`, `rhythm_silence_share`,
+`flat_chug_runs` and `accompaniment_grinds`, rendered as a "HOW IT PLAYS" block, plus ONE new
+Producer criterion (`performance`, the 10th). This is deliberately NOT the separate critic the
+review proposed: every criterion it listed is a number, so the checkable half belongs in
+`verify_riff` (per cycle, already there) and these metrics (piece-level, which the per-cycle
+verifier structurally cannot see). `_silence_share` unions overlapping notes so a chord is not
+counted as three voices' worth of sounding time.
+Measured on `out/fusion_20260720_183403.json`: 65% chugs, 37% ringing, 21% silent, and **9
+flat chug runs** — the "programmed" tell Sujit and the review both heard, now a number the
+Producer reads. (Its 0 accompaniment grinds is vacuous: that render had no clean or orchestra
+layer. The guide is unmeasured on real data until a symphonic run.)
+
+Adding a required 10th criterion updated every `ProducerScores` fixture rather than giving it
+a default — the other nine force the model to commit, and a silently-defaulted score is a
+score nobody gave. Suite 753 green.

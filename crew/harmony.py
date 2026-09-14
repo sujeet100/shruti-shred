@@ -37,6 +37,7 @@ from __future__ import annotations
 from typing import Final
 
 from crew.contracts import Arrangement, HarmonyPlan, Layer, Note, Section
+from crew.harmonic_guide import HarmonicWindow, avoided_at, supported
 from crew.generators import VOICES, SectionSpan, section_spans
 from raga import RAGAS, ascent_step, directional_varjya, drone_swaras, scale_step_up
 
@@ -78,10 +79,17 @@ def _pedal_colours(plan: HarmonyPlan, raga: str) -> list[str]:
     return list(dict.fromkeys(t for t in seated if t != "S")) or [r["vadi"]]
 
 
-def bar_voicings(section: Section, raga: str) -> list[list[tuple[str, int]]]:
+def bar_voicings(section: Section, raga: str, *,
+                 avoid: frozenset[str] = frozenset()) -> list[list[tuple[str, int]]]:
     """One voicing per avartan of the section, per its `HarmonyPlan` (None = the
     modal-pedal default). This is the TIME-VARYING harmony plan the old chart never
-    had: which tones ring over each bar."""
+    had: which tones ring over each bar.
+
+    `avoid` comes from the harmonic guide — swaras that would grind under what the melody
+    settles on in this section. The composers chose these colours before the lead existed,
+    so they could not know; filtering here keeps the plan and drops only the tones that
+    fight. Never filters to nothing (see `harmonic_guide.supported`).
+    """
     plan = section.harmony or HarmonyPlan()
     bars = section.bars
     if plan.mode == "drone":
@@ -95,7 +103,7 @@ def bar_voicings(section: Section, raga: str) -> list[list[tuple[str, int]]]:
         return [voicing(r, raga) for r in roots]
     # modal_pedal (and a root-less progression degrades here): Sa pedal + one colour
     # tone per avartan, its raga-third above — home held, colour moving.
-    colours = _pedal_colours(plan, raga)
+    colours = supported(_pedal_colours(plan, raga), avoid)
     out: list[list[tuple[str, int]]] = []
     for bar in range(bars):
         colour = colours[bar % len(colours)]
@@ -132,11 +140,11 @@ def _held_pad(tones: list[tuple[str, int]], *, start: float, beats: float,
 
 
 def _section_notes(span: SectionSpan, raga: str, register: int,
-                   cycle_beats: float) -> list[Note]:
+                   cycle_beats: float, avoid: frozenset[str] = frozenset()) -> list[Note]:
     """One section's clean-guitar notes: its per-avartan voicings, arpeggiated (or
     held, under the long taan) bar by bar."""
     section = span.section
-    voicings = bar_voicings(section, raga)
+    voicings = bar_voicings(section, raga, avoid=avoid)
     subdiv = _ALAAP_SUBDIV if section.kind.value in _SPACIOUS_KINDS else _ARP_SUBDIV
     notes: list[Note] = []
     for bar, tones in enumerate(voicings):
@@ -150,16 +158,22 @@ def _section_notes(span: SectionSpan, raga: str, register: int,
     return notes
 
 
-def clean_layer(arr: Arrangement) -> Layer | None:
+def clean_layer(arr: Arrangement, *,
+                guide: tuple[HarmonicWindow, ...] = ()) -> Layer | None:
     """The clean electric guitar layer for a chart — every section that lists the
     `clean` role, realised per its harmony plan. None when no section asks for it
-    (every existing chart/fixture: fully backward compatible). Pure."""
+    (every existing chart/fixture: fully backward compatible). Pure.
+
+    With a `guide` the sustained colours are filtered against what the melody settles on
+    (see crew/harmonic_guide.py); without one the voice behaves exactly as before, so a
+    caller with no lead to read is unaffected."""
     register = arr.registers.get(_CLEAN_ROLE, 0)
     notes: list[Note] = []
     for span in section_spans(arr):
         if _CLEAN_ROLE not in span.section.layers:
             continue
-        notes.extend(_section_notes(span, arr.raga, register, arr.beats_per_bar))
+        notes.extend(_section_notes(span, arr.raga, register, arr.beats_per_bar,
+                                    avoided_at(guide, span.start)))
     if not notes:
         return None
     voice = VOICES[_CLEAN_ROLE]

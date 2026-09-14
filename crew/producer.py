@@ -64,8 +64,8 @@ _ROLE_CRITIC: Final = "critic"
 # The exact JSON shape we want back, injected as an input so CrewAI's {placeholder}
 # interpolation never has to parse these literal braces.
 _RUBRIC_SCHEMA: Final = """{
-  "reasoning": "criterion by criterion (structure, dynamics, climax, motif, hook, balance, independence, mood_fit, repetition): the evidence in the score that justifies each score",
-  "scores": {"structure": 4, "dynamics": 3, "climax": 3, "motif": 4, "hook": 4, "balance": 3, "independence": 4, "mood_fit": 4, "repetition": 3},
+  "reasoning": "criterion by criterion (structure, dynamics, climax, motif, hook, balance, independence, mood_fit, repetition, performance): the evidence in the score that justifies each score",
+  "scores": {"structure": 4, "dynamics": 3, "climax": 3, "motif": 4, "hook": 4, "balance": 3, "independence": 4, "mood_fit": 4, "repetition": 3, "performance": 4},
   "notes": "a short 2-3 sentence critique a musician can act on"
 }"""
 
@@ -232,7 +232,8 @@ def _verdict_event(verdict: ProducerVerdict) -> DebateEvent:
         scores={"structure": float(s.structure), "dynamics": float(s.dynamics),
                 "climax": float(s.climax), "motif": float(s.motif), "hook": float(s.hook),
                 "balance": float(s.balance), "independence": float(s.independence),
-                "mood_fit": float(s.mood_fit), "repetition": float(s.repetition)},
+                "mood_fit": float(s.mood_fit), "repetition": float(s.repetition),
+                "performance": float(s.performance)},
         data={"reasoning": verdict.reasoning})
 
 
@@ -301,7 +302,7 @@ def _run() -> None:
     s = verdict.scores
     print(f"\nProducer scores: structure={s.structure} dynamics={s.dynamics} climax={s.climax} "
           f"motif={s.motif} hook={s.hook} balance={s.balance} independence={s.independence} "
-          f"mood_fit={s.mood_fit} repetition={s.repetition}")
+          f"mood_fit={s.mood_fit} repetition={s.repetition} performance={s.performance}")
     print(f"  notes: {verdict.notes}")
 
 

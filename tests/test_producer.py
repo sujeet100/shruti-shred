@@ -64,7 +64,7 @@ def _comp() -> Composition:
 
 def _scores(**over) -> ProducerScores:
     base = dict(structure=4, dynamics=4, climax=4, motif=4, hook=4,
-                balance=4, independence=4, mood_fit=4, repetition=4)
+                balance=4, independence=4, mood_fit=4, repetition=4, performance=4)
     base.update(over)
     return ProducerScores(**base)
 
@@ -123,14 +123,15 @@ def test_ensemble_reports_voices_and_percussion():
 
 # --- assess: control flow over an injected judge -------------------------------
 
-def test_assess_streams_the_nine_criteria_as_event_scores():
+def test_assess_streams_every_criterion_as_event_scores():
     verdict, events = assess(_comp(), _arr(),
                              judge_fn=_fake_judge(_scores(motif=2), notes="motif never develops")[0])
     critique = [e for e in events if e.type == EventType.CRITIQUE]
     assert len(critique) == 1
     assert critique[0].agent == "Producer" and critique[0].text == "motif never develops"
     assert set(critique[0].scores) == {"structure", "dynamics", "climax", "motif", "hook",
-                                       "balance", "independence", "mood_fit", "repetition"}
+                                       "balance", "independence", "mood_fit", "repetition",
+                                       "performance"}
     assert critique[0].scores["motif"] == 2.0
 
 
@@ -144,7 +145,7 @@ def test_assess_passes_composition_and_arrangement_to_the_judge():
 def test_scores_are_bounded_1_to_5():
     try:
         ProducerScores(structure=6, dynamics=3, climax=3, motif=3, hook=3,
-                       balance=3, independence=3, mood_fit=3, repetition=3)
+                       balance=3, independence=3, mood_fit=3, repetition=3, performance=3)
         assert False, "expected a validation error for a score above 5"
     except Exception:
         pass

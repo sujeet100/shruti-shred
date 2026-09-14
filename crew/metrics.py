@@ -74,6 +74,15 @@ class ProducerMetrics:
     drums_tabla_overlap: float  # fraction of tabla hits that land on a kit hit (lockstep percussion)
     register_overlaps: list[tuple[str, str]]  # melodic voice pairs sharing an octave band
     always_on_fraction: float   # fraction of sections where EVERY present voice plays
+    # PERFORMANCE — how the score behaves when musicians PLAY it, as opposed to how it reads.
+    # No agent hears audio, so a piece can be compositionally excellent and still arrive as a
+    # string of clicks in dead air. `verify_riff` polices these per CYCLE; these are the
+    # piece-level views it cannot see.
+    rhythm_ring_share: float    # share of the rhythm guitar's sounding time in OPEN notes >= 1 beat
+    rhythm_chug_share: float    # share of its notes marked palm_mute (the chug ground)
+    rhythm_silence_share: float # share of the rhythm's span with nothing sounding (hollowness)
+    flat_chug_runs: int         # runs of 4+ chugs at ONE velocity (the programmed tell)
+    accompaniment_grinds: int   # sustained accompaniment tones clashing with a settled melody note
 
 
 # --------------------------------------------------------------------------- #
@@ -293,11 +302,82 @@ def _always_on_fraction(energy: list[SectionEnergy], comp: Composition) -> float
     return round(full / len(energy), 3)
 
 
+# --------------------------------------------------------------------------- #
+# Performance metrics — what the score DOES, not what it says. The critics read #
+# symbols and hear nothing, so these are the numbers that stand in for ears.     #
+# --------------------------------------------------------------------------- #
+
+_RING_MIN_DUR: Final[float] = 1.0      # an open note this long actually rings
+_FLAT_RUN_MIN: Final[int] = 4          # chugs in a row before one velocity reads as programmed
+
+
+def _rhythm_notes(comp: Composition) -> list:
+    """The PRIMARY rhythm take in time order — the double is the same performance."""
+    takes = [ly for ly in comp.layers if ly.role == "rhythm" and ly.notes]
+    layer = next((ly for ly in takes if ly.detune_cents is None), takes[0] if takes else None)
+    return sorted(layer.notes, key=lambda n: n.start) if layer else []
+
+
+def _ring_share(notes: list) -> float:
+    """Share of sounding time in OPEN notes long enough to ring. A palm-muted note damps,
+    so it can never ring however long it is written."""
+    total = sum(n.dur for n in notes)
+    if not total:
+        return 0.0
+    ringing = sum(n.dur for n in notes
+                  if n.dur >= _RING_MIN_DUR and n.technique != "palm_mute")
+    return round(ringing / total, 3)
+
+
+def _silence_share(notes: list) -> float:
+    """Share of the rhythm guitar's own span with nothing sounding — the piece's hollowness
+    as written (the renderer can only add silence, never remove it)."""
+    if not notes:
+        return 0.0
+    span = max(n.start + n.dur for n in notes) - notes[0].start
+    if span <= 0:
+        return 0.0
+    sounding, edge = 0.0, notes[0].start
+    for note in notes:                       # union of intervals: chords must not double-count
+        start, end = max(note.start, edge), note.start + note.dur
+        if end > start:
+            sounding += end - start
+            edge = end
+    return round(max(0.0, 1 - sounding / span), 3)
+
+
+def _flat_chug_runs(notes: list) -> int:
+    """Runs of consecutive palm-muted notes at a SINGLE velocity — a picking hand accents."""
+    runs, current = 0, []
+    for note in notes + [None]:
+        if note is not None and note.technique == "palm_mute":
+            current.append(note)
+            continue
+        if len(current) >= _FLAT_RUN_MIN and len({n.vel for n in current}) == 1:
+            runs += 1
+        current = []
+    return runs
+
+
+def _accompaniment_grinds(comp: Composition, arr: Arrangement) -> int:
+    """Sustained accompaniment tones clashing with what the melody settles on — the cluster
+    assembled out of individually legal choices. Counted, never judged: whether it matters
+    here is the Producer's call."""
+    from crew.harmonic_guide import avoided_at, harmonic_guide
+    leads = [ly for ly in comp.layers if ly.role == "lead"]
+    guide = harmonic_guide(leads, arr)
+    sustaining = [ly for ly in comp.layers
+                  if ly.role in ("clean", "orch_strings", "orch_choir") and ly.notes]
+    return sum(1 for ly in sustaining for n in ly.notes
+               if n.dur >= _RING_MIN_DUR and n.swara in avoided_at(guide, n.start))
+
+
 def composition_metrics(comp: Composition, arr: Arrangement) -> ProducerMetrics:
     """Measure the composition against its chart — the facts the Producer judges. Pure."""
     energy = _section_energy(comp, arr)
     peak, resolves, is_flat = _peak_and_resolution(energy)
     riff_recurrence, riff_variety, riff_slots = _riff_form(arr)
+    rhythm = _rhythm_notes(comp)
     return ProducerMetrics(
         energy=energy,
         peak_index=peak,
@@ -313,7 +393,13 @@ def composition_metrics(comp: Composition, arr: Arrangement) -> ProducerMetrics:
         bass_riff_overlap=_bass_riff_overlap(comp),
         drums_tabla_overlap=_drums_tabla_overlap(comp),
         register_overlaps=_register_overlaps(comp),
-        always_on_fraction=_always_on_fraction(energy, comp))
+        always_on_fraction=_always_on_fraction(energy, comp),
+        rhythm_ring_share=_ring_share(rhythm),
+        rhythm_chug_share=round(sum(1 for n in rhythm if n.technique == "palm_mute")
+                                / max(1, len(rhythm)), 3),
+        rhythm_silence_share=_silence_share(rhythm),
+        flat_chug_runs=_flat_chug_runs(rhythm),
+        accompaniment_grinds=_accompaniment_grinds(comp, arr))
 
 
 # --------------------------------------------------------------------------- #
@@ -358,4 +444,12 @@ def render_metrics(metrics: ProducerMetrics) -> str:
                      f"(bass+rhythm at the low end is normal)")
     else:
         lines.append("  register overlaps: none — the voices sit in distinct octaves")
+    lines.append("  HOW IT PLAYS (nobody in this pipeline hears audio — these stand in for ears):")
+    lines.append(f"    rhythm guitar: {metrics.rhythm_chug_share:.0%} of its notes are chugs, "
+                 f"{metrics.rhythm_ring_share:.0%} of its sounding time RINGS open, and "
+                 f"{metrics.rhythm_silence_share:.0%} of its span is silent")
+    lines.append(f"    flat chug runs (4+ chugs at one velocity — a machine, not a hand): "
+                 f"{metrics.flat_chug_runs}")
+    lines.append(f"    sustained accompaniment tones clashing with a settled melody note: "
+                 f"{metrics.accompaniment_grinds}")
     return "\n".join(lines)

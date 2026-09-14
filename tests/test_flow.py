@@ -77,7 +77,7 @@ def _fake_stages(rulings: list[ConductorRuling], *, counts: dict):
                 RasikVerdict(scores=RasikScores(pakad=3, idiom=3, rasa=3)),
                 ProducerVerdict(scores=ProducerScores(
                     structure=3, dynamics=3, climax=3, motif=3, hook=3,
-                    balance=3, independence=3, mood_fit=3, repetition=3)),
+                    balance=3, independence=3, mood_fit=3, repetition=3, performance=3)),
                 [_ev("critique")])
 
     def arbitrate(_u, _r, _p, _c):

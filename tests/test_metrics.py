@@ -268,6 +268,44 @@ def test_render_metrics_handles_an_empty_piece():
     assert isinstance(text, str) and "dynamics curve" in text
 
 
+# --- performance: what the score DOES, not what it says -----------------------
+
+def test_a_muted_wall_reads_as_no_ring_and_all_chug():
+    """The failure nobody could hear: a rhythm guitar that never rings is a string of clicks,
+    and no compositional criterion notices."""
+    from crew.metrics import _flat_chug_runs, _ring_share
+    chugs = [Note(swara="S", oct=-2, start=i * 0.5, dur=0.5, vel=100, technique="palm_mute")
+             for i in range(8)]
+    assert _ring_share(chugs) == 0.0
+    assert _flat_chug_runs(chugs) == 1           # eight chugs at one velocity: a machine
+
+
+def test_an_accented_chug_run_is_not_flagged():
+    from crew.metrics import _flat_chug_runs
+    accented = [Note(swara="S", oct=-2, start=i * 0.5, dur=0.5, vel=v, technique="palm_mute")
+                for i, v in enumerate((112, 92, 100, 92, 112, 92))]
+    assert _flat_chug_runs(accented) == 0
+
+
+def test_an_open_chord_rings_but_a_long_palm_mute_does_not():
+    """A mute damps, so it cannot ring however long it is written — the distinction the
+    fixed-gate renderer used to erase."""
+    from crew.metrics import _ring_share
+    assert _ring_share([Note(swara="S", oct=-2, start=0.0, dur=2.0, vel=100)]) == 1.0
+    assert _ring_share([Note(swara="S", oct=-2, start=0.0, dur=2.0, vel=100,
+                             technique="palm_mute")]) == 0.0
+
+
+def test_silence_share_measures_hollowness_without_double_counting_chords():
+    """Chord tones sound together, so counting their durations separately would report a
+    dense section as fuller than real time allows."""
+    from crew.metrics import _silence_share
+    chord = [Note(swara="S", oct=-2, start=0.0, dur=1.0, vel=100),
+             Note(swara="P", oct=-2, start=0.0, dur=1.0, vel=100),
+             Note(swara="S", oct=-2, start=3.0, dur=1.0, vel=100)]
+    assert _silence_share(chord) == 0.5          # 2 beats sounding across a 4-beat span
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

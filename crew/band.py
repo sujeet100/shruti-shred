@@ -36,6 +36,7 @@ from crew.generators import (
 )
 from crew.dynamics import apply_dynamics, apply_taan_exposure
 from crew.groove import groove_layer, tabla_layer
+from crew.harmonic_guide import harmonic_guide
 from crew.harmony import clean_layer
 from raga import validate_composition
 
@@ -77,7 +78,12 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     # low end and kit stay locked to one rhythm-guitar line, not a smeared pair. The
     # clean guitar realises the chart's per-section HARMONY plan (crew/harmony.py) —
     # deterministic like the rest: the composers decided the modes, code plays them.
-    for derived in (clean_layer(arr), intro_jod_layer(arr), bass_layer(arr, rhythm),
+    # ONE harmonic guide, read by every accompanying voice: what the melody settles on, and
+    # what must not sustain under it. Derived from the realized lead, so it exists only now —
+    # which is exactly why the composers' colour choices could not have known it.
+    guide = harmonic_guide(lead_layers, arr)
+    for derived in (clean_layer(arr, guide=guide), intro_jod_layer(arr),
+                    bass_layer(arr, rhythm),
                     groove_layer(arr, rhythm), tabla_layer(arr)):
         if derived is not None:
             layers.append(derived)

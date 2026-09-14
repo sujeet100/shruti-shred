@@ -279,7 +279,7 @@ def test_flow_revise_stays_canvas_aware():
             RasikVerdict(scores=RasikScores(pakad=3, idiom=3, rasa=3)),
             ProducerVerdict(scores=ProducerScores(
                 structure=3, dynamics=3, climax=3, motif=3, hook=3,
-                balance=3, independence=3, mood_fit=3, repetition=3)),
+                balance=3, independence=3, mood_fit=3, repetition=3, performance=3)),
             []),
         arbitrate=lambda u, r, p, c: (next(rulings), []),
         regenerate=regenerate,
