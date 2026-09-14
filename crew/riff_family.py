@@ -42,8 +42,11 @@ def _prime(notes: list[RiffNote]) -> list[RiffNote]:
         return []
     out = [n.model_copy() if n.rest else n.model_copy(update={"technique": n.technique or "palm_mute"})
            for n in notes]
-    for i in range(len(out) - 1, -1, -1):            # the turnaround lands on the last SOUNDING note
-        if not out[i].rest:
+    # The turnaround slide lands on the last sounding UNCHORDED note: the pitch wheel is
+    # channel-wide, so a slide on a chord bends the whole voicing — the renderer drops such a
+    # gesture outright (src/render.py), which would have made this turnaround silently vanish.
+    for i in range(len(out) - 1, -1, -1):
+        if not out[i].rest and not out[i].chord:
             out[i] = out[i].model_copy(update={"technique": "slide"})
             break
     return out
@@ -56,7 +59,13 @@ def _stripped(notes: list[RiffNote]) -> list[RiffNote]:
     overrun, so doubling the durations is safe."""
     if len(notes) <= 1:
         return [n.model_copy() for n in notes]
-    return [n.model_copy(update={"dur": n.dur * 2}) for n in notes[::2]]
+    # Lengthening a note DROPS its palm mute. The muting hand damps the string, so a longer
+    # chug is not a longer sound — it is the same chunk with more silence after it, which is
+    # the opposite of the room this variant exists to make. (It also wrote chugs past the
+    # length the riff verifier allows, after the verifier had already passed the cycle.)
+    return [n.model_copy(update={"dur": n.dur * 2,
+                                 "technique": None if n.technique == "palm_mute" else n.technique})
+            for n in notes[::2]]
 
 
 def _double(notes: list[RiffNote]) -> list[RiffNote]:
@@ -72,7 +81,10 @@ def _double(notes: list[RiffNote]) -> list[RiffNote]:
         chord = list(n.chord or [])
         if n.swara not in chord:
             chord.append(n.swara)                       # root + its own octave = a power chord
-        out.append(n.model_copy(update={"chord": chord, "technique": n.technique or "palm_mute"}))
+        # Chording a note that carried a pitch gesture would bend the whole voicing, so the
+        # renderer drops the gesture; replace it with the chug this variant wants anyway.
+        technique = n.technique if n.technique in (None, "palm_mute") else None
+        out.append(n.model_copy(update={"chord": chord, "technique": technique or "palm_mute"}))
     return out
 
 

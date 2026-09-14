@@ -2159,3 +2159,38 @@ occasionally) needs a contract change — `LeadNote` has no chord field — plus
 velocity weighting (`CHIKARI_STRING_WEIGHTS`) and a few ms of stroke sweep in the renderer.
 That is the next step, and it belongs with the jor/jhala work where the upper strings become
 a rhythmic engine. Suite 764 green.
+
+## FIRST LIVE RUN OF THE CAMPAIGN (2026-09-14) — `fusion_20260914_204815`
+
+Query: "a symphonic doom fusion in Bageshree, in the key of D". Accepted on the first pass,
+0 revise rounds, Ustad legal, both aesthetic critics satisfied.
+
+**What worked, measured in the output:**
+* **The Arranger made real calls** — 127 clashes repaired across 6 sections (36 / 4 / 36 / 8 /
+  3 / 40). The pass exists in the live pipeline, which it would NOT have done before the
+  Flow wiring fix.
+* **The jod is a stroke**: 3 strokes of 2.0 beats, on the beat grid (was four 16-beat pads).
+* **The intro breathes**: longest lead note 2.0 beats (was 17.5-21), silence 62% of the intro
+  (was 9%), phrase entries on the vibhag grid. The tala came out JHAPTAAL (2+3+2+3), so the
+  vibhag starts are beats 0/2/5/7 of a 10-beat cycle — the entries at 10/20/30 are sams, and
+  the "4/4 measure" idea generalises to the vibhag exactly as intended.
+* **The double-track is a performance**: 152 distinct onset offsets (was one constant).
+
+**Two bugs the run exposed — both the morning's lesson repeating.** A deterministic pass
+running AFTER the verifier undid what it had guaranteed:
+* `riff_family._stripped` DOUBLED durations, turning verified 0.75-beat chugs into 1.5-beat
+  ones — past `_PM_MAX_SLOT`, after `verify_riff` had passed the cycle. Worse musically: a
+  longer palm mute is not a longer sound, it is the same chunk with more silence after it,
+  which is the opposite of the room the variant exists to make. It now drops the mute when it
+  lengthens a note, so the thinned riff actually rings under the taan.
+* `_prime` wrote its turnaround slide onto whatever the last sounding note was, and `_double`
+  chorded every note while keeping its technique — producing 13 of 16 pitch gestures ON
+  CHORDS, which the renderer's new invariant silently drops. So the turnaround was vanishing.
+  Both now avoid the combination.
+
+**Not exercised:** the orchestra never joined (no `orchestra` in any section's layers), so the
+harmonic guide's orchestra path and the brass hierarchy are still untested — `symphonic` IS a
+supported subgenre, so either the Interpreter did not extract it from "symphonic doom" or the
+composers did not add the layer. Worth a look before the next run.
+
+Suite 767 green.

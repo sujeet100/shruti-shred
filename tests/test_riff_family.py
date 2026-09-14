@@ -159,6 +159,37 @@ def test_rhythm_layer_without_a_form_role_is_placed_literally():
     assert all(not n.chord for n in layer.notes)              # no development without a gat form
 
 
+# --- a variant must not undo what the verifier guaranteed ----------------------
+
+def test_thinning_a_chug_drops_the_mute_rather_than_lengthening_it():
+    """Measured on the 2026-09-14 live run: `stripped` doubled palm-muted notes to 1.5 beats,
+    past the length verify_riff allows — AFTER the verifier had passed the cycle. And a longer
+    chug is not a longer sound: the hand damps it, so it is the same chunk with more silence
+    after it, which is the opposite of the room this variant exists to make."""
+    from crew.riff_family import apply_variant
+    base = [RiffNote(swara="S", dur=0.75, technique="palm_mute"),
+            RiffNote(swara="g", dur=0.75, technique="palm_mute")]
+    out = apply_variant(base, "stripped")
+    assert out[0].dur == 1.5 and out[0].technique is None, "a lengthened note must ring, not chug"
+
+
+def test_the_prime_turnaround_never_lands_on_a_chord():
+    """The wheel is channel-wide, so the renderer drops a gesture written on a chord — the
+    turnaround would have vanished silently."""
+    from crew.riff_family import apply_variant
+    base = [RiffNote(swara="S", dur=0.5), RiffNote(swara="g", dur=0.5, chord=["g"])]
+    out = apply_variant(base, "prime")
+    assert out[1].technique != "slide", "the slide landed on the chorded note"
+    assert out[0].technique == "slide", "...and should have fallen back to an unchorded one"
+
+
+def test_doubling_replaces_a_gesture_it_would_silence():
+    from crew.riff_family import apply_variant
+    base = [RiffNote(swara="S", dur=0.5, technique="slide")]
+    out = apply_variant(base, "double")
+    assert out[0].chord == ["S"] and out[0].technique == "palm_mute"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
