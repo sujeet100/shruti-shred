@@ -376,6 +376,36 @@ def _next_sam(t: float, *, origin: float, cycle_beats: float) -> float:
     return origin + steps * cycle_beats
 
 
+def vibhag_starts(arr: Arrangement) -> tuple[float, ...]:
+    """The beats within an avartan where a VIBHAG begins — every sam, tali and khali.
+
+    A vibhag is the tala's own measure: teentaal divides 16 matras as 4+4+4+4, so its
+    vibhag starts are exactly the downbeats of four 4/4 bars. This is the grid a phrase
+    enters on. Pure."""
+    return tuple(sorted(a.beat for a in arr.accent_grid
+                        if a.kind in ("sam", "tali", "khali")))
+
+
+def _next_vibhag(t: float, *, origin: float, cycle_beats: float,
+                 vibhag_beats: tuple[float, ...]) -> float:
+    """The first vibhag downbeat at or after `t`.
+
+    The SAM would be too coarse to phrase against: in teentaal it comes only every 16
+    beats, so locking each phrase to it allows one entry per avartan and leaves the alap
+    threadbare (Sujit, 2026-09-14). The vibhag is the measure a player actually counts.
+    Falls back to the sam when a tala declares no vibhags. Pure."""
+    if not vibhag_beats:
+        return _next_sam(t, origin=origin, cycle_beats=cycle_beats)
+    elapsed = max(0.0, t - origin)
+    cycle = int(elapsed // cycle_beats)
+    for index in (cycle, cycle + 1):
+        for offset in vibhag_beats:
+            candidate = origin + index * cycle_beats + offset
+            if candidate >= t - 1e-9:
+                return round(candidate, 4)
+    return _next_sam(t, origin=origin, cycle_beats=cycle_beats)
+
+
 def _split_phrases(notes: list[LeadNote]) -> list[list[LeadNote]]:
     """Split an alap into PHRASES at its breathing rests: a rest of at least
     `_PHRASE_BREAK_MIN_BEATS` ends a phrase (the true silence the alap leaves between ideas),
@@ -407,11 +437,13 @@ def _is_mandra_pluck(phrase: list[LeadNote]) -> bool:
 
 def _place_intro_phrases(notes: list[LeadNote], *, gen_span: SectionSpan,
                          section_span: SectionSpan, register: int, cycle_beats: float,
+                         vibhag_beats: tuple[float, ...] = (),
                          andolan_swaras: frozenset[str] = frozenset()) -> list[Note]:
     """Place the alap so each PHRASE begins on a sam (Sujit's avartan-locked intro): the first
-    phrase enters at `gen_span.start` — one arpeggio avartan in, after the clean-guitar lead-in —
-    and every later phrase is nudged forward to the next sam, so it locks to the clean arpeggio's
-    cycle instead of drifting against it. Notes flow freely WITHIN a phrase (the alap keeps its
+    phrase enters at `gen_span.start` and every later phrase is nudged forward to the next sam,
+    so the line locks to the cycle instead of drifting against it. A phrase entering on the
+    downbeat and then leaving silence of any length is what builds anticipation; one entering
+    wherever the previous phrase happened to end is what sounds unmoored. Notes flow freely WITHIN a phrase (the alap keeps its
     free rhythm); only phrase STARTS snap. The between-phrases mandra-Sa plucks are dropped (the
     arpeggio anchors Sa now — `_is_mandra_pluck`). Phrases fill the sams up to the section edge;
     the final resolving Sa is ring-extended across the tail by the caller (`_ring_out_intro`) —
@@ -421,13 +453,14 @@ def _place_intro_phrases(notes: list[LeadNote], *, gen_span: SectionSpan,
     for phrase in _split_phrases(notes):
         if _is_mandra_pluck(phrase):                    # the arpeggio holds Sa between phrases now
             continue
-        start = _next_sam(cursor, origin=section_span.start, cycle_beats=cycle_beats)
-        if start >= section_span.end - 1e-9:            # no whole sam left before the edge — stop
+        start = _next_vibhag(cursor, origin=section_span.start, cycle_beats=cycle_beats,
+                             vibhag_beats=vibhag_beats)
+        if start >= section_span.end - 1e-9:            # no measure left before the edge — stop
             break
         seg = place_phrase(phrase, start=start, end=section_span.end, register=register,
                            andolan_swaras=andolan_swaras)
-        if not seg:                                     # fully truncated — try the next sam
-            cursor = start + cycle_beats
+        if not seg:                                     # fully truncated — try the next measure
+            cursor = start + 1e-6
             continue
         placed.extend(seg)
         cursor = seg[-1].start + seg[-1].dur
@@ -1736,12 +1769,17 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
             phrase, tries, viol = _generate_verified_cell(
                 gen_span, arr, intro_memory, gen_fn=gen_fn,
                 verify=lambda c: verify_intro(c, window_beats=window, raga=raga, mukhada=head))
-            if _CLEAN_ROLE in section.layers:         # the event shows the real avartan-locked placement
-                line = _place_intro_phrases(phrase.notes, gen_span=gen_span, section_span=span,
-                                            register=register, cycle_beats=cycle_beats)
-            else:
-                line = _place_lead_section(phrase.notes, span=span, register=register,
-                                           cycle_beats=cycle_beats)
+            # EVERY alap phrase starts on a sam (Sujit, 2026-09-14: "phrases should start on
+            # the first beat of a measure and then the blank can be any length — that creates
+            # tension and anticipation instead of starting on any beat"). This was already the
+            # placement, but only when the clean guitar happened to be in the section, as
+            # though the arpeggio were what made the cycle audible. It is not: the jod strokes
+            # mark the cycle now, and a phrase that enters off the downbeat sounds unmoored
+            # whoever else is playing — measured on the two 2026-07-20 intros WITHOUT a clean
+            # layer, which are the two whose phrases drift.
+            line = _place_intro_phrases(phrase.notes, gen_span=gen_span, section_span=span,
+                                        register=register, cycle_beats=cycle_beats,
+                                        vibhag_beats=vibhag_starts(arr))
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
             if tries > 1:
                 events.append(_gat_repair_event(_INTRO, tries, viol))

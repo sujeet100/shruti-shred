@@ -116,28 +116,44 @@ roles:
         fragment when no head is shown). Every phrase answers "how do I develop this
         motif?" — never "what new phrase should I invent?". Describe the reveal in
         phrase_plan.badhat_plan.
-      - Compose 3-6 SHORT phrases separated by real silence (a true REST of ~0.5-2
-        beats between every pair). Each phrase explores or varies the motif — it may
-        climb or fall freely — and HOLDS ITS TENSION: do not resolve a phrase onto
-        Sa; no homecoming until the very end.
-      - HOME RINGS ON ITS OWN: a SUSTAINED jod Sa (a plucked open string that rings)
-        holds home UNDER you for the whole alap — code lays it down, you do not. So do
-        NOT re-pluck a low mandra Sa to mark home between phrases; let the ringing jod
-        anchor home while your phrases hold their tension above it. Keep chikari rare.
-        (Only the final phrase resolves home — see below.)
+      - Compose 3-6 SHORT phrases separated by real silence. Each phrase explores or
+        varies the motif and HOLDS ITS TENSION: do not resolve a phrase onto Sa; no
+        homecoming until the very end.
+      - EVERY PHRASE ENTERS ON A MEASURE'S FIRST BEAT — the start of a vibhag, the tala's
+        own bar — and the silence after it runs as long as it needs to. A phrase that
+        begins on the downbeat and then leaves the rest of the bar empty creates
+        anticipation: the listener waits for the next entry. A phrase that begins wherever
+        the last one happened to stop sounds unmoored. (Code snaps your phrase STARTS to
+        that grid; write whole phrases and let them breathe.)
+      - SILENCE IS ABOUT A QUARTER OF THE ALAP, not a rest or two dropped in to satisfy a
+        rule. Write rests of 1-4 beats between phrases; the space is the music.
+      - HOME IS STRUCK, NOT SUSTAINED: a jod string sounds a low Sa in the gaps your
+        phrases leave — code places it, in time, where you rest. So do NOT re-pluck a low
+        mandra Sa yourself between phrases; leave the space and the jod will speak into
+        it. Keep chikari rare, and SHORT (0.25-0.5) — it is a struck string filling an
+        empty matra, never a held tone.
+      - RHYTHM HAS CONTRAST. A stream of notes all 1-2 beats long reads as a machine
+        pacing itself. Let a phrase settle onto a genuinely long landing, and let another
+        move in quick 0.25-0.5 steps — the alap breathes irregularly, by design.
       - BADHAT (progressive reveal): phrase 1 states only a FRAGMENT of the motif (2-3
-        swaras) in a NARROW range around home; each later phrase adds a note or widens
-        the range; present the FULL motif at the intro's widest reach; the intro's
-        highest note arrives PAST THE MIDPOINT.
+        swaras) in a NARROW range around home; each later phrase GROWS OUT OF THE ONE
+        BEFORE IT — restating it, extending it a note further, or answering it — never a
+        fresh idea because a new phrase began. Present the FULL motif at the intro's
+        widest reach; the intro's highest note arrives PAST THE MIDPOINT.
+      - THE ARC IS AN OCTAVE JOURNEY: the phrases climb, reaching into the TAAR (upper)
+        octave at the widest point, and then either descend home for the close or stay up
+        and resolve on the taar Sa. Both endings are idiomatic — choose one deliberately
+        rather than drifting to a stop.
       - STATE THE RAGA: build the phrases from the pakad and chalan (the motif quoted,
         then varied); at least one phrase must STATE THE PAKAD outright.
       - OPEN on or around madhya Sa (never the taar) and let the melodic line itself
         DIP INTO THE MANDRA in the early phrases over the ringing jod.
       - Meend SPARINGLY: a meend note is heard at its TARGET, so save it for a glide
         INTO a landing; most alap notes sound their own written swara plain.
-      - ONLY the FINAL phrase RESOLVES: descend and come home to a long HELD Sa (2+
-        beats, the longest of the intro — it finally feels like home); code then lets
-        it ring into a reserved silence before the gat enters.
+      - ONLY the FINAL phrase RESOLVES: come home to a HELD Sa (2-4 beats — long enough
+        that it finally feels like home, never so long that one note becomes the alap);
+        code then lets it ring into a reserved silence before the gat enters. Do not
+        stretch the last note to fill whatever window is left.
   amad: |
     The AMAD — the FOURTH line of the gat (Parikh: it "brings you down to the point
     where the composition started"), riding the antara's final avartan:

@@ -45,6 +45,7 @@ from crew.lead import (  # noqa: E402
     _LeadContext,
     _lead_guardrail,
     _next_sam,
+    _next_vibhag,
     _place_intro_phrases,
     _role_briefs,
     _render_canvas_for_lead,
@@ -1099,6 +1100,24 @@ def _intro_arr(*, clean: bool, bars: int = 4) -> Arrangement:
     draft = ArrangementDraft(raga="malkauns", subgenre="doom", tala="teentaal", bpm=72,
                              motif=["d", "n", "S", "m"], sections=[sec])
     return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def test_a_phrase_enters_on_a_MEASURE_not_only_the_sam():
+    """The sam is too coarse to phrase against: in teentaal it comes every 16 beats, so
+    locking each phrase to it allows one entry per avartan and leaves the alap threadbare
+    (Sujit, 2026-09-14). The vibhag is the tala's own bar — teentaal's 4+4+4+4 is four 4/4
+    measures — and that is the grid a phrase enters on."""
+    grid = (0.0, 4.0, 8.0, 12.0)
+    snap = lambda t: _next_vibhag(t, origin=0.0, cycle_beats=16.0, vibhag_beats=grid)  # noqa: E731
+    assert snap(0.0) == 0.0            # already on a downbeat
+    assert snap(1.3) == 4.0            # mid-measure entries move to the next bar...
+    assert snap(5.5) == 8.0
+    assert snap(13.0) == 16.0          # ...and roll into the next avartan
+    assert snap(16.2) == 20.0
+
+
+def test_a_tala_with_no_declared_vibhags_falls_back_to_the_sam():
+    assert _next_vibhag(1.0, origin=0.0, cycle_beats=16.0, vibhag_beats=()) == 16.0
 
 
 def test_next_sam_snaps_forward_to_the_avartan_grid():

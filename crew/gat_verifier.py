@@ -59,6 +59,19 @@ _INTRO_MIN_SA_RETURNS: Final = 3    # ...and Sa is re-sounded at least this many
 _INTRO_HELD_SA: Final = 2.0         # the closing Sa is HELD at least this long (beats)
 _INTRO_MIN_RESTS: Final = 2         # at least this many true rests...
 _INTRO_MIN_REST_BEATS: Final = 1.0  # ...each at least this long
+# A COUNT became a TARGET. Measured on the 2026-07-20 renders, every intro carried exactly
+# three gaps — the floor, treated as the goal — and in two of them the silence totalled 6 of
+# 64 beats (9%): an alap that is nearly wall-to-wall sound. Silence is a PROPORTION of an
+# alap, not a quota of rests, so the share is what is checked.
+_INTRO_REST_SHARE: Final = 0.18     # ...and silence is this much of the alap overall
+# One note must not BE the alap. The same renders closed on single notes of 17.5, 21 and 11.5
+# beats — 27%, 33% and 18% of the whole intro in one hold, which is a model running out of
+# phrase, not a resolution. (The old brief asked for "the longest of the intro" with no cap,
+# over a window it was told to fill.)
+_INTRO_MAX_NOTE_SHARE: Final = 0.15
+_INTRO_MAX_NOTE_BEATS: Final = 4.0  # ...but never below this, so a SHORT alap can still hold
+                                    # its closing Sa (which `_INTRO_HELD_SA` requires) — a
+                                    # share alone would outlaw the resolution it demands
 _INTRO_OPEN_MAX_STEPS: Final = 2    # the opening note sits within this many ladder steps of Sa
 _INTRO_PLUCK_MAX_OCT: Final = -1    # the between-phrase Sa pluck sits in the mandra (or lower)
 # The alap's MICRO-structure (Sujit's live note + GPT's alap spec, 2026-07-15): the diagnosed
@@ -451,6 +464,8 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
                     f"use at least {_INTRO_MIN_RESTS}; an alap breathes in real silence, not in "
                     f"wall-to-wall notes")
 
+    viol += _intro_breath_violations(notes)
+
     # PHRASE GRAMMAR — the alap is short independent sentences separated by real silence, each
     # holding its TENSION (no mid-intro homecoming), with the mandra-Sa pluck anchoring the gaps
     # and Sa never sustained as a wall. A pluck-only group is punctuation, not a phrase.
@@ -514,6 +529,30 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
 
     viol.extend(_motif_violations(cell, phrases, mukhada))
 
+    return viol
+
+
+def _intro_breath_violations(notes: list[LeadNote]) -> list[str]:
+    """How much of the alap is SILENCE, and whether any one note swallows it.
+
+    Both are shares rather than counts: a count of rests is satisfiable by writing the
+    minimum (which is exactly what happened), and "the longest note" with no ceiling is
+    satisfiable by holding one note to the end of the window."""
+    total = sum(n.dur for n in notes)
+    if total <= 0:
+        return []
+    viol: list[str] = []
+    silence = sum(n.dur for n in notes if n.rest)
+    if silence < _INTRO_REST_SHARE * total:
+        viol.append(f"only {silence / total:.0%} of the alap is silence (need >= "
+                    f"{_INTRO_REST_SHARE:.0%}) — the space between phrases is part of the "
+                    f"music, not leftover time; let each phrase end and BREATHE before the next")
+    ceiling = max(_INTRO_MAX_NOTE_BEATS, _INTRO_MAX_NOTE_SHARE * total)
+    longest = max((n.dur for n in notes if not n.rest), default=0.0)
+    if longest > ceiling:
+        viol.append(f"one note is held {longest:g} beats — {longest / total:.0%} of the whole "
+                    f"alap in a single sound. Keep any one note under {ceiling:g} beats: the "
+                    f"closing Sa RESOLVES the line, it does not fill the rest of the window")
     return viol
 
 

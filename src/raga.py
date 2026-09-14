@@ -591,6 +591,44 @@ def semitone(swara: str) -> int:
 _DRONE_COMPANIONS: tuple[str, ...] = ("P", "m", "M", "N", "n")
 
 
+# The SITAR's own drone strings — the chikari, struck to fill an empty matra — are tuned per
+# raga, and that tuning is part of the raga's sound: the ringing strings colour every stroke.
+# The convention is the same substitution the tanpura makes (Rāga Junglism's sitar page: for
+# ragas with an absent Pa or a strong ma, the top-layer Pa strings are set to ma instead;
+# Malkauns retunes that string to ma or dha; Marwa's drone strings sound Dha and Sa), so the
+# DEFAULT is derived here rather than listed per raga.
+#
+# `_CHIKARI_TUNINGS` holds only the ragas whose tuning does NOT follow from that rule.
+# Bageshree is the case in point: it HAS a Pa, so the "absent Pa" convention does not reach
+# it, yet it is tuned Sa Sa Dha Ma — because its Pa is vakra and avaroha-only while Ma is its
+# vadi and Dha its strong nyas (both already encoded above). SOURCE: Sujit's guruji (oral
+# tradition, via Sujit 2026-09-14) — a practitioner source, recorded as such rather than
+# dressed up as a citation. Add a raga here only on the same footing.
+_CHIKARI_TUNINGS: dict[str, list[str]] = {
+    "bageshree": ["S", "S", "D", "m"],
+}
+
+# Strings 1 and 2 carry the stroke; 3 and 4 add colour under it, not equal weight.
+CHIKARI_STRING_WEIGHTS: tuple[float, ...] = (1.0, 0.9, 0.5, 0.35)
+
+
+def chikari_swaras(raga: str) -> list[str]:
+    """The sitar's chikari strings for a raga, string 1 first.
+
+    Strings 1-2 are Sa (the stroke's body); strings 3-4 carry the raga's own colour — the
+    drone companion the tanpura would take, and the raga's vadi. A raga whose tuning does not
+    follow that convention is listed explicitly in `_CHIKARI_TUNINGS`. Every returned swara is
+    legal in the raga, so a chikari stroke can never sound outside the grammar. Pure.
+    """
+    if raga in _CHIKARI_TUNINGS:
+        return list(_CHIKARI_TUNINGS[raga])
+    allowed = set(RAGAS[raga]["allowed"])
+    companion = drone_swaras(raga)[-1]
+    vadi = RAGAS[raga]["vadi"]
+    colour = [sw for sw in (companion, vadi) if sw in allowed and sw != "S"]
+    return ["S", "S", *dict.fromkeys(colour)]
+
+
 def drone_swaras(raga: str) -> list[str]:
     """The tanpura's drone tones for a raga — Sa plus one companion.
 

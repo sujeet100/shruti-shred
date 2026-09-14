@@ -2094,3 +2094,68 @@ suggests Dha. Both need a decision from Sujit before any change; the drone is ra
 not code style.
 
 Suite 758 green. Not yet heard.
+
+### The intro's MELODY — rhythm, phrase entry, and the octave arc (2026-09-14)
+
+Sujit, after the jod fix: are prompt changes needed to make the intro right melodically and
+rhythmically? Measured the same three intros before answering.
+
+**What the rhythm actually was.** Note values were almost entirely 1.0 / 1.5 / 2.0 beats — a
+flat stream with no contrast. Rests: exactly THREE gaps in every piece (the verifier's floor
+of 2 rests + a nyas rest, treated as the target), totalling 6 of 64 beats (9%) in two of them.
+And each intro closed on a single note of 17.5 / 21 / 11.5 beats — 27%, 33% and 18% of the
+whole alap in one sound, because the brief asked for "the longest of the intro" with no
+ceiling over a window the model was told to fill.
+
+**Phrase entry was the real "randomness", and the fix already existed.** `_place_intro_phrases`
+locks every phrase to the cycle — but it was only used when the clean guitar happened to be in
+the section, as though the arpeggio were what made the cycle audible. The two renders WITHOUT
+a clean layer are exactly the two whose phrases drift. It is now unconditional.
+
+**Sujit's correction on the grid (important):** locking to the SAM is too coarse — teentaal's
+sam comes every 16 beats, so one phrase per avartan leaves the alap threadbare. The unit is
+the VIBHAG, which in teentaal (4+4+4+4) is exactly a 4/4 measure. `vibhag_starts(arr)` derives
+them from the accent grid (sam + tali + khali), and `_next_vibhag` snaps phrase starts there,
+falling back to the sam for a tala declaring none. Notes still flow freely WITHIN a phrase —
+only entries snap, which is what makes the silence after a phrase read as anticipation.
+
+**Built (verifier):** silence is now a SHARE (`_INTRO_REST_SHARE` = 18% of the alap) rather
+than a count of rests, because a count is satisfiable by writing the minimum — which is what
+happened; and no single note may exceed `max(4 beats, 15% of the alap)` — the beats floor
+matters, since a share alone would outlaw the held closing Sa that `_INTRO_HELD_SA` requires
+in a short window.
+
+**Built (prompt):** phrases enter on a measure's first beat and the silence after runs as long
+as it needs; silence is about a quarter of the alap; rhythm has contrast (a flat stream of 1-2
+beat notes reads as a machine pacing itself); each phrase GROWS OUT OF the one before it
+rather than being a fresh idea per avartan; the arc is an octave journey reaching the taar at
+its widest and then either descending home or resolving on the taar Sa (the verifier already
+permits either — the close requires Sa, not an octave); the closing Sa is 2-4 beats, not
+however much window is left. Also corrected the line that described the jod as a SUSTAIN
+holding home under the whole alap — it is now strokes in the gaps, and the prompt said
+otherwise.
+
+**On "should the sitar follow an arpeggio pattern?"** — no, and the reason is worth keeping.
+A repeating arpeggiated figure is a regular subdivision; an alap's rhythm is irregular by
+design, and imposing a pattern would trade one kind of generated-sounding music for another.
+What is right in the instinct is the FUNCTION: a gentle pulse under a sparse melody. That job
+now belongs to the jod strokes, which is why the sitar can be sparser rather than more
+patterned.
+
+### Chikari tuning — encoded as knowledge (2026-09-14)
+
+`chikari_swaras(raga)` in `src/raga.py`. Strings 1-2 are Sa (the stroke's body); 3-4 carry the
+raga's colour, DERIVED by default from the same substitution the tanpura makes (sourced:
+Rāga Junglism's sitar page — for ragas with an absent Pa or a strong ma the top-layer Pa
+strings are set to ma; Malkauns retunes to ma or dha; Marwa's drone strings sound Dha and Sa).
+`_CHIKARI_TUNINGS` holds only the ragas that do NOT follow from that rule — currently
+Bageshree (S S D m), which has a Pa and so is not the "absent Pa" case, but is tuned to its
+vadi Ma and its strong nyas Dha. **Source: Sujit's guruji (oral tradition, via Sujit) —
+recorded as a practitioner source rather than dressed up as a citation.** Tests assert every
+string is legal in its raga, since these ring under every stroke.
+
+NOT yet wired: a chikari still renders as one taar Sa. Sounding strings 1-2 as a pair (and 3
+occasionally) needs a contract change — `LeadNote` has no chord field — plus per-string
+velocity weighting (`CHIKARI_STRING_WEIGHTS`) and a few ms of stroke sweep in the renderer.
+That is the next step, and it belongs with the jor/jhala work where the upper strings become
+a rhythmic engine. Suite 764 green.

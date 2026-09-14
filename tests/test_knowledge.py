@@ -194,6 +194,38 @@ def test_phase0_pipeline_still_holds():
     assert len(validate_composition(build_fusion(illegal=True))) > 0
 
 
+def test_chikari_strings_are_always_legal_in_their_raga():
+    """The chikari strings ring under every stroke, so a mistuned one would sound a swara
+    outside the grammar on every hit."""
+    from raga import chikari_swaras
+    for name, r in RAGAS.items():
+        allowed = set(r["allowed"])
+        for swara in chikari_swaras(name):
+            assert swara in allowed, f"{name}: chikari string on {swara}, not in the raga"
+
+
+def test_the_first_two_chikari_strings_are_sa():
+    """Strings 1-2 carry the stroke; 3-4 are colour."""
+    from raga import chikari_swaras
+    for name in RAGAS:
+        assert chikari_swaras(name)[:2] == ["S", "S"], name
+
+
+def test_bageshree_tunes_to_dha_and_ma_not_pa_and_ga():
+    """Bageshree HAS a Pa, so the 'absent Pa' convention does not reach it — yet it is tuned
+    Sa Sa Dha Ma, because its Pa is vakra and avaroha-only while Ma is its vadi and Dha its
+    strong nyas. Source: Sujit's guruji (oral tradition), recorded as a practitioner source."""
+    from raga import chikari_swaras
+    assert chikari_swaras("bageshree") == ["S", "S", "D", "m"]
+
+
+def test_a_raga_without_pa_takes_the_madhyam_string():
+    """The sourced convention: where Pa is absent the string is retuned to ma."""
+    from raga import chikari_swaras
+    assert "P" not in chikari_swaras("malkauns")
+    assert "m" in chikari_swaras("malkauns")
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

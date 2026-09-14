@@ -716,6 +716,25 @@ and build order.
   specifically (Bageshree has a vakra avaroha-only Pa). Also `drone_swaras` picks Pa>Ma>Ni by a
   fixed list and cannot see a weak-but-present Pa, and gives Marwa tivra Ma where the sourced
   practice suggests Dha. Suite 758 green.
+- **INTRO MELODY + CHIKARI TUNING — ✅ BUILT (2026-09-14;** DESIGN.md "The intro's MELODY"**):**
+  measured the three intros: note values almost all 1.0/1.5/2.0 (no contrast), exactly THREE
+  rests in every piece (the verifier's floor used as the target — 9% silence in two), and each
+  closing on ONE note of 17.5/21/11.5 beats (27/33/18% of the alap). Fixes: silence is now a
+  SHARE (>=18%) not a count; no note may exceed max(4 beats, 15% of the alap); and
+  `_place_intro_phrases` (which locks phrase entries to the cycle) is UNCONDITIONAL — it was
+  gated on the clean guitar being present, and the two renders without one are exactly the two
+  whose phrases drift. **Sujit's correction: lock to the VIBHAG, not the sam** — teentaal's sam
+  is every 16 beats, so one entry per avartan leaves the alap threadbare; the vibhag (4+4+4+4)
+  IS the 4/4 measure. `vibhag_starts(arr)` + `_next_vibhag`. Prompt: phrases enter on a
+  measure's first beat and the silence runs as long as it needs (that is the anticipation),
+  ~a quarter silence, rhythmic contrast, each phrase GROWS OUT OF the previous one, an octave
+  arc reaching the taar then closing home or on taar Sa, closing Sa 2-4 beats. Also corrected
+  the line still describing the jod as a sustained pad. **Chikari tuning encoded**
+  (`chikari_swaras`): strings 1-2 = Sa, 3-4 = raga colour derived from the sourced tanpura
+  convention; `_CHIKARI_TUNINGS` overrides only where that rule does not reach — Bageshree
+  (S S D m), **source: Sujit's guruji, oral tradition**. NOT wired yet: a chikari still renders
+  as ONE taar Sa; the multi-string stroke needs a LeadNote contract change + per-string weights
+  + stroke sweep, and belongs with the jor/jhala work. Suite 764 green.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.
