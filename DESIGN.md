@@ -1701,3 +1701,245 @@ back to the demo replay (Sujit couldn't even tell it had failed). Three fixes:
 Rule of thumb going forward: a validator that RAISES belongs only on fields where wrong data
 is meaningless; anything optional/decorative absorbs, because the structured-output layer has
 no retry-with-feedback path.
+
+## RIFF RENDERING CAMPAIGN — step 1: the renderer's note model (2026-09-14, this session)
+
+Sujit's ear ("the riffs aren't authentic metal, and they're very choppy") plus a detailed
+GPT MIDI analysis of three renders. The review's headline claim was that the choppiness is
+ENCODED in the MIDI rather than being a tone problem, and reading the source confirmed it —
+along with two more defects the review couldn't see from the MIDI alone. Triage below; only
+the renderer's note model is BUILT in this step.
+
+### Verified against the source (not taken on faith)
+
+* **The fixed gate.** `PALM_MUTE_MS = 80` and `_apply_technique` gated every chug to a fixed
+  wall-clock chunk. Measured on `out/fusion_20260720_183403.json`: 273 of 419 rhythm notes
+  palm-muted, written at 0.25/0.5/1.0/2.0 beats, and **21% written a beat or longer still
+  played for 0.16 beats** — a click followed by up to 1.84 beats of dead air. An ordinary
+  8th-note chug ran at a 32% gate, which is a deliberate dead stop used as the default.
+* **The unimplemented branch.** `_mute_channel` returns `(channel, has_real_pm)` and its
+  docstring has always said a routed muted-DISTORTION patch "needs no body layering" — but
+  `real_pm` was unpacked and **never read**, so every chug fired two identical attacks (same
+  pitch, velocity, length) on two channels. With SGM HQ as the locked base that is the LIVE
+  path: a comb-filtered machine-gun transient, exactly what the review heard.
+* **Rubber power chords** (Sujit, mid-session: "pitch-bend style chord riffs sound weird,
+  nobody in metal does that"). MIDI pitch bend is CHANNEL-WIDE and our chord tones sound on
+  their root's channel, so a `slide` on a chorded note sweeps the whole voicing. Measured:
+  **85 of the rhythm guitar's 146 wheel gestures (58%) rode a chord**, on both takes.
+
+### Corrected: the review's #3 (hollow chords) is downstream of #1, not a missing model
+
+GPT proposed a `sustain: until_next_attack` field. Measuring the transitions separately by
+articulation showed we already have those semantics: `_sequence_cycle` lays durations
+BUTT-JOINED, so **79% of post-open transitions have exactly zero gap** — an open chord
+already rings until the next attack cuts it. After a palm-muted note, **100%** leave silence
+(median 0.34 beats). The hollow PADS sections were the 80 ms clamp reaching into manjha /
+antara / taan, where the agent writes its long chords palm-muted. No contract change needed;
+fixing the gate closes most of it. (`until_next_attack` as a *field* is therefore REJECTED —
+it would encode as a schema what the geometry already guarantees.)
+
+Also checked and found NOT a problem: MIDIUtil sorts NoteOff (sec_sort_order 2) before
+NoteOn (3) at the same tick, so butt-joined repeats of a pitch are safe and GPT's suggested
+5–20 ms pre-release is unnecessary.
+
+### Built
+
+* **Slot-relative chug gate** (`_chug_gate`): a chug sounds for `PALM_MUTE_GATE = 0.62` of
+  its written slot, floored at `PALM_MUTE_MIN_MS = 55` (a 16th stays a picked chunk), capped
+  at `PALM_MUTE_MAX_MS = 700` (a damped string cannot ring longer, so a stray long chug reads
+  as a held mute rather than a sustain) and never past the slot. Replaying the SAVED
+  composition through it: total dead air 198 → 142 beats, half-beat-plus holes after a chug
+  29% → 21%, and +1.3 dB RMS at the same peak (fuller, not just louder).
+* **`real_pm` honoured**: the distorted body layers only under GM's CLEAN mute companion,
+  which has no gain of its own; a routed muted-distortion patch now plays alone.
+* **The wheel invariant**: `polyphonic = len(seated) > 1` disarms every pitch gesture on a
+  note that sounds a chord. A guitarist moving a shape strikes it again at the new position,
+  so that is now the only way to write it. (The legato branch already had this guard for
+  chords; it became the rule for all gestures.)
+* **Prompt honesty** (`crew/config/tasks.yaml`): the sentence "a palm-muted note gates to a
+  short chunk whatever its written duration" is GONE — see the talk-gold note below. In its
+  place: the mute damps to roughly two-thirds of its slot; an OPEN note rings until the next
+  attack so its duration IS its ring; silence is composed, never a side effect. Plus THE
+  SITAR BENDS; YOU ANCHOR — every pitch gesture single-note only, rare and short (Sad But
+  True), a chord position change written as two attacks.
+* Tests: `test_render.py` 39 → 42 (gate scaling + both bounds, chord-is-fretted vs
+  single-note-still-slides, routed-patch-not-doubled). Suite 692 green.
+* Free A/B for the ear: `out/gatefix_183403.wav` — the SAME saved composition as
+  `out/fusion_20260720_183403.wav`, re-rendered. Replaying a saved composition JSON costs
+  nothing; it is why every render saves its contract.
+
+### Queued, in order (NOT built — each its own step)
+
+1. **`verify_riff` budgets the gate can't fix**: reject a normal chug on a slot ≥ 1 beat
+   (the renderer now honours what is written, so the composition must stop asking for a
+   2-beat chug); a per-role ground floor (the 083950 render sat at 47%, 183403 at 73%);
+   a consecutive-non-ground cap and return-to-ground rule; a `slide` budget (only
+   `long_slide`/`pick_scrape` are capped today, and plain `slide` was the 64-per-take
+   offender); chug-run velocity variance, so six identical chugs stop reading as programmed.
+2. **Double-track humanisation**: `_DOUBLE_DT = 0.02` beats plus a constant detune makes the
+   right guitar a delayed copy. Vary onset, velocity and gate per note.
+3. **Anchor plumbing**: `arr.anchor` exists on the Arrangement but `inputs_for` never passes
+   it, so the prompt tells EVERY riff it "REDUCES" the gat head — a `riff_first` piece is
+   still composed gat-first. Pass `{anchor}` with operationally different instructions.
+4. **`arrange_riff_against_lead`** — GPT's best structural idea, and the one worth an agent.
+   Today `generate_riff` chooses chords from raga legality plus metal weight, never from
+   what the sitar is sounding on that beat, and `Section.harmony` (drone / modal_pedal /
+   progression — already decided by the composers) is NOT passed to it. A second pass AFTER
+   the lead exists, with LIMITED AUTHORITY: it may change voicing, open-vs-muted, sustain,
+   velocity, and chord root at stable arrivals; it may NOT move attacks or change the cell
+   rhythm, ground pattern or turnaround. Code precomputes a `HarmonicGuide` (lead focus,
+   stability class, meend destinations, phrase endings) so the LLM answers only the musical
+   question. Default hierarchy: Sa pedal >> Sa + colour >> another supporting root >>
+   progression. Rule: hold harmony through movement/meend/taan; change only at nyas, stable
+   arrival or a planned harmonic change. The third question nobody currently asks is "do
+   these two lines coexist?" — the riff composer asks "is this a good riff?" and the lead
+   composer "is this a good raga line?".
+5. **Short-cell riff architecture** (`cells` + `cycle_form` over 1/2/4-beat units instead of
+   a 16-beat event stream). Real merit, biggest contract change; revisit after the above are
+   HEARD. Note the review's premise that the cycle repeats unchanged is STALE — `riff_family`
+   already develops per-bar variants (base / prime every third bar / stripped / double).
+
+**REJECTED**: a dedicated LLM Riff Critic. Every failure it would score — ground share, gate
+distribution, pitch economy, slide density, velocity uniformity — is deterministically
+checkable, so by our own rule (code decides the checkable) they belong in `verify_riff`,
+free, not in a paid judge with a debate surface. **REJECTED**: the shared GrooveGrid planner
+— it inverts our actual dependency, since `groove.py` derives the drums FROM the finished
+riff, so the kick already follows the guitar.
+
+### Step 2 — the coexistence report (BUILT, pure; the arranger pass is NOT)
+
+`crew/coexistence.py` — the detection half of Sujit's ask ("an agent that checks whether riff
+and melody align, and asks one of them to change"). Pure, no LLM, `(comp, arr)` like
+`composition_metrics`. Built first on purpose: it is the evidence the repair pass reads, the
+trigger deciding whether that pass runs at all (a clean section costs no tokens), and it
+sizes the problem before we spend anything on it.
+
+**Two findings, different cures.** GRIND = a riff pitch at a harsh interval class (1/6/11)
+under a SETTLED melody note; classified by what the melody is doing — HELD (≥1 beat, the ear
+tunes to it), STABLE (≥0.5), PASSING (shorter, movement). A harsh interval under a passing
+note is ordinary metal and is counted as context, never reported — flagging it would flatten
+the music. CHASE = the riff changing ROOT where the melody is still moving, which is what
+makes chords feel random: the floor should hold through a run and change at an arrival.
+
+**Three things the existing guard missed,** found by writing the detector:
+* `harmonize_riff_to_lead` compared the WRITTEN swara, but the renderer sounds a meend at its
+  TARGET (`build_midi`: `sounding = target if target is not None else pitch`) — so a glide's
+  clash was judged against a pitch nobody hears. `_note_pitch` is now `sounding_pitch`,
+  shared by both the guard and the report (one definition, and the guard is fixed).
+* Chord TONES were never checked. `_seat_chord_tone` seats them consonantly against their
+  ROOT and never against the melody, so a stack can fight the tune where its root is clean.
+  Interval class is octave-invariant, so seating is irrelevant and no render import is needed.
+* Only notes under a lead note held ≥1 beat were considered at all.
+
+**Measured on `out/fusion_20260720_183403.json`** (post-guard — these SURVIVE it): 185
+grinds over 419 riff notes, 126 of them under HELD melody notes, 28 from chord tones, split
+81 major-sevenths / 73 semitones / 31 tritones; 27 chases; and 474 passing grinds correctly
+filtered out as context. The guard's dampening is real but partial, and it leaves no trace,
+so none of this was visible to any critic or to us.
+
+`render_coexistence(report)` emits the prompt block (flagged sections only, one line when
+clean) an arranger pass will read. Tests: `tests/test_coexistence.py` (11). Suite 703 green.
+
+**Gap noticed:** a render saves its Composition but NOT its Arrangement, so a historical
+render cannot be attributed per section (the run above had to treat the piece as one span).
+The arranger pass needs per-section attribution; saving the Arrangement beside the JSON is a
+one-line change to make when we build it.
+
+**Still to decide before building the repair pass** (Sujit's call): direction of yield. Our
+recommendation stays asymmetric-by-default with the ANCHOR as the right-of-way rule —
+`gat_first` ⇒ the riff yields (the raga line is already certified by the gat verifiers and
+re-rolling it discards that verification and spends the slowest agent), `riff_first` ⇒ the
+lead bends around the hook. Direction decided in CODE, never negotiated between two agents:
+a symmetric negotiation is an unbounded loop with no referee.
+
+### Step 3 — the ARRANGER, the repair pass (BUILT 2026-09-14)
+
+Sujit's ask, with the right-of-way rule he approved. `crew/repairs.py` (pure) + `crew/arranger.py`
+(the agent) + the `arranger` / `arrange_against_lead` prompts; wired into `compose_band` after
+the lead and riff exist and BEFORE the orchestra and the derived voices, so everything
+downstream inherits the repaired lines.
+
+**Not a re-generation.** Regenerating the riff against the melody would destroy the hook every
+time the melody changed, so the arranger chooses from a MENU of legal local edits to ONE note.
+It cannot move an attack or change a cell's rhythm — the riff's identity survives by
+construction, not by asking an agent to be careful. Verified on the real piece: 0 attacks moved.
+
+**Three properties make it live-safe:**
+* WHO MOVES is code (`right_of_way`) — the anchor's rule, never a negotiation: `gat_first` ⇒ the
+  riff yields, `riff_first` ⇒ the melody bends. A section whose gat role makes one voice the
+  identity overrides the anchor (nothing re-pitches a taan; nothing softens a breakdown).
+* WHAT IS LEGAL is code (`grind_repairs`) — every option offered is already raga-legal, and
+  reseats refuse direction-sensitive swaras outright since a local repair cannot see phrase
+  direction. The agent chooses taste and only taste; an id it was never offered falls back to
+  the safest legal repair (the menu is the authority, not the reply).
+* IT ALWAYS TERMINATES — one bounded pass, then a deterministic sweep damps what is left. A
+  decider that throws, answers short, or keeps everything cannot leave the piece worse than the
+  old guard did (all three are tests).
+
+**Cost follows the evidence:** a clean section never reaches the model (a test asserts the
+decider is not even called), and only the worst `_MAX_FINDINGS = 8` clashes per section are put
+to it — a prompt that grew with the damage would cost most exactly where the music is weakest.
+
+**What the measurements changed while building** (each a case of code being musically wrong in
+a way only the data showed):
+1. Reseating with no preference rebuilt the riff around whichever swara the raga listed first —
+   95 roots moved onto tivra Ma. Reseats are now ranked: hold the PREVIOUS root (the floor stays
+   put), then the ground Sa, then nearest pitch.
+2. Even ranked, it moved 88 GROUND strokes onto the leading tone. The ground is most of what
+   makes a riff read as metal, so when the ground itself clashes the repair is to DAMP it, as a
+   guitarist does; only a movement note is worth relocating. Ground share now 73% → 74% across
+   a full pass (it was falling to 62%).
+3. The detector over-reported: a short unchorded palm-muted note is a percussive TOUCH, over
+   before the ear can tune it — which is exactly what damping produces. Counting it meant a
+   repaired note still read as broken and the pass could never converge. With touches excluded
+   the honest figure for the 2026-07-20 piece is **107 grinds, not 185** (the difference is what
+   the old guard had already reduced to touches — it was working, just invisibly).
+4. Damping preserved a slide, so the clash survived at half a beat with a gesture that made no
+   sense there. `damp_note` now forces palm_mute, and it is ONE definition shared by the repair
+   menu and the last-ditch guard so the two cannot drift.
+
+**Dry run on `out/fusion_20260720_183403.json`** (deterministic decider, no LLM): grinds
+**107 → 0**, 69 of 419 riff notes touched (16%), 0 attacks moved, 0 melody notes moved (the
+piece is `gat_first`), repairs 66 damp / 24 drop_tone / 26 hold_root / 6 reseat.
+
+**Honest limitation — chases barely move** (27 → 27: 8 fixed, 8 cascaded onto the next note, 19
+unchanged). Holding one root just relocates where the root changes, because the real cause is a
+riff that changes root far too often under a moving melody. That is a PITCH-ECONOMY problem and
+belongs in `verify_riff` (queued step 1), not in a one-note repair. Worth saying plainly rather
+than tuning the number.
+
+**Live cost note:** the arranger is wired into `compose_band`, so the next live run makes one
+extra small call per flagged section. A clean section costs nothing.
+
+### Step 4 — riff verifier budgets + double-track humanisation (BUILT 2026-09-14)
+
+**The budgets** (`crew/riff_texture.py`) — the composition-side half of the gate fix. The
+renderer now honours what the riff writes, so the riff has to stop asking for the impossible,
+and the prompt states each of these so the ask and the enforcement agree:
+* **No chug written as a sustain** — a palm-muted note longer than 1 beat is a request the
+  articulation cannot deliver (a quarter-note chug stays legal; a test pins that, so the cap
+  cannot creep into outlawing ordinary doom).
+* **No pitch gesture on a chord** — the wheel is channel-wide, the renderer now drops such a
+  gesture, and a gesture the model believes it wrote is worse than one it never wrote.
+* **Ground floor 0.35 → 0.55**, calibrated on the two real renders rather than picked: the riff
+  Sujit called "light, not metal" sat at 47% ground, the one he called the best foundation at
+  73%. 0.55 separates them; 0.35 could never fail.
+* **Non-ground run cap (3)** — a share alone is satisfiable by one long tune followed by a
+  block of chugs, so how long the riff may wander before coming home is checked separately.
+* **Plain `slide` budget (1/cycle)** — only `long_slide` and `pick_scrape` were capped, and
+  plain slide was the 64-per-take offender.
+* **Chug-run accent** — a run of 4+ palm-muted notes at ONE velocity is the "programmed" tell.
+  Rests break a run (the detector reads the full cycle): counting over sounding notes alone
+  glued two three-chug figures either side of a rest into a run of six nobody played, which the
+  existing clean fixture caught immediately.
+
+**The double-track** (`crew/generators.double_track`) was one performance shifted by a constant
+`_DOUBLE_DT` with a constant detune — the review measured exactly 19 ticks on every note, which
+the ear hears as slapback or chorus rather than a second guitarist. Each note now lands, is
+picked and is held slightly differently (`_second_take`): onset ±~6 ms around the Haas offset,
+velocity ±5, duration ±10%, each salted separately so they drift INDEPENDENTLY — varying them
+in lockstep would just be a second copy with a different constant. Deterministic and keyed on
+the note (the drum machine's idiom), never an RNG, so re-renders stay reproducible and tests
+stay stable; capped under ~25 ms so the pair still fuses instead of flamming.
+
+Tests: `test_riff_texture` 36 → 44, `test_generators` 32 → 35. Suite 732 green.

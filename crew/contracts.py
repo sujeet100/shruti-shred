@@ -1375,6 +1375,24 @@ class UstadVerdict(BaseModel):
     reasoning: str = ""
 
 
+class ArrangerChoice(BaseModel):
+    """One decision: for finding `finding`, apply the offered repair `repair`.
+
+    The agent picks from a menu CODE built, so it cannot invent a repair or an illegal
+    pitch — the worst it can do is choose a legal repair that serves the music less well
+    than another. `repair` is one of the ids listed with that finding.
+    """
+    finding: int = Field(ge=0)      # the finding's number as listed in the prompt
+    repair: str                     # the chosen repair's id, verbatim from the offered list
+    reason: str = ""                # one short clause — why this repair serves the music
+
+
+class ArrangerDecision(BaseModel):
+    """The arranger's answer for ONE section: reasoning first, then a choice per finding."""
+    reasoning: str = ""
+    choices: list[ArrangerChoice] = Field(default_factory=list)
+
+
 class RasikScores(BaseModel):
     """Rasik's rubric — the RAGA-AUTHENTICITY criteria on a FIXED 1-5 scale.
 

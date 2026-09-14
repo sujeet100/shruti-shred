@@ -295,6 +295,34 @@ def test_double_track_is_a_second_track_panned_opposite_on_a_different_tone():
     assert dbl.detune_cents and src.detune_cents is None
 
 
+def test_the_second_take_is_a_performance_not_a_delayed_copy():
+    """A CONSTANT offset on every note is a slapback, not a second guitarist — the external
+    review measured the right take as the same MIDI shifted by exactly 19 ticks throughout.
+    Each note must land, be picked and be held slightly differently."""
+    src = _guitar_riff(-2)
+    dbl = double_track(src)
+    offsets = {round(d.start - s.start, 4) for d, s in zip(dbl.notes, src.notes)}
+    assert len(offsets) > 1, "every note shifted by the same amount is a delay line"
+    assert all(o > 0 for o in offsets), "the second take still sits behind the first"
+    assert len({d.vel for d in dbl.notes}) > 1
+    assert len({round(d.dur - s.dur, 4) for d, s in zip(dbl.notes, src.notes)}) > 1
+
+
+def test_the_second_take_is_reproducible():
+    """Keyed, never random: two renders of one composition must be byte-identical, and the
+    tests must not flake."""
+    src = _guitar_riff(-2)
+    assert double_track(src).notes == double_track(src).notes
+
+
+def test_the_second_take_never_drifts_far_enough_to_flam():
+    """Past roughly 25 ms the ear stops fusing the pair and hears two attacks."""
+    src = _guitar_riff(-2)
+    for d, s in zip(double_track(src).notes, src.notes):
+        assert 0 < d.start - s.start < 0.05          # beats — ~25 ms at 120 bpm
+        assert d.dur > 0
+
+
 def test_no_riff_means_no_double():
     assert double_track(None) is None
 

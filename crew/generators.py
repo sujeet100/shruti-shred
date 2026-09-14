@@ -299,13 +299,20 @@ _CLASH_SUSTAIN_MIN: Final[float] = 1.0
 # Interval classes (mod 12) that grind under distortion against a held melody note:
 # the semitone, the tritone, and the major seventh. Seconds/sevenths an octave out
 # (add9-style colour) are deliberately NOT in this set.
-_HARSH_ICS: Final[frozenset[int]] = frozenset({1, 6, 11})
+HARSH_INTERVAL_CLASSES: Final[frozenset[int]] = frozenset({1, 6, 11})
 _CLASH_CHUG_BEATS: Final[float] = 0.5    # a clashing riff note is clipped to a chug this long
 _CLASH_VEL_SCALE: Final[float] = 0.9     # ...and softened a touch, under the melody
 
 
-def _note_pitch(note) -> int:
-    """A note's pitch relative to Sa (sa itself cancels out of any interval)."""
+def sounding_pitch(note) -> int:
+    """A note's pitch relative to Sa, as it is actually HEARD (sa cancels out of any
+    interval). A meend sounds at its TARGET — the renderer anchors the note on the target
+    sample and bends the wheel into it — so a glide's harmonic identity is where it LANDS,
+    not the swara it was written as. Comparing the written swara judged the clash against a
+    pitch nobody hears, which is what this guard used to do."""
+    if note.meend_swara is not None:
+        return SWARAS[note.meend_swara] + 12 * (note.oct if note.meend_oct is None
+                                                else note.meend_oct)
     return SWARAS[note.swara] + 12 * note.oct
 
 
@@ -322,30 +329,37 @@ def harmonize_riff_to_lead(rhythm: Layer | None, lead_layers: list[Layer]) -> La
     """
     if rhythm is None or not rhythm.notes:
         return rhythm
-    held = [(n.start, n.start + n.dur, _note_pitch(n))
+    held = [(n.start, n.start + n.dur, sounding_pitch(n))
             for layer in lead_layers for n in (layer.notes or [])
             if n.dur >= _CLASH_SUSTAIN_MIN]
     if not held:
         return rhythm
-    notes = [_dampened(n) if _clashes(n, held) else n for n in rhythm.notes]
+    notes = [damp_note(n) if _clashes(n, held) else n for n in rhythm.notes]
     return rhythm.model_copy(update={"notes": notes})
 
 
 def _clashes(note, held: list[tuple[float, float, int]]) -> bool:
     """Does this riff note overlap a held lead note at a harsh interval class?"""
     end = note.start + note.dur
-    pitch = _note_pitch(note)
-    return any(note.start < h_end and h_start < end and (pitch - h_pitch) % 12 in _HARSH_ICS
+    pitch = sounding_pitch(note)
+    return any(note.start < h_end and h_start < end and (pitch - h_pitch) % 12 in HARSH_INTERVAL_CLASSES
                for h_start, h_end, h_pitch in held)
 
 
-def _dampened(note):
-    """The clash treatment: strip the chord stack, clip to a chug, soften a touch."""
+def damp_note(note):
+    """The clash treatment, and the one definition of it: strip the chord stack, clip to a
+    chug, soften a touch, and make it PERCUSSIVE.
+
+    The technique is forced to palm_mute rather than preserved. A damped note whose slide
+    survived was still a sustained pitch fighting the melody — the gesture kept the clash
+    alive and made no sense at half a beat anyway. Damping means "this becomes a touch", and
+    a touch is a chug. Shared with `crew/repairs.py`, which offers this as a repair.
+    """
     return note.model_copy(update={
         "chord": None,
         "dur": round(min(note.dur, _CLASH_CHUG_BEATS), 4),
         "vel": max(1, round(note.vel * _CLASH_VEL_SCALE)),
-        "technique": "palm_mute" if note.technique in (None, "palm_mute") else note.technique,
+        "technique": "palm_mute",
     })
 
 
@@ -356,6 +370,39 @@ def _dampened(note):
 _DOUBLE_DT: Final[float] = 0.02          # ~10 ms at 120 bpm — a Haas offset that widens the pair
 _DOUBLE_VEL_SCALE: Final[float] = 0.93   # a touch quieter, so the sum is decorrelated, not mono
 _DOUBLE_DETUNE_CENTS: Final[int] = 8     # a hair sharp on the right take — two players, not a copy
+
+# HUMANISATION — the difference between a double-track and a delay. A CONSTANT offset applied
+# to every note is a copy of one performance, and the ear hears it as a slapback or a chorus,
+# not as a second guitarist (external review, 2026-09-14: the right take was the same MIDI
+# shifted by exactly 19 ticks throughout). A real second take lands a few milliseconds either
+# side of the first, picks a given note slightly harder or softer, and holds it a touch
+# longer or shorter. These are per-note and deterministic (same idiom as the drum machine's
+# velocity jitter: keyed on the note, never an RNG, so re-renders stay reproducible).
+_DOUBLE_DT_WOBBLE: Final[float] = 0.012  # beats: ±~6 ms at 120 bpm around the Haas offset
+_DOUBLE_VEL_WOBBLE: Final[int] = 5       # a harder or softer pick on any given note
+_DOUBLE_DUR_WOBBLE: Final[float] = 0.10  # ±10% on the note's length — a different fretting hand
+
+
+def _wobble(index: int, start: float, salt: int) -> float:
+    """A deterministic wobble in [-1, 1], keyed on the note and the quantity being varied.
+
+    Keyed rather than random so two renders of one composition are identical, and salted per
+    quantity so a note's timing, velocity and length drift INDEPENDENTLY — varying them in
+    lockstep would just be a second copy with a different constant.
+    """
+    key = (int(round(start * 16)) * 2654435761 + index * 40503 + salt * 97) & 0xFFFFFFFF
+    return (key % 2001) / 1000.0 - 1.0
+
+
+def _second_take(index: int, note: Note) -> Note:
+    """One note as the SECOND guitarist played it: a hair late, a touch quieter, and each of
+    those wobbling per note so the pair reads as two performances rather than one delayed."""
+    dt = _DOUBLE_DT + _DOUBLE_DT_WOBBLE * _wobble(index, note.start, 1)
+    vel = note.vel * _DOUBLE_VEL_SCALE + _DOUBLE_VEL_WOBBLE * _wobble(index, note.start, 2)
+    dur = note.dur * (1 + _DOUBLE_DUR_WOBBLE * _wobble(index, note.start, 3))
+    return note.model_copy(update={"start": round(note.start + dt, 4),
+                                   "dur": round(max(0.01, dur), 4),
+                                   "vel": max(1, min(127, round(vel)))})
 
 
 def double_track(rhythm: Layer | None) -> Layer | None:
@@ -369,9 +416,7 @@ def double_track(rhythm: Layer | None) -> Layer | None:
     if rhythm is None or not rhythm.notes:
         return None
     voice = VOICES["rhythm_double"]
-    notes = [n.model_copy(update={"start": round(n.start + _DOUBLE_DT, 4),
-                                  "vel": max(1, round(n.vel * _DOUBLE_VEL_SCALE))})
-             for n in rhythm.notes]
+    notes = [_second_take(i, n) for i, n in enumerate(rhythm.notes)]
     return Layer(role="rhythm", instrument=voice.instrument, program=voice.program,
                  channel=voice.channel, pan=voice.pan, detune_cents=_DOUBLE_DETUNE_CENTS,
                  notes=notes)

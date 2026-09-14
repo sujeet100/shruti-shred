@@ -51,9 +51,11 @@ colours instead of grinding. An interval that can only clash under distortion (s
 tritone, sevenths) degrades to octave weight. This is deliberate metal voicing, not a
 raga rule: legality kept every stack in the raga but ignored consonance, and a low-octave
 second under distortion is mud (heard, then fixed, on the first live gat render).
-A note may also carry an optional "technique": "palm_mute" (a short chug ROUTED to a
-genuinely muted-guitar companion channel, with a soft distorted copy underneath —
-the timbre change is what reads as a palm mute), "hammer_on"/"pull_off" (a softer
+A note may also carry an optional "technique": "palm_mute" (a chug ROUTED to a genuinely
+muted-guitar companion channel — the timbre change is what reads as a palm mute; a GM
+clean-mute companion gets a distorted copy underneath for body, a routed muted-DISTORTION
+patch needs none. The note sounds for a SHARE of its written duration, damped, not for a
+fixed wall-clock chunk), "hammer_on"/"pull_off" (a softer
 attack PLUS a fast pull from the previous note's pitch — real legato), or a
 pitch-wheel gesture — "slide" (starts at the previous note's pitch, so it travels in
 the line's own direction), "long_slide" (a wide, slower position shift from a fifth
@@ -133,9 +135,17 @@ ANDOLAN_STEPS_PER_CYCLE = 16 # wheel events per wave — dense enough that the c
 ANDOLAN_CC11_DIP = 8         # expression dips a hair with the pitch (a pulled string darkens)
 
 # Rhythm-guitar technique shaping (see _apply_technique / _render_slide / _render_bend).
-PALM_MUTE_MS = 80        # a chug gates to a FIXED wall-clock length (industry-converged:
-                         # TuxGuitar 60ms, alphaTab 80ms), capped at the written duration —
-                         # the transient-then-silence shape IS the chug, at any tempo
+# A chug sounds for a SHARE of its written slot, not a fixed wall-clock chunk. The old
+# fixed 80ms gate (TuxGuitar/alphaTab's default) silently overrode every duration the riff
+# agent wrote: measured on `out/fusion_20260720_183403.json`, an 8th-note chug sounded at a
+# 32% gate and 21% of palm-muted notes were written a BEAT or longer and still played for
+# 0.16 beats — a click followed by up to 1.84 beats of dead air. That gap is what reads as
+# the machine-gun staccato, and because the PADS sections (manjha/antara/taan) write their
+# long chords palm-muted, it is also what hollowed out the "ringing chord" support.
+PALM_MUTE_GATE = 0.62    # a normal chug: sounds for this share of its slot, then damps
+PALM_MUTE_MIN_MS = 55    # ...never shorter than a real picked chunk (a 16th stays audible)
+PALM_MUTE_MAX_MS = 700   # ...never longer than a damped string physically rings, so a chug
+                         # written on a long slot reads as a held mute, not a sustain
 MUTE_LEVEL = 127         # companion-channel CC7: muted samples are recorded far quieter
                          # than the open patches — full channel volume compensates, so a
                          # chug holds its own against a stacked chord ("chugs barely
@@ -160,7 +170,7 @@ MUTE_BODY_VEL = 1.0         # the distorted under-layer beneath each chug plays 
                             # written velocity — the parity rule ("a chug must be as loud
                             # as any open note", Sujit 2026-07-15): the body IS the open
                             # patch, so a chug can never sit below a same-velocity note;
-                            # the 80ms gate + muted layer keep it a chug, not a note
+                            # the gate + muted layer keep it a chug, not a note
 
 # Legato / slide realism: hammer_on & pull_off PULL the wheel from the PREVIOUS note's
 # pitch (a real finger move, not just a softer attack), and a slide now starts at the
@@ -259,6 +269,18 @@ def _seat_chord_tone(root_pitch: int, tone_pitch: int) -> int | None:
     return None if seat is None else root_pitch + seat
 
 
+def _chug_gate(dur: float, bpm: float) -> float:
+    """The sounding length of a palm-muted note: a SHARE of its written slot (so the chug
+    breathes with the rhythm at any tempo), bounded by what a damped string can actually
+    do — never shorter than a picked chunk, never longer than a mute rings, never past the
+    slot itself. Pure."""
+    beats_per_ms = bpm / 60000.0
+    gate = dur * PALM_MUTE_GATE
+    gate = max(gate, PALM_MUTE_MIN_MS * beats_per_ms)
+    gate = min(gate, PALM_MUTE_MAX_MS * beats_per_ms)
+    return min(gate, dur)
+
+
 def _apply_technique(technique, dur: float, vel: int, bpm: float) -> tuple[float, int]:
     """Return (dur, vel) shaped for a technique's ATTACK/SUSTAIN — the part that is
     pure note geometry (pitch gestures are rendered separately). A palm-mute chug
@@ -268,8 +290,7 @@ def _apply_technique(technique, dur: float, vel: int, bpm: float) -> tuple[float
     if technique == "palm_mute":
         # the gate alone shapes the chug — no velocity cut: the muted TIMBRE already
         # carries the softness, and attenuating on top of it buried the chugs
-        gate = min(dur, PALM_MUTE_MS * bpm / 60000.0)
-        return round(gate, 4), vel
+        return round(_chug_gate(dur, bpm), 4), vel
     if technique in ("hammer_on", "pull_off"):
         return dur, max(1, int(vel * LEGATO_VEL))
     return dur, vel
@@ -595,9 +616,15 @@ def build_midi(comp: dict, path: str) -> None:
             def _sound(p: int) -> None:
                 if is_chug:
                     mf.addNote(i, mute_ch, p, n["start"], dur, vel)
-                    # ...plus the distorted body underneath in BOTH modes: the gain wall
-                    # is what keeps a single-pitch chug from thinning next to a chord
-                    mf.addNote(i, ch, p, n["start"], dur, max(1, int(vel * MUTE_BODY_VEL)))
+                    # ...plus the distorted body underneath ONLY when the companion is GM's
+                    # CLEAN mute, which has no gain of its own. A routed muted-DISTORTION
+                    # patch (`pm_bank`) is self-sufficient — doubling it fired two identical
+                    # attacks at the same pitch, velocity and length on two channels, which
+                    # is a comb-filtered machine-gun transient, not a thicker chug. `real_pm`
+                    # was computed for exactly this and then never read (the branch the
+                    # `_mute_channel` docstring always described, finally implemented).
+                    if not real_pm:
+                        mf.addNote(i, ch, p, n["start"], dur, max(1, int(vel * MUTE_BODY_VEL)))
                 else:
                     mf.addNote(i, ch, p, n["start"], dur, vel)
 
@@ -618,6 +645,15 @@ def build_midi(comp: dict, path: str) -> None:
             # wheel gestures below — CC11, not pitch).
             if n.get("fade"):
                 _render_fade(mf, i, ch, n["start"], dur)
+            # PITCH-WHEEL SAFETY — the wheel is CHANNEL-WIDE, so a gesture on a note that
+            # sounds a chord sweeps every tone of that chord together. A guitarist cannot do
+            # that: a power chord changing position is a new fretted attack with string
+            # noise, not the whole shape rubber-banding. Measured on the 2026-07-20 render,
+            # 85 of the rhythm guitar's 146 wheel gestures (58%) rode a chord — the "weird,
+            # nobody-in-metal-does-that" sound. A voicing therefore stays FIRMLY FRETTED, and
+            # continuous pitch movement stays where it belongs: the sitar's single line.
+            # (The legato branch already carried this guard; it is now the rule for all.)
+            polyphonic = len(seated) > 1
             # Pitch-wheel gestures: a meend glide to a target swara, a riff
             # slide/bend/legato, or a slow andolan sway on a held komal note. One per
             # note, EXCEPT meend + andolan, which compose (glide in, settle, sway).
@@ -625,7 +661,9 @@ def build_midi(comp: dict, path: str) -> None:
             # finger moving from where the line just was, and a slide travels in the line's
             # own direction; a fixed offset reads as a synth blip, not a hand.
             connected = prev_pitch if n["start"] - prev_end <= LEGATO_MAX_GAP else None
-            if target is not None:
+            if polyphonic:
+                pass                             # a chord is fretted, never bent (see above)
+            elif target is not None:
                 _render_meend(mf, i, ch, n["start"], dur, pitch, target, bpm)
                 if n.get("andolan"):             # meend INTO the sway: glide, settle, undulate
                     _render_andolan(mf, i, ch, n["start"], dur, bpm,
@@ -639,7 +677,7 @@ def build_midi(comp: dict, path: str) -> None:
             elif n.get("technique") == "pick_scrape":
                 _render_slide(mf, i, ch, n["start"], dur,
                               st=SCRAPE_ST, frac=SCRAPE_FRAC)
-            elif n.get("technique") in ("hammer_on", "pull_off") and not n.get("chord"):
+            elif n.get("technique") in ("hammer_on", "pull_off"):
                 st = _pull_offset(connected, sounding, LEGATO_PULL_MAX)
                 if st is not None:               # no usable previous note: soft attack only
                     _render_slide(mf, i, ch, n["start"], dur, st=st, frac=LEGATO_PULL_FRAC)

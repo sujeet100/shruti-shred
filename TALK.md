@@ -620,3 +620,28 @@ convincing than a hypothetical.)*
 - Talk length + venue? (drives how deep we go on each pattern)
 - How much live-coding vs pre-built? (recommend: all pre-built, narrate live)
 - Which hero combos to pre-render as the safe fallbacks (pick by ear in Phase 4).
+
+### The prompt that documented a bug (2026-09-14) — ★ a strong closing beat
+
+The riffs sounded choppy. The critique loop never flagged it, and it couldn't have: the
+renderer gated every palm-muted note to a fixed 80 ms regardless of the duration the agent
+wrote, so a chug written for two beats played for 0.16 and left nearly a second of dead air.
+Every verifier had already passed on a symbolic score that was fine.
+
+The part worth the slide is what we had done about it earlier. Rather than fix the clamp, we
+had written it into the riff prompt as a musical rule — *"a palm-muted note gates to a short
+chunk whatever its written duration"* — so the agent dutifully composed AROUND a defect for
+months, and its output looked correct to every check we had.
+
+*The lesson, and it generalises past music:* **an agent's output is only as good as the
+fidelity of whatever consumes it, and a prompt that documents your bug will make the model
+reproduce it faithfully.** Three of the four things Sujit heard turned out to live downstream
+of the last verifier — the clamp, a `real_pm` branch computed and never read (so every chug
+fired twice on two channels), and channel-wide pitch bends rubber-banding 58% of the power
+chords. No amount of critic intelligence reaches there. *Slide:* the deleted prompt line next
+to the `PALM_MUTE_MS = 80` constant it was describing.
+
+*Companion beat:* how we knew. Every render saves its symbolic composition JSON beside the
+audio, so the diagnosis was measurement on a file we already had — gate ratios, gap
+distributions, wheel-gestures-on-chords — and the fix was A/B'd by re-rendering that same
+saved composition. Zero LLM calls to find or to verify a fault in an LLM pipeline.

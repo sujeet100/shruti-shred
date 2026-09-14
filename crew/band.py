@@ -63,8 +63,11 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     layers.extend(lead_layers)
     layers.extend(orchestra_layers)   # the cinematic voices (symphonic; sparse colour elsewhere)
     if rhythm is not None:
-        # The riff yields to the raga line FIRST (clashing notes thin to a chug), so the
-        # double-track and the derived low end all inherit the consonant figure.
+        # The riff yields to the raga line (clashing notes thin to a chug), so the double
+        # track and the derived low end all inherit the consonant figure. This is the LAST
+        # line of defence: the Arranger (crew/arranger.py) has normally already repaired
+        # these clashes upstream, choosing among legal options; what reaches here is
+        # whatever it judged expressive or could not fix.
         rhythm = harmonize_riff_to_lead(rhythm, lead_layers)
         layers.append(rhythm)                        # the hard-left rhythm track
         double = double_track(rhythm)                # the hard-right double (different gain patch)
@@ -101,6 +104,16 @@ def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:
     rhythm, riff_events = compose_riff(arr, mukhada=mukhada_cell_from_events(lead_events))
     events.extend(lead_events)
     events.extend(riff_events)
+    # THE ARRANGER — the third question, asked only once both lines are real: do they
+    # coexist? The riff was composed before this lead existed, so it could not know what
+    # the sitar actually sounds on any given beat. It repairs surgically (one note at a
+    # time, never a rhythm), the right-of-way rule decides who gives way, and a piece with
+    # no clashes makes no call at all. It runs BEFORE the orchestra, so the cinematic
+    # voices answer the repaired lines rather than the fighting ones.
+    from crew.arranger import arrange_against_lead
+
+    rhythm, lead_layers, arranger_events = arrange_against_lead(rhythm, lead_layers, arr)
+    events.extend(arranger_events)
     # The Orchestra is CAPABILITY-GATED: it joins ONLY when the chart calls for it (symphonic
     # charts always; other subgenres where the composers added it as colour). It runs after
     # the creative voices so it can ANSWER the realized lead + riff rather than double them.

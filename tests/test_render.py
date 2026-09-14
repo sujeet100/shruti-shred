@@ -25,7 +25,9 @@ from render import (  # noqa: E402
     ANDOLAN_PERIOD_MS,
     ANDOLAN_STEPS_PER_CYCLE,
     BEND_ST,
-    PALM_MUTE_MS,
+    PALM_MUTE_GATE,
+    PALM_MUTE_MAX_MS,
+    PALM_MUTE_MIN_MS,
     SLIDE_IN_ST,
     _andolan_cc,
     _andolan_wheel,
@@ -80,10 +82,29 @@ def test_fade_ramp_decays_to_the_floor_and_resets():
 # --- _apply_technique: palm-mute chug + legato attack, pitch left alone ---------
 
 def test_palm_mute_gates_but_keeps_its_punch():
-    dur, vel = _apply_technique("palm_mute", 1.0, 100, 120)
-    assert dur == round(PALM_MUTE_MS * 120 / 60000.0, 4)   # a fixed wall-clock gate
-    assert _apply_technique("palm_mute", 0.05, 100, 120)[0] == 0.05  # capped at written dur
+    # a chug sounds for a SHARE of its slot, so it breathes with the written rhythm...
+    dur, vel = _apply_technique("palm_mute", 0.5, 100, 120)
+    assert dur == round(0.5 * PALM_MUTE_GATE, 4)
     assert vel == 100    # NO velocity cut — the muted timbre carries the softness
+
+
+def test_palm_mute_gate_scales_with_the_written_slot():
+    """The regression the fixed 80ms gate caused: a chug written on a long slot played for
+    the SAME 0.16 beats as a 16th and left up to 1.84 beats of dead air behind it."""
+    short = _apply_technique("palm_mute", 0.25, 100, 120)[0]
+    long_ = _apply_technique("palm_mute", 1.0, 100, 120)[0]
+    assert long_ > short, "a longer slot must sound longer — that is the whole fix"
+    assert long_ / 1.0 >= 0.5, "a beat-long chug must cover most of its slot, not tick"
+
+
+def test_palm_mute_gate_is_bounded_at_both_ends():
+    beats_per_ms = 120 / 60000.0
+    # a 16th at a fast tempo still sounds — the floor lifts it back to a picked chunk
+    assert _apply_technique("palm_mute", 0.25, 100, 240)[0] == round(PALM_MUTE_MIN_MS * 240 / 60000.0, 4)
+    # ...and a stray long chug damps like a real muted string rather than sustaining
+    assert _apply_technique("palm_mute", 4.0, 100, 120)[0] == round(PALM_MUTE_MAX_MS * beats_per_ms, 4)
+    # never longer than the slot itself, whatever the ratio
+    assert _apply_technique("palm_mute", 0.05, 100, 120)[0] == 0.05
 
 
 def test_legato_softens_attack_only():
@@ -130,6 +151,53 @@ def test_legato_arms_the_wheel_and_pulls_from_the_previous_pitch():
     assert _pull_offset(50, 60, 4) == -4.0       # wide travel is capped
     assert _pull_offset(None, 60, 4) is None     # no previous note -> no gesture
     assert _pull_offset(60, 60, 4) is None       # no travel -> no gesture
+
+
+def _rhythm_comp(notes: list[dict], **layer: object) -> dict:
+    """A one-layer rhythm-guitar composition — the fixture the wheel/chug MIDI tests share."""
+    base = {"role": "rhythm", "instrument": "gtr", "program": 29, "channel": 0, "notes": notes}
+    return {"raga": "malkauns", "sa": 50, "bpm": 120,
+            "tala": {"name": "teentaal", "beats_per_bar": 4}, "layers": [base | layer]}
+
+
+def _midi_bytes(comp: dict, name: str) -> bytes:
+    path = os.path.join(os.environ.get("TMPDIR", "/tmp"), name)
+    build_midi(comp, path)
+    data = open(path, "rb").read()
+    os.remove(path)
+    return data
+
+
+def _has_pitch_wheel(data: bytes) -> bool:
+    """Any pitch-wheel event (status 0xEn) on any channel."""
+    return any(bytes([0xE0 | c]) in data for c in range(16))
+
+
+def test_a_chord_is_fretted_never_bent():
+    """The wheel is CHANNEL-WIDE, so bending a chorded note rubber-bands every tone with
+    it — a guitarist slides a shape into a NEW attack instead. Measured on the 2026-07-20
+    render, 58% of the rhythm guitar's wheel gestures rode a chord."""
+    chorded = _rhythm_comp([{"swara": "S", "oct": 0, "start": 0.0, "dur": 1.0,
+                             "chord": ["P"], "technique": "slide"}])
+    assert not _has_pitch_wheel(_midi_bytes(chorded, "rma_test_chordbend.mid"))
+
+
+def test_a_single_note_still_slides():
+    """...and the invariant must not disarm the gesture where a guitarist really can do it."""
+    single = _rhythm_comp([{"swara": "S", "oct": 0, "start": 0.0, "dur": 1.0,
+                            "technique": "slide"}])
+    assert _has_pitch_wheel(_midi_bytes(single, "rma_test_singlebend.mid"))
+
+
+def test_a_routed_mute_patch_is_not_doubled_by_a_distorted_body():
+    """A real muted-DISTORTION patch (`pm_bank`) carries its own gain, so layering the
+    distorted copy under it fired two identical attacks at the same pitch/velocity/length
+    on two channels — a comb-filtered machine-gun transient, not a thicker chug."""
+    chug = [{"swara": "S", "oct": 0, "start": 0.0, "dur": 0.5, "technique": "palm_mute"}]
+    routed = _midi_bytes(_rhythm_comp(chug, pm_bank=301, pm_program=28), "rma_test_realpm.mid")
+    plain = _midi_bytes(_rhythm_comp(chug), "rma_test_gmpm.mid")
+    # the GM clean mute needs the body underneath; the routed patch does not
+    assert plain.count(b"\x90") > routed.count(b"\x90")
 
 
 def test_build_midi_routes_chugs_to_a_muted_guitar_channel():
@@ -413,7 +481,8 @@ def test_build_midi_plays_a_routed_tabla_as_melodic_notes():
 
 
 def test_constants_are_sane():
-    assert 30 <= PALM_MUTE_MS <= 120
+    assert 0.4 <= PALM_MUTE_GATE <= 0.8
+    assert 20 <= PALM_MUTE_MIN_MS < PALM_MUTE_MAX_MS <= 1200
     assert SLIDE_IN_ST < 0 and BEND_ST > 0
 
 

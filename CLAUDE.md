@@ -594,6 +594,78 @@ and build order.
   Suite 686 green; live-untested (batch a confirmation with the next approved render). Deferred:
   singability verifier; Razakhani matra-7 start (cross-bar anacrusis); antara on the head's
   stroke skeleton.
+- **RIFF RENDERING CAMPAIGN step 1 — ✅ BUILT (2026-09-14;** evidence + full triage +
+  the queued steps 1-5: DESIGN.md "RIFF RENDERING CAMPAIGN"**):** Sujit's "riffs are choppy
+  / not authentic metal" + a GPT MIDI review, diagnosed by MEASURING the saved composition
+  JSON (no LLM). Three defects, all DOWNSTREAM of the last verifier, so no critic could
+  reach them: (a) `PALM_MUTE_MS = 80` gated every chug to a fixed wall-clock chunk — 21% of
+  palm-muted notes were written a beat or longer and played for 0.16 beats — now
+  `_chug_gate`, a 0.62 SHARE of the written slot bounded 55ms..700ms; (b) `real_pm` was
+  computed in `_mute_channel` and never read, so every chug fired two identical attacks on
+  two channels (the distorted body now layers only under GM's clean mute); (c) MIDI pitch
+  bend is CHANNEL-WIDE and 58% of the rhythm guitar's wheel gestures rode a chord — a
+  `polyphonic` invariant now disarms every pitch gesture on a chorded note (a shape change
+  is two attacks). The prompt lines that DOCUMENTED the clamp as a musical rule are gone,
+  replaced by the true model + "THE SITAR BENDS; YOU ANCHOR" (gestures single-note, rare,
+  short). GPT's proposed `sustain: until_next_attack` field was REJECTED as already true —
+  `_sequence_cycle` butt-joins durations, so 79% of post-open transitions already have zero
+  gap; the hollow PADS were the clamp. Free ear A/B (re-rendered saved JSON, no LLM):
+  `out/gatefix_183403.wav` vs `out/fusion_20260720_183403.wav`; +1.3 dB RMS at equal peak.
+  Suite 692 green. **NEXT (queued, in order): riff verifier budgets → double-track
+  humanisation → anchor plumbing → `arrange_riff_against_lead` (the harmony-support pass)
+  → short-cell riff architecture.**
+- **COEXISTENCE REPORT — ✅ BUILT (2026-09-14;** DESIGN.md "RIFF RENDERING CAMPAIGN" step 2**):**
+  `crew/coexistence.py` (pure, no LLM) answers the third question nobody asked — the riff
+  composer asks "is this a good riff?", the lead composer "is this a good raga line?", and
+  both say yes while the two grind. Two findings: GRIND (harsh interval class 1/6/11 under a
+  SETTLED melody note — HELD/STABLE report, PASSING is counted as context since dissonance
+  under a moving line is idiomatic) and CHASE (riff root changing while the melody moves —
+  the "chords feel random" complaint). Measured on the 2026-07-20 render, POST-guard: 185
+  grinds (126 under held notes, 28 from chord tones), 27 chases, 474 passing correctly
+  ignored. Writing it found three holes in `harmonize_riff_to_lead`: it judged a MEEND by its
+  written swara though the renderer sounds it at the TARGET (`_note_pitch` -> shared
+  `sounding_pitch`, guard fixed), it never checked CHORD TONES (seated against their root,
+  never against the melody), and it only looked under notes held >=1 beat. It also only
+  DAMPENS and leaves no trace, so none of this reached a critic. `render_coexistence` is the
+  prompt block the repair pass will read; a clean section costs zero tokens.
+  `tests/test_coexistence.py` (11); suite 703 green. **NEXT: the `arrange_riff_against_lead`
+  repair pass — direction of yield decided in CODE from the anchor (gat_first => riff yields,
+  riff_first => lead bends), limited authority, one bounded pass, fall back to today's
+  dampening. Also queued: riff verifier budgets, double-track humanisation, anchor plumbing.**
+- **THE ARRANGER (agent #8) — ✅ BUILT (2026-09-14;** DESIGN.md "RIFF RENDERING CAMPAIGN"
+  step 3**):** the repair half of "do the riff and the melody coexist?" — `crew/repairs.py`
+  (pure menu + application) + `crew/arranger.py` (the agent) + `arranger`/`arrange_against_lead`
+  prompts, wired into `compose_band` after lead+riff and before the orchestra/derived voices.
+  NOT a re-generation: it picks from a CODE-BUILT menu of legal local edits to ONE note, so it
+  can never move an attack or change a cell's rhythm (the hook survives by construction).
+  **Right of way is CODE** (`right_of_way`): `gat_first` => riff yields, `riff_first` => melody
+  bends, with taan/intro/manjha always melody-owned and breakdown/tihai riff-owned — never a
+  negotiation between two agents. Every offered repair is already raga-legal (reseats refuse
+  direction-sensitive swaras), an unoffered id falls back to the safest, and the pass ALWAYS
+  terminates (one bounded pass + a deterministic damp sweep; a decider that throws/keeps
+  everything is tested). A clean section never reaches the model; max 8 findings per prompt.
+  Measurement drove four fixes: reseats now rank hold-previous-root > Sa > nearest; the GROUND
+  is damped, never moved (it was relocating 88 ground strokes onto the leading tone); a short
+  unchorded chug is a percussive TOUCH and not a finding (so the honest count for the 2026-07-20
+  piece is 107 grinds, not 185 — the rest the old guard had already reduced); `damp_note` forces
+  palm_mute and is ONE shared definition. Dry run (no LLM): grinds 107 -> 0, 16% of riff notes
+  touched, 0 attacks moved, ground share 73% -> 74%. KNOWN LIMIT: chases barely move (27 -> 27)
+  — that is riff pitch-economy, queued for `verify_riff`. `tests/test_arranger.py` (17) +
+  `test_coexistence.py` (12); suite 721 green. **Live-untested — one extra small call per
+  flagged section on the next run.**
+- **RIFF BUDGETS + DOUBLE-TRACK HUMANISATION — ✅ BUILT (2026-09-14;** DESIGN.md "RIFF
+  RENDERING CAMPAIGN" step 4**):** the composition-side half of the gate fix. New `verify_riff`
+  budgets (prompt updated to match): no palm_mute written longer than 1 beat (a chug cannot
+  sustain; a quarter-note chug stays legal), no pitch gesture on a CHORD (the wheel is
+  channel-wide and the renderer drops it), DRIVE ground floor 0.35 -> **0.55** (calibrated: the
+  "light, not metal" render sat at 47%, the good one at 73%), a 3-note cap on consecutive
+  off-ground notes, a 1-per-cycle plain `slide` budget (only long_slide/scrape were capped),
+  and a chug-run accent rule (4+ chugs at ONE velocity = the programmed tell; rests break a
+  run, so the detector reads the FULL cycle). `double_track` was one performance shifted by a
+  CONSTANT 19 ticks — now `_second_take` wobbles onset (±~6ms), velocity (±5) and duration
+  (±10%) per note, each salted independently, deterministic (crc32-keyed like the drum
+  machine, never an RNG) and capped under ~25ms so the pair fuses instead of flamming.
+  test_riff_texture 36->44, test_generators 32->35; suite 732 green.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

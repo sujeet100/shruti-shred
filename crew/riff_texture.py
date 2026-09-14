@@ -17,9 +17,10 @@ riffs), STABS is the sparse low syncopated crush. The mode picks both the prompt
 the verifier's budgets — the ask and the enforcement always agree.
 
 The RING-GATE lesson (2026-07-16, measured on the Malkauns render): a ring is an OPEN
-strike, not a written duration — the renderer gates a palm-muted note to a fixed ~70ms
-chug whatever its duration, so the taan's "pads" (long PM notes) played as sparse ticks
-right where the sitar needed a platform. Every sustain budget is therefore technique-aware
+strike, not a written duration — a palm-muted note damps, so the taan's "pads" (long PM
+notes) played as sparse ticks right where the sitar needed a platform. (The gate is now
+slot-relative rather than a fixed ~70ms clamp, which closed most of the dead air; a mute
+still damps well short of a ring, so this budget stands.) Every sustain budget is therefore technique-aware
 (`_rings`), and DRIVE now owes a minimum of open ringing weight too (Sujit's steer: the
 rhythm guitar's melodic ambition stays low, its RESONANCE stays high).
 
@@ -44,7 +45,18 @@ RIFF_REPAIR_TRIES: Final = 2
 # --- the budgets (deliberately loose — they flag gross misses, not taste) ---------------
 _FILL_LO: Final = 0.7               # durations must roughly fill the cycle...
 _FILL_HI: Final = 1.3               # ...gross over/undershoot means the model didn't count
-_GROUND_MIN_SHARE: Final = 0.35     # DRIVE: share of sounding notes on the modal (ground) pitch
+# DRIVE's ground floor, calibrated on two real renders rather than picked: the riff Sujit
+# called "light, not metal" sat at 47% ground, the one he called the best foundation at 73%.
+# 0.55 separates them. Raised from 0.35, which nothing could ever fail.
+_GROUND_MIN_SHARE: Final = 0.55     # DRIVE: share of sounding notes on the modal (ground) pitch
+_NON_GROUND_RUN_MAX: Final = 3      # DRIVE: consecutive off-ground notes before it reads as a tune
+_CHUG_RUN_MIN: Final = 4            # DRIVE: a chug run this long needs a pick accent, not one velocity
+# A mute DAMPS: with the gate now a share of the written slot (src/render.py), a chug breathes
+# with the rhythm — but no mute sustains. A palm-muted note written longer than this is a
+# request for a sustain the articulation cannot deliver, and used to become a click plus dead
+# air (measured 2026-09-14: 21% of palm-muted notes written a beat or longer).
+_PM_MAX_SLOT: Final = 1.0
+_SLIDE_MAX: Final = 1               # plain fret-to-fret slides per cycle (long_slide is separate)
 _CHANGE_MAX_DRIVE: Final = 0.55     # DRIVE: consecutive-note pitch-change ceiling (melody tell)
 _CHANGE_MAX_STABS: Final = 0.45     # STABS: hammer one root; movement is the exception
 _REST_SHARE_MAX: Final = 0.35       # DRIVE: silence is seasoning, not the dish
@@ -87,6 +99,9 @@ _RHYTHM_MIN_NOTES: Final = 6         # ...checked only once the cycle has enough
 # Colour = a chord tone that seats ABOVE the octave (add9 / tenth): interval class 1-4
 # over the root (see render._seat_chord_tone). Power weight = octave / fourth / fifth.
 _COLOR_CLASSES: Final = frozenset({1, 2, 3, 4})
+# Techniques the renderer draws with the pitch wheel — channel-wide, so they are
+# single-note gestures by physics, not by preference.
+_PITCH_GESTURES: Final = frozenset({"slide", "long_slide", "pick_scrape", "bend"})
 
 
 class RiffMode(str, Enum):
@@ -210,7 +225,7 @@ def _is_color(note: RiffNote) -> bool:
 
 def _rings(note: RiffNote) -> bool:
     """Does the note actually SUSTAIN in the render? Written duration alone is not enough —
-    the renderer gates a palm-muted note to a fixed ~70ms chug whatever its duration (the
+    a palm-muted note damps to a fraction of its slot however long it is written (the
     Malkauns render's 'pads' were long PM notes that played as sparse ticks), so a ring is
     an OPEN strike of at least a beat."""
     return note.dur >= _WEIGHT_DUR and note.technique != "palm_mute"
@@ -243,6 +258,32 @@ def _shared_violations(notes: list[RiffNote], sounding: list[RiffNote],
     if slides > _LONG_SLIDE_MAX:
         viol.append(f"{slides} long slides in one cycle — a long slide marks a seam or a big "
                     f"accent, use at most {_LONG_SLIDE_MAX}")
+    viol += _articulation_violations(sounding)
+    return viol
+
+
+def _articulation_violations(sounding: list[RiffNote]) -> list[str]:
+    """The rules that follow from what a guitar (and the renderer) can physically do: a mute
+    cannot sustain, the pitch wheel is channel-wide so a chord cannot bend, and a rhythm
+    guitar is fretted rather than gliding."""
+    viol: list[str] = []
+    held_mutes = [n for n in sounding if n.technique == "palm_mute" and n.dur > _PM_MAX_SLOT]
+    if held_mutes:
+        viol.append(f"{len(held_mutes)} palm-muted note(s) written longer than "
+                    f"{_PM_MAX_SLOT:g} beat — the muting hand damps the string, so a chug "
+                    f"cannot sustain however long you write it. Write the SHORT ground "
+                    f"strokes palm-muted and strike anything that should ring OPEN")
+    chorded = [n for n in sounding if n.chord and n.technique in _PITCH_GESTURES]
+    if chorded:
+        viol.append(f"{len(chorded)} pitch gesture(s) written on a CHORD — a guitarist moving "
+                    f"a power chord strikes it again at the new position, and the renderer "
+                    f"drops the gesture rather than bending the whole voicing. Put slides and "
+                    f"bends on single notes (an empty chord list)")
+    slides = sum(1 for n in sounding if n.technique == "slide")
+    if slides > _SLIDE_MAX:
+        viol.append(f"{slides} slides in one cycle — rhythm guitar is FRETTED; the sitar owns "
+                    f"continuous pitch. Keep at most {_SLIDE_MAX} short slide per cycle, and "
+                    f"most cycles want none")
     return viol
 
 
@@ -298,7 +339,60 @@ def _drive_violations(notes: list[RiffNote], sounding: list[RiffNote],
             viol.append("almost every note is the same length (straight 8ths) — VARY the note "
                         "values against the chug: a 16th burst, a dotted or held accent, a "
                         "triplet, a rest, so the riff has rhythmic contrast")
+    viol += _grounding_violations(sounding, ground)
+    viol += _accent_violations(notes)
     return viol
+
+
+def _longest_off_ground_run(sounding: list[RiffNote], ground: tuple[str, int]) -> int:
+    longest = run = 0
+    for note in sounding:
+        run = 0 if (note.swara, note.oct) == ground else run + 1
+        longest = max(longest, run)
+    return longest
+
+
+def _grounding_violations(sounding: list[RiffNote], ground: tuple[str, int]) -> list[str]:
+    """How long the riff may wander before coming home. A share alone is not enough: a riff
+    can hit its ground quota and still play one long tune followed by a block of chugs."""
+    run = _longest_off_ground_run(sounding, ground)
+    if run <= _NON_GROUND_RUN_MAX:
+        return []
+    return [f"{run} notes in a row leave the ground pitch (cap {_NON_GROUND_RUN_MAX}) — a "
+            f"movement figure is 2-4 notes and then you COME BACK; a longer run stops being "
+            f"an answer to the ground and becomes a tune"]
+
+
+def _chug_runs(notes: list[RiffNote]) -> list[list[RiffNote]]:
+    """Maximal runs of consecutive palm-muted notes — where a picking hand accents.
+
+    Reads the FULL cycle, rests included: a rest breaks a run in performance, and counting
+    over the sounding notes alone would glue two separate three-chug figures into one run of
+    six that no hand ever played.
+    """
+    runs: list[list[RiffNote]] = []
+    current: list[RiffNote] = []
+    for note in notes:
+        if note.technique == "palm_mute" and not note.rest:
+            current.append(note)
+        else:
+            runs.append(current) if current else None
+            current = []
+    if current:
+        runs.append(current)
+    return runs
+
+
+def _accent_violations(notes: list[RiffNote]) -> list[str]:
+    """A run of identical chugs at ONE velocity is a drum machine, not a picking hand — the
+    "programmed" tell (six identical eighth-note chugs, heard on the 2026-07-20 renders)."""
+    flat = [r for r in _chug_runs(notes)
+            if len(r) >= _CHUG_RUN_MIN and len({n.vel for n in r}) == 1]
+    if not flat:
+        return []
+    return [f"a run of {len(flat[0])} chugs at one velocity — a picking hand ACCENTS: give a "
+            f"chug run a pattern (strong-weak-medium-weak), leaning on the sam and the tali, "
+            f"so it breathes instead of sounding programmed"]
 
 
 def _pads_violations(notes: list[RiffNote], sounding: list[RiffNote],

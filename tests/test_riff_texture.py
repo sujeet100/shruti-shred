@@ -70,7 +70,7 @@ def _pads_clean() -> RiffPattern:
     return RiffPattern(notes=[
         _n("S", 3.0, chord=["S"]),
         _n("S", 1.0, rest=True),
-        _n("g", 2.0, chord=["g"], technique="long_slide"),
+        _n("g", 2.0, chord=["g"]),
         _n("S", 2.0, chord=["P"]),
     ])
 
@@ -129,6 +129,81 @@ def test_every_mode_has_a_prompt_brief():
 
 def test_a_clean_drive_cycle_passes():
     assert verify_riff(_drive_clean(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE) == []
+
+
+def test_a_chug_written_as_a_sustain_is_rejected():
+    """The muting hand damps, so a long palm-muted note is a sustain the articulation cannot
+    deliver — measured 2026-09-14, 21% of palm-muted notes were written a beat or longer and
+    played as a click followed by dead air."""
+    pattern = _drive_clean()
+    pattern.notes[1] = _n("S", 2.0, technique="palm_mute")
+    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
+    assert "cannot sustain" in text and "OPEN" in text
+
+
+def test_a_quarter_note_chug_is_still_fine():
+    """The cap must not outlaw an ordinary doom chug — only the ones asking to ring."""
+    pattern = _drive_clean()
+    pattern.notes[1] = _n("S", 1.0, technique="palm_mute")
+    assert not [v for v in verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+                if "cannot sustain" in v]
+
+
+def test_a_pitch_gesture_on_a_chord_is_rejected():
+    """The pitch wheel is channel-wide, so bending a chord bends every tone of it; the
+    renderer now drops such a gesture, and a dropped gesture the model thinks it wrote is
+    worse than one it never wrote."""
+    pattern = _drive_clean()
+    pattern.notes[11] = _n("g", 0.5, chord=["g"], technique="slide")
+    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
+    assert "CHORD" in text and "single notes" in text
+
+
+def test_slides_are_rationed():
+    pattern = _drive_clean()
+    pattern.notes[5] = _n("m", 0.5, technique="slide")     # a second slide in the cycle
+    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
+    assert "FRETTED" in text
+
+
+def test_a_long_wander_off_the_ground_is_rejected():
+    """A share alone is not enough: a riff can hit its ground quota and still play one long
+    tune followed by a block of chugs."""
+    pattern = _drive_clean()
+    pattern.notes[4:6] = [_n("g", 0.25), _n("m", 0.25), _n("P", 0.25), _n("d", 0.25)]
+    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
+    assert "leave the ground pitch" in text
+
+
+def test_a_run_of_identical_chugs_is_rejected():
+    """Six identical eighth-note chugs at one velocity is a drum machine, not a picking hand
+    (heard on the 2026-07-20 renders)."""
+    pattern = RiffPattern(notes=[_n("S", 1.0, chord=["S"])]
+                          + [_n("S", 0.5, technique="palm_mute") for _ in range(6)]
+                          + [_n("S", 1.0, rest=True), _n("g", 0.5), _n("S", 1.0, chord=["P"])])
+    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
+    assert "ACCENTS" in text
+
+
+def test_an_accented_chug_run_passes():
+    pattern = RiffPattern(notes=[_n("S", 1.0, chord=["S"])]
+                          + [RiffNote(swara="S", oct=0, dur=0.5, technique="palm_mute", vel=v)
+                             for v in (112, 92, 100, 92, 112, 92)]
+                          + [_n("S", 1.0, rest=True), _n("g", 0.5), _n("S", 1.0, chord=["P"])])
+    assert not [v for v in verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+                if "ACCENTS" in v]
+
+
+def test_a_rest_breaks_a_chug_run():
+    """Two three-chug figures either side of a rest are two figures, not a run of six — the
+    detector reads the full cycle so a dropped rest cannot invent a violation."""
+    pattern = RiffPattern(notes=[_n("S", 1.0, chord=["S"])]
+                          + [_n("S", 0.5, technique="palm_mute") for _ in range(3)]
+                          + [_n("S", 1.0, rest=True)]
+                          + [_n("S", 0.5, technique="palm_mute") for _ in range(3)]
+                          + [_n("g", 0.5), _n("S", 1.0, chord=["P"])])
+    assert not [v for v in verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+                if "ACCENTS" in v]
 
 
 def test_the_live_failure_melody_is_rejected():

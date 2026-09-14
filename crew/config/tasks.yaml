@@ -455,17 +455,32 @@ generate_riff:
         own, rewrite the cycle before touching the pitches.
 
     TECHNIQUE BUDGET — techniques serve a FUNCTION; do not decorate every note:
-      - palm_mute is the CHUG texture — use it on the short GROUND strokes ONLY, never on a
-        ring: a palm-muted note gates to a short chunk whatever its written duration, so any
-        chord or note of a beat or more that should SUSTAIN must be struck OPEN (no technique).
-      - about ONE sliding move per cycle: slide (short, fret-to-fret) for movement into an
-        accent, or long_slide (a wide, slow position shift — a signature sitar-fusion move)
-        into a section seam or a big ringing chord; at most two long slides per cycle.
-      - pick_scrape: the pick dragged down the low strings INTO a downbeat power chord —
-        an entrance/climax gesture, at most ONE per cycle.
+      - palm_mute is the CHUG texture — write it on the SHORT ground strokes (a 16th, an 8th,
+        a quarter at most). The muting hand damps the string, so a chug sounds for roughly
+        two-thirds of its written slot and then dies: that decay IS the chug, and it means a
+        palm-muted note can never carry a sustain however long you write it.
+      - AN OPEN NOTE RINGS UNTIL THE NEXT ATTACK — its written duration is its RING, and the
+        next strike is what cuts it. So give a chord the duration you want to HEAR it for: a
+        power chord written for 4 beats sustains through all four, holding a resonant floor
+        under the sitar. Any chord or note of a beat or more is struck OPEN (no technique).
+      - SILENCE IS COMPOSED, never a side effect: write a rest where you want the band to
+        breathe. Space that you did not write does not appear on its own.
+      - THE SITAR BENDS; YOU ANCHOR. The lead owns continuous pitch — meend, long glides,
+        expressive intonation. You are FRETTED: hard attacks, stable chords, firm pitch.
+        That contrast (fluid line over rigid floor) is the whole sound of this fusion, and
+        it is lost the moment both instruments glide.
+      - EVERY pitch gesture is SINGLE-NOTE — write slide, long_slide, pick_scrape, bend,
+        hammer_on and pull_off only on notes with an EMPTY chord list. A guitarist moving a
+        power chord to a new position strikes it again there; write that as two chord
+        attacks, not one chord that slides. (A gesture written on a chord is dropped.)
+      - Keep them RARE and SHORT — think Sad But True: one brief inflection inside an
+        otherwise rigid riff. At most ONE bend or slide in a cycle, and most cycles want
+        none at all. Put it on a sustained single movement note or a turnaround.
+      - long_slide is a transition gesture on a SINGLE note at a section seam; pick_scrape
+        is a single-note dive LEADING INTO the downbeat chord (write the scrape as its own
+        short note, then the chord attack). At most one of either per cycle.
       - one or two hammer_on / pull_off figures as connective single-note motion (the
         thrash/Megadeth flavour).
-      - reserve bend for a sustained phrase-ending or a transition, not mid-chug.
 
     HOW TO WRITE IT:
       - IT LOOPS AND LANDS: this one cycle repeats back-to-back, returning to your first
@@ -504,6 +519,13 @@ generate_riff:
       - Use ONLY the raga's allowed swaras above — for BOTH the roots AND every chord tone.
         Sargam: S r R g G m M P d D n N. (A rest sounds nothing, so its swara is ignored.)
       - Every note needs a positive duration in beats; the durations (rests included) fill one cycle.
+      - GROUND: most of the cycle sits on ONE low pitch, and you never leave it for more than
+        3 notes running — a movement figure is 2-4 notes and then you COME BACK.
+      - palm_mute belongs on strokes of a beat or less. Anything meant to ring is struck OPEN.
+      - Pitch gestures (slide, long_slide, pick_scrape, bend) go on SINGLE notes with an empty
+        chord list, at most one plain slide per cycle — most cycles want none.
+      - ACCENT a chug run: vary `vel` across it (lean on the sam and the tali) so it sounds
+        like a picking hand rather than a drum machine.
       - Respect the texture mode's budgets above — a cycle that misses them comes back to you
         with the exact failures listed.
   expected_output: |
@@ -835,5 +857,53 @@ arbitrate:
       - If "accept": `reason` = one line on why the piece is good enough to ship.
   expected_output: |
     A single ConductorRuling as JSON and nothing else — no prose, no code fences.
+    Use exactly this shape:
+    {output_schema}
+
+# The Arranger's per-section decision. The prompt carries NO raga facts and NO legality
+# rules on purpose: every offered repair is already legal (code built the menu), so adding
+# grammar would invite the model to re-derive a decision it cannot improve. One task = one
+# objective = one output: pick a repair per clash.
+arrange_against_lead:
+  description: |
+    The guitar and the sitar have each been composed well on their own, and in this section
+    they fight in a few places. Decide what to do about each one.
+
+    THE SECTION — kind: {section_kind}; gat role: {form_role}
+
+    WHAT TO AIM FOR:
+      - Under a HELD melody note the guitar holds a FLOOR. The listener is following the
+        sitar there, so the guitar's job is weight and steadiness — simplify rather than
+        argue: drop a colour tone, keep the root, damp the note to a percussive touch.
+      - Under a STABLE note there is more room; a fuller repair can wait if the clash is
+        brief and the guitar is about to move anyway.
+      - Harmony that moves because the TUNE moved is what makes chords feel random. When a
+        root change is flagged as chasing, holding the previous root usually sounds more
+        intentional — the floor stays put while the melody travels over it.
+      - Friction is not a fault. Keep a clash that sounds deliberate: a bite against a fast
+        line, a moment of tension going into a climax. "keep" is a real answer, and a
+        section where you keep one or two clashes usually sounds more alive than one you
+        have sanded smooth.
+
+    THE CLASHES — each is numbered, with the repairs available for it. Choose ONE repair
+    per clash, by its exact id:
+    {findings}
+
+    WHAT EACH REPAIR DOES:
+      - damp: the guitar note loses its chord, shortens to a chug and softens — the clash
+        becomes a percussive touch instead of a sustained grind.
+      - drop_tone:X — the chord keeps its root and loses just the tone that fights.
+      - reseat_riff:X — the guitar's root moves to X, which sits consonantly under the
+        melody there.
+      - hold_root:X — the guitar stays on X instead of changing root mid-phrase.
+      - reseat_lead:X — the melody note moves to X. The melody is the piece here, so this
+        is offered only where the guitar carries the section; prefer it only when the
+        guitar's figure is clearly the identity and the melody note is incidental.
+      - keep: change nothing.
+
+    Give your reasoning first — say what the melody is doing in this section and what the
+    guitar should therefore be doing under it — then one choice per clash.
+  expected_output: |
+    A single ArrangerDecision as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
     {output_schema}
