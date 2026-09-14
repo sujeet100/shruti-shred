@@ -199,8 +199,11 @@ OCCASIONAL ornament gliding INTO a note you want heard, never the default articu
 notes carry NO meend and sound their own written swara. Add "meend_oct" (same frame as a
 note's "oct") ONLY to glide ACROSS octaves — omit it to glide within the note's own
 octave. "bol" is the sitar mizrab STROKE (articulation, NOT a rhythm): "da" strong, "ra" softer,
-"diri" a fast double-stroke (a pair), "darada" a triple-stroke (a triplet), "chikari" a bright
-high-Sa punctuation accent (its swara is ignored). "rest" (optional) = a SILENT beat for nyas /
+"diri" a fast double-stroke (a pair), "darada" a triple-stroke (a triplet), "chikari" a STRUCK
+drone string (its swara is ignored — the chikari strings sound their own pitch). A chikari is
+played IN TIME like any other note and is SHORT (0.25-0.5): it fills an empty matra where the
+melody rests, punctuating a phrase. Held long it stops being a stroke and becomes a second
+drone over the tanpura, which is not what the instrument does. "rest" (optional) = a SILENT beat for nyas /
 space: set rest:true with any swara (ignored) to rest on the sam or leave room for the tabla.
 "ornament" (optional) = a light sitar flick the code decorates the note with — "murki" (delicate)
 or "khatka" (sharper); only some ragas use them (see the raga facts), and code builds the cluster

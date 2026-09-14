@@ -2041,3 +2041,56 @@ layer. The guide is unmeasured on real data until a symphonic run.)
 Adding a required 10th criterion updated every `ProducerScores` fixture rather than giving it
 a default — the other nine force the model to commit, and a silently-defaulted score is a
 score nobody gave. Suite 753 green.
+
+## INTRO / ALAP — the jod was a pad, the chikari a sustain (2026-09-14)
+
+Sujit: "the chikari/drone in intro is not natural, it comes unnaturally out of rhythm — in
+sitar we play it just like any note rhythmically; it's generally used when a note or matra is
+empty, so to fill the space we play chikari." Measured all three 2026-07-20 intros (the first
+64 beats) before changing anything.
+
+### What the MIDI actually showed
+
+* **The offender is the JOD LAYER, not the chikari** — and it is OUR deterministic code, not
+  the model. `intro_jod_layer` struck a mandra Sa once per avartan and held it for the WHOLE
+  cycle: four 16-beat notes per intro, in all three renders. (The external review saw the same
+  events and attributed them to the chikari implementation; that was wrong.)
+* **Chikari barely exists.** Exactly ONE per intro in each piece, written 1.5 / 2.0 / 3.0
+  beats. So the device that should supply the alap's punctuation was itself a sustain.
+* **Nothing in the intro keeps time.** Counting every rhythmic voice in the first 64 beats:
+  083950 and 183403 have FOUR drum hits and nothing else; 084813 adds the clean guitar. Over
+  that sit a 448-beat tanpura, four 16-beat jod notes, four 16-beat orchestral string pads, and
+  a lead whose final note holds 21 / 17.5 / 11.5 beats. 084813's lead covers 37% of the intro.
+  Four or five simultaneous sustains and almost no attacks is why it reads as random: there is
+  no rhythmic frame to place anything against.
+
+### Built
+
+* **The jod is a STROKE placed where the melody leaves space.** `intro_jod_layer(arr,
+  lead_layers)` now finds the holes the lead actually leaves in each avartan, quantises to the
+  beat grid (played in time, like any note), strikes a short ringing Sa that fades, and caps
+  the strokes per cycle so the drone string stays punctuation. No lead to answer ⇒ one stroke
+  per avartan's sam — still a stroke, never a pad. A melody that never stops ⇒ silence.
+* **A chikari is capped at 0.5 beats** (`_CHIKARI_MAX_DUR`, `verify_intro`) with the prompt
+  rewritten to match: a struck drone string filling an empty matra, played in time and then
+  gone; held, it becomes a second drone over the tanpura.
+
+### Researched, NOT encoded — the raga-specific chikari tuning
+
+Sujit: Bageshree tunes the top strings Sa Sa Dha Ma rather than Sa Sa Pa Ga, and strings 1-2
+dominate. Two independent sources support the PRINCIPLE that this top-string tuning is
+raga-dependent — Rāga Junglism's sitar page ("when playing ragas with an absent Pa and/or
+strong ma, the top-layer Pa strings are set to ma instead") and the Malkauns/Marwa material
+(Malkauns omits Re and Pa so that string is tuned to ma or dha; Marwa's drone strings tuned to
+Dha and Sa). What is NOT sourced is Bageshree specifically, which DOES have Pa (vakra,
+avaroha-only) — so it is not covered by the "absent Pa" rule, and encoding it would be
+guessing against our own accuracy rule. Sujit is a practitioner and his own playing knowledge
+is a legitimate primary source; it should be recorded AS THAT, with the raga entry saying so.
+
+Related and also unresolved: `drone_swaras` picks the tanpura companion from a fixed
+preference list (Pa, else Ma, else Ni), so it cannot see a Pa that is present-but-weak
+(Bageshree) — and for Marwa it currently picks tivra Ma where the sourced practice above
+suggests Dha. Both need a decision from Sujit before any change; the drone is raga knowledge,
+not code style.
+
+Suite 758 green. Not yet heard.

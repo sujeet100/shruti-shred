@@ -68,6 +68,12 @@ _INTRO_PLUCK_MAX_OCT: Final = -1    # the between-phrase Sa pluck sits in the ma
 # landing on Sa, and Sa is a LANDING between phrases — never a sustained/repeated wall.
 _INTRO_MIN_PHRASES: Final = 3       # at least this many rest-separated phrases (musical sentences)
 _INTRO_MAX_SA_RUN: Final = 3.0      # no mid-alap run of consecutive Sa longer than this (the held close is exempt)
+# A CHIKARI IS A STROKE. The chikari strings are struck to fill an empty matra — played in
+# time like any other note, then gone (Sujit, 2026-09-14). Written long it stops being
+# punctuation and becomes a second drone on top of the tanpura and the jod; measured on the
+# 2026-07-20 renders, each intro held exactly ONE chikari, written 1.5-3.0 beats, so the
+# device that should supply the alap's rhythmic punctuation was instead another sustain.
+_CHIKARI_MAX_DUR: Final = 0.5
 # ONE MOTIF, PROGRESSIVELY REVEALED (Sujit's steer + a converging GPT note, 2026-07-16): the
 # diagnosed failure of the first Malkauns render — the prompt's badhat rules were PROSE and the
 # model ignored them (taar Sa four seconds in; episodic phrases quoting different pakad material).
@@ -471,6 +477,12 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
         viol.append(f"{unanchored} gap(s) between phrases have no mandra-Sa pluck — between "
                     f"every pair of phrases, sound Sa LOW (oct {_INTRO_PLUCK_MAX_OCT}, like a "
                     f"low open string) so home keeps ringing under the held tension")
+    held = [n for n in notes if n.bol == "chikari" and n.dur > _CHIKARI_MAX_DUR]
+    if held:
+        viol.append(f"{len(held)} chikari stroke(s) written longer than {_CHIKARI_MAX_DUR:g} "
+                    f"beat — a chikari is a STRUCK string filling an empty matra, played in "
+                    f"time and then gone; held, it becomes a second drone over the tanpura. "
+                    f"Write chikari short (0.25-0.5) and place it where the melody rests")
     run = _longest_mid_sa_run(notes)
     if run > _INTRO_MAX_SA_RUN:
         viol.append(f"the alap dwells on Sa for {run:g} continuous beats — Sa is a drone TOUCH "

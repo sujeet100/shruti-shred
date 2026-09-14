@@ -88,21 +88,63 @@ def _arr_with_intro(intro_bars: int = 3) -> Arrangement:
     return build_arrangement(draft, CompositionBrief(mood="epic"))
 
 
-def test_intro_jod_replucks_home_sa_each_avartan_ringing_and_fading():
+def test_the_jod_is_a_STROKE_not_a_pad():
+    """Held for a whole avartan the jod stopped being a plucked string and became a bowed
+    pad — measured on all three 2026-07-20 renders as four 16-beat notes under a 448-beat
+    tanpura, which is why the alap read as out of rhythm."""
     arr = _arr_with_intro(intro_bars=3)
     layer = intro_jod_layer(arr)
     assert layer is not None and layer.role == "jod"
-    intro = section_spans(arr)[0]
     cycle = arr.beats_per_bar
-    assert len(layer.notes) == 3                            # re-plucked once per avartan (3-bar alap)
-    for bar, n in enumerate(layer.notes):
-        assert n.swara == "S"                               # home
-        assert n.start == intro.start + bar * cycle         # a pluck on each avartan's sam
-        assert abs(n.dur - cycle) < 1e-6                    # rings for one cycle, then re-plucked
-        assert n.fade is True                               # let to ring then FADE NATURALLY
-        assert n.oct == arr.registers["drone"] + 1          # audible mandra, above the tanpura pad
+    for n in layer.notes:
+        assert n.swara == "S" and n.fade is True
+        assert n.dur < cycle, "a stroke rings and fades; it does not span the avartan"
+        assert n.oct == arr.registers["drone"] + 1      # audible mandra, above the tanpura pad
     comp = assemble_composition(arr, [drone_layer(arr), layer])
     assert validate_composition(comp.model_dump(exclude_none=True)) == []   # trivially legal (Sa)
+
+
+def test_the_jod_fills_the_holes_the_melody_LEAVES():
+    """A sitarist strikes the drone string where the melody leaves space, to fill an empty
+    matra — so the strokes are placed against the line, not on a timer."""
+    arr = _arr_with_intro(intro_bars=1)
+    intro = section_spans(arr)[0]
+    # a melody occupying the first half of the avartan, silent through the second
+    half = arr.beats_per_bar / 2
+    lead = [Layer(role="lead", notes=[Note(swara="g", oct=0, start=intro.start, dur=half)])]
+    layer = intro_jod_layer(arr, lead)
+    assert layer is not None
+    assert all(n.start >= intro.start + half for n in layer.notes), "a stroke landed over the melody"
+
+
+def test_the_jod_is_silent_where_the_melody_never_stops():
+    arr = _arr_with_intro(intro_bars=1)
+    intro = section_spans(arr)[0]
+    lead = [Layer(role="lead", notes=[Note(swara="g", oct=0, start=intro.start,
+                                           dur=arr.beats_per_bar)])]
+    assert intro_jod_layer(arr, lead) is None, "nothing to fill — the drone string stays quiet"
+
+
+def test_jod_strokes_land_on_the_beat_grid():
+    """Played in time, like any other note."""
+    arr = _arr_with_intro(intro_bars=1)
+    intro = section_spans(arr)[0]
+    lead = [Layer(role="lead", notes=[Note(swara="g", oct=0, start=intro.start, dur=3.3)])]
+    for n in intro_jod_layer(arr, lead).notes:
+        assert abs((n.start * 2) - round(n.start * 2)) < 1e-9
+
+
+def test_the_jod_never_becomes_the_part():
+    """A hole-filling rule with no cap would machine-gun a sparse alap, and the drone string
+    would stop being punctuation."""
+    from crew.generators import _jod_strokes
+    many = [(float(i) * 2, float(i) * 2 + 1.5) for i in range(10)]
+    assert len(_jod_strokes(many, 0)) <= 4
+
+
+def test_a_hole_too_short_to_hear_is_left_alone():
+    from crew.generators import _gaps_in
+    assert _gaps_in([(0.0, 1.0), (1.5, 4.0)], 0.0, 4.0) == []      # a 0.5-beat hole is not a space
 
 
 def test_intro_jod_is_none_without_an_intro():

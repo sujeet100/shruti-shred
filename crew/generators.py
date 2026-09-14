@@ -29,6 +29,7 @@ Entry point (deterministic, no LLM):  uv run python -m crew.generators
 
 from __future__ import annotations
 
+import math
 import shutil
 import sys
 from dataclasses import dataclass
@@ -182,26 +183,87 @@ def drone_layer(arr: Arrangement) -> Layer:
 _JOD_OCT_ABOVE_DRONE: Final[int] = 1
 _JOD_VEL: Final[int] = 78               # the pluck's attack — a present drone-anchor, under the melodic sitar
 
+# A jod stroke is PLAYED IN TIME, like any other note. Held for a whole avartan it stopped
+# being a stroke and became a pad — measured on all three 2026-07-20 renders, the intro
+# carried four 16-beat jod notes, one per cycle, under a 448-beat tanpura and 16-beat string
+# pads, with four drum hits the only attacks in 64 beats. That is why the alap read as
+# "unnaturally out of rhythm" (Sujit, 2026-09-14): nothing in it was rhythmic. A sitarist
+# strikes the drone string where the melody LEAVES SPACE — to fill an empty matra — so the
+# strokes are placed against the melody, on the beat grid, and allowed to ring only briefly.
+_JOD_RING: Final[float] = 2.0           # beats a stroke rings before the next event (it fades)
+_JOD_MIN_GAP: Final[float] = 1.0        # a hole shorter than this needs no filling
+_JOD_GRID: Final[float] = 0.5           # strokes land on the beat grid, like any played note
+_JOD_MAX_PER_CYCLE: Final[int] = 4      # ...and never so many that the drone becomes the part
 
-def intro_jod_layer(arr: Arrangement) -> Layer | None:
-    """The sitar's JOD drone string under the alap — a plucked mandra Sa RE-STRUCK once per
-    avartan and left to RING then FADE NATURALLY across the cycle before the next pluck (a real
-    jod: always plucked, allowed to ring, decaying on its own via the `fade` ring-out — never a
-    flat bowed sustain, and never the melodic sitar re-attacking low Sa). It rings over the
-    sustained tanpura pad beneath, and IS the alap's audible 'home', so the melodic sitar need
-    not mark Sa itself. Deterministic and raga-trivially legal (it sounds Sa). None when the
-    chart declares no intro section (every existing fixture: fully backward compatible). Pure.
+
+def _sounding_spans(notes: list[Note]) -> list[tuple[float, float]]:
+    """Merged (start, end) spans where a voice is sounding — the melody's occupied time."""
+    spans: list[tuple[float, float]] = []
+    for note in sorted(notes, key=lambda n: n.start):
+        start, end = note.start, note.start + note.dur
+        if spans and start <= spans[-1][1]:
+            spans[-1] = (spans[-1][0], max(spans[-1][1], end))
+        else:
+            spans.append((start, end))
+    return spans
+
+
+def _gaps_in(spans: list[tuple[float, float]], start: float, end: float) -> list[tuple[float, float]]:
+    """The holes in [start, end) the melody leaves — where a drone stroke belongs."""
+    gaps: list[tuple[float, float]] = []
+    edge = start
+    for span_start, span_end in spans:
+        if span_end <= start or span_start >= end:
+            continue
+        if span_start > edge:
+            gaps.append((edge, min(span_start, end)))
+        edge = max(edge, span_end)
+    if edge < end:
+        gaps.append((edge, end))
+    return [(a, b) for a, b in gaps if b - a >= _JOD_MIN_GAP]
+
+
+def _on_grid(beat: float) -> float:
+    """The next beat-grid position at or after `beat` — a stroke is played in time."""
+    return round(math.ceil(beat / _JOD_GRID - 1e-9) * _JOD_GRID, 4)
+
+
+def _jod_strokes(gaps: list[tuple[float, float]], octave: int) -> list[Note]:
+    """One short plucked Sa at the head of each hole, ringing into the space and fading."""
+    notes: list[Note] = []
+    for gap_start, gap_end in gaps[:_JOD_MAX_PER_CYCLE]:
+        start = _on_grid(gap_start)
+        if start >= gap_end:
+            continue
+        notes.append(Note(swara="S", oct=octave, start=start,
+                          dur=round(min(_JOD_RING, gap_end - start), 4),
+                          vel=_JOD_VEL, fade=True))
+    return notes
+
+
+def intro_jod_layer(arr: Arrangement, lead_layers: list[Layer] = ()) -> Layer | None:
+    """The sitar's JOD drone string under the alap — a plucked mandra Sa struck WHERE THE
+    MELODY LEAVES SPACE, on the beat grid, ringing briefly and fading (a real jod: played in
+    time like any note, filling an empty matra — never a bowed pad spanning the avartan, and
+    never the melodic sitar re-attacking low Sa). It rings over the sustained tanpura beneath,
+    and IS the alap's audible 'home', so the melodic sitar need not mark Sa itself.
+
+    Deterministic and raga-trivially legal (it sounds Sa). Without `lead_layers` there is no
+    melody to answer, so it falls back to one stroke on each avartan's sam — still a stroke,
+    never a pad. None when the chart declares no intro section. Pure.
     """
     octave = arr.registers.get("drone", 0) + _JOD_OCT_ABOVE_DRONE
     cycle = arr.beats_per_bar
+    lead = _sounding_spans([n for ly in lead_layers if ly.role == "lead"
+                            for n in (ly.notes or [])])
     notes: list[Note] = []
     for span in section_spans(arr):
         if span.section.form_role != "intro":
             continue
         for bar in range(span.section.bars):
             start = span.start + bar * cycle
-            notes.append(Note(swara="S", oct=octave, start=round(start, 4),
-                              dur=round(cycle, 4), vel=_JOD_VEL, fade=True))
+            gaps = _gaps_in(lead, start, start + cycle) if lead else [(start, start + cycle)]
+            notes.extend(_jod_strokes(gaps, octave))
     if not notes:
         return None
     voice = VOICES["jod"]

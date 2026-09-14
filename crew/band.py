@@ -82,7 +82,7 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     # what must not sustain under it. Derived from the realized lead, so it exists only now —
     # which is exactly why the composers' colour choices could not have known it.
     guide = harmonic_guide(lead_layers, arr)
-    for derived in (clean_layer(arr, guide=guide), intro_jod_layer(arr),
+    for derived in (clean_layer(arr, guide=guide), intro_jod_layer(arr, lead_layers),
                     bass_layer(arr, rhythm),
                     groove_layer(arr, rhythm), tabla_layer(arr)):
         if derived is not None:

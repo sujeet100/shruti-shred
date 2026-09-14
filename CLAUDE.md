@@ -700,6 +700,22 @@ and build order.
   Performance CRITIC, which we rejected (every criterion it listed is a number). On the
   2026-07-20 render: 65% chugs, 37% ringing, 21% silent, **9 flat chug runs**. Suite 753 green.
   **Everything from this campaign is LIVE-UNTESTED — the Arranger has never made a real call.**
+- **INTRO/ALAP — jod stroke + chikari cap — ✅ BUILT (2026-09-14;** DESIGN.md "INTRO / ALAP"**):**
+  Sujit: "the chikari/drone in intro is unnatural, out of rhythm — in sitar we play it like any
+  note; it fills an EMPTY matra". Measured all three 2026-07-20 intros first: the offender is
+  OUR `intro_jod_layer`, which struck a mandra Sa once per avartan and held it a FULL CYCLE
+  (four 16-beat notes per intro, every render); chikari meanwhile appeared ONCE per intro,
+  written 1.5-3.0 beats. Nothing in the intro kept time — 4 drum hits in 64 beats under a
+  448-beat tanpura, four 16-beat jod notes, 16-beat string pads and a lead closing on a 21-beat
+  hold (084813's lead covers 37%). FIXED: the jod is now a short ringing stroke placed in the
+  holes the LEAD actually leaves, quantised to the beat grid and capped per cycle (no lead ⇒
+  one stroke per sam; a melody that never stops ⇒ silence); `_CHIKARI_MAX_DUR = 0.5` in
+  `verify_intro` + the prompt teaches a chikari as a struck string, not a sustain.
+  **OPEN (needs Sujit): the raga-specific chikari tuning.** Two sources support the PRINCIPLE
+  (raga-dependent top-string tuning; absent Pa ⇒ ma/dha) but NOT Bageshree's Sa-Sa-Dha-Ma
+  specifically (Bageshree has a vakra avaroha-only Pa). Also `drone_swaras` picks Pa>Ma>Ni by a
+  fixed list and cannot see a weak-but-present Pa, and gives Marwa tivra Ma where the sourced
+  practice suggests Dha. Suite 758 green.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.
