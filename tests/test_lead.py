@@ -698,13 +698,14 @@ def _gat_arr(*specs: tuple[SectionKind, int, str], raga: str = "malkauns") -> Ar
 
 
 # The clean head's swaras, in order — the sequence tests assert placement against.
-_HEAD_SWARAS = ["S", "m", "g", "d", "n", "d", "m", "g", "m", "S"]
+_HEAD_SWARAS = ["S", "m", "g", "d", "n", "d", "m", "g", "S", "m"]
 
 
 def _good_head() -> LeadPhrase:
     # a mukhada that PASSES the gat verifier AND the stroke frame (bpm 72 -> masitkhani):
     # fills the 16-beat teentaal avartan, OPENS on S (the swara every sam restates, struck
-    # "da"), lands on S, mixes note values, and carries the frame's dir doublings — double
+    # "da"), cadences to the vadi m (NOT back to S — a head ending where it began merges with
+    # itself across the loop and hides the sam), and carries the frame's dir doublings — double
     # attacks in matras 12 (beats 11-12) and 14 (beats 13-14) — with a bol on every note.
     # Its approach cut falls at beat 11 (the boundary nearest the 5-matra mukhda line), so
     # fills take beats 0-11 and the approach (n d m g m S) re-enters at 11.
@@ -718,12 +719,15 @@ def _good_head() -> LeadPhrase:
                              LeadNote(swara="d", dur=0.5, bol="ra"),
                              LeadNote(swara="m", dur=1.0, bol="da"),
                              LeadNote(swara="g", dur=0.5, bol="da"),
-                             LeadNote(swara="m", dur=0.5, bol="ra"),
-                             LeadNote(swara="S", dur=2.0, bol="da")])
+                             LeadNote(swara="S", dur=0.5, bol="ra"),
+                             LeadNote(swara="m", dur=2.0, bol="da")])   # cadences AWAY from
+                             # the opening S, so the sam re-enters audibly when the head loops
 
 
 def _flat_head() -> LeadPhrase:
-    # lands on Sa and fills the cycle, but every note is the same length -> 1 violation (flat)
+    # fills the cycle at a steady pulse (fine since 2026-09-14 — a gat MOVES at one value),
+    # but it opens and closes on the same S, so the two merge across the loop and the sam
+    # disappears -> one violation
     return LeadPhrase(phrase_plan=_plan("S"),
                       notes=[LeadNote(swara="S", dur=4.0), LeadNote(swara="m", dur=4.0),
                              LeadNote(swara="g", dur=4.0), LeadNote(swara="S", dur=4.0)])
@@ -862,7 +866,7 @@ def test_reroll_feeds_the_violations_back_to_the_generator():
     fn, _ = _fake([_flat_head(), _good_head()])
     generate_lead(arr, gen_fn=fn)
     assert fn.seen_feedback[0] is None                       # first attempt: no feedback
-    assert fn.seen_feedback[1] and any("note value" in v for v in fn.seen_feedback[1])  # re-roll sees the flaw
+    assert fn.seen_feedback[1] and any("SAM DISAPPEARS" in v for v in fn.seen_feedback[1])
 
 
 def test_non_mukhada_generation_gets_no_repair_feedback():
@@ -1346,8 +1350,9 @@ def test_intro_sees_the_head_it_must_tease():
                              LeadNote(swara="d", dur=0.5, bol="ra"),
                              LeadNote(swara="m", dur=1.0, bol="da"),
                              LeadNote(swara="g", dur=0.5, bol="da"),
-                             LeadNote(swara="m", dur=0.5, bol="ra"),
-                             LeadNote(swara="S", dur=2.0, bol="da")])
+                             LeadNote(swara="S", dur=0.5, bol="ra"),
+                             LeadNote(swara="m", dur=2.0, bol="da")])   # cadences AWAY from
+                             # the opening S, so the sam re-enters audibly when the head loops
     gfn, _ = _fake_gat(Gat(mukhada=head))
     fn, calls = _fake([_good_intro()])
     generate_lead(arr, gen_fn=fn, gat_fn=gfn)

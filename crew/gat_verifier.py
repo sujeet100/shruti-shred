@@ -26,6 +26,8 @@ the structural grammar of its role.
 
 from __future__ import annotations
 
+from collections import Counter
+
 from typing import Final
 
 from crew.contracts import LeadNote, LeadPhrase
@@ -44,9 +46,21 @@ _MIN_NOTES_FLAT: Final = 3
 # full notes — the long note IS the nyas/rest point, the 8ths are the movement between them; the
 # render's quarters-and-halves head read as a metronome): at least this many distinct note
 # values, including one long resting value and one short moving value.
-_MUKHADA_MIN_DURATIONS: Final = 3
-_MUKHADA_LONG: Final = 2.0          # at least one half-note+ (the nyas / resting point)
-_MUKHADA_SHORT: Final = 0.5         # at least one 8th-or-faster (the movement between rests)
+# SINGABILITY, and the rule that was BACKWARDS (Sujit, 2026-09-14, with the gats he is
+# learning and Vilayat Khan's notated Bageshree gat). A gat head's memorability comes from
+# rhythmic REGULARITY, not variety: `m m g g R R S S | n D n n S g m —` moves one swara per
+# matra with paired strokes (the mizrab's "dara") as its only subdivision — two note values,
+# one covering 95% of the notes. You could clap that rhythm on a single pitch and still
+# recognise the gat. The generated head used FIVE values with the commonest covering 31%,
+# which is three rhythmic languages inside ten beats and nothing for the ear to hold. The old
+# rule demanded >= 3 distinct values and rejected "a head of even values" as a metronome —
+# precisely the shape a real gat has.
+# 0.35 rather than something tighter: this is a floor for a GROSS miss, not a target. The
+# generated head that prompted the rule sat at 31%; a real gat sits near 95%; and a head that
+# must also carry the bol frame's dir doublings (two fast notes in specific matras) lands
+# around 36-40%, so a tighter floor would reject heads that are doing everything else right.
+_MUKHADA_PULSE_SHARE: Final = 0.35  # one note value must carry at least this much of the head
+_MUKHADA_LONG: Final = 2.0          # ...and it still RESTS somewhere: one half-note+ nyas
 
 # Intro/alap — the diagnosed failure: random wandering that never resolves to Sa, with no space.
 # Structure research-verified (2026-07-15, the AOCHAR — the short pre-gat alap; sources in
@@ -309,16 +323,29 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
         viol.append(f"the mukhada ends on {last.swara}, not a resting swara "
                     f"({' '.join(sorted(resting))}) — cadence to the sam so the head lands and loops")
 
-    durations = {round(n.dur, 4) for n in sounding}
-    if len(sounding) >= _MIN_NOTES_FLAT and len(durations) < _MUKHADA_MIN_DURATIONS:
-        viol.append(f"the mukhada uses only {len(durations)} note value(s) — a gat head mixes "
-                    f"8ths and quarters WITH half/full notes; the mix is its rhythmic identity")
+    durations = [round(n.dur, 4) for n in sounding]
+    pulse, count = Counter(durations).most_common(1)[0]
+    if len(sounding) >= _MIN_NOTES_FLAT and count < _MUKHADA_PULSE_SHARE * len(sounding):
+        viol.append(f"the mukhada has no steady PULSE — its commonest note value covers only "
+                    f"{count / len(sounding):.0%} of the head (need >= "
+                    f"{_MUKHADA_PULSE_SHARE:.0%}). A gat is SUNG: it moves at one pulse, with "
+                    f"paired strokes (two notes in a matra, 'dara') as its subdivision and a "
+                    f"held nyas to rest on. Clap the rhythm on one pitch — if it is not "
+                    f"recognisable that way, the head has no identity yet")
     if not any(d >= _MUKHADA_LONG for d in durations):
         viol.append(f"the mukhada has no long note (>= {_MUKHADA_LONG:g} beats) — the head "
                     f"RESTS somewhere (a nyas on a half/full note) before it moves again")
-    if not any(d <= _MUKHADA_SHORT for d in durations):
-        viol.append(f"the mukhada has no short note (<= {_MUKHADA_SHORT:g} beats) — 8ths are "
-                    f"the movement between the resting notes; all-quarters reads as a metronome")
+    # The loop is judged on the MELODIC cadence: a chikari is a stroke struck after the phrase
+    # has landed, so it neither hides nor supplies the return.
+    melodic = _melodic(sounding)
+    if melodic and len(melodic) > 1 and (
+            (_landing_swara(melodic[-1]), _landing_oct(melodic[-1]))
+            == (_landing_swara(melodic[0]), _landing_oct(melodic[0]))):
+        viol.append(f"the head ends on the same note it opens with "
+                    f"({_landing_swara(melodic[-1])}), "
+                    f"so the two merge across the loop and the SAM DISAPPEARS — the returning "
+                    f"cycle must be audible. Cadence to a different resting swara and let the "
+                    f"opening note re-enter (…m g R S | m m g g…)")
 
     return viol
 

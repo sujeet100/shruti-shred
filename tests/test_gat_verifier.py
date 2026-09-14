@@ -45,9 +45,11 @@ def _n(swara: str, dur: float, **kw) -> LeadNote:
 # --- a clean, one-avartan, landing, varied head passes -------------------------
 
 def test_a_well_formed_mukhada_has_no_violations():
-    # malkauns (resting = S, m): fills the 8-beat avartan, lands on Sa, and mixes note
-    # values — an 8th for movement against half/full-note nyas points (the 2026-07-16 rule)
-    cell = _cell(_n("S", 2.0), _n("g", 1.0), _n("m", 0.5), _n("m", 2.5), _n("S", 2.0))
+    # malkauns (resting = S, m): fills the 8-beat avartan, moves at a STEADY PULSE with a
+    # held nyas to rest on, and cadences to a different swara than it opened with, so the
+    # sam is audible when it loops (the 2026-09-14 rule, from the gats Sujit is learning)
+    cell = _cell(_n("S", 1.0), _n("g", 1.0), _n("m", 1.0), _n("S", 1.0),
+                 _n("g", 1.0), _n("m", 1.0), _n("m", 2.0))
     assert verify_mukhada(cell, cycle_beats=8.0, raga="malkauns") == []
 
 
@@ -89,19 +91,41 @@ def test_a_head_landing_on_the_vadi_is_accepted():
 
 def test_a_chikari_ending_counts_as_landing_on_sa():
     # a chikari sounds taar Sa regardless of its written swara, so it lands on a resting note
-    cell = _cell(_n("S", 3.0), _n("m", 3.0), _n("n", 2.0, bol="chikari"))
+    cell = _cell(_n("S", 2.0), _n("m", 2.0), _n("g", 2.0), _n("n", 2.0, bol="chikari"))
     assert not any("resting swara" in v
                    for v in verify_mukhada(cell, cycle_beats=8.0, raga="malkauns"))
 
 
 # --- not rhythmically flat ------------------------------------------------------
 
-def test_a_flat_even_note_head_is_flagged():
-    # the diagnosed failure: a gat of even notes — no mix, no 8th movement
-    cell = _cell(_n("S", 2.0), _n("g", 2.0), _n("m", 2.0), _n("S", 2.0))
+def test_a_head_with_no_steady_pulse_is_flagged():
+    """The rule this REPLACED demanded variety and rejected "a head of even values" as a
+    metronome — precisely the shape a real gat has. Vilayat Khan's Bageshree gat moves one
+    swara per matra with paired strokes as its only subdivision: two note values, one covering
+    95% of the notes. The generated head used FIVE values with the commonest covering 31%,
+    which is three rhythmic languages inside ten beats and nothing for the ear to hold."""
+    cell = _cell(_n("S", 1.5), _n("g", 0.5), _n("m", 0.25), _n("g", 0.25),
+                 _n("m", 2.0), _n("S", 1.0), _n("m", 2.5))
     viol = verify_mukhada(cell, cycle_beats=8.0, raga="malkauns")
-    assert any("note value" in v for v in viol)
-    assert any("short note" in v for v in viol)
+    assert any("steady PULSE" in v for v in viol)
+
+
+def test_an_EVEN_head_is_now_fine_rhythmically():
+    """The correction itself: a gat sung one swara per matra is idiomatic, not a metronome."""
+    cell = _cell(_n("S", 1.0), _n("g", 1.0), _n("m", 1.0), _n("g", 1.0),
+                 _n("S", 1.0), _n("g", 1.0), _n("m", 2.0))
+    assert not [v for v in verify_mukhada(cell, cycle_beats=8.0, raga="malkauns")
+                if "PULSE" in v]
+
+
+def test_a_head_that_ends_where_it_began_hides_the_sam():
+    """Ending on the opening swara merges the two across the loop — the 2026-09-14 head closed
+    on a 2-beat Ma and reopened on a 1.5-beat Ma, so a 3.5-beat Ma straddled the sam and the
+    downbeat vanished."""
+    cell = _cell(_n("S", 1.0), _n("g", 1.0), _n("m", 1.0), _n("g", 1.0),
+                 _n("m", 1.0), _n("S", 3.0))
+    viol = verify_mukhada(cell, cycle_beats=8.0, raga="malkauns")
+    assert any("SAM DISAPPEARS" in v for v in viol)
 
 
 def test_two_equal_notes_are_not_called_flat():

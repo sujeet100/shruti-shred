@@ -2307,3 +2307,58 @@ coverage 67%** — two thirds of the line already sits inside real Bageshree mov
 why the piece sounds like the raga in places. The connective tissue is what walks the ladder.
 
 Suite 791 green.
+
+## THE GAT HEAD — the rhythm rule was BACKWARDS (2026-09-14)
+
+Sujit disliked the generated Bageshree gat and gave the gats he is learning, plus Vilayat
+Khan's notated Bageshree and Yaman gats. Measuring his against ours found the difference, and
+it is not the notes:
+
+| | his gat | ours |
+|---|---|---|
+| note values used | **2** | **5** |
+| commonest value covers | **95%** of notes | **31%** |
+| stepwise moves | 50% | 50% |
+| repeated-note pairs (`MaMa GaGa`) | 5 | 2 (and at 0.25, a flourish) |
+
+Both lines are equally stepwise, both sit in one octave, ours quotes the pakad and lands on
+m/S/D correctly. **The difference is entirely rhythm.** A gat is SUNG and PLUCKED: Vilayat
+Khan's Bageshree moves one swara per matra with paired strokes (the mizrab's "dara") as its
+only subdivision. You can clap it on a single pitch and still recognise the gat. Ours used
+five note values — three rhythmic languages inside ten beats, nothing for the ear to hold.
+
+**And we were ASKING for that.** The rule read: "MIX THE NOTE VALUES — at least THREE distinct
+durations... A head of even values reads as a metronome and is rejected." That is precisely
+the shape a real gat has. The instinct is right for a taan (where `_TAAN_MIN_DURATIONS` still
+stands) and exactly wrong for the head.
+
+### Built
+* `_MUKHADA_PULSE_SHARE` replaces `_MUKHADA_MIN_DURATIONS`: one note value must carry >= 35%
+  of the head. The floor is deliberately low — a gross-miss threshold, not a target: the
+  generated head sat at 31%, a real gat near 95%, and a head also carrying the bol frame's
+  dir doublings lands around 36-40%, so a tighter floor would reject heads doing everything
+  else right. The "must contain a short note" rule is gone.
+* **The sam must re-enter**: the head may not cadence to the note it opens on. Ours ended
+  `m:2` and reopened `m:1.5`, so a 3.5-beat Ma straddled the sam and the downbeat vanished.
+  Judged on the MELODIC cadence and on (swara, octave), so a chikari stroke after the landing
+  does not count and a madhya-to-taar return is a real return.
+* The brief now teaches pulse, paired strokes, ECONOMY ("four or five swaras used beautifully
+  beat a cycle that tries to show everything the raga can do"), repetition as composition, and
+  a COMPACT approach — the old "final ~5 matras are the approach" spends HALF a 10-matra
+  jhaptaal cycle running at the downbeat. "Pour everything into this single cycle" is deleted:
+  for a head, that is the wrong instinct entirely.
+
+### Checked and NOT adopted
+* The review's rule "a 2-4 beat cell must recur at least twice inside the mukhada" — tested
+  against Sujit's own gat (`m m g g R R S S | n D n n S g m`), which contains no repeating
+  2-4 note cell. It would reject a real gat. It stays in the brief as encouragement.
+* Its claim of an octave discontinuity (`S` jumping to an UPPER `n`) is false: the MIDI reads
+  S(62) → n(60) → D(59), a clean continuous descent into the mandra.
+
+### OPEN — a rule one of Sujit's own examples would fail
+Vilayat Khan's Yaman gat lands its sam on **Pa**, which is neither Sa nor Yaman's vadi (G) nor
+its samvadi (N) — so `verify_mukhada`'s sam-note rule would REJECT it. Pa is a classical nyas
+in Yaman, so the rule is probably too narrow, but widening it is raga knowledge and needs
+Sujit's call plus sources. Flagged, not changed.
+
+Suite 793 green.
