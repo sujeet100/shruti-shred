@@ -2381,3 +2381,29 @@ refutation, so nobody re-adds it from the docstring.
 This is the third rule this session that was tighter than the tradition: the note-value mix,
 the vakra floor, and now the sam note. The pattern worth noticing is that each one came from
 reasoning about what a raga "should" do, and each was corrected by a real gat.
+
+### Direction, checked on the realized cell (2026-09-14)
+
+Review of the teentaal render (which Sujit judged "convincingly Bageshree" for the intro and
+gat) flagged ascending Pa in the weaker taans. Measured per section, it is real and precisely
+located: **3, 6 and 9 violations in the three mukhada sections, 2 in the taan — and NONE in the
+verified head.** They live in the fast developments and taan fills, which go through
+`verify_fill` (sixteenths, seam) and were never checked for direction.
+
+The rule was already stated to the LLM as a Task guardrail. That is not enough on its own: a
+guardrail is a bounded retry, so what it cannot fix, it ships. `_motion_violations` now carries
+the direction check on the REALIZED cell, and `verify_fill` calls it — so a fill or taan that
+climbs `m P D n S'` in a raga that drops Pa from the aroha comes back with the exact fault.
+
+**Corrected in the review:** its "the guitar solo is the weakest raga component" has no
+referent — this chart has no solo section and there is no separate guitar generator. The lead
+guitar's 197 notes come from the taan's call-and-response TRADE, i.e. the sitar's own line
+split between two voices. Its weak stretches are the taan's weak stretches; fixing one fixes
+both.
+
+Still open: the chikari. The melodic composition has now outrun the instrument — a chikari
+still renders as one taar Sa, where it should be strings 1-2 struck together (the tuning is
+encoded, `chikari_swaras`) with weighted velocities and a few ms of stroke spread. That needs
+the `LeadNote` contract change noted earlier.
+
+Suite 794 green.

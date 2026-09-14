@@ -787,6 +787,24 @@ def test_a_taan_that_walks_the_ladder_is_rejected():
     assert "unbroken stepwise" in text and "SCALE" in text
 
 
+def test_an_ascending_pa_is_caught_in_a_bageshree_taan():
+    """Bageshree drops Pa from the aroha, so `m P D n S'` ascending is generically modal while
+    `m D n S'` up and `S' n D P m` down is the raga. The LLM guardrail states this at
+    generation time, but a guardrail is a bounded retry — what it cannot fix, it ships. The
+    2026-09-14 render proves it: the verified head is clean while the developments and fills
+    inside the same sections carried 3, 6 and 9 violations."""
+    from crew.gat_verifier import _motion_violations
+    climbing = [LeadNote(swara=s, dur=0.25) for s in "SgmPDnS"]
+    assert any("P" in v for v in _motion_violations(climbing, "bageshree", "taan"))
+
+
+def test_pa_on_the_way_DOWN_is_idiomatic():
+    from crew.gat_verifier import _motion_violations
+    falling = [LeadNote(swara=s, dur=0.25) for s in "SgmDnS"] + \
+              [LeadNote(swara=s, dur=0.25) for s in "nDPmgRS"]
+    assert not [v for v in _motion_violations(falling, "bageshree", "taan") if "P" in v]
+
+
 def test_a_line_that_descends_and_climbs_is_left_alone():
     """The vakra SHARE is measured for Rasik but is not a rule: this phrase reads as
     idiomatic and scores only 25% turns, while the render that prompted all this scored 38% —

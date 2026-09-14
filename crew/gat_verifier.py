@@ -33,7 +33,7 @@ from typing import Final
 from crew.contracts import LeadNote, LeadPhrase
 from gats import GAT_FRAMES
 from chalan import ang_matches, longest_scalar_run
-from raga import RAGAS, SWARAS
+from raga import RAGAS, direction_violations, SWARAS
 
 # A mukhada should fill about ONE avartan so it loops as a cycle. Too short == a fragment; well
 # over the cycle == a phrase code has to truncate (cutting off its own cadence). Bounds are
@@ -629,6 +629,15 @@ def _motion_violations(sounding: list[LeadNote], raga: str, cell: str) -> list[s
     """
     seq = [(_landing_swara(n), _landing_oct(n)) for n in sounding]
     viol: list[str] = []
+    # DIRECTION, checked on the REALIZED cell. The LLM guardrail already states this rule at
+    # generation time, but a guardrail is a bounded retry: what it cannot fix, it ships. The
+    # 2026-09-14 render shows where that lands — the verified head is clean, while the fast
+    # developments and fills inside the same sections carry 3, 6 and 9 violations, because
+    # `verify_fill` checks sixteenths and the seam and never looks at direction. A swara the
+    # raga admits in one direction only is the raga's grammar, not a preference: Bageshree
+    # ascending `m P D n S'` is generically modal, while `m D n S'` up and `S' n D P m` down
+    # is the raga.
+    viol += [f"{v} (in the {cell})" for v in dict.fromkeys(direction_violations(seq, raga))]
     run = longest_scalar_run(seq, raga)
     if run > _TAAN_SCALAR_MAX:
         viol.append(f"the {cell} walks {run} notes in one unbroken stepwise direction — that is "
@@ -1177,6 +1186,8 @@ def verify_fill(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     if not (_TAAN_FILL_MIN * window_beats <= total <= _CELL_FILL_MAX * window_beats):
         viol.append(f"the fill lasts {total:g} beats but must fill its {window_beats:g}-beat cut "
                     f"almost exactly — it is spliced into the mukhada, so there is no slack")
+
+    viol += _motion_violations(sounding, raga, "taan fill")
 
     seam = _seam_violation_to(sounding[-1], reentry_swara(mukhada, window_beats), raga,
                               "taan fill", "the head's re-entering approach")
