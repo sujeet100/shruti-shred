@@ -629,17 +629,16 @@ def test_fill_must_resolve_into_the_head():
     assert any("taan fill" in v and "fluid" in v for v in viol)
 
 
-# --- the sam-note rule: the head's FIRST note sounds ON every sam ---------------
+# --- the sam note is NOT a short list ------------------------------------------
 
-def test_mukhada_opening_off_a_structural_swara_is_flagged():
-    # malkauns resting = {S, m}: a head opening on d puts a stray swara on every sam
-    cell = _cell(_n("d", 2.0), _n("g", 1.0), _n("m", 0.5), _n("m", 2.5), _n("S", 2.0))
-    viol = verify_mukhada(cell, cycle_beats=8.0, raga="malkauns")
-    assert any("opens on d" in v for v in viol)
-
-
-def test_mukhada_opening_on_the_vadi_is_accepted():
-    cell = _cell(_n("m", 2.0), _n("g", 1.0), _n("d", 0.5), _n("n", 2.5), _n("S", 2.0))
+def test_the_head_may_open_on_a_swara_that_is_not_sa_or_the_vadi():
+    """This used to require Sa, the vadi or the samvadi on the sam, and Sujit's own repertoire
+    refutes it: Vilayat Khan's Yaman gat lands its sam on PA — neither Sa nor Yaman's vadi (G)
+    nor its samvadi (N) — a Bageshree bandish he is learning lands on RE, a swara our own data
+    marks descent-only, and another Bageshree gat lands on Ma. Any list we write rejects real
+    gats, so what the rule protected now lives in the brief and in the bol frame (which still
+    requires the sam struck "da")."""
+    cell = _cell(_n("d", 2.0), _n("g", 1.0), _n("m", 0.5), _n("g", 2.5), _n("m", 2.0))
     assert not any("opens on" in v for v in verify_mukhada(cell, cycle_beats=8.0, raga="malkauns"))
 
 

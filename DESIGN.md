@@ -2362,3 +2362,22 @@ in Yaman, so the rule is probably too narrow, but widening it is raga knowledge 
 Sujit's call plus sources. Flagged, not changed.
 
 Suite 793 green.
+
+### The sam note is not a short list (2026-09-14)
+
+`verify_mukhada` required the head's first note — the one sounding on every sam — to be Sa,
+the vadi or the samvadi. Sujit's own repertoire refutes it three times over: Vilayat Khan's
+Yaman gat lands its sam on **Pa** (neither Sa nor Yaman's vadi G nor its samvadi N), a
+Bageshree bandish he is learning lands on **Re** — a swara our own encoded data marks
+descent-only — and another Bageshree gat lands on **Ma**. Any list we write rejects real gats.
+
+So the check is gone rather than widened: widening it would only move the line to the next
+gat that crosses it, and the underlying property is not a pitch membership test. What the rule
+protected — the sam carries a deliberate, structurally strong swara rather than a note the
+line happened to reach — now lives in the brief ("it must feel like an ARRIVAL the phrase has
+earned") and in the bol frame, which still requires the sam struck "da". Its test is now the
+refutation, so nobody re-adds it from the docstring.
+
+This is the third rule this session that was tighter than the tradition: the note-value mix,
+the vakra floor, and now the sam note. The pattern worth noticing is that each one came from
+reasoning about what a raga "should" do, and each was corrected by a real gat.

@@ -287,9 +287,6 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
     live gat (the fourth from the 2026-07-20 gat research):
       * FILLS THE AVARTAN — the head's total duration is about one cycle, so looping it re-lands on
         the sam instead of repeating a fragment (or being truncated mid-cadence);
-      * OPENS ON A STRUCTURAL SWARA — the head's FIRST note sounds ON every sam (the loop restates
-        it there each avartan), and the tradition places a deliberate swara on the sam: Sa or the
-        vadi, ideally the pakad's landing (JETIR bandish craft; Deepak Raja's mukhda analyses);
       * CADENCES TO A RESTING SWARA — the last sounding note is Sa, the vadi, or the samvadi, so the
         head resolves to the sam and the loop seam lands rather than restarts;
       * NOT RHYTHMICALLY FLAT — the durations vary (the diagnosed failure was a gat of even quarter
@@ -303,12 +300,14 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
         return ["the mukhada has no sounding notes — it must state a melodic head"]
 
     viol: list[str] = []
+    # THE SAM NOTE IS NOT A SHORT LIST. This used to require Sa, the vadi or the samvadi, and
+    # Sujit's own repertoire refutes it: Vilayat Khan's Yaman gat lands its sam on PA (neither
+    # Sa nor Yaman's vadi G nor its samvadi N), a Bageshree bandish he is learning lands on
+    # RE — a swara our own data marks descent-only — and another Bageshree gat lands on Ma.
+    # Any list we write rejects real gats, so this is not a rule. What it protected (the sam
+    # must carry a deliberate, structurally strong swara rather than a stray passing note)
+    # lives in the brief and in the bol frame, which still requires the sam struck "da".
     resting = _resting_swaras(raga)
-    first = _landing_swara(sounding[0])
-    if first not in resting:
-        viol.append(f"the mukhada opens on {first}, but its first note sounds ON every sam — "
-                    f"open on Sa or the vadi ({' '.join(sorted(resting))}), ideally the pakad's "
-                    f"strong landing, so the cycle's downbeat carries a structural swara")
     total = sum(n.dur for n in notes)
     if total < _FILL_MIN * cycle_beats:
         viol.append(f"the mukhada fills only {total:g} of {cycle_beats:g} beats — a fragment, not a "
