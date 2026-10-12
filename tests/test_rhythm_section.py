@@ -104,6 +104,15 @@ def test_same_as_must_name_a_section_with_its_own_cycles():
     assert any("section 2" in e and "same_as" in e for e in part_errors(rs, _arr()))
 
 
+def test_own_cycles_win_over_a_stray_same_as():
+    # 2026-10-12 live: structured output wrote real cycles AND "same_as": 0 (the intro) on a part
+    parts = [p.model_copy(update={"same_as": 0}) for p in _good().parts[:2]] + [_good().parts[2]]
+    rs = _good().model_copy(update={"parts": parts})
+    assert part_errors(rs, _arr()) == []
+    guitar, _ = realise(rs, _arr())
+    assert [n.swara for n in guitar.notes if 16 <= n.start < 32] == ["S", "S", "P"]
+
+
 def test_cycles_must_fill_the_avartan_be_legal_and_the_bass_single_notes():
     rs = RhythmSection(parts=[
         SectionPart(section=1, guitar=[_cycle(("S", 8.0))],                     # half a cycle

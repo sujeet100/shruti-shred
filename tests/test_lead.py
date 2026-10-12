@@ -19,6 +19,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 
 from crew.contracts import (  # noqa: E402
+    TaanPhrase,
     Arrangement,
     ArrangementDraft,
     CanvasMove,
@@ -49,7 +50,7 @@ from crew.lead import (  # noqa: E402
     _doubled_hook,
     _GatContext,
     _generate_verified_cell,
-    _restated_to_window,
+    filled_from_front,
     _role_briefs,
     _render_canvas_for_lead,
     _render_previous,
@@ -1248,24 +1249,35 @@ def _intro_arr(*, clean: bool, bars: int = 4) -> Arrangement:
     return build_arrangement(draft, CompositionBrief(mood="dark"))
 
 
-def test_a_short_taan_restates_itself_rather_than_leaving_the_peak_empty():
+def test_a_short_taan_is_filled_from_the_front_at_its_own_pulse():
     """The repair loop is bounded and keeps the best-of-N, so a taan that fails its own fill
     check twice still plays. Measured on the 2026-09-14 render, the taan covered 20 of its 40
-    beats and the other TWENTY were silent — the composition's peak, half empty, with the band
-    vamping under nothing."""
-    cell = [LeadNote(swara=s, dur=1.0) for s in "Sgmp".replace("p", "P")]
-    out = _restated_to_window(cell, 16.0)
-    assert sum(n.dur for n in out) >= 16.0
-    assert {n.swara for n in out} == {n.swara for n in cell}, "restating invented a pitch"
+    beats and the other TWENTY were silent. The shortfall is now run BEFORE the launch, from the
+    taan's own opening at its own pulse, so the verified cadence still lands on the sam and no
+    slow held note appears (2026-10-13: the old fix held the first note by the shortfall)."""
+    cell = [LeadNote(swara=s, dur=0.25) for s in "Sgmd"] + [LeadNote(swara="S", dur=0.25)]
+    out = filled_from_front(cell, 2.0)
+    assert sum(n.dur for n in out) == 2.0
+    assert out[-len(cell):] == cell                          # the cadence is untouched, on the sam
+    assert {n.dur for n in out} == {0.25}                    # no held note was invented
+    assert {n.swara for n in out} == {n.swara for n in cell}, "filling invented a pitch"
+
+
+def test_a_remainder_smaller_than_a_note_is_a_breath_before_the_launch():
+    cell = [LeadNote(swara="S", dur=0.5), LeadNote(swara="g", dur=0.5)]
+    out = filled_from_front(cell, 1.25)
+    assert out[0].rest and out[0].dur == 0.25                # silence BEFORE the run, not before the sam
+    assert sum(n.dur for n in out) == 1.25 and out[-2:] == cell
 
 
 def test_a_taan_that_already_fills_its_window_is_untouched():
     cell = [LeadNote(swara="S", dur=4.0), LeadNote(swara="g", dur=4.0)]
-    assert _restated_to_window(cell, 8.0) == cell
+    assert filled_from_front(cell, 8.0) == cell
 
 
-def test_restating_never_loops_forever_on_an_empty_cell():
-    assert _restated_to_window([], 16.0) == []
+def test_filling_never_loops_forever_on_an_empty_cell():
+    assert filled_from_front([], 16.0) == []
+
 
 
 def test_the_unison_guitar_doubles_the_theme_and_lays_out_through_a_run():
@@ -1532,30 +1544,46 @@ def test_antara_is_verified_and_rerolled_with_the_arc_feedback():
 
 # --- the developed taan (taan_long): verified peak ------------------------------
 
+def _flowing_taan_plan() -> PhrasePlan:
+    """A 16-beat taan plan: dugun statement, chaugun build, climax from the midpoint, cadence."""
+    return _plan("d").model_copy(update={"taan_phrases": [
+        TaanPhrase(role=r, beats=4, subdivision=sub)
+        for r, sub in (("statement", 2), ("build", 4), ("climax", 4), ("cadence", 4))]})
+
+
+def _flowing_taan_notes() -> list[LeadNote]:
+    """The plan's notes (malkauns, motif d n S m): one pulse per phrase, peak on taar m."""
+    def run(swaras: str, dur: float) -> list[LeadNote]:
+        out = []
+        for tok in swaras.split():
+            oct = 1 if tok.endswith("'") else (-1 if tok.endswith(".") else 0)
+            out.append(LeadNote(swara=tok.rstrip("'."), oct=oct, dur=dur))
+        return out
+    return (run("d. n. S m g m d m", 0.5)
+            + run("g m d n d m g m d n S' n d n S' n", 0.25)
+            + run("d n S' g' S' n S' g' m' g' S' n d n S' n", 0.25)
+            + run("d m d n d m g m g S g m g m g S", 0.25))
+
+
+def test_the_taan_is_told_its_window_exactly():
+    from crew.generators import section_spans
+    from crew.lead import _render_room
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"), (SectionKind.TAAN, 2, "taan_long"))
+    head, taan = section_spans(arr)
+    assert _render_room(head) == ""
+    assert "EXACTLY 32" in _render_room(taan) and "taan_phrases sum to 32" in _render_room(taan)
+
+
 def test_taan_long_is_verified_and_rerolled_with_feedback():
     # an even wall of quarter notes is NOT a taan — bounced with the exact reasons;
     # the arrangement motif for _gat_arr is d n S m, so the good taan must quote it
     bad = _phrase("d", "n", "S", "m", dur=1.0)
-    good = LeadPhrase(phrase_plan=_plan("d"),
-                      notes=[LeadNote(swara="d", dur=0.5), LeadNote(swara="n", dur=0.5),
-                             LeadNote(swara="S", dur=0.5), LeadNote(swara="m", dur=0.5),
-                             LeadNote(swara="m", dur=2.0),
-                             LeadNote(swara="g", dur=0.25), LeadNote(swara="m", dur=0.25),
-                             LeadNote(swara="d", dur=0.25), LeadNote(swara="n", dur=0.25),
-                             LeadNote(swara="g", dur=0.25), LeadNote(swara="m", dur=0.25),
-                             LeadNote(swara="d", dur=0.25), LeadNote(swara="n", dur=0.25),
-                             LeadNote(swara="d", dur=0.25), LeadNote(swara="n", dur=0.25),
-                             LeadNote(swara="S", dur=0.25, oct=1), LeadNote(swara="g", dur=0.25, oct=1),
-                             LeadNote(swara="m", dur=1.0, oct=1),
-                             LeadNote(swara="g", dur=0.5, oct=1), LeadNote(swara="S", dur=0.5, oct=1),
-                             LeadNote(swara="n", dur=0.5), LeadNote(swara="d", dur=0.5),
-                             LeadNote(swara="m", dur=1.0), LeadNote(swara="g", dur=0.5),
-                             LeadNote(swara="S", dur=3.0)])
+    good = LeadPhrase(phrase_plan=_flowing_taan_plan(), notes=_flowing_taan_notes())
     arr = _gat_arr((SectionKind.TAAN, 1, "taan_long"))
     fn, calls = _fake([bad, good])
     _, events = generate_lead(arr, gen_fn=fn)
     assert len(calls) == 2
-    assert fn.seen_feedback[1] and any("fills only" in v for v in fn.seen_feedback[1])
+    assert fn.seen_feedback[1] and any("window is exactly" in v for v in fn.seen_feedback[1])
     rr = next(e for e in events if e.data.get("gat_verify"))
     assert rr.data["cell"] == "taan_long"
 
@@ -1646,10 +1674,17 @@ def test_splice_tihai_leaves_a_short_taan_alone():
     assert not ok and spliced == notes
 
 
-def test_taan_long_gets_a_code_built_tihai():
-    # the verified taan's own close is restated x3 across its final avartan, and the
-    # timeline shows it (the gharana cadence — code owns the counting)
+def _tihai_taan_arr(tihai: bool):
     arr = _gat_arr((SectionKind.TAAN, 2, "taan_long"))
+    return arr.model_copy(update={"sections": [s.model_copy(update={"tihai": tihai})
+                                               for s in arr.sections]})
+
+
+def test_a_taan_long_that_asks_for_one_gets_a_code_built_tihai():
+    # the verified taan's own close is restated x3 across its final avartan, and the
+    # timeline shows it (the gharana cadence — code owns the counting); OPT-IN since
+    # 2026-10-12 (forced, it took the climb's second half)
+    arr = _tihai_taan_arr(True)
     cell = LeadPhrase(phrase_plan=_plan("d"), notes=[
         LeadNote(swara="d", dur=0.5), LeadNote(swara="n", dur=0.5),          # the motif (d n S m)
         LeadNote(swara="S", dur=0.5), LeadNote(swara="m", dur=0.5),
@@ -1683,6 +1718,21 @@ def test_taan_long_gets_a_code_built_tihai():
                      and (n.dur >= 3.0 or n.start == total_beats(arr))]
     assert len(final_bar_sas) == 3                           # the close lands THREE times
     assert final_bar_sas[-1].start == total_beats(arr)       # ... the third ON the sam
+    # by DEFAULT no tihai: the taan's own line plays through to the sam
+    fn, _ = _fake([cell])
+    layers, events = generate_lead(_tihai_taan_arr(False), gen_fn=fn)
+    assert not any(e.data.get("tihai") for e in events)
+
+
+def test_a_taan_running_into_a_returning_mukhada_never_takes_a_tihai():
+    # 2026-10-12 live (233435): the chart asked for one, and it re-created the gap before the sam
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"), (SectionKind.TAAN, 2, "taan_long"),
+                   (SectionKind.ALAAP, 1, "mukhada"))
+    arr = arr.model_copy(update={"sections": [s.model_copy(update={"tihai": True})
+                                              for s in arr.sections]})
+    from crew.lead import _returning_swara
+    from crew.generators import section_spans
+    assert _returning_swara(section_spans(arr)[1], arr, _good_head()) == _good_head().notes[0].swara
 
 
 # --- the amad: Parikh's fourth line, riding the antara's final avartan -----------

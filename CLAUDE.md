@@ -1021,6 +1021,56 @@ and build order.
   taraf (a slow shimmer, not a clash). Audit: holds within 35 c = intonation, unison within 10 c =
   shimmer, mechanical = trajectories through 3+ pitches. A/B: `out/fusion_20261012_213455_shruti.wav`;
   demo `out/ornaments_darbari_20261012_223642.wav` from 0:32 (Ga ET vs shruti). 1191 pure tests.
+- **HARMONY step 1 + TAKEOVER + TAAN (2026-10-12, Sujit's two briefs; he authorised all of it plus
+  a live render):** (1) HARMONY: `HarmonyPlan.behaviour` (pedal/slow/phrase/tension/breakdown) +
+  `chords` (ONE avartan's timeline: root, voicing, matras; guardrail: raga roots, matras fill the
+  avartan); `crew/voicings.py` (power/octave/fifth/sus2/sus4/fourths/triad built INSIDE the raga,
+  falling back to power then octave — Re in Darbari can't take a fifth; conservative under a
+  swaying held sitar note); the chord floor plays the timeline (pedal keeps home, tension hangs
+  sus4, breakdown plain, phrase snaps changes to sitar arrivals ±2 beats; grind guard over every
+  chord tone); no timeline = the old floor. (2) TAKEOVER: new form_role `takeover` (gat-only) — the
+  guitar carries the gat: `riff_from_mukhada.interpret_mukhada` (accented/held structural notes ->
+  low power chords; moving notes -> mid-register SINGLE notes, `RiffNote.single` never voiced;
+  chikari -> chugs; strokes kept) + `riff_statements.takeover_cycles` (cycle 1 as is; later cycles
+  double the melody's strokes and play the last quarter as a heavy low cadence into the sam);
+  `crew/takeover.py` `with_takeover` replaces the section in `band_layers` on EVERY path from the
+  chart's realised head (`seed_hook`); the rhythm-section call writes no part there. 213455's
+  guitar section kinship: 45/33/13% -> 100/100/100% (`out/fusion_20261012_213455_takeover.wav`).
+  (3) TAAN: the forced tihai was the root cause (it replaced the final avartan, and the landing
+  pass dropped its last note before a returning head -> early peak, repeated low cell, 1.75 s
+  gap). `Section.tihai` is now OPT-IN; the taan is given its DESTINATION (the returning head's
+  first swara, in its intent); `check_taan(reentry=)` HARD: last note a step into it, no trailing
+  rest, peak not early. (4) PRODUCER: `crew/taan_report.py` (peak position/register, momentum,
+  gap, arrival, tihai) in its metrics; optional `handoff` score; climax/handoff anchors. (5) the
+  rhythm-section call's own 360 s limit (`RMA_RHYTHM_TIMEOUT_S`). 1213 pure tests.
+  **LIVE RUN `fusion_20261012_233435` (authorised) + fixes it exposed:** the composer used the new
+  harmony fields on every section (no takeover section chosen); the rhythm-section call ANSWERED in
+  time but my checker rejected it — Gemini's structured output wrote real cycles AND `same_as: 0`;
+  `_resolved` now lets a part's own cycles win. The taan peaked late (78%) but the verified 28.75-beat
+  answer was never extended to its 32-beat window, leaving 1.62 s before the head's sam:
+  `lead.end_aligned` now holds the first note by the shortfall so the verified approach lands ON the
+  sam; and a taan running into a returning mukhada never takes a tihai (the composer had opted in).
+  Free rebuild with the run's OWN answers from its trace: `out/fusion_20261012_233435_revised.wav`
+  (gap 0, density 1.4 -> 1.9/beat; the composed guitar: 6 roots, 8 shapes, but 149 strokes vs the
+  fallback's 21 — denser; Sujit to judge). Excerpts: `out/excerpt_213455_guitar_section_{original,
+  takeover}`, `out/excerpt_213455_taan_original`, `out/excerpt_233435_taan_{live,revised}`. 1216 tests.
+- **THE TAAN FLOWS — ✅ BUILT (2026-10-13;** Sujit + a GPT review of
+  `excerpt_233435_taan_revised`**):** the taan alternated fast clusters with held notes (41% of
+  its time on notes ≥1 beat, 9 mid-run stalls) because the brief asked for "burst and space" and
+  the verifier rewarded it. Retired. The plan is now STRUCTURED: `PhrasePlan.taan_phrases`
+  (`TaanPhrase`: role statement/build/climax/cadence, whole-matra beats, ONE pulse per phrase —
+  2 dugun / 4 chaugun / 3 / 6 — and the swara it reaches), and `check_taan` holds plan AND notes
+  to it, HARD: plan fills the window, pulse never slows before the climax, climax starts in the
+  later half, cadence ≤ a quarter and keeps chaugun; every note on its phrase's pulse (only a
+  phrase's last note ≤1 beat or a gamak note may ring), no rests, no note across a boundary, no
+  leap > a fifth inside a phrase, one stroke per note (no dir/dara), the top note in the climax
+  phrase past 60%. Exact window fill; a short take is filled at the FRONT from its own opening
+  (`lead.filled_from_front`, replacing `end_aligned` + restating). Producer's taan report adds
+  held share + mid-run stalls. First live taan (trace `6f9b8e3c14ab`, taan-only rebuild via
+  `generate_lead(keep=KeptLead)` replaying the run's trace): 0% held, 0 stalls, dugun→chaugun —
+  but `dir` stutters and a 54% peak, both now rejected. A/B:
+  `out/excerpt_233435_taan_{before,flowing}_20261013_001520.wav`. 1231 pure tests.
+  **Next:** one more live taan with the two new rules (ask).
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

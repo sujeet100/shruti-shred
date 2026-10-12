@@ -140,7 +140,7 @@ _MUKHADA: Final = "mukhada"                # the gat HEAD — a cached ~1-avarta
 _INTRO: Final = "intro"                    # the alap — Sa-anchored, verified, code-reserved silence after
 _MANJHA: Final = "manjha"                  # the development — verified to RETURN into the head
 _ANTARA: Final = "antara"                  # the second movement — verified arc: quote, climb, peak, descend
-_TAAN_LONG: Final = "taan_long"            # the developed peak — verified: motif-grown, arced, burst+space
+_TAAN_LONG: Final = "taan_long"            # the developed peak — verified: motif-grown, arced, flowing to its plan
 _OUTRO: Final = "outro"                    # the close — verified to RESOLVE the raga, not just land on Sa
 _CELL_REPAIR_TRIES: Final = 1              # extra re-rolls of a weak verified cell (bounded; best-of-N kept)
 
@@ -273,9 +273,13 @@ holds no chikari; write the notes so each matra sounds the strokes its token ask
 out of the figure; it is not a separate tune. For a TAAN/SOLO section
 the plan has THREE more required fields (omit them elsewhere): "taan_style" (the ONE
 dominant style — pick from the section guidance), "register_plan" (the arc in one line:
-where you start, where the single peak lands, the descent), and "rhythm_plan" (the
-burst/space shape, e.g. "pickup, 16th burst, held nyas, longer burst, resolve hard on Sa at
-the sam"). For an INTRO/alap section the plan has ONE more required field (omit it elsewhere): "badhat_plan"
+where you start, where the single peak lands, how the cadence arrives), and "taan_phrases"
+(the run's phrases in order, each {"role", "beats", "subdivision", "reach", "reach_oct"}:
+role is statement / build / climax / cadence, beats a whole number of matras, subdivision
+the phrase's ONE pulse in notes per matra — 2 dugun (0.5-beat notes), 4 chaugun (0.25), 3
+or 6 for tigun/chhagun — and reach/reach_oct the highest swara the phrase climbs to; the
+beats sum exactly to the window, e.g. statement 4 @2, build 8 @2, build 8 @4, climax 8 @4,
+cadence 4 @4 for 32 beats). For an INTRO/alap section the plan has ONE more required field (omit it elsewhere): "badhat_plan"
 (the progressive reveal in one line: the motif fragment phrase 1 states, what each later
 phrase adds, where the widest reach lands). In the notes: "oct" is
 your octave (0 = home; -1 mandra/lower, +1 taar/upper); "vel", "grace", "meend_swara",
@@ -1061,6 +1065,17 @@ def _render_phrase_room(span: SectionSpan) -> str:
     return f" — room for {n}-{n + 1} short phrases with real silence between them"
 
 
+def _render_room(span: SectionSpan) -> str:
+    """The length line's tail: the alap's phrase room, or — for the taan, which `check_taan`
+    holds to its window exactly — that its phrases and notes fill the window with no slack."""
+    if is_intro(span.section):
+        return _render_phrase_room(span)
+    if is_taan_long(span.section):
+        return (f" — EXACTLY {span.length:g}: a taan runs without a break to the sam, so your "
+                f"taan_phrases sum to {span.length:g} beats and your notes fill them")
+    return ""
+
+
 def _on_cycle(t: float, cycle_beats: float) -> bool:
     return abs(t / cycle_beats - round(t / cycle_beats)) < 1e-6
 
@@ -1262,7 +1277,7 @@ class _LeadContext:
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "section_transition": section.transition or "(none given)",
             "window_beats": f"{span.length:g}",
-            "phrase_room": _render_phrase_room(span) if is_intro(section) else "",
+            "phrase_room": _render_room(span),
             "tala_position": _render_tala_position(span, self._cycle_beats),
             "previous": _render_previous(memory),
             "mukhada_head": _render_mukhada_head(memory, tease=is_intro(section)),
@@ -1651,31 +1666,35 @@ def _craft_event(role: str, craft: list[str]) -> DebateEvent:
 # A verified cell can still come back SHORT: the repair loop is bounded and keeps the
 # best-of-N, so a taan that fails its own fill check twice still plays. Measured on the
 # 2026-09-14 render, the taan covered 20 of its 40 beats and the remaining TWENTY were
-# silent — the composition's peak, half empty, with the band vamping under nothing. A weak
-# taan is a tolerable outcome; an absent one is not, so code restates the cell's own material
-# to cover the window rather than leaving the hole.
-_TAAN_MIN_COVER: Final[float] = 0.85
+# silent — the composition's peak, half empty, with the band vamping under nothing. Two later
+# fixes each broke the taan's flow: restating the cell at its END pushed the verified cadence
+# off the sam (placement clipped it), and holding the FIRST note by the shortfall (233435,
+# 2026-10-12) put a slow held note at the launch of a run that is meant never to stop. The
+# shortfall is now filled at the FRONT with the taan's own opening, restated note by note at the
+# pulse it was written in — the run starts earlier, and its cadence still lands on the sam.
 _TAAN_RESTATE_CAP: Final[int] = 500      # a guard: never loop on zero-length notes
 
 
-def _restated_to_window(notes: list[LeadNote], window_beats: float) -> list[LeadNote]:
-    """Restate a short cell's OWN notes until they cover the window. Pure.
-
-    Restating is what a player does when a taan has further to run — the material develops
-    again rather than stopping. It uses no new pitches, so the cell stays as legal and as
-    motif-grown as the verifier found it; placement clips whatever overruns the edge.
-    """
-    total = sum(n.dur for n in notes)
-    if not notes or total <= 0 or total >= _TAAN_MIN_COVER * window_beats:
+def filled_from_front(notes: list[LeadNote], window_beats: float) -> list[LeadNote]:
+    """A taan short of its window, lengthened at the FRONT: its own opening notes, restated in
+    order (cycling when the shortfall is long), run before the launch, so the verified ending
+    still lands on the closing sam. Any remainder smaller than the next note becomes a brief
+    silence before the very first one — a breath before the run, never a gap before the sam.
+    Uses no new pitches and no new durations, so the cell stays as legal and as even as the
+    verifier found it. Pure."""
+    short = window_beats - sum(n.dur for n in notes)
+    source = [n for n in notes if not n.rest and n.dur > 0]
+    if short <= 1e-6 or not source:
         return notes
-    out = list(notes)
+    lead_in: list[LeadNote] = []
     for index in range(_TAAN_RESTATE_CAP):
-        if total >= window_beats - 1e-6:
+        nxt = source[index % len(source)]
+        if sum(n.dur for n in lead_in) + nxt.dur > short + 1e-6:
             break
-        source = notes[index % len(notes)]
-        out.append(source.model_copy())
-        total += source.dur
-    return out
+        lead_in.append(nxt.model_copy())
+    gap = round(short - sum(n.dur for n in lead_in), 4)
+    pause = [LeadNote(swara="S", dur=gap, rest=True)] if gap > 1e-6 else []
+    return [*pause, *lead_in, *notes]
 
 
 # Best-of-N by SEVERITY (2026-10-12): when no take comes back clean, the fewest hard faults
@@ -2180,24 +2199,26 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = No
             _note_craft(events[-1], craft)
             if tries > 1:
                 events.append(_gat_repair_event(_ANTARA, tries, viol))
-        elif is_taan_long(section):                 # the developed peak — motif-grown, arced, burst+space
+        elif is_taan_long(section):                 # the developed peak — motif-grown, arced, flowing
+            reentry = _returning_swara(span, arr, mukhada_cell)
             phrase, tries, viol, craft = _generate_verified_cell(
-                span, arr, memory, gen_fn=gen_fn,
+                _taan_span(span, reentry), arr, memory, gen_fn=gen_fn,
                 verify=lambda c: check_taan(c, motif=arr.motif, window_beats=span.length,
-                                            raga=raga))
+                                            raga=raga, reentry=reentry))
             # A hold past the pluck limit is SILENCE on a sitar — it becomes jhala on its own
             # swara first, so the climax drives into the sam (see the _PLUCK_* block). It runs
             # HERE, before placement, because the tihai below needs the jhala in the cell;
             # `pluck_limited` then holds the same limit on every other section's placed line.
             phrase = phrase.model_copy(update={"notes": animate_long_holds(phrase.notes)})
-            # A short taan is RESTATED to cover its window before anything else touches it —
-            # the tihai must land on the section's final sam, so it is spliced onto the
+            # A short taan is filled from the FRONT before anything else touches it — the
+            # tihai must land on the section's final sam, so it is spliced onto the
             # full-length line, never onto a cell that stops halfway.
             phrase = phrase.model_copy(
-                update={"notes": _restated_to_window(phrase.notes, span.length)})
-            # the gharana cadence, CODE-built (see the _TIHAI_* block): the verified taan's own
-            # closing phrase stated three times across its final avartan, landing on the sam
-            spliced, has_tihai = splice_tihai(phrase.notes, cycle_beats)
+                update={"notes": filled_from_front(phrase.notes, span.length)})
+            # the gharana cadence, CODE-built (see the _TIHAI_* block), ONLY when the composer
+            # asked for it: forced on every long taan it took the climb's second half
+            spliced, has_tihai = (splice_tihai(phrase.notes, cycle_beats)
+                                  if section.tihai and reentry is None else (phrase.notes, False))
             if has_tihai:
                 phrase = phrase.model_copy(update={"notes": spliced})
                 events.append(_tihai_event(span))
@@ -2387,6 +2408,33 @@ def _ring_then_jhala(note: Note, register: int) -> list[Note]:
     ring = note.model_copy(update={"dur": _JHALA_RING})
     return [ring, *place_phrase(strokes, start=note.start + _JHALA_RING,
                                 end=note.start + note.dur, register=register)]
+
+
+def _returning_swara(span: SectionSpan, arr: Arrangement,
+                     head: LeadPhrase | None) -> str | None:
+    """The swara the taan must resolve into: the head's first note when the very next section is
+    a returning mukhada (its sam note IS the arrival), else None (the taan lands on its own)."""
+    spans = section_spans(arr)
+    following = spans[span.index + 1] if span.index + 1 < len(spans) else None
+    if following is None or head is None or not is_mukhada(following.section):
+        return None
+    return reentry_swara(head, 0.0)
+
+
+def _taan_span(span: SectionSpan, reentry: str | None) -> SectionSpan:
+    """The taan's span with its DESTINATION written into its intent (the generator reads the
+    intent): the climb peaks late and runs straight into the returning head's first swara. A taan
+    with a destination never takes a tihai, even when the chart asks for one (Sujit, 2026-10-12:
+    the returning mukhada's first note IS the resolution; on the 233435 live run a requested tihai
+    re-created the gap before that sam the taan had been verified not to leave)."""
+    if reentry is None:
+        return span
+    goal = (f" — DESTINATION: the mukhada returns on the next sam, starting on {reentry}. Build "
+            f"to your peak in the LAST part of the taan, then run the final approach straight "
+            f"into {reentry} on that sam: your last note is a step into {reentry}, no rest, no "
+            f"tihai, no gap")
+    section = span.section.model_copy(update={"intent": (span.section.intent or "") + goal})
+    return SectionSpan(index=span.index, section=section, start=span.start, end=span.end)
 
 
 def make_tihai(notes: list[LeadNote], window_beats: float) -> list[LeadNote] | None:

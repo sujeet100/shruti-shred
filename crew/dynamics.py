@@ -41,6 +41,7 @@ _ENERGY: dict[str, float] = {
     "taan_short": 0.72,
     "taan_long": 1.00,
     "breakdown": 0.88,
+    "takeover": 0.85,       # the guitar carries the head — up from the mukhada, short of the peak
     "tihai": 0.92,
     "outro": 0.22,
 }

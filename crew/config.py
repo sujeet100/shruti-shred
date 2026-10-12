@@ -268,7 +268,7 @@ def canvas_passes() -> int:
         return CANVAS_PASSES
 
 
-def build_llm(model: str, effort: str | None = None):
+def build_llm(model: str, effort: str | None = None, *, timeout_s: int | None = None):
     """Construct a CrewAI LLM at the model's default sampling (no temperature — see the
     note at the top of this module). Lazy import: no crewai cost until called.
 
@@ -290,7 +290,8 @@ def build_llm(model: str, effort: str | None = None):
     """
     from crewai import LLM
     level = effort or reasoning_effort()
-    common: dict = {"client_params": {"http_options": {"timeout": llm_timeout_s() * 1000}}}
+    timeout_ms = (timeout_s or llm_timeout_s()) * 1000
+    common: dict = {"client_params": {"http_options": {"timeout": timeout_ms}}}
     if model.startswith("gemini/"):
         from google.genai import types
 
@@ -320,10 +321,18 @@ def generator_llm():
     return build_llm(flash_model())
 
 
-def composer_llm():
+def composer_llm(*, timeout_s: int | None = None):
     """The calls that CONCEIVE the piece — the chart (Pandit/Riffsmith), the Composer's seed, the
-    joint gat — Flash at `conception_thinking()` (promote to Pro later via RMA_PRO_MODEL)."""
-    return build_llm(flash_model(), effort=conception_thinking())
+    joint gat, the rhythm section — Flash at `conception_thinking()` (promote to Pro later via
+    RMA_PRO_MODEL). `timeout_s` lengthens the per-request limit for a call with a long answer."""
+    return build_llm(flash_model(), effort=conception_thinking(), timeout_s=timeout_s)
+
+
+# The rhythm section writes guitar AND bass for the whole piece in one answer: on 2026-10-12 it ran
+# into the 180 s per-request limit (504 DEADLINE_EXCEEDED) and fell back to the riff path. Its own
+# limit is longer; every other call keeps `llm_timeout_s()`. `RMA_RHYTHM_TIMEOUT_S` overrides.
+def rhythm_section_timeout_s() -> int:
+    return int(os.getenv("RMA_RHYTHM_TIMEOUT_S", "360"))
 
 
 def critic_llm():

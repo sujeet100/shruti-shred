@@ -710,6 +710,8 @@ generate_riff:
         lead's quiet low line.
       - antara: lift the register and OPEN up — wider power chords, less palm-muting, ringing.
       - breakdown: simplify to heavy, sparse, tala-aligned power-chord hits (a tihai-cell feel).
+      - takeover: the guitar carries the GAT itself — code arranges the realised mukhada there
+        (its strokes, its landings as chords, its melody as single notes); keep its rhythm.
       - taan_short: thin out and hold back — the short taan leads; hold ringing chords under it.
       - taan_long (THE CLIMAX): keep DRIVING — the band pushes harder as the sitar's taan gets
         more virtuosic. Simplify the HARMONY (stay on one root; code collapses the climax onto a
@@ -1048,7 +1050,8 @@ assess_composition:
     THE RUBRIC — score each an integer 1-5, and let these anchors set the boundaries:
       structure    — 1 sections stitched together arbitrarily; 3 a workable order; 5 each section leads naturally into the next, and a returning main riff frames the form (verse/chorus-like).
       dynamics     — 1 flat throughout; 3 some variation; 5 the energy clearly builds across the arc.
-      climax       — 1 every section equally intense; 3 a mild peak; 5 an earned peak and a real resolution.
+      climax       — 1 every section equally intense; 3 a mild peak; 5 an earned peak and a real resolution. Read THE TAAN facts: a taan that peaks early and descends, thins out toward its end, ends on a mechanical repeated cell, or stops before the sam (a gap) scores at most 2; 5 needs a late taar peak, rising momentum and a continuous arrival on the sam.
+      handoff      — ONLY when the structure has a "takeover" section (else null): 1 the guitar plays an unrelated riff; 3 the head's rhythm is there but its melody is lost (or a stiff note-for-note copy); 5 unmistakably the gat (its rhythm, accents and structural swaras — read the KINSHIP for the takeover section), idiomatic on guitar (low chords where it lands, its melody as single notes), the second avartan developing the first, and the sitar returning seamlessly on the sam. A takeover quoting the head is NOT a lack of independence.
       motif        — 1 stated once or never; 3 repeated but not developed; 5 introduced, varied and resolved.
       hook         — 1 forgettable, unloopable riff that never returns; 3 serviceable; 5 a memorable, loopable riff with a strong downbeat that RECURS as the song's hook.
       balance      — 1 every voice at full throughout, or the lead silent where it should lead; 3 mostly balanced; 5 real space, and the lead given room AND heard filling it (high audible lead in its spotlight sections).
@@ -1160,7 +1163,9 @@ compose_rhythm_section:
 
     HARD RULES (only these get the part rejected):
       - Every section where the guitar plays has a part: its own guitar cycles, or `same_as` a
-        section that has its own. No part for a section that does not exist.
+        section that has its own — EXCEPT a "takeover" section: there the guitar plays the gat's
+        mukhada and CODE arranges it from the realised head, so write no part for it (lead your
+        previous section into it). No part for a section that does not exist.
       - Every cycle's durations, rests included, add up to exactly one avartan ({cycle_beats}
         beats); no cycle is empty.
       - Every swara is in the raga — roots, chord tones and bass notes — and roots are entered

@@ -126,6 +126,7 @@ _MODE_BY_ROLE: Final[dict[str, RiffMode]] = {
     "antara": RiffMode.PADS, "taan_short": RiffMode.PADS, "taan_long": RiffMode.DRIVE,
     "intro": RiffMode.PADS, "outro": RiffMode.PADS,
     "breakdown": RiffMode.STABS, "tihai": RiffMode.STABS,
+    "takeover": RiffMode.DRIVE,      # the guitar carries the head — it drives
 }
 _MODE_BY_KIND: Final[dict[SectionKind, RiffMode]] = {
     SectionKind.RIFF: RiffMode.DRIVE, SectionKind.MELODY: RiffMode.DRIVE,

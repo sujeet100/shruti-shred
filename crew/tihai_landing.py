@@ -33,7 +33,6 @@ from crew.generators import SectionSpan, section_spans
 LANDING_MAX_BEATS: Final = 1.0     # the landing is a strike, not a new phrase
 _MIN_STATEMENT_NOTES: Final = 2    # one note thrice is a pulse, not a tihai
 _MIN_YIELD_BEATS: Final = 0.1      # a next-section note pushed shorter than this is dropped
-_TIHAI_ROLES: Final = frozenset({"tihai", "taan_long"})
 _EPS: Final = 1e-6
 
 
@@ -42,7 +41,10 @@ def land_tihais(notes: list[Note], arr: Arrangement) -> list[Note]:
     spans = section_spans(arr)
     out = sorted(notes, key=lambda n: n.start)
     for k, span in enumerate(spans):
-        if span.section.form_role in _TIHAI_ROLES:
+        following_role = spans[k + 1].section.form_role if k + 1 < len(spans) else None
+        if span.section.form_role == "tihai" or (span.section.form_role == "taan_long"
+                                                  and span.section.tihai
+                                                  and following_role != "mukhada"):
             following = spans[k + 1] if k + 1 < len(spans) else None
             out = _land_one(out, span, following)
     return out

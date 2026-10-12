@@ -230,3 +230,55 @@ def develop_statements(base: list[RiffNote], section: Section, *, is_final_rhyth
         if variant in _STATEMENTS:
             statement += 1
     return cycles, statement
+
+
+# --------------------------------------------------------------------------- #
+# The TAKEOVER's two cycles — the gat on guitar, stated, then developed.       #
+# --------------------------------------------------------------------------- #
+#
+# Sujit's review (2026-10-12): the second guitar cycle must DEVELOP the first, build toward the
+# sitar's return, and end on a phrase that prepares the next sam — never an unrelated riff. Cycle 1
+# is the interpretation as written. Every later cycle keeps every pitch and every stroke, and
+# raises the intensity: the head's pauses fill with palm-muted chugs on the chord sounding before
+# them, and its APPROACH (the last quarter, the run into the sam) is played as low power chords —
+# a heavy cadence into the sam, where the sitar re-enters on the same accent.
+
+APPROACH_SHARE: Final = 0.25       # the cycle's final share the head runs into the sam with
+_DRIVE_VEL: Final = 6
+_SPLIT_MIN: Final = 1.0            # a melodic note this long is re-struck as two in the driven cycle
+
+
+def _driven(notes: list[RiffNote], cycle_beats: float) -> list[RiffNote]:
+    out: list[RiffNote] = []
+    t, root = 0.0, None
+    approach = cycle_beats * (1.0 - APPROACH_SHARE)
+    for note in notes:
+        if note.rest and root is not None and note.dur <= _MUTE_MAX + _EPS:
+            out.append(RiffNote(swara=root[0], oct=root[1], dur=note.dur, vel=100,
+                                technique="palm_mute"))
+        elif note.rest:
+            out.append(note.model_copy())
+        elif note.single and t >= approach - _EPS:
+            low = note.oct - 1
+            out.append(_bare(note, oct=low, single=None, technique=None,
+                             vel=min(127, note.vel + _DRIVE_VEL)))
+        elif note.single and note.dur >= _SPLIT_MIN - _EPS and note.technique is None:
+            half = round(note.dur / 2, 4)          # the right hand doubles; the line stays
+            out += [note.model_copy(update={"dur": half, "vel": min(127, note.vel + _DRIVE_VEL)}),
+                    note.model_copy(update={"dur": round(note.dur - half, 4),
+                                            "vel": max(1, note.vel - _DRIVE_VEL)})]
+        else:
+            out.append(note.model_copy(update={"vel": min(127, note.vel + _DRIVE_VEL)}))
+        if not note.rest and not note.single:
+            root = (note.swara, note.oct)
+        t += note.dur
+    return out
+
+
+def takeover_cycles(notes: list[RiffNote], bars: int, *, raga: str,
+                    accents: frozenset[float], cycle_beats: float) -> list[list[RiffNote]]:
+    """A takeover section's per-bar cycles: the interpretation, then driven restatements, voiced
+    inside the raga. Pure."""
+    first = [n.model_copy() for n in notes]
+    driven = _voiced(_driven(notes, cycle_beats), raga, accents)
+    return [first] + [driven] * (bars - 1)

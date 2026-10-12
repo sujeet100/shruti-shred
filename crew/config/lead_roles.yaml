@@ -19,9 +19,10 @@ kinds:
     a contrasting B, then A''), and keep a medium pace — but not an even one: a quick
     figure of a beat or two, then a note left to ring.
   taan: |
-    A TAAN: fast and virtuosic. Develop the seed with sequences and fragments,
-    accelerate by mixing triplets and shorter values (never one even duration), climb
-    to ONE peak in the taar, and land the closing phrase on the sam. Never a straight
+    A TAAN: fast, virtuosic and CONTINUOUS. Develop the seed with sequences and
+    fragments in phrases that each keep ONE pulse (dugun 0.5 or chaugun 0.25 notes),
+    speeding up at phrase boundaries, no rests or holds inside the run; climb to ONE
+    peak in the taar late, and run the closing phrase onto the sam. Never a straight
     aroha/avaroha run.
   solo: |
     A SOLO: improvise on the seed — alternate held statements with quick developed runs.
@@ -121,21 +122,27 @@ roles:
         (sequenced palta patterns at speed); chhoot (a swift dashing descent from the
         taar after the peak); sapat (a straight run — ONE dash, never the whole taan);
         or mishra (sapat and koot mixed).
-      - THE ARC is badhat (phrase_plan.register_plan): start in the madhya (not the
-        taar), widen the range gradually, reach the single highest note ONCE past the
-        midpoint, then descend purposefully.
-      - THE RHYTHM is burst and space (phrase_plan.rhythm_plan): a pickup, a sixteenth
-        burst (4+ consecutive 0.25s), a held nyas or a true rest, a bigger burst — keep
-        each burst SHORT (a beat or two) and land it on a note that rings;
-        vary the notes-per-beat (layakari), with at least three distinct durations. At
-        the fastest passages think like a sitarist's TODA: articulate with dir/dara/darada
-        bols rather than more notes.
-      - END IN FLIGHT: the final approach is itself a dense sixteenth run resolving
-        STRAIGHT onto the closing sam, landing on a resting swara — a landing walked to
-        on long notes deflates the climax. Make the closing phrase SHORT and conclusive: code
-        restates it as a TIHAI (your closing phrase three times, the last landing
-        exactly on the sam — the gharana's signature cadence). A brilliant landing
-        matters more than maximum speed.
+      - A TAAN FLOWS. Plan it as phrases first (phrase_plan.taan_phrases): each phrase
+        runs at ONE pulse — dugun (2 notes per matra, every note 0.5) or chaugun (4 per
+        matra, every note 0.25) are the taan's speeds — and the speed changes only at a
+        phrase boundary, upward, as the taan builds. No rests, and no long note inside a
+        run: the only notes allowed to ring longer are a phrase's LAST note (an arrival,
+        up to a beat) and a gamak note. A fast cluster followed by a held note, again and
+        again, is stop-start, not a taan.
+      - THE ARC is badhat (phrase_plan.register_plan + each phrase's reach): a statement
+        of the motif in the madhya, builds that widen the range and quicken the pulse,
+        ONE climax phrase in the later half that CLIMBS to the single highest note near
+        its END (past 60% of the taan), then a SHORT cadence (a quarter of the taan at
+        most) that keeps that pulse into the sam — not a long cascade down. Register
+        changes across phrases, never by a jump inside one.
+      - Every note is ONE mizrab stroke: alternate da and ra. A compound bol (dir, dara)
+        splits its note into faster strokes and breaks the pulse.
+      - END IN FLIGHT, INTO THE DESTINATION: after the peak, a short approach runs
+        straight into the next sam. When the section intent names a DESTINATION (the
+        returning mukhada's first swara), that swara on the sam IS your resolution —
+        your last note is a step into it, and the line runs right up to the sam with no
+        rest. Do not end with a phrase repeated three times; no tihai is added. A
+        brilliant, continuous arrival matters more than maximum speed.
   intro: |
     The ALAP — open the piece by making THIS raga unmistakable in a few CONNECTED phrases: one
     musical argument the gat will answer, not a scale and not a demonstration.

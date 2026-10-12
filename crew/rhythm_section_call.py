@@ -28,6 +28,7 @@ from crew.config import (
     GENERATOR_MAX_ITER,
     GENERATOR_RETRIES,
     composer_llm,
+    rhythm_section_timeout_s,
     structured_output,
 )
 from crew.contracts import Arrangement, Layer, RhythmSection
@@ -87,6 +88,11 @@ def _render_chart(arr: Arrangement) -> str:
         plan = sec.harmony
         harmony = (f"harmony {plan.mode}" + (f" on {' '.join(plan.roots)}" if plan.roots else "")
                    if plan else "harmony modal_pedal")
+        if plan and plan.behaviour:
+            harmony += f", behaving as {plan.behaviour}"
+        if plan and plan.chords:
+            harmony += ", chords " + " | ".join(f"{c.root} {c.voicing} {c.matras:g}"
+                                                 for c in plan.chords)
         guitar = "guitar plays" if "rhythm" in sec.layers else "NO guitar"
         lines.append(f"  section {span.index}: {sec.form_role or sec.kind.value}, {sec.bars} "
                      f"avartan{'s' if sec.bars != 1 else ''}, {guitar}, foreground "
@@ -202,7 +208,8 @@ class _RhythmSectionCrew:
             (config_dir / "tasks.yaml").read_text())["compose_rhythm_section"]
 
     def run(self, arr: Arrangement, inputs: dict[str, Any]) -> RhythmSection:
-        agent = Agent(config=self._agent_config, llm=composer_llm(), allow_delegation=False,
+        agent = Agent(config=self._agent_config, llm=composer_llm(timeout_s=rhythm_section_timeout_s()),
+                      allow_delegation=False,
                       max_iter=GENERATOR_MAX_ITER, max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._task_config, agent=agent, **structured_output(RhythmSection),
                     guardrail=rhythm_section_guardrail(arr), guardrail_max_retries=GENERATOR_RETRIES)

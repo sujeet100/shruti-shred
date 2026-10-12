@@ -111,7 +111,7 @@ def _is_bare(note: RiffNote) -> bool:
 def voice_note(note: RiffNote, raga: str, *, on_accent: bool = False) -> RiffNote:
     """One note, voiced by its function: a bare stroke gains its power chord; a rest, a
     transition or the model's own colour chord is unchanged."""
-    if note.rest or not _is_bare(note):
+    if note.rest or note.single or not _is_bare(note):
         return note
     role = stroke_role(note, on_accent=on_accent)
     if role is StrokeRole.TRANSITION:

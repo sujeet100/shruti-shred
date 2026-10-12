@@ -105,16 +105,21 @@ def render_timed_lead(lead_layers: Sequence[Layer], arr: Arrangement) -> str:
 # --------------------------------------------------------------------------- #
 
 def _playing(arr: Arrangement) -> list[int]:
-    """The sections the guitar plays in."""
-    return [s.index for s in section_spans(arr) if _RHYTHM in s.section.layers]
+    """The sections the guitar plays in that this call writes — a TAKEOVER plays the arranged
+    head instead (`crew/takeover.py`), so it needs no part."""
+    return [s.index for s in section_spans(arr)
+            if _RHYTHM in s.section.layers and s.section.form_role != "takeover"]
 
 
 def _resolved(part: SectionPart, parts: dict[int, SectionPart]) -> SectionPart | None:
-    """The part whose cycles this section plays: its own, or the one `same_as` names."""
-    if part.same_as is None:
-        return part if part.guitar else None
-    target = parts.get(part.same_as)
-    return target if target is not None and target.same_as is None and target.guitar else None
+    """The part whose cycles this section plays: its OWN when it wrote any, else the one `same_as`
+    names (when that one has its own). Own cycles win: Gemini's structured output fills every
+    field, so the 2026-10-12 live answer wrote real cycles AND `"same_as": 0` (the intro) on the
+    same part, and following `same_as` first rejected a playable arrangement."""
+    if part.guitar:
+        return part
+    target = parts.get(part.same_as) if part.same_as is not None else None
+    return target if target is not None and target.guitar else None
 
 
 def _cycle_errors(cycles: list[list[RiffNote]], where: str, arr: Arrangement, *,

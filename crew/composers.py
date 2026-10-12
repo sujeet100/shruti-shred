@@ -134,7 +134,14 @@ _FORM_DESC: Final[dict[str, str]] = {
     "antara": "the second theme — lifts into the higher (taar) octave",
     "taan_short": "a short cadential taan filler (half/one cycle) that resolves into the next mukhada",
     "taan_long": "the developed taan — the SITAR's peak; place it after the antara or before the final mukhada. The climax belongs to the sitar: build it with a LONG taan, or with back-to-back taan sections that accelerate into each other, rather than handing the melody to another instrument. By DEFAULT the band DRIVES it (sustained rhythm chords + climax drums under the taan, the lead guitar joining in unison only for the final avartan); set climax_style 'exposed' only when you want a short exposed breath (a few matras) before the re-entry sam — code thins the band there; it is a held breath, not a cycle without the band",
-    "breakdown": "a heavy, sparse rhythmic climax",
+    "breakdown": "an INDEPENDENT heavy riff — a deliberate departure from the gat (use it only "
+                 "when the piece genuinely wants a new idea; when the guitar should carry the gat "
+                 "itself, use 'takeover')",
+    "takeover": "the GUITAR carries the gat while the sitar rests: code ARRANGES the realised "
+                "mukhada for guitar (low power chords where it lands, its melody as mid-register "
+                "single notes, its strokes kept), the second avartan developing the first and "
+                "running into the sam where the sitar returns. The DEFAULT for a sitar-less section "
+                "in the gat form — the composition continues, only the instrument changes",
     "tihai": "a phrase stated thrice, landing on the sam — a short cadence, at most ONE bar (never the main melody)",
     "outro": "settle back down to a held Sa",
 }
@@ -198,7 +205,9 @@ _DRAFT_SHAPE: Final = """{
     {"kind": "<section kind>", "form_role": "<form role, or null>", "bars": <avartans>,
      "layers": ["<the voices playing>"], "foreground": "<one of its layers>",
      "riff_slot": "<the riff it plays, for a rhythm section>",
-     "harmony": {"mode": "drone | modal_pedal | progression", "roots": ["<raga swaras>"]},
+     "harmony": {"mode": "drone | modal_pedal | progression", "roots": ["<raga swaras>"],
+                 "behaviour": "pedal | slow | phrase | tension | breakdown",
+                 "chords": [{"root": "<raga swara>", "voicing": "<shape>", "matras": <count>}]},
      "intent": "<one line>", "transition": "<one line>"}
   ],
   "registers": {"lead": <octave>, "rhythm": <octave>, "drone": <octave>}
@@ -207,12 +216,14 @@ _DRAFT_SHAPE: Final = """{
 
 _DRAFT_NOTES: Final = """"reasoning" comes FIRST. "registers" is OPTIONAL — omit it to use sensible defaults. "intent" and "transition" are short free-text hints and may be empty.
 "harmony" (OPTIONAL per section) is how the section MOVES under the melody: {"mode": "drone"} (no motion — the tanpura dyad; alaap and climax territory), {"mode": "modal_pedal", "roots": [...]} (the DEFAULT — a Sa pedal under changing colour tones; roots = the colours, empty = the raga's vadi/samvadi), or {"mode": "progression", "roots": [...]} (a short per-avartan chord-root cycle for a CHORUS-like section: 2-4 raga swaras, the LAST one "S" so the cycle comes home). Activate the "clean" layer wherever this harmony should be HEARD as arpeggios.
+"behaviour" and "chords" (OPTIONAL, for a section where the rhythm guitar plays) are the GUITAR's harmony — a changing landscape under the sitar, never a Western progression imposed on the raga. "behaviour": "pedal" (one tonal centre; only the shape moves above home), "slow" (long chords, occasional movement), "phrase" (changes follow the sitar's arrivals — code moves each change to the nearest held note), "tension" (departures hang suspended and resolve to home on the sam), "breakdown" (restrained harmony, heavier articulation). "chords" is ONE avartan's timeline, repeated for each avartan of the section: each a raga swara "root", a "voicing" (power | octave | fifth | sus2 | sus4 | fourths | triad — code builds each inside the raga and falls back to a power chord or octave where a tone is not in it) and its "matras", adding up to exactly one avartan (teentaal: 16 — e.g. home 8, a contrasting chord 4, another 2, a turnaround 2 leading to the sam). Hold home long; change at phrase boundaries; keep the shape plain where the sitar sways; the RHYTHM of the changes is a decision, not a habit.
 "climax_style" (OPTIONAL, only meaningful on the "taan_long" peak): "driven" (the DEFAULT — the metal-solo climax: sustained rhythm chords + climax drums DRIVE the peak while the sitar/guitar taan trades over them) or "exposed" (the alap-style reveal — the band drops out of the taan's final avartan, sitar + tabla carrying it alone). Prefer "driven" for a metal-leaning peak; reserve "exposed" for a deliberately spacious, classical reveal.
-"ending" is how the piece STOPS: "ring_out" (the DEFAULT — the last section's sound decays) or "hard_stop" (code lands ONE stroke on the sam right after the last section — the lead on taar Sa over guitar, bass and kit on low Sa — then silence). For a hard stop, make the last section DRIVE into that sam: a "taan_long" of at least 2 bars closes with a code-built tihai that lands exactly there (a 1-bar taan keeps its own ending, no tihai).
+"ending" is how the piece STOPS: "ring_out" (the DEFAULT — the last section's sound decays) or "hard_stop" (code lands ONE stroke on the sam right after the last section — the lead on taar Sa over guitar, bass and kit on low Sa — then silence). For a hard stop, make the last section DRIVE into that sam.
+"tihai" (OPTIONAL, a "taan_long" only, default false): true closes the taan with a code-built TIHAI (its closing phrase three times, landing on the sam). Use it only when a tihai is genuinely the cadence the piece needs — by default the taan climbs to its peak late and runs straight into the next sam. A taan followed by a returning "mukhada" never takes one (the head's first note is its resolution); code ignores the flag there.
 "anchor" is the ONE idea the whole piece derives from: "gat_first" (the sitar mukhada is the source; the riff is a rhythmic reduction of it) or "riff_first" (the riff is the source; the mukhada quotes its accented notes).
 "form" is the piece's overall FORM: "gat" (the Hindustani instrumental form) or "song" (a metal song built on ONE main riff that RETURNS; form_role optional per section — use intro (FIRST section only)/breakdown/taan_long/tihai/outro (LAST section only) only where they fit, NEVER mukhada/manjha/antara/amad; the guardrail requires one riff_slot, normally "main", on at least two sections).
-THE SITAR STATES THE THEME BEFORE THE GUITAR TAKES IT (both forms): place any riff-only section (a breakdown, a guitar takeover) AFTER the sitar has stated the hook (the mukhada, or the song hook), ideally twice, so the guitar's turn TRANSFORMS a theme the listener already knows (in the gat form, code derives that riff from the head) rather than introducing one before it exists — a guitar section between the alap and the first hook breaks this.
-IN THE GAT FORM: set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (the hook stated, and the hook coming back). The CLIMAX IS THE SITAR'S: build it with a long "taan_long", or with back-to-back taan sections (a "taan_short" running straight into the "taan_long", or two consecutive taans) that accelerate into the peak — do NOT give another instrument a solo section to share the spotlight. At most TWO "taan_long" sections, and only back-to-back if you use two. A MANJHA must sit between mukhada statements — place a "mukhada" section IMMEDIATELY after every "manjha" (head -> manjha -> head, one cohesive cycle), and give that returning mukhada at least 2 bars so the head re-establishes itself. The whole form gets AT MOST ONE section that RESTS the lead (riff-only/breakdown), no longer than 2 bars — the gat is the star and must never vanish for long.
+THE SITAR STATES THE THEME BEFORE THE GUITAR TAKES IT (both forms): place any riff-only section (a breakdown, a guitar takeover) AFTER the sitar has stated the hook (the mukhada, or the song hook), ideally twice, so the guitar's turn TRANSFORMS a theme the listener already knows (in the gat form mark it "takeover": code arranges the head itself for the guitar) rather than introducing one before it exists — a guitar section between the alap and the first hook breaks this.
+IN THE GAT FORM: set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/takeover/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (the hook stated, and the hook coming back). The CLIMAX IS THE SITAR'S: build it with a long "taan_long", or with back-to-back taan sections (a "taan_short" running straight into the "taan_long", or two consecutive taans) that accelerate into the peak — do NOT give another instrument a solo section to share the spotlight. At most TWO "taan_long" sections, and only back-to-back if you use two. A MANJHA must sit between mukhada statements — place a "mukhada" section IMMEDIATELY after every "manjha" (head -> manjha -> head, one cohesive cycle), and give that returning mukhada at least 2 bars so the head re-establishes itself. The whole form gets AT MOST ONE section that RESTS the lead (riff-only/breakdown), no longer than 2 bars — the gat is the star and must never vanish for long.
 Every rhythm section needs a "riff_slot" naming which riff it plays — "main"/"chorus"/"breakdown". Sections that SHARE a slot replay the SAME riff, so REUSE "main" wherever the mukhada/main riff returns, and give the chorus/breakdown their OWN slots to contrast. Lead-only sections need no slot. In EITHER form, at most the FORM BUDGET's number of "taan_long" sections."""
 
 _OUTPUT_SCHEMA: Final = _TURN_EXAMPLE + _DRAFT_NOTES
@@ -493,6 +504,29 @@ def _harmony_error(draft) -> str | None:
                         f"{draft.raga} — a tone the raga only brushes on the way down "
                         f"cannot carry a chord. Pick roots the raga dwells on. Fix and "
                         f"resend.")
+        chord_error = _chords_error(plan, draft, where)
+        if chord_error:
+            return chord_error
+    return None
+
+
+def _chords_error(plan, draft, where: str) -> str | None:
+    """A section's chord timeline: every root a raga swara, and its matras filling exactly one
+    avartan of the tala (the guitar repeats it each avartan)."""
+    if not plan.chords:
+        return None
+    from talas import TALAS
+    roots = [c.root for c in plan.chords]
+    illegal = motif_illegal_in_raga(roots, draft.raga)
+    if illegal:
+        return (f"chord roots {illegal} in {where} are illegal in raga {draft.raga}. Use only "
+                f"{' '.join(RAGAS[draft.raga]['allowed'])}. Fix and resend.")
+    matras = TALAS[draft.tala]["matras"]
+    total = sum(c.matras for c in plan.chords)
+    if abs(total - matras) > 0.01:
+        return (f"the chords in {where} last {total:g} matras; one avartan of "
+                f"{TALAS[draft.tala]['display']} is {matras}. Make their matras add up to "
+                f"{matras}. Fix and resend.")
     return None
 
 
@@ -505,7 +539,7 @@ def brief_budget(brief: CompositionBrief) -> FormBudget:
 type _Check = Callable[[ArrangementDraft, FormBudget], str | None]
 
 # The roles that only mean something inside a gat — a song-form chart may not use them.
-_GAT_ONLY_ROLES: Final = frozenset({"mukhada", "manjha", "antara", "amad"})
+_GAT_ONLY_ROLES: Final = frozenset({"mukhada", "manjha", "antara", "amad", "takeover"})
 
 
 def _numbered(draft: ArrangementDraft, picked: list[int]) -> str:
@@ -573,7 +607,7 @@ def _roleless_error(draft: ArrangementDraft, budget: FormBudget) -> str | None:
     if not roleless:
         return None
     return ("Every section needs a form_role naming its place in the gat form "
-            "(intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). "
+            "(intro/mukhada/manjha/antara/taan_short/taan_long/takeover/breakdown/tihai/outro). "
             f"Add one to section(s): {_numbered(draft, roleless)}. Fix and resend.")
 
 
@@ -669,7 +703,7 @@ def _gat_role_error(draft: ArrangementDraft, budget: FormBudget) -> str | None:
     if not used:
         return None
     return ("This draft declares form 'song', but section(s) "
-            f"{_numbered(draft, used)} use a gat-only role (mukhada/manjha/antara/amad). "
+            f"{_numbered(draft, used)} use a gat-only role (mukhada/manjha/antara/amad/takeover). "
             "Either set form to 'gat' and build the full gat, or keep the song form and "
             "set those sections' form_role to null (or intro/breakdown/taan_long/tihai/"
             "outro where it genuinely fits). Fix and resend.")

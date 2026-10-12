@@ -55,6 +55,7 @@ VEL_CHUG_OFF: Final = 96         # ...and eases off between (never one flat velo
 _RHYTHM: Final = "rhythm"
 _LEAD: Final = "lead"
 _MUKHADA: Final = "mukhada"
+TAKEOVER: Final = "takeover"
 _CONTRAST_ROLES: Final = frozenset({"breakdown", "tihai"})
 _PITCH_MOVES: Final = frozenset({"slide", "long_slide", "pick_scrape", "bend", "hammer_on", "pull_off"})
 _EPS: Final = 1e-6
@@ -249,6 +250,57 @@ def derive_riff_from_mukhada(head: LeadPhrase, *, raga: str, cycle_beats: float,
 
 
 # --------------------------------------------------------------------------- #
+# The TAKEOVER — the guitar PLAYS the mukhada (not a rhythmic reduction).      #
+# --------------------------------------------------------------------------- #
+#
+# Sujit's review of fusion_20261012_213455 (2026-10-12): when the sitar stops, the guitar took an
+# independent low riff and the gat vanished. A takeover is the guitarist ARRANGING the head: its
+# accented and held structural notes become LOW POWER CHORDS (weight, grounding), its moving notes
+# MID-REGISTER SINGLE NOTES (the melodic identity), its chikari a palm-muted chug — the head's own
+# strokes and pauses kept, so its rhythm survives. Not every note a chord (an awkward harmonised
+# melody), not a transcription (single notes an octave up, held notes re-struck as chugs).
+
+MID_OCT_ABOVE_ROOTS: Final = 1     # the melodic line sits an octave above the low chord roots
+
+
+def _single(note: HeadNote, root_oct: int, length: float, onset: float, strong: bool,
+            slide: bool = False) -> RiffNote:
+    on_beat = abs(onset - round(onset)) < _EPS
+    return RiffNote(swara=note.swara, oct=root_oct + MID_OCT_ABOVE_ROOTS, dur=round(length, 4),
+                    vel=VEL_STRONG if strong or on_beat else VEL_SOFT, single=True,
+                    technique="slide" if slide else None)
+
+
+class _Interpreter(_Deriver):
+    """Walks the head once: chords where it lands, single notes where it moves."""
+
+    def strokes(self, note: HeadNote) -> list[RiffNote]:
+        if note.role == "rest" or note.chikari:
+            if note.chikari:
+                return _ornament(note, self._root)
+            return super().strokes(note)
+        root = self._root_of(note)
+        if note.accent or (note.role == "structural" and note.dur > HOLD_SPLIT + _EPS):
+            self._root = root
+            return _structural(note, root)
+        slide = bool(note.meend and self._slides > 0)
+        self._slides -= int(slide)
+        return [_single(note, root[1], p.length, note.onset + p.offset, p.strong,
+                        slide=slide and k == 0) for k, p in enumerate(note.plucks)]
+
+
+def interpret_mukhada(head: LeadPhrase, *, raga: str, cycle_beats: float,
+                      accents: frozenset[float], register: int) -> RiffPattern:
+    """The head ARRANGED for the guitar to carry it (a `takeover` section) — one cycle, voiced,
+    raga-legal: low power chords on its landings, mid-register single notes for its movement. Pure."""
+    anatomy = head_anatomy(head, cycle_beats=cycle_beats, accents=accents)
+    notes = [stroke for note in anatomy for stroke in _Interpreter(anatomy, register).strokes(note)]
+    pattern = RiffPattern(reasoning="the gat head, arranged for the guitar: chords where it lands, "
+                                    "its melody where it moves", notes=_direction_safe(notes, raga))
+    return voice_riff(pattern, raga, accents)
+
+
+# --------------------------------------------------------------------------- #
 # The head riff for a chart — what the riff generator and its prompt read.     #
 # --------------------------------------------------------------------------- #
 
@@ -283,6 +335,16 @@ def head_riff(arr: Arrangement, head: LeadPhrase | None, *,
     if playable is not None:
         violations += playable(pattern)
     return HeadRiff(pattern=pattern, slots=slots, violations=tuple(violations))
+
+
+def takeover_pattern(arr: Arrangement, head: LeadPhrase | None) -> RiffPattern | None:
+    """The head arranged for the guitar, when the chart has a `takeover` section and a realised
+    head (any anchor — a takeover always plays the gat as composed); else None. Pure."""
+    if head is None or not any(s.form_role == TAKEOVER for s in arr.sections):
+        return None
+    pattern = interpret_mukhada(head, raga=arr.raga, cycle_beats=arr.beats_per_bar,
+                                accents=accent_beats(arr), register=arr.registers[_RHYTHM])
+    return pattern if not verify_riff(pattern, cycle_beats=arr.beats_per_bar) else None
 
 
 def _tokens(pattern: RiffPattern) -> str:

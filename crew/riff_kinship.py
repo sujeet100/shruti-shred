@@ -106,5 +106,7 @@ def render_kinship(comp: Composition, arr: Arrangement) -> str:
     lines.append("    how to read it: a guitar statement grown from the head keeps its accents and "
                  "most of its rhythm; later statements may loosen (heavier, a pedal, a push); under "
                  "the sitar the riff thins to the accents. Low everywhere means riff and head are "
-                 "two separate ideas — a deliberate contrast or a seam that interrupts; you decide.")
+                 "two separate ideas — a deliberate contrast or a seam that interrupts; you decide. "
+                 "A TAKEOVER (the guitar carrying the gat) must read as the head: high rhythm and "
+                 "structure there are the point, never a lack of independence.")
     return "\n".join(lines)

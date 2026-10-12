@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 
-from crew.contracts import HeadStage, LeadNote, LeadPhrase, PhrasePlan  # noqa: E402
+from crew.contracts import HeadStage, LeadNote, LeadPhrase, PhrasePlan, TaanPhrase  # noqa: E402
 from crew.gat_verifier import (
     # noqa: E402,
     check_amad,
@@ -576,27 +576,46 @@ def test_antara_must_rest_on_madhya_sa():
     assert any("madhya Sa" in v for v in viol)
 
 
-# --- verify_taan: motif-grown, arced, lands, bursts against space ----------------
+# --- verify_taan: motif-grown, arced, lands, FLOWS to its phrase plan ------------
 
 _MOTIF = ["S", "g", "m", "d"]
 
+# statement (dugun) -> build (chaugun) -> ONE climax from the midpoint -> a short cadence
+_TAAN_PHRASES = [("statement", 2, 2), ("build", 4, 4), ("climax", 3, 4), ("cadence", 3, 4)]
+_STATEMENT = ["S", "g", "m", "d"]
+_BUILD = ["g", "m", "d", "m", "d", "n", "d", "m", "g", "m", "d", "n", "d", "n", "S'", "n"]
+_CLIMAX = ["d", "n", "S'", "g'", "S'", "n", "S'", "g'", "m'", "g'", "S'", "n"]
+_CADENCE = ["d", "n", "d", "m", "g", "m", "d", "m", "g", "m", "g", "S"]
+
+
+def _taan_plan(phrases=_TAAN_PHRASES) -> PhrasePlan:
+    return _PLAN.model_copy(update={"taan_phrases": [
+        TaanPhrase(role=r, beats=b, subdivision=sub) for r, b, sub in phrases]})
+
+
+def _run(swaras: list[str], dur: float) -> list[LeadNote]:
+    return [_n(sw.rstrip("'"), dur, oct=1 if sw.endswith("'") else 0) for sw in swaras]
+
+
+def _taan(*notes: LeadNote, phrases=_TAAN_PHRASES) -> LeadPhrase:
+    return LeadPhrase(phrase_plan=_taan_plan(phrases), notes=list(notes))
+
 
 def _good_taan() -> LeadPhrase:
-    # grows from the motif (S g m d opens it), climbs to one late taar peak, has a 16th
-    # burst + a held nyas + mixed durations, and lands on Sa
-    return _cell(_n("S", 0.5), _n("g", 0.5), _n("m", 0.5), _n("d", 0.5),      # the motif stated
-                 _n("m", 2.0),                                                # a held breath
-                 _n("g", 0.25), _n("m", 0.25), _n("d", 0.25), _n("n", 0.25),  # burst
-                 _n("d", 0.25), _n("n", 0.25), _n("S", 0.25, oct=1), _n("g", 0.25, oct=1),
-                 _n("m", 1.0, oct=1),                                         # the late peak
-                 _n("g", 0.25, oct=1), _n("S", 0.25, oct=1), _n("n", 0.25), _n("d", 0.25),
-                 _n("n", 0.25), _n("d", 0.25), _n("m", 0.25), _n("g", 0.25),  # the cadential run
-                 _n("S", 2.0))                                                # ...lands on the sam
+    # grows from the motif (S g m d opens it), builds dugun -> chaugun, peaks on taar m in the
+    # climax phrase past the middle, and keeps chaugun through the cadence onto Sa
+    return _taan(*_run(_STATEMENT, 0.5), *_run(_BUILD, 0.25), *_run(_CLIMAX, 0.25),
+                 *_run(_CADENCE, 0.25))
 
 
-def test_a_concert_taan_has_no_violations():
-    assert verify_taan(_good_taan(), motif=_MOTIF, window_beats=12.0,
-                       raga="malkauns") == []
+def _hard(cell: LeadPhrase, **kw) -> list[str]:
+    return list(check_taan(cell, motif=_MOTIF, window_beats=12.0,
+                           raga=kw.pop("raga", "malkauns"), **kw).hard)
+
+
+def test_a_flowing_concert_taan_has_no_violations():
+    checks = check_taan(_good_taan(), motif=_MOTIF, window_beats=12.0, raga="malkauns")
+    assert checks.hard == () and checks.craft == ()
 
 
 def test_taan_must_grow_from_the_motif():
@@ -608,20 +627,100 @@ def test_taan_must_grow_from_the_motif():
     assert any("motif" in v for v in viol)
 
 
-def test_taan_needs_a_sixteenth_burst():
-    cell = _cell(_n("S", 0.5), _n("g", 0.5), _n("m", 0.5), _n("d", 0.5), _n("m", 2.0),
-                 _n("S", 0.5, oct=1), _n("n", 0.5), _n("d", 0.5), _n("S", 1.0))
-    viol = _craft(check_taan, cell, motif=_MOTIF, window_beats=7.0, raga="malkauns")
-    assert any("burst" in v for v in viol)
+def test_a_taan_without_a_phrase_plan_is_rejected():
+    cell = _cell(*_good_taan().notes)
+    assert any("taan_phrases" in v for v in _hard(cell))
 
 
-def test_taan_needs_space_against_the_speed():
-    # all motion, no rest, nothing held a beat — it never breathes
-    swaras = ["S", "g", "m", "d", "m", "g", "m", "d", "n", "d", "S", "g"]
-    cell = _cell(*[_n(s, 0.25, oct=(1 if i in (10, 11) else 0)) for i, s in enumerate(swaras)],
-                 _n("m", 0.5, oct=1), _n("g", 0.5), _n("S", 0.5))
-    viol = _craft(check_taan, cell, motif=_MOTIF, window_beats=5.0, raga="malkauns")
-    assert any("breathes" in v for v in viol)
+def test_a_held_note_inside_a_run_breaks_its_pulse():
+    # the 233435 failure: a fast run stalls on a held note mid-phrase, then restarts
+    notes = list(_good_taan().notes)
+    notes[8:12] = [_n("m", 1.0)]                      # four build sixteenths -> one held beat
+    viol = _hard(_taan(*notes))
+    assert any("phrase 2" in v and "off its pulse" in v for v in viol)
+
+
+def test_a_phrase_may_land_on_a_longer_note_at_its_boundary():
+    notes = list(_good_taan().notes)
+    notes[16:20] = [_n("S", 1.0, oct=1)]              # the build's last beat rings on taar Sa
+    assert not any("off its pulse" in v for v in _hard(_taan(*notes)))
+
+
+def test_a_gamak_note_keeps_the_run_moving():
+    notes = list(_good_taan().notes)
+    notes[4:8] = [_n("g", 1.0, gamak_with="m")]       # re-struck by code, so it is not a stall
+    assert not any("off its pulse" in v for v in _hard(_taan(*notes)))
+
+
+def test_a_taan_never_rests():
+    notes = list(_good_taan().notes)
+    notes[4] = _n("g", 0.25, rest=True)
+    assert any("rests mid-flight" in v for v in _hard(_taan(*notes)))
+
+
+def test_a_plan_that_slows_before_its_climax_is_rejected():
+    slowing = [("statement", 2, 4), ("build", 4, 2), ("climax", 3, 4), ("cadence", 3, 4)]
+    viol = _hard(_taan(*_good_taan().notes, phrases=slowing))
+    assert any("pulse slows" in v for v in viol)
+
+
+def test_an_early_climax_and_a_long_descent_are_rejected():
+    early = [("statement", 2, 2), ("climax", 3, 4), ("cadence", 7, 4)]
+    viol = _hard(_taan(*_good_taan().notes, phrases=early))
+    assert any("later half" in v for v in viol)
+    assert any("follow the climax" in v for v in viol)
+
+
+def test_a_cadence_that_slows_down_is_rejected():
+    lazy = [("statement", 2, 2), ("build", 4, 4), ("climax", 3, 4), ("cadence", 3, 2)]
+    assert any("cadence slows" in v for v in _hard(_taan(*_good_taan().notes, phrases=lazy)))
+
+
+def test_a_plan_must_fill_the_window_and_end_on_a_cadence():
+    short = [("statement", 2, 2), ("build", 4, 4), ("climax", 4, 4)]
+    viol = _hard(_taan(*_good_taan().notes, phrases=short))
+    assert any("sum to 10" in v for v in viol)
+    assert any("last phrase is the cadence" in v for v in viol)
+
+
+def test_a_note_ringing_across_a_phrase_boundary_is_rejected():
+    notes = list(_good_taan().notes)
+    notes[3:5] = [_n("d", 0.75)]                      # the statement's last note runs into the build
+    assert any("across the boundary" in v for v in _hard(_taan(*notes)))
+
+
+def test_a_leap_inside_a_phrase_is_rejected():
+    notes = list(_good_taan().notes)
+    notes[4] = _n("g", 0.25, oct=1)                   # d -> taar g mid-phrase: a jump, not a run
+    assert any("jumps" in v for v in _hard(_taan(*notes)))
+
+
+def test_the_highest_note_belongs_to_the_climax_phrase():
+    notes = list(_good_taan().notes)
+    notes[18] = _n("m", 0.25, oct=1)                  # the build already touches taar m...
+    notes[19] = _n("g", 0.25, oct=1)
+    assert any("not in the climax" in v for v in _hard(_taan(*notes)))
+
+
+def test_the_top_note_comes_late_in_the_climax():
+    # the first live take (2026-10-13) peaked as the climax phrase began, at 52%, then cascaded
+    notes = list(_good_taan().notes)
+    notes[20] = _n("m", 0.25, oct=1)                  # the climax OPENS on its top note: 50%
+    assert any("highest note sounds at 50%" in v for v in _hard(_taan(*notes)))
+
+
+def test_every_taan_note_is_one_stroke():
+    # a dir on a sixteenth splits it into two 32nd strokes: a stutter on top of the pulse
+    notes = list(_good_taan().notes)
+    notes[8] = _n(notes[8].swara, 0.25, bol="dir")
+    assert any("compound stroke" in v for v in _hard(_taan(*notes)))
+    notes[8] = _n(notes[8].swara, 0.25, bol="ra")
+    assert not any("compound stroke" in v for v in _hard(_taan(*notes)))
+
+
+def test_a_taan_must_fill_its_window_exactly():
+    notes = list(_good_taan().notes)[:-4]             # a beat short of the sam
+    assert any("exactly 12" in v for v in _hard(_taan(*notes)))
 
 
 def test_taan_must_land_on_a_resting_swara():
@@ -630,6 +729,36 @@ def test_taan_must_land_on_a_resting_swara():
     # judged in Darbari (rests R P S), where n is not a nyas — in Malkauns every swara is
     viol = verify_taan(cell, motif=_MOTIF, window_beats=12.0, raga="darbari")
     assert any("resting swara" in v for v in viol)
+
+
+# --- the taan's destination (2026-10-12: no forced tihai, climax late, straight into the sam) -----
+
+def test_a_taan_runs_into_the_returning_heads_first_swara():
+    cell = _good_taan()                                      # ends on S: one step into R
+    assert verify_taan(cell, motif=_MOTIF, window_beats=12.0, raga="darbari",
+                       reentry="R") == []
+    adrift = _good_taan()
+    adrift.notes[-1] = _n("d", 0.25)                         # d is far from R
+    viol = verify_taan(adrift, motif=_MOTIF, window_beats=12.0, raga="darbari", reentry="R")
+    assert any("returning mukhada" in v for v in viol)
+
+
+def test_a_taan_that_stops_before_the_sam_is_rejected():
+    cell = _good_taan()
+    cell.notes[-1] = _n("S", 1.0)
+    cell.notes.append(_n("S", 1.0, rest=True))               # a gap before the returning sam
+    viol = verify_taan(cell, motif=_MOTIF, window_beats=12.0, raga="darbari", reentry="R")
+    assert any("stops before the sam" in v for v in viol)
+
+
+def test_a_taan_that_peaks_early_is_rejected():
+    early = _cell(_n("S", 0.5), _n("g", 0.5), _n("m", 0.5), _n("d", 0.5),
+                  _n("g", 0.25, oct=1), _n("m", 0.25, oct=1), _n("g", 0.25, oct=1),   # the peak
+                  _n("S", 0.25, oct=1), _n("n", 0.25), _n("d", 0.25), _n("m", 0.25), _n("g", 0.25),
+                  _n("m", 2.0), _n("d", 0.5), _n("m", 0.5), _n("g", 0.5), _n("m", 0.5),
+                  _n("g", 2.0), _n("S", 2.0))
+    viol = verify_taan(early, motif=_MOTIF, window_beats=12.0, raga="malkauns")
+    assert any("arrives too early" in v for v in viol)
 
 
 def test_a_phrase_resting_on_a_non_nyas_before_silence_is_flagged():

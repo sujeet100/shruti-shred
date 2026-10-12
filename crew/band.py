@@ -41,6 +41,7 @@ from crew.generators import (
     drone_layer,
     render_composition,
 )
+from crew.anchor import with_realized_seeds
 from crew.articulation import articulate
 from crew.chikari import chikari_layer, without_chikari
 from crew.chord_floor import lift_antara, on_floor
@@ -48,6 +49,7 @@ from crew.dynamics import apply_dynamics, apply_taan_exposure
 from crew.groove import groove_layer, tabla_layer
 from crew.harmonic_guide import harmonic_guide
 from crew.rhythm_section import realise, with_rhythm_section
+from crew.takeover import takeover_spans, with_takeover
 from crew.ending import apply_ending
 from crew.harmony import clean_layer
 from raga import validate_composition
@@ -55,6 +57,22 @@ from raga import validate_composition
 _ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 _SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
 _OUT_DIR: Final[Path] = _ROOT / "out"
+
+
+def _composed_bass(arr: Arrangement, guitar: Layer | None) -> Layer | None:
+    """The composed rhythm section's own bass, plus the bass code derives under each takeover
+    section (the call writes no part there — the guitar plays the arranged head)."""
+    composed = realise(arr.rhythm_section, arr)[1]
+    spans = takeover_spans(arr)
+    derived = bass_layer(arr, guitar) if spans else None
+    extra = [n for n in (derived.notes if derived else [])
+             if any(s.start - 1e-6 <= n.start < s.end - 1e-6 for s in spans)]
+    if not extra:
+        return composed
+    if composed is None:
+        return derived.model_copy(update={"notes": extra})
+    return composed.model_copy(update={"notes": sorted([*composed.notes, *extra],
+                                                       key=lambda n: n.start)})
 
 
 def _tabla_if_enabled(arr: Arrangement) -> Layer | None:
@@ -95,6 +113,9 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     # the sitar — home held long, the head's one recurring move, the manjha and antara moving
     # (`crew/chord_floor.py`) — and the bass is derived from it.
     composed = arr.rhythm_section is not None
+    # A TAKEOVER section plays the gat's mukhada, arranged from the realised head — on every path
+    # (`crew/takeover.py`): the head is the source of truth, never an independent riff.
+    rhythm = with_takeover(rhythm, arr)
     floor = rhythm if composed else on_floor(rhythm, melody_layers, arr)
     if rhythm is not None:
         # Nothing damps a pitch against the sitar (Sujit kept the grinds by ear, 2026-10-11;
@@ -116,7 +137,7 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     # what must not sustain under it. Derived from the realized lead, so it exists only now —
     # which is exactly why the composers' colour choices could not have known it.
     guide = harmonic_guide(melody_layers, arr)
-    bass = realise(arr.rhythm_section, arr)[1] if composed else bass_layer(arr, floor)
+    bass = (_composed_bass(arr, floor) if composed else bass_layer(arr, floor))
     for derived in (clean_layer(arr, guide=guide), bass,
                     groove_layer(arr, floor), _tabla_if_enabled(arr)):
         if derived is not None:
@@ -207,7 +228,7 @@ def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:
     # The two lines go on as composed — their friction is measured, never repaired. With
     # `RMA_RHYTHM_SECTION` the guitar + bass are ONE call written around the placed sitar.
     lead_layers, rhythm, events = _creative_voices(arr)
-    arr = with_rhythm_section(arr, events)
+    arr = with_rhythm_section(with_realized_seeds(arr, events), events)
     # The Orchestra is CAPABILITY-GATED: it joins ONLY when the chart calls for it (symphonic
     # charts always; other subgenres where the composers added it as colour). It runs after
     # the creative voices so it can ANSWER the realized lead + riff rather than double them.

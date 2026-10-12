@@ -44,6 +44,7 @@ from crew.coexistence import coexistence_report, render_friction
 from crew.density import render_density
 from crew.metrics import composition_metrics, render_metrics
 from crew.riff_kinship import render_kinship
+from crew.taan_report import render_taan
 from crew.user_request import render_request
 from subgenres import SUBGENRES
 
@@ -53,7 +54,7 @@ _ROLE_CRITIC: Final = "critic"
 # interpolation never has to parse these literal braces.
 _RUBRIC_SCHEMA: Final = """{
   "reasoning": "criterion by criterion (structure, dynamics, climax, motif, hook, balance, independence, mood_fit, repetition, performance): the evidence in the score that justifies each score — then which ONE change (if any) would improve the music most",
-  "scores": {"structure": 4, "dynamics": 3, "climax": 3, "motif": 4, "hook": 4, "balance": 3, "independence": 4, "mood_fit": 4, "repetition": 3, "performance": 4},
+  "scores": {"structure": 4, "dynamics": 3, "climax": 3, "motif": 4, "hook": 4, "balance": 3, "independence": 4, "mood_fit": 4, "repetition": 3, "performance": 4, "handoff": null},
   "notes": "a short 2-3 sentence critique a musician can act on",
   "decision": "revise",
   "plan": {"voice": "lead", "sections": [3], "instruction": "end the taan on komal dha and hold it", "preserve": ["the mukhada", "the main riff's rhythm"]}
@@ -190,7 +191,8 @@ def judge_inputs(comp: Composition, arr: Arrangement,
         "ensemble": _render_ensemble(comp),
         "metrics": "\n".join(filter(None, (render_metrics(composition_metrics(comp, arr)),
                                             render_density(comp, arr),
-                                            render_kinship(comp, arr)))),
+                                            render_kinship(comp, arr),
+                                            render_taan(comp, arr)))),
         "friction": render_friction(coexistence_report(comp, arr)),
         "consultation": _render_consultation(rasik),
         "user_request": render_request(arr.request),
@@ -252,7 +254,8 @@ def _verdict_event(verdict: ProducerVerdict) -> DebateEvent:
                 "climax": float(s.climax), "motif": float(s.motif), "hook": float(s.hook),
                 "balance": float(s.balance), "independence": float(s.independence),
                 "mood_fit": float(s.mood_fit), "repetition": float(s.repetition),
-                "performance": float(s.performance)},
+                "performance": float(s.performance),
+                **({"handoff": float(s.handoff)} if s.handoff is not None else {})},
         verdict=verdict.decision,
         data={"reasoning": verdict.reasoning, "decision": verdict.decision,
               "plan": verdict.plan.model_dump() if verdict.plan else None})

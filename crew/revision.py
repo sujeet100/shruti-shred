@@ -95,7 +95,7 @@ def plan_target(arr: Arrangement, plan: RevisionPlan) -> tuple[str, tuple[int, .
 
 def mean_score(scores: ProducerScores) -> float:
     """The Producer's rubric mean — the one number the stop rule compares. Pure."""
-    values = list(scores.model_dump().values())
+    values = [v for v in scores.model_dump().values() if v is not None]   # handoff is optional
     return sum(values) / len(values)
 
 

@@ -365,6 +365,39 @@ ROLES: frozenset[str] = frozenset({"drone", "lead", "rhythm", "drums", "tabla", 
 HarmonyMode = Literal["drone", "modal_pedal", "progression"]
 
 
+# How a section's harmony BEHAVES (2026-10-12 harmony brief — Sujit: "a changing emotional
+# landscape underneath the sitar, not the same two power chords; not a Western progression"):
+# pedal = one tonal centre, colour only above it; slow = long chords with occasional movement;
+# phrase = changes follow the sitar's arrivals; tension = suspended / fourth colours that resolve to
+# home on the sam; breakdown = restrained harmony, heavier articulation. The composer chooses.
+HarmonicBehaviour = Literal["pedal", "slow", "phrase", "tension", "breakdown"]
+# The rhythm guitar's chord SHAPES (`crew/voicings.py` builds each inside the raga, falling back
+# when a tone is illegal): power = root+5th+8ve; octave; fifth = open fifth; sus2; sus4;
+# fourths = root+4th+8ve; triad = the raga's own third and fifth.
+VoicingName = Literal["power", "octave", "fifth", "sus2", "sus4", "fourths", "triad"]
+
+
+class ChordEvent(BaseModel):
+    """One chord of a section's harmonic timeline: a raga swara as its root, a shape, and how many
+    MATRAS it lasts (the tala's count — 8 + 4 + 2 + 2 in teentaal is "root, root, chord 2, chord 3
+    -> chord 4"). Legality in the raga is the composer guardrail's; unknown symbols fail here."""
+    root: str
+    matras: float = Field(gt=0)
+    voicing: VoicingName = "power"
+
+    @field_validator("root")
+    @classmethod
+    def _known_root(cls, v: str) -> str:
+        if v not in SWARAS:
+            raise ValueError(f"unknown swara '{v}' as a chord root")
+        return v
+
+    @field_validator("voicing", mode="before")
+    @classmethod
+    def _norm_voicing(cls, v):
+        return str(v).strip().lower() if v is not None else "power"
+
+
 class HarmonyPlan(BaseModel):
     """One section's harmony decision: the mode, plus its root/colour material.
 
@@ -375,6 +408,10 @@ class HarmonyPlan(BaseModel):
     (the raga isn't known here); this schema only rejects unknown symbols."""
     mode: HarmonyMode = "modal_pedal"
     roots: list[str] = Field(default_factory=list)
+    # The rhythm guitar's harmony (optional — absent, the chord floor's default shape plays):
+    # how it behaves, and ONE avartan's chord timeline, repeated for each avartan of the section.
+    behaviour: Optional[HarmonicBehaviour] = None
+    chords: list[ChordEvent] = Field(default_factory=list)
 
     @field_validator("roots")
     @classmethod
@@ -412,6 +449,8 @@ class SectionKind(str, Enum):
 FormRole = Literal[
     "intro", "mukhada", "manjha", "antara",
     "taan_short", "taan_long", "breakdown", "tihai", "outro",
+    "takeover",   # the GUITAR plays the gat's mukhada (code translates the realised head:
+                  # crew/riff_from_mukhada.py `interpret_mukhada`) — not an independent riff
 ]
 
 # How a peak (`taan_long`) section is REALISED under the metal band — orthogonal to its
@@ -485,6 +524,11 @@ class Section(BaseModel):
                                           # DRIVES the climax — the default, metal-solo side) or
                                           # `exposed` (the alap-style band-drop reveal). Ignored
                                           # off a taan_long. See dynamics.py::apply_taan_exposure.
+    tihai: bool = False                   # close this taan_long with a code-built TIHAI. OPT-IN
+                                          # (Sujit, 2026-10-12): forced on every long taan, it
+                                          # replaced the final avartan, so the climb peaked early,
+                                          # ended on a repeated low cell and left a gap before the
+                                          # sam. By default the taan flows straight into the sam.
 
     @field_validator("riff_slot", mode="before")
     @classmethod
@@ -1185,6 +1229,30 @@ class HeadStage(BaseModel):
         return str(v).strip().lower()
 
 
+TAAN_PHRASE_ROLES: Final = ("statement", "build", "climax", "cadence")
+TAAN_SUBDIVISIONS: Final = (2, 3, 4, 6)   # notes per matra: dugun, tigun, chaugun, chhagun
+
+
+class TaanPhrase(BaseModel):
+    """One phrase of a taan's RHYTHMIC PLAN (the review of `excerpt_233435_taan_revised`: the taan
+    alternated fast clusters with held notes at random, so it read as disconnected phrases). A
+    taan flows at ONE pulse per phrase and changes speed deliberately, at a phrase boundary — so
+    the plan names each phrase's job, its length, its pulse and how high it reaches, in order:
+    a statement of the motif, builds that widen and quicken, ONE climax in the later part, and a
+    cadence that keeps the momentum into the sam. `gat_verifier.check_taan` holds the notes to
+    it. Lenient like the rest of the plan: a stray role or pulse is kept and reported there."""
+    role: str                                 # statement / build / climax / cadence
+    beats: float                              # the phrase's length, in whole matras
+    subdivision: int                          # its pulse, notes per matra (2 dugun ... 6)
+    reach: Optional[str] = None               # the highest swara it climbs to...
+    reach_oct: Optional[int] = None           # ...and that swara's octave (0 madhya, +1 taar)
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def _norm_role(cls, v):
+        return str(v).strip().lower()
+
+
 class PhrasePlan(BaseModel):
     """The compositional plan the Lead commits to BEFORE any notes — so a taan DEVELOPS one
     idea (the way a real improviser does) instead of running the scale (the "drunken
@@ -1204,7 +1272,8 @@ class PhrasePlan(BaseModel):
     # stray-but-harmless value (the plan steers the model; code never executes it).
     taan_style: Optional[str] = None    # ONE dominant style for the whole taan (prompt lists the verified set)
     register_plan: Optional[str] = None  # the arc: where it starts, where the single peak lands, the descent
-    rhythm_plan: Optional[str] = None    # the burst/space shape (e.g. "pickup, burst, held, burst, tihai")
+    rhythm_plan: Optional[str] = None    # legacy free-text shape; a taan now plans `taan_phrases`
+    taan_phrases: Optional[list[TaanPhrase]] = None  # taan only: its phrases in order (see TaanPhrase)
     # Intro/alap architecture (the aochar fills this too — same optional-free-string pattern as
     # the taan fields above). The intro develops ONE recurring motif (its `seed`, drawn from the
     # mukhada head) rather than inventing independent phrases; this names the reveal.
@@ -1318,6 +1387,8 @@ class RiffNote(BaseModel):
     chord: Optional[list[str]] = None
     technique: Optional[RiffTechnique] = None
     rest: bool = False
+    single: Optional[bool] = None   # a deliberate SINGLE NOTE (a melodic line on guitar) — never
+                                    # voiced into a power chord (`riff_voicing.voice_note`)
 
     @model_validator(mode="before")
     @classmethod
@@ -1674,6 +1745,11 @@ class ProducerScores(BaseModel):
                                             # and still arrive as clicks in dead air; nobody here hears
                                             # audio, so this is judged from the computed performance
                                             # numbers, not from listening.)
+    handoff: Optional[int] = Field(default=None, ge=1, le=5)   # ONLY when the piece has a guitar
+                                            # TAKEOVER: is it unmistakably the gat (its rhythm, its
+                                            # structural swaras, its contour), idiomatic on guitar,
+                                            # developing across its avartans, and does the sitar
+                                            # return seamlessly? None when there is no takeover.
 
 
 # What a revision may regenerate: the creative voices. (Bass, drums, drone and the clean guitar
