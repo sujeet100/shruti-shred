@@ -118,6 +118,65 @@ def test_a_pull_to_the_neighbour_dips_the_expression_and_returns():
     assert min(cc11) < 127 and cc11[-1] == 127
 
 
+
+# --- intonation: an ati-komal Ga sung low on purpose -------------------------------------------
+
+def _wheels(path: str, ch: int = 2) -> list[tuple[float, int]]:
+    out, t = [], 0.0
+    for m in mido.MidiFile(path):
+        t += m.time
+        if m.type == "pitchwheel" and m.channel == ch:
+            out.append((t, m.pitch))
+    return out
+
+
+def test_a_note_with_an_intonation_shifts_its_whole_gesture_and_resets_after():
+    from render import MEEND_RANGE
+    shift = round(-0.2 / MEEND_RANGE * 8191)
+    plain = _wheels(_midi(_comp({"swara": "g", "oct": 0, "start": 0.0, "dur": 3.0, "vel": 86,
+                                 "andolan": True, "andolan_st": -0.5})))
+    low = _wheels(_midi(_comp({"swara": "g", "oct": 0, "start": 0.0, "dur": 3.0, "vel": 86,
+                               "andolan": True, "andolan_st": -0.5, "cents": -20})))
+    assert low[0][1] == shift                               # the swara starts where it is sung
+    swing = [v for _, v in low[1:-1]]
+    assert min(swing) == min(v for _, v in plain) + shift   # the sway rides on the low swara
+    assert low[-1][1] == 0                                  # the next attack is tempered again
+
+
+def test_an_intoned_note_never_wakes_the_taraf_and_is_not_an_excursion():
+    path = _midi(_comp({"swara": "g", "oct": 0, "start": 0.0, "dur": 3.0, "vel": 86, "cents": -20}))
+    notes = [m for t in mido.MidiFile(path).tracks for m in t if m.type == "note_on" and m.velocity]
+    assert {m.channel for m in notes} == {2}                # no unbent copy at the tempered pitch
+    assert audit_midi(path) == []                           # -20 c held is intonation, not a fault
+
+
+def test_every_darbari_note_takes_its_shruti_and_an_explicit_value_stands():
+    from crew.contracts import Note
+    from crew.expression import with_intonation
+    line = [Note(swara="g", start=0.0, dur=2.0), Note(swara="g", start=2.0, dur=0.25),
+            Note(swara="S", start=2.25, dur=2.0), Note(swara="d", start=4.25, dur=1.0, cents=0.0)]
+    out = with_intonation(line, "darbari", 120)
+    assert [n.cents for n in out] == [-5.87, -5.87, None, 0.0]   # fast notes too; Sa is Sa
+    assert with_intonation(line, "yaman", 120) == line            # not yet sourced: tempered
+
+
+def test_darbari_is_tuned_by_its_22_shrutis():
+    from raga import INTONATION, SHRUTI_OF
+    from shruti import check_shrutis, shruti
+    assert check_shrutis() == []
+    assert shruti(SHRUTI_OF["darbari"]["g"]).name == "Dayavanti"   # the ati-komal Ga, 32/27
+    assert shruti(SHRUTI_OF["darbari"]["d"]).name == "Kshiti"      # the ati-komal Dha, 128/81
+    assert INTONATION["darbari"] == {"R": 3.91, "g": -5.87, "m": -1.96, "P": 1.96,
+                                     "d": -7.82, "n": -3.91}
+
+
+def test_a_shruti_tuned_ga_keeps_its_taraf_and_passes_the_audit():
+    path = _midi(_comp({"swara": "g", "oct": 0, "start": 0.0, "dur": 3.0, "vel": 86,
+                        "cents": -5.87}))
+    notes = [m for t in mido.MidiFile(path).tracks for m in t if m.type == "note_on" and m.velocity]
+    assert len({m.channel for m in notes}) == 2                   # the taraf rings with it
+    assert audit_midi(path) == []
+
 if __name__ == "__main__":
     tests = [v for k, v in dict(globals()).items() if k.startswith("test_") and callable(v)]
     failed = 0

@@ -15,6 +15,8 @@ the note's `oct` field at render time, so validation ignores octave.
 
 from typing import Final
 
+from shruti import offset_cents
+
 SWARAS = {
     "S": 0, "r": 1, "R": 2, "g": 3, "G": 4, "m": 5,
     "M": 6, "P": 7, "d": 8, "D": 9, "n": 10, "N": 11,
@@ -960,6 +962,25 @@ def andolan_neighbour_st(raga: str, swara: str) -> int:
 # Marwa). Code adds no oscillating ornament (gamak) there. Single source — an EXCLUSION, which
 # errs on the plain side.
 KHADA_RAGAS: frozenset[str] = frozenset({"marwa"})
+
+
+# INTONATION — each swara's pitch off equal temperament, in cents (negative = lower), applied by
+# code to every sitar note (`crew/expression.py`): a sitar's frets sit at the raga's shrutis.
+#
+# Sujit, 2026-10-12: notes are calculated by the HINDUSTANI 22-shruti system (`src/shruti.py`),
+# all of Darbari's swaras, its Ga at Dayavanti 32/27. Darbari's komal Ga is the textbook ATI-KOMAL
+# swara (English Wikipedia "Shruti (music)": "the most well-known example"; ragajunglism.org;
+# Parrikar: "much is made of its ati-komal nature") — the LOWER of komal Ga's two shrutis,
+# Dayavanti 32/27 (294 c), not Ranjani 6/5 (316 c); its komal Dha likewise Kshiti 128/81 (792 c),
+# not Rakta 8/5. The deeper "low Ga" the ear hears comes from the andolan sinking below it.
+# Other ragas stay equal-tempered until their shrutis are sourced.
+SHRUTI_OF: dict[str, dict[str, int]] = {
+    "darbari": {"S": 1, "R": 5, "g": 6, "m": 10, "P": 14, "d": 15, "n": 19},
+}
+INTONATION: dict[str, dict[str, float]] = {
+    raga: {sw: offset_cents(SWARAS[sw], n) for sw, n in table.items() if offset_cents(SWARAS[sw], n)}
+    for raga, table in SHRUTI_OF.items()
+}
 
 
 def check_raga_consistency(name: str) -> list[str]:

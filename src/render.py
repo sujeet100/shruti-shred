@@ -167,6 +167,10 @@ ANDOLAN_SHAPE = ((0.15, 0.0), (0.50, 1.0), (0.95, 0.0))  # (fraction, reach) kno
 # only. It shares the chikari channel, whose level rose 96 -> 112, so its share drops to match.
 TARAF_VEL_SHARE = 0.30       # the sympathetic layer sits well under the plucked string
 TARAF_MIN_MS = 400           # a passing note is gone before a sympathetic string could answer it
+# A note sung at its SHRUTI (Darbari's 22-shruti offsets reach at most 8 cents) is still "from the
+# scale": its unbent taraf differs by a few cents — a slow shimmer under 2 beats a second, not the
+# 40-50 cent clash of a sway — so it keeps the taraf. A larger offset counts as bent.
+TARAF_INTONATION_TOLERANCE_CENTS = 10
 
 # The SLOW (alap) meend — the sources' "very slow in early alap", the raga signposts (Malkauns
 # g held long then glided to S; Jog g->S; Bhairavi n-d-P with a dwell on d) and Sujit's Bageshree
@@ -404,6 +408,24 @@ def _pull_offset(prev_pitch: int | None, pitch: int, cap: int) -> float | None:
     return float(max(-cap, min(cap, prev_pitch - pitch)))
 
 
+_INTONATION_RESET_S = 0.003   # an intoned note hands the wheel back this long before it ends —
+                              # earlier than the next note's kan pre-bend (<= 1 ms) at any tempo
+
+
+class _Intoned:
+    """The MIDI file as ONE note's gestures see it: every pitch-wheel value shifted by the note's
+    intonation (`Note.cents`), everything else passed through untouched."""
+
+    def __init__(self, mf: MIDIFile, shift: int) -> None:
+        self._mf, self._shift = mf, shift
+
+    def addPitchWheelEvent(self, track: int, ch: int, t: float, value: int) -> None:  # noqa: N802
+        self._mf.addPitchWheelEvent(track, ch, t, max(-8192, min(8191, value + self._shift)))
+
+    def __getattr__(self, name: str):
+        return getattr(self._mf, name)
+
+
 def _bends(n: dict) -> bool:
     """Does this note move the pitch wheel — a meend glide, a slide/bend technique, or an
     andolan oscillation? Any of these needs the channel's wide bend range armed up front."""
@@ -412,7 +434,8 @@ def _bends(n: dict) -> bool:
                                       "hammer_on", "pull_off")
             or bool(n.get("andolan"))
             or bool(n.get("grace"))
-            or bool(n.get("gamak_st")))
+            or bool(n.get("gamak_st"))
+            or bool(n.get("cents")))
 
 
 def kan_pitch(sa: int, swara: str, near: int) -> int:
@@ -953,6 +976,16 @@ def build_midi(comp: dict, path: str) -> None:
             # wheel would drag the whole voicing — so it stays a clean fretted attack.
             g_start, g_dur = n["start"], dur
             bent = False                        # did any gesture move this note's pitch?
+            # A note's own INTONATION (`cents`, e.g. an ati-komal swara) shifts every wheel value
+            # its gestures draw, and holds it under a plain note; the next attack resets it.
+            shift = _wheel(n["cents"] / 100) if n.get("cents") and not polyphonic else 0
+            wm = _Intoned(mf, shift) if shift else mf
+            if shift:
+                # a static shruti offset is not a bend: a note within the tolerance keeps its taraf
+                bent = abs(n["cents"]) > TARAF_INTONATION_TOLERANCE_CENTS
+                wm.addPitchWheelEvent(i, ch, round(max(0.0, n["start"] - 0.001), 4), 0)
+                reset = n["start"] + dur - _INTONATION_RESET_S * bpm / 60.0   # before any kan pre-bend
+                mf.addPitchWheelEvent(i, ch, round(max(n["start"], reset), 4), 0)
 
             def _ms(beats: float) -> float:
                 return beats * 60000.0 / bpm
@@ -962,7 +995,7 @@ def build_midi(comp: dict, path: str) -> None:
                 events, used = _kan_wheel(n["start"], dur, bpm, offsets)
                 # with a meend to follow, its own pre-bend replaces the step back to 0
                 for t, val in events[:-1] if target is not None else events:
-                    mf.addPitchWheelEvent(i, ch, t, val)
+                    wm.addPitchWheelEvent(i, ch, t, val)
                 g_start, g_dur = n["start"] + used, max(dur - used, 0.0)
                 bent = True
             # Pitch-wheel gestures: a meend glide to a target swara, a riff
@@ -981,62 +1014,62 @@ def build_midi(comp: dict, path: str) -> None:
                     ramp = slow_meend_wheel(g_start, g_dur, pitch, target, bpm,
                                             meend_via(raga, sa, pitch, target))
                     for t, val in ramp:
-                        mf.addPitchWheelEvent(i, ch, t, val)
+                        wm.addPitchWheelEvent(i, ch, t, val)
                     sway_from = ramp[-1][0] if ramp else g_start   # a slow glide outlasts the settle
                 else:
-                    _render_meend(mf, i, ch, g_start, g_dur, pitch, target, bpm)
+                    _render_meend(wm, i, ch, g_start, g_dur, pitch, target, bpm)
                     sway_from = g_start + _meend_glide_beats(abs(target - pitch), g_dur, bpm)
                 if n.get("andolan"):             # meend INTO the sway: glide, settle, undulate
                     depth = n.get("andolan_st") or -ANDOLAN_DEPTH_ST
-                    _render_andolan(mf, i, ch, sway_from, g_start + g_dur - sway_from, bpm,
+                    _render_andolan(wm, i, ch, sway_from, g_start + g_dur - sway_from, bpm,
                                     shimmer=not fading, after_glide=True, depth_st=depth,
                                     note_ms=_ms(dur), lead_ms=_ms(sway_from - n["start"]))
             elif n.get("technique") == "slide":
                 bent = True
                 st = _pull_offset(connected, sounding, SLIDE_FROM_PREV_MAX) or SLIDE_IN_ST
-                _render_slide(mf, i, ch, n["start"], dur, st=st)
+                _render_slide(wm, i, ch, n["start"], dur, st=st)
             elif n.get("technique") == "long_slide":
                 bent = True
-                _render_slide(mf, i, ch, n["start"], dur,
+                _render_slide(wm, i, ch, n["start"], dur,
                               st=LONG_SLIDE_ST, frac=LONG_SLIDE_FRAC)
             elif n.get("technique") == "pick_scrape":
                 bent = True
-                _render_slide(mf, i, ch, n["start"], dur,
+                _render_slide(wm, i, ch, n["start"], dur,
                               st=SCRAPE_ST, frac=SCRAPE_FRAC)
             elif n.get("technique") in ("hammer_on", "pull_off"):
                 st = _pull_offset(connected, sounding, LEGATO_PULL_MAX)
                 if st is not None:               # no usable previous note: soft attack only
                     bent = True
-                    _render_slide(mf, i, ch, n["start"], dur, st=st, frac=LEGATO_PULL_FRAC)
+                    _render_slide(wm, i, ch, n["start"], dur, st=st, frac=LEGATO_PULL_FRAC)
             elif n.get("technique") == "bend":
                 bent = True
-                _render_bend(mf, i, ch, n["start"], dur, st=n.get("bend_st") or BEND_ST)
+                _render_bend(wm, i, ch, n["start"], dur, st=n.get("bend_st") or BEND_ST)
             elif n.get("pitch_path"):
                 # a measured raga GESTURE (src/gestures.py): draw its whole path, then let a
                 # long held note settle into its slow sway after it, as after a glide
                 events, used = path_wheel(g_start, g_dur, bpm, n["pitch_path"])
                 full = max((abs(v) for _, v in events), default=0)
                 for t, val in events:
-                    mf.addPitchWheelEvent(i, ch, t, val)
+                    wm.addPitchWheelEvent(i, ch, t, val)
                     if full and not fading:
-                        mf.addControllerEvent(i, ch, t, 11,
+                        wm.addControllerEvent(i, ch, t, 11,
                                               127 - round(PULL_CC11_DIP * abs(val) / full))
                 bent = bent or bool(events)
                 rest = g_dur - used
                 if n.get("andolan") and rest > 0:
                     depth = n.get("andolan_st") or -ANDOLAN_DEPTH_ST
-                    bent = _render_andolan(mf, i, ch, g_start + used, rest, bpm,
+                    bent = _render_andolan(wm, i, ch, g_start + used, rest, bpm,
                                            shimmer=not fading, after_glide=True, depth_st=depth,
                                            note_ms=_ms(dur),
                                            lead_ms=_ms(g_start + used - n["start"])) or bent
             elif n.get("andolan"):
                 depth = n.get("andolan_st") or -ANDOLAN_DEPTH_ST
-                bent = _render_andolan(mf, i, ch, g_start, g_dur, bpm, shimmer=not fading,
+                bent = _render_andolan(wm, i, ch, g_start, g_dur, bpm, shimmer=not fading,
                                        depth_st=depth, note_ms=_ms(dur),
                                        lead_ms=_ms(g_start - n["start"])) or bent
             elif n.get("gamak_st"):
                 for t, val in gamak_wheel(g_start, g_dur, bpm, n["gamak_st"]):
-                    mf.addPitchWheelEvent(i, ch, t, val)
+                    wm.addPitchWheelEvent(i, ch, t, val)
                     bent = True
             # The taraf answers only a PLAIN swara — struck and held unbent, long enough for a
             # sympathetic string to ring with it. A bent note (kan, meend, sway, gesture, gamak,

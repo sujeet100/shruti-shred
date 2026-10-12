@@ -1010,6 +1010,17 @@ and build order.
   `out/fusion_20261012_213455_ornaments.wav`: none on the sitar. Demos: `uv run python -m
   crew.ornament_demo darbari` (before/after `out/ornaments_darbari_20261012_222332[_before].wav`).
   Open: guitar pick scrapes clip the wheel (1:27, 1:35). 1186 pure tests.
+  **22-SHRUTI INTONATION (same day; Sujit: "notes as per the 22 shruti system, Hindustani not
+  Carnatic" — all of Darbari's swaras, Ga at Dayavanti 32/27):** `src/shruti.py` (the named
+  Hindustani 22-shruti table, 5-limit JI; sources + FLAG in the module) and
+  `raga.SHRUTI_OF` -> `raga.INTONATION` (Darbari: R +3.91, g -5.87 (ati-komal Dayavanti), m -1.96,
+  P +1.96, d -7.82 (ati-komal Kshiti), n -3.91 cents; other ragas ET until sourced).
+  `expression.with_intonation` stamps `Note.cents` on EVERY sitar note (frets sit at the shruti);
+  the renderer shifts every wheel value of the note (`_Intoned`), holds it, hands the wheel back
+  3 ms before the end; a static offset within `TARAF_INTONATION_TOLERANCE_CENTS` (10) keeps its
+  taraf (a slow shimmer, not a clash). Audit: holds within 35 c = intonation, unison within 10 c =
+  shimmer, mechanical = trajectories through 3+ pitches. A/B: `out/fusion_20261012_213455_shruti.wav`;
+  demo `out/ornaments_darbari_20261012_223642.wav` from 0:32 (Ga ET vs shruti). 1191 pure tests.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

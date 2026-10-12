@@ -10,7 +10,9 @@ the gestures before any live run. Two files, each with a printed cue sheet:
   Darbari   — the ornament-audit set (2026-10-12), at fusion_20261012_213455's own Sa (D) and
               tempo (120): komal Ga andolan after a Re kan, komal Dha andolan in the mandra, a
               Ga<>Ma gamak, the Ma->Ga meend slow and quick, and a whole phrase with the measured
-              Ga loops — the gestures and gamak strokes stamped by the pipeline's own expression.
+              Ga loops — the gestures, gamak strokes and 22-shruti intonation stamped by the
+              pipeline's own expression — and a 22-SHRUTI A/B (Ga at equal temperament vs its
+              shruti, Dayavanti 32/27).
 
 Run: `uv run python -m crew.ornament_demo [raga ...]` -> out/ornaments_<raga>_<timestamp>.wav
 """
@@ -89,7 +91,7 @@ def _bageshree() -> _Cues:
 
 
 def _darbari() -> _Cues:
-    from crew.expression import with_gamak_cells, with_gestures
+    from crew.expression import with_gamak_cells, with_gestures, with_intonation
     c = _Cues(bpm=_DARBARI_BPM, sa=_DARBARI_SA)
     andolan = {"andolan": True, "andolan_st": -0.5}       # Darbari's komal Ga/Dha sway below
     c.add("komal Ga andolan, approached by a Re kan (R (R)g~ R S)",
@@ -110,7 +112,16 @@ def _darbari() -> _Cues:
            ("S", 0, 2, {}), ("n", -1, 1, {}), ("d", -1, 2, {"grace": ["n"], **andolan}),
            ("n", -1, 1, {}), ("P", -1, 2, {}), ("m", -1, 1, {}), ("P", -1, 1, {}),
            ("d", -1, 2, {"grace": ["P"], **andolan}), ("n", -1, 1, {}), ("S", 0, 3, {})])
-    c.notes = with_gestures(with_gamak_cells(c.notes, "darbari", c.bpm), "darbari", c.bpm)
+    for label, cents in (("equal temperament", 0.0), ("its shruti, Dayavanti 32/27", None)):
+        c.add(f"22-SHRUTI A/B: Ga held and swaying at {label} (R (R)g~ R S)",
+              [("R", 0, 1, {}), ("g", 0, 4, {"grace": ["R"], "cents": cents, **andolan}),
+               ("R", 0, 1, {}), ("S", 0, 2, {})])
+        c.add(f"22-SHRUTI A/B: Ga held plain at {label}, against the tanpura",
+              [("R", 0, 1, {}), ("g", 0, 4, {"cents": cents}), ("R", 0, 1, {}),
+               ("S", 0, 2, {})])
+    c.notes = with_intonation(
+        with_gestures(with_gamak_cells(c.notes, "darbari", c.bpm), "darbari", c.bpm),
+        "darbari", c.bpm)                                # every swara at its 22-shruti pitch
     return c
 
 

@@ -50,7 +50,7 @@ from gestures import (
     gesture_for,
     gesture_path,
 )
-from raga import KHADA_RAGAS, RAGAS, SWARAS, andolan_neighbour_st, ascent_step
+from raga import INTONATION, KHADA_RAGAS, RAGAS, SWARAS, andolan_neighbour_st, ascent_step
 
 ANDOLAN_REACH: Final = 0.5       # the swing reaches this share of the way to its neighbour
 # 220 ms let nearly every note of a slow taan swing (a 64-bpm sixteenth is 234 ms), so the
@@ -84,7 +84,19 @@ def express_section(sitar: list[Note], guitar: list[Note], section: Section,
     if section.form_role in _GAMAK_ROLES and arr.raga not in KHADA_RAGAS and not composed_gamak:
         andolit = frozenset(RAGAS[arr.raga].get("andolan", []))
         line = [_with_gamak(n, arr.raga, arr.bpm, andolit) for n in line]
-    return line, [_plain(n) for n in guitar]
+    return with_intonation(line, arr.raga, arr.bpm), [_plain(n) for n in guitar]
+
+
+def with_intonation(line: list[Note], raga: str, bpm: int) -> list[Note]:
+    """Give every note of the raga its swara's shruti offset (`raga.INTONATION` — Darbari by the
+    Hindustani 22-shruti system): a sitar's frets sit at the shrutis, so a fast note is as much
+    in shruti as a held one. A note that already carries an intonation keeps it. Pure."""
+    offsets = INTONATION.get(raga, {})
+    if not offsets:
+        return line
+    return [n.model_copy(update={"cents": offsets[n.swara]})
+            if n.cents is None and n.swara in offsets else n
+            for n in line]
 
 
 def with_gamak_cells(line: list[Note], raga: str, bpm: int) -> list[Note]:

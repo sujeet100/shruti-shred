@@ -30,6 +30,8 @@ import mido
 
 HELD_AWAY_MAX_S: Final = 0.30      # longer than the longest measured hold at a neighbour (245 ms)
 MECHANICAL_MIN_REPEATS: Final = 4  # one exact trajectory this often is a fixed effect
+_MOVING_VALUES: Final = 3          # a trajectory through this many pitches MOVES — a kan's step onto
+                                   # a fret (and a note held at its shruti) is meant to repeat
 _WHEEL_LIMIT: Final = 8191
 _EPS: Final = 1e-6
 
@@ -107,6 +109,9 @@ def _unsettled(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]]) ->
 
 
 _FLAT_CENTS: Final = 5             # a run of wheel values within this of each other is a HOLD
+INTONATION_MAX_CENTS: Final = 35   # a hold this close to the swara is INTONATION (an ati-komal
+                                   # Ga sung low on purpose), not an excursion; the old andolan's
+                                   # fault held at -44
 
 
 def _held_away(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]],
@@ -123,7 +128,8 @@ def _held_away(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]],
             if run is not None and (v == 0 or abs(v - run[1]) > tol):
                 held = t0 - run[0]
                 sounding = any(n.channel == ch and n.on <= run[0] < n.off for n in notes)
-                if sounding and held > HELD_AWAY_MAX_S:
+                cents = abs(run[1]) * bend_range / _WHEEL_LIMIT * 100
+                if sounding and held > HELD_AWAY_MAX_S and cents > INTONATION_MAX_CENTS:
                     cents = run[1] * bend_range / _WHEEL_LIMIT * 100
                     out.append(Finding("held_away", round(run[0], 3), ch,
                                        f"held {held:.2f} s at {cents:+.0f} cents from the swara"))
@@ -134,22 +140,29 @@ def _held_away(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]],
 
 
 _AUDIBLE_OVERLAP_S: Final = 0.02  # a clash shorter than this is not heard (a kan's 1 ms pre-bend)
+UNISON_TOLERANCE_CENTS: Final = 10  # a shruti-tuned note against its tempered taraf: a shimmer
 
 
-def _time_away(events: list[tuple[float, int]], lo: float, hi: float) -> tuple[float, float]:
-    """(seconds the wheel is away from 0 inside [lo, hi), when it first is)."""
+def _tolerance(bend_range: int) -> float:
+    return UNISON_TOLERANCE_CENTS / 100 / bend_range * _WHEEL_LIMIT
+
+
+def _time_away(events: list[tuple[float, int]], lo: float, hi: float,
+               tol: float = 0.0) -> tuple[float, float]:
+    """(seconds the wheel is more than `tol` away from 0 inside [lo, hi), when it first is)."""
     if hi <= lo:
         return 0.0, lo
     points = [(lo, _wheel_at(events, lo))] + [(t, v) for t, v in events if lo < t < hi]
     away, first = 0.0, hi
     for (t0, v), (t1, _) in zip(points, points[1:] + [(hi, 0)]):
-        if v != 0:
+        if abs(v) > tol:
             away += t1 - t0
             first = min(first, t0)
     return away, first
 
 
-def _detuned_unison(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]]) -> list[Finding]:
+def _detuned_unison(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]],
+                    bend_range: int = 12) -> list[Finding]:
     out = []
     bent = _bent_channels(wheel)
     for a in (n for n in notes if n.channel in bent):
@@ -157,7 +170,7 @@ def _detuned_unison(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]
             if b.channel == a.channel or b.channel in bent or b.pitch != a.pitch:
                 continue
             lo, hi = max(a.on, b.on), min(a.off, b.off)
-            away, first = _time_away(wheel[a.channel], lo, hi)
+            away, first = _time_away(wheel[a.channel], lo, hi, _tolerance(bend_range))
             if away >= _AUDIBLE_OVERLAP_S:
                 out.append(Finding("detuned_unison", round(first, 3), b.channel,
                                    f"pitch {b.pitch} rings unbent while channel {a.channel} "
@@ -176,7 +189,7 @@ def _mechanical(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]]) -
     first: dict[tuple, tuple[float, int]] = {}
     for n in notes:
         ev = [(round(t - n.on, 2), v) for t, v in wheel.get(n.channel, []) if n.on <= t < n.off]
-        if len(ev) >= 3 and any(v != 0 for _, v in ev):
+        if len({v for _, v in ev if v != 0}) >= _MOVING_VALUES:     # a swing or glide, not a step
             shape = tuple(ev)
             shapes[shape] += 1
             first.setdefault(shape, (n.on, n.channel))
@@ -190,5 +203,6 @@ def audit_midi(path: str, *, bend_range: int = 12) -> list[Finding]:
     channels are armed with (the renderer's MEEND_RANGE)."""
     notes, wheel = _timeline(path)
     findings = (_unsettled(notes, wheel) + _held_away(notes, wheel, bend_range)
-                + _detuned_unison(notes, wheel) + _clipped(wheel) + _mechanical(notes, wheel))
+                + _detuned_unison(notes, wheel, bend_range) + _clipped(wheel)
+                + _mechanical(notes, wheel))
     return sorted(findings, key=lambda f: f.time_s)
