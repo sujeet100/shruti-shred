@@ -104,6 +104,12 @@ VOICES: Final[dict[str, Voice]] = {
     # alap (a sustained open string, not a re-attacked pluck). Its OWN channel so the melodic
     # sitar's meend/bend wheel never bends it; the GM sitar patch gives the plucked attack + ring.
     "jod": Voice("sitar", 104, 13, pan=64),
+    # The sitar's CHIKARI strings (crew/chikari.py) — the high drone strings the right hand
+    # strums between melody strokes, at the sitar's own pan. Their OWN channel for the same
+    # reason as the jod: a meend/andolan on the melodic channel bends everything on it. The
+    # renderer's unbent sympathetic (taraf) copy shares this channel — both are the sitar's
+    # unbent strings — so the chikari costs no extra companion channel.
+    "chikari": Voice("sitar", 104, 14, pan=44),
 }
 
 

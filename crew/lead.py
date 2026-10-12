@@ -357,7 +357,8 @@ def _placed_note(ln: LeadNote, *, register: int, start: float, dur: float,
                 dur=round(dur, 4), vel=ln.vel, grace=ln.grace,
                 meend_swara=ln.meend_swara if keep_meend else None,
                 meend_oct=_place_meend_oct(ln, register) if keep_meend else None,
-                andolan=andolan, gamak_with=ln.gamak_with)
+                andolan=andolan, gamak_with=ln.gamak_with,
+                chikari=True if ln.bol == "chikari" else None)
 
 
 def _place_meend_oct(ln: LeadNote, register: int) -> int | None:
@@ -639,7 +640,9 @@ def apply_strokes(notes: list[LeadNote]) -> list[LeadNote]:
     (`gats.bol_onsets`), inward strokes strong and returns softer. `chikari` is a bright high-Sa drone-string accent (its melodic swara
     is IGNORED — the chikari strings sound taar Sa). A note with no bol passes through. Each note's
     total duration is preserved, so placement and timing are untouched, and the bol is consumed
-    (cleared) here — the render `Note` never needs a bol field."""
+    (cleared) here — the render `Note` never needs a bol field. The one exception is `chikari`,
+    which KEEPS its bol: placement turns it into `Note.chikari`, the mark that lets the band
+    lift the stroke off the melody onto its own strings (crew/chikari.py)."""
     out: list[LeadNote] = []
     for n in notes:
         if n.rest:                                      # a silent beat carries no stroke — leave it as space
@@ -653,7 +656,7 @@ def apply_strokes(notes: list[LeadNote]) -> list[LeadNote]:
         elif n.bol == "chikari":                       # the bright high-Sa drone-string accent
             out.append(n.model_copy(update={"swara": "S", "oct": max(n.oct, _CHIKARI_OCT),
                                             "vel": _scaled_vel(n.vel, _CHIKARI_VEL), "grace": None,
-                                            "meend_swara": None, "meend_oct": None, "bol": None}))
+                                            "meend_swara": None, "meend_oct": None}))
         else:
             out.append(n)
     return out
@@ -843,7 +846,8 @@ def _voice_taan_call_response(line: list[Note], span: SectionSpan, cycle_beats: 
     join_bars = _JOIN_BARS_SHORT if bars <= _JOIN_THRESHOLD else _JOIN_BARS_LONG
     join_from = span.start + max(0, bars - join_bars) * cycle_beats  # a 1-bar taan just joins
     sitar = list(line)
-    guitar = [n.model_copy() for n in line if n.start >= join_from - _TRADE_EPS]
+    guitar = [n.model_copy() for n in line
+              if n.start >= join_from - _TRADE_EPS and not n.chikari]   # a guitar has no chikari
     return sitar, guitar
 
 
@@ -853,19 +857,21 @@ def _voice_line(line: list[Note], voicing: Voicing, raga: str) -> tuple[list[Not
     Harmony is computed IN THE RAGA — octave = the same swara one octave up; third =
     two scale-degrees up the raga's ladder (`scale_step_up`) — so every harmony note
     is legal by construction. Unison copies the line verbatim (ornaments and all);
-    octave and third strip ornaments for a clean double.
+    octave and third strip ornaments for a clean double. A chikari stroke is the SITAR's
+    drone strings, so the guitar part never plays, doubles or harmonises one.
     """
+    melody = [n for n in line if not n.chikari]
     if voicing is Voicing.SITAR:
         return line, []
     if voicing is Voicing.GUITAR:
-        return [], line
+        return [], melody
     if voicing is Voicing.UNISON:
-        return line, _doubled_hook(line)
+        return line, _doubled_hook(melody)
     if voicing is Voicing.OCTAVE:
-        return line, [_harmony_note(n, n.swara, n.oct + 1) for n in line]
+        return line, [_harmony_note(n, n.swara, n.oct + 1) for n in melody]
     if voicing is Voicing.THIRD:
         harmony: list[Note] = []
-        for n in line:
+        for n in melody:
             swara, octave_delta = scale_step_up(n.swara, raga, 2)
             harmony.append(_harmony_note(n, swara, n.oct + octave_delta))
         return line, harmony

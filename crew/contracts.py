@@ -925,6 +925,10 @@ class Note(BaseModel):
     fade_tail: Optional[float] = None            # a RING-OUT over only the note's LAST this-many beats —
                                                  # the piece's `ring_out` ending: a drone held for the
                                                  # whole piece decays at the end, not from its attack
+    chikari: Optional[bool] = None               # a CHIKARI stroke the composer wrote (bol "chikari",
+                                                 # or the jhala's), marked at placement so the band
+                                                 # lifts it off the melody onto the chikari layer
+                                                 # (crew/chikari.py) — never a melody pitch
 
     @field_validator("swara")
     @classmethod

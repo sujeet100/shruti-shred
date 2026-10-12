@@ -875,6 +875,24 @@ and build order.
   riff on inherited slots (it was written before the head existed). Producer reads per-section
   riff↔head KINSHIP (`crew/riff_kinship.py`: rhythm/accents/structure shares) — measured, never
   enforced. Seam: `extra_onsets` (the sitar's chikari strokes). 1102 pure tests; live-untested.
+- **PHRASE-AWARE CHIKARI — ✅ BUILT (2026-10-12):** a chikari used to render as ONE taar Sa on
+  the melodic sitar channel, bent by every meend/andolan there. Now `crew/chikari.py` (pure)
+  places the drone-string strokes from the PLACED sitar line by section role: ALAP sparse (≤1 an
+  avartan, a breath after a phrase ends, longest silence, stepped off the jod); HEAD one pattern
+  from the head's own empty matras (stroke_line "-", rests, held notes), chosen once so every
+  return brings the SAME chikari back (a taan fill only silences the strokes it covers); LIGHT
+  (manjha/antara/other) 1 an avartan; CLIMAX 2, still only in empty matras (the jhala supplies
+  its own). A planned stroke never lands in a matra with a melody attack. Each stroke strums
+  `chikari_swaras` (high Sa, taar Sa, colour strings an octave down; `CHIKARI_STRING_WEIGHTS`)
+  6 ms per string on its OWN channel (`VOICES["chikari"]`, ch 14, sitar timbre — Indian
+  Ensemble routing applies) and rings until the next stroke or a cap (no re-attack). Written
+  `bol: "chikari"` (and the jhala's) are marked at placement (`Note.chikari`), never doubled
+  on the lead guitar, and lifted off the melody in `band_layers`. The renderer's taraf now
+  SHARES the chikari channel (both unbent sitar strings) so the companion-channel budget is
+  unchanged; dynamics give the chikari the lead's gain. `right_hand_rhythm` / `head_right_hand`
+  expose the combined melody+chikari right hand for the riff. Densities/strum/ring are
+  inference for the ear. Sound check (A old / B new): `uv run python -m crew.chikari_demo`.
+  1087 pure tests (+18 `test_chikari.py`). Live-untested.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

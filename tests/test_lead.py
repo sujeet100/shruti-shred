@@ -330,7 +330,8 @@ def test_the_sitar_plays_the_WHOLE_taan_and_the_guitar_joins_at_the_end():
     assert min(n.start for n in sitar.notes) == 0.0                  # the sitar opens...
     assert max(n.start for n in sitar.notes) >= 32.0                 # ...and never sits out
     assert all(n.start >= 32.0 for n in guitar.notes)                # guitar only in the last bar
-    join_s = [n for n in sitar.notes if n.start >= 32.0]
+    # the jhala's chikari strokes are the sitar's drone strings, which a guitar does not have
+    join_s = [n for n in sitar.notes if n.start >= 32.0 and not n.chikari]
     join_g = list(guitar.notes)
     assert [n.swara for n in join_g] == [n.swara for n in join_s]    # in UNISON, not a third
 

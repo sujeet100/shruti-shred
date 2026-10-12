@@ -42,6 +42,7 @@ from crew.generators import (
     intro_jod_layer,
     render_composition,
 )
+from crew.chikari import chikari_layer, without_chikari
 from crew.dynamics import apply_dynamics, apply_taan_exposure
 from crew.groove import groove_layer, tabla_layer
 from crew.harmonic_guide import harmonic_guide
@@ -76,9 +77,18 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     `apply_dynamics` shapes the energy arc + layer-by-function balance across the sections
     (both no-ops on a chart with no declared gat form). `orchestra_layers` defaults empty,
     so every existing caller and fixture is unchanged.
+
+    The sitar's CHIKARI strokes (crew/chikari.py) leave the melody here: the written ones are
+    lifted off the lead line and, with the strokes the planner places around the sitar's
+    phrases, sound on their own unbent strings beside it. The jod is derived first because
+    the alap's chikari steps off its beats.
     """
+    jod = intro_jod_layer(arr, lead_layers)
+    melody_layers = without_chikari(lead_layers)
+    chikari = chikari_layer(arr, lead_layers, jod=jod)
     layers: list[Layer] = [drone_layer(arr)]
-    layers.extend(lead_layers)
+    layers.extend(melody_layers)
+    layers.extend([chikari] if chikari is not None else [])
     layers.extend(orchestra_layers)   # the cinematic voices (symphonic; sparse colour elsewhere)
     if rhythm is not None:
         # The riff plays AS COMPOSED under the raga line: a half-step against a held sitar
@@ -95,8 +105,8 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     # ONE harmonic guide, read by every accompanying voice: what the melody settles on, and
     # what must not sustain under it. Derived from the realized lead, so it exists only now —
     # which is exactly why the composers' colour choices could not have known it.
-    guide = harmonic_guide(lead_layers, arr)
-    for derived in (clean_layer(arr, guide=guide), intro_jod_layer(arr, lead_layers),
+    guide = harmonic_guide(melody_layers, arr)
+    for derived in (clean_layer(arr, guide=guide), jod,
                     bass_layer(arr, rhythm),
                     groove_layer(arr, rhythm), _tabla_if_enabled(arr)):
         if derived is not None:

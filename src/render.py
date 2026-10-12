@@ -232,7 +232,8 @@ _REVERB_SEND = {"lead": 68, "drone": 48, "rhythm": 30, "bass": 12, "tabla": 78, 
                 # the orchestra lives in a CONCERT HALL: strings/choir wet and cinematic, brass
                 # tighter so its stabs still punch, timpani drier so the low hits stay defined.
                 "orch_strings": 80, "orch_choir": 85, "orch_brass": 55, "orch_timpani": 45,
-                "jod": 58}     # the jod string rings in a little room, like the sitar lead
+                "jod": 58,     # the jod string rings in a little room, like the sitar lead
+                "chikari": 72}  # the high drone strings shimmer a touch wetter than the melody
 _REVERB_SEND_DEFAULT = 40
 
 
@@ -253,7 +254,8 @@ _MIX_LEVEL = {"lead": 92, "drone": 74, "tabla": 115,
               # the orchestra is an ACCOMPANIST, not the star: strings/choir sit under the
               # band, brass a touch more present for its accents, timpani solid on the low end.
               "orch_strings": 82, "orch_choir": 84, "orch_brass": 90, "orch_timpani": 100,
-              "jod": 90}       # the ringing home Sa, present under the melodic sitar (92)
+              "jod": 90,       # the ringing home Sa, present under the melodic sitar (92)
+              "chikari": 84}   # the drone strings sparkle around the melody, never over it
 
 
 def _mix_level(role) -> int | None:
@@ -660,9 +662,22 @@ def gamak_wheel(start: float, dur: float, bpm: float, st: int) -> list[tuple[flo
     return ramp
 
 
-def _taraf_channel(mf: MIDIFile, track: int, layer: dict, used: set[int]) -> int | None:
-    """The sympathetic-string companion for a sitar layer: the first free channel, on the
+def _chikari_channel(layers: list[dict]) -> int | None:
+    """The chikari layer's channel, if the piece has one (crew/chikari.py). The chikari and the
+    taraf are both the sitar's UNBENT strings on the sitar's own patch, so the taraf rides this
+    channel rather than claiming a companion of its own — with the jod, the orchestra and both
+    palm-mute companions in play, a separate one would starve a chug channel."""
+    return next((la["channel"] for la in layers
+                 if la.get("role") == "chikari" and la.get("channel") is not None), None)
+
+
+def _taraf_channel(mf: MIDIFile, track: int, layer: dict, used: set[int],
+                   shared: int | None = None) -> int | None:
+    """The sympathetic-string companion for a sitar layer: the `shared` unbent-string channel
+    when there is one (already set up by its own layer), else the first free channel, on the
     layer's own program, pan and reverb, never bent. None when no channel is free."""
+    if shared is not None and layer.get("instrument") == "sitar":
+        return shared
     ch = next((c for c in range(16) if c != 9 and c not in used), None)
     if ch is None:
         return None
@@ -716,6 +731,7 @@ def build_midi(comp: dict, path: str) -> None:
         mf.addTempo(i, 0, comp["bpm"])
     sa = comp["sa"]
     used_channels = {9} | {la["channel"] for la in layers if la.get("channel") is not None}
+    unbent_strings = _chikari_channel(layers)
     for i, layer in enumerate(layers):
         # A tabla routed to a real tabla soundfont (it carries a `bank`) plays its stroke
         # keys as pitched notes on its own melodic channel — NOT GM percussion. Bank-select
@@ -792,7 +808,7 @@ def build_midi(comp: dict, path: str) -> None:
             if length <= 0:
                 return
             if not taraf:
-                ch_t = _taraf_channel(mf, i, layer, used_channels)
+                ch_t = _taraf_channel(mf, i, layer, used_channels, shared=unbent_strings)
                 if ch_t is None:
                     return
                 taraf.append(ch_t)

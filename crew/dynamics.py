@@ -65,6 +65,8 @@ _BED_DEFAULT: float = 0.85
 # voice that swells section to section. Scaling the jod by the intro's low energy would bury the
 # very home the alap is meant to ring on.
 _ANCHOR_ROLES = frozenset({"drone", "jod"})
+# Layers that are part of another voice's instrument, and so take that voice's balance gain.
+_PART_OF: dict[str, str] = {"chikari": "lead"}
 
 
 def _clamp_vel(v: float) -> int:
@@ -93,7 +95,11 @@ def _role_gain(role: str, section: Section) -> float:
     gat's identity and returns verbatim — it must come back at the strength of its first
     statement even in a riff-foreground section (diagnosed from Sujit's 2026-07-16 render:
     the returning head sat at vel 72 vs its first statement's 80 — exactly the 0.90
-    background scale — and read as 'the sitar got quiet towards the end')."""
+    background scale — and read as 'the sitar got quiet towards the end').
+
+    A voice that is PART of another follows that voice's gain: the chikari strings are the
+    sitar's own right hand, so they rise and fall with the lead rather than sitting as a bed."""
+    role = _PART_OF.get(role, role)
     if role == section.foreground:
         return 1.0
     if role == "rhythm" and section.foreground == "lead":
