@@ -1070,7 +1070,10 @@ and build order.
   `generate_lead(keep=KeptLead)` replaying the run's trace): 0% held, 0 stalls, dugun→chaugun —
   but `dir` stutters and a 54% peak, both now rejected. A/B:
   `out/excerpt_233435_taan_{before,flowing}_20261013_001520.wav`. 1231 pure tests.
-  **Next:** one more live taan with the two new rules (ask).
+  **Chaugun from the first note (Sujit, same day):** no dugun warm-up — the plan's first phrase
+  must be chaugun (`_TAAN_OPENING_PULSE`), never slowing after, chhagun only to quicken near the
+  climax; the build comes from register and line, not speed. 1232 pure tests.
+  **Next:** one more live taan with the new rules (ask).
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

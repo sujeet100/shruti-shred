@@ -276,10 +276,10 @@ dominant style — pick from the section guidance), "register_plan" (the arc in 
 where you start, where the single peak lands, how the cadence arrives), and "taan_phrases"
 (the run's phrases in order, each {"role", "beats", "subdivision", "reach", "reach_oct"}:
 role is statement / build / climax / cadence, beats a whole number of matras, subdivision
-the phrase's ONE pulse in notes per matra — 2 dugun (0.5-beat notes), 4 chaugun (0.25), 3
-or 6 for tigun/chhagun — and reach/reach_oct the highest swara the phrase climbs to; the
-beats sum exactly to the window, e.g. statement 4 @2, build 8 @2, build 8 @4, climax 8 @4,
-cadence 4 @4 for 32 beats). For an INTRO/alap section the plan has ONE more required field (omit it elsewhere): "badhat_plan"
+the phrase's ONE pulse in notes per matra — 4 chaugun (0.25-beat notes) from the first
+phrase, 6 chhagun only to quicken near the climax, never slower — and reach/reach_oct the
+highest swara the phrase climbs to; the beats sum exactly to the window, e.g. statement 4
+@4, build 8 @4, build 8 @4, climax 8 @4, cadence 4 @4 for 32 beats). For an INTRO/alap section the plan has ONE more required field (omit it elsewhere): "badhat_plan"
 (the progressive reveal in one line: the motif fragment phrase 1 states, what each later
 phrase adds, where the widest reach lands). In the notes: "oct" is
 your octave (0 = home; -1 mandra/lower, +1 taar/upper); "vel", "grace", "meend_swara",

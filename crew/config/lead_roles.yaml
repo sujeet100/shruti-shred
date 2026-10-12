@@ -20,8 +20,8 @@ kinds:
     figure of a beat or two, then a note left to ring.
   taan: |
     A TAAN: fast, virtuosic and CONTINUOUS. Develop the seed with sequences and
-    fragments in phrases that each keep ONE pulse (dugun 0.5 or chaugun 0.25 notes),
-    speeding up at phrase boundaries, no rests or holds inside the run; climb to ONE
+    fragments at chaugun (0.25 notes) from the first note to the last, no rests or
+    holds inside the run; climb to ONE
     peak in the taar late, and run the closing phrase onto the sam. Never a straight
     aroha/avaroha run.
   solo: |
@@ -122,15 +122,15 @@ roles:
         (sequenced palta patterns at speed); chhoot (a swift dashing descent from the
         taar after the peak); sapat (a straight run — ONE dash, never the whole taan);
         or mishra (sapat and koot mixed).
-      - A TAAN FLOWS. Plan it as phrases first (phrase_plan.taan_phrases): each phrase
-        runs at ONE pulse — dugun (2 notes per matra, every note 0.5) or chaugun (4 per
-        matra, every note 0.25) are the taan's speeds — and the speed changes only at a
-        phrase boundary, upward, as the taan builds. No rests, and no long note inside a
+      - A TAAN FLOWS. Plan it as phrases first (phrase_plan.taan_phrases): it launches
+        STRAIGHT at chaugun (4 notes per matra, every note 0.25) from its first note —
+        no slower warm-up — and every phrase keeps ONE pulse; near the climax a phrase
+        may quicken to chhagun (6 per matra) at its boundary, never slower. No rests, and no long note inside a
         run: the only notes allowed to ring longer are a phrase's LAST note (an arrival,
         up to a beat) and a gamak note. A fast cluster followed by a held note, again and
         again, is stop-start, not a taan.
       - THE ARC is badhat (phrase_plan.register_plan + each phrase's reach): a statement
-        of the motif in the madhya, builds that widen the range and quicken the pulse,
+        of the motif in the madhya, builds that widen the range at that pulse,
         ONE climax phrase in the later half that CLIMBS to the single highest note near
         its END (past 60% of the taan), then a SHORT cadence (a quarter of the taan at
         most) that keeps that pulse into the sam — not a long cascade down. Register

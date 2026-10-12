@@ -1238,12 +1238,12 @@ class TaanPhrase(BaseModel):
     alternated fast clusters with held notes at random, so it read as disconnected phrases). A
     taan flows at ONE pulse per phrase and changes speed deliberately, at a phrase boundary — so
     the plan names each phrase's job, its length, its pulse and how high it reaches, in order:
-    a statement of the motif, builds that widen and quicken, ONE climax in the later part, and a
-    cadence that keeps the momentum into the sam. `gat_verifier.check_taan` holds the notes to
+    a statement of the motif launched straight at chaugun, builds that widen the range, ONE climax
+    in the later part, and a cadence that keeps the momentum into the sam. `gat_verifier.check_taan` holds the notes to
     it. Lenient like the rest of the plan: a stray role or pulse is kept and reported there."""
     role: str                                 # statement / build / climax / cadence
     beats: float                              # the phrase's length, in whole matras
-    subdivision: int                          # its pulse, notes per matra (2 dugun ... 6)
+    subdivision: int                          # its pulse, notes per matra (4 chaugun, 6 chhagun)
     reach: Optional[str] = None               # the highest swara it climbs to...
     reach_oct: Optional[int] = None           # ...and that swara's octave (0 madhya, +1 taar)
 

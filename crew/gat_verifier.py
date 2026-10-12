@@ -250,9 +250,9 @@ _TAAN_MIN_DURATIONS: Final = 3      # (the antara's) distinct note values — no
 # here was "burst and space" — a sixteenth burst, then a held nyas or a rest, then a bigger burst —
 # and the model wrote exactly that: 29 eighths, 18 sixteenths and ten 1-2 beat holds scattered
 # through the run, half the taan's time on notes of a beat or more. It read as disconnected
-# phrases. A taan runs at ONE pulse per phrase (dugun 2 or chaugun 4 notes a matra, the common
-# taan speeds), changes speed deliberately at a phrase boundary, builds into ONE late climax and
-# keeps its momentum through the cadence into the sam. The phrase plan (`TaanPhrase`) states
+# phrases. A taan runs at ONE pulse per phrase and launches STRAIGHT at chaugun (4 notes a matra —
+# Sujit, 2026-10-13: no dugun warm-up first), may quicken to chhagun at a phrase boundary, never
+# slows, builds into ONE late climax and keeps its momentum through the cadence into the sam. The phrase plan (`TaanPhrase`) states
 # that structure; the notes are held to it. Longer notes are allowed where they are a choice:
 # the LAST note of a phrase (an arrival at its boundary), and a gamak note (re-struck by code,
 # so it keeps moving). Never a rest — the run does not stop.
@@ -261,6 +261,7 @@ _TAAN_PULSES: Final = TAAN_SUBDIVISIONS
 _TAAN_PHRASE_END_MAX: Final = 1.0   # a phrase's final note may ring up to a matra
 _TAAN_GAMAK_MAX: Final = 1.0        # a gamak note (re-struck every ~quarter second) up to a matra
 _TAAN_FINAL_INTO_SAM_MAX: Final = 0.5  # the note that runs into the returning head stays in flight
+_TAAN_OPENING_PULSE: Final = 4     # chaugun from the first note (and so, never slowing, throughout)
 _TAAN_CLIMAX_FROM: Final = 0.5      # the climax phrase starts in the later half...
 _TAAN_PEAK_FROM: Final = 0.6        # ...and its top note sounds past this share of the taan (the
                                     # first live take peaked at 52%, then cascaded 15 beats down)
@@ -1666,7 +1667,7 @@ def _taan_plan_checks(cell: LeadPhrase, window_beats: float,
     if not phrases:
         return ([f"the taan has no phrase plan — fill phrase_plan.taan_phrases: its phrases in "
                  f"order (statement, builds, ONE climax, cadence), each with its beats and its "
-                 f"pulse (subdivision: 2 = dugun, 4 = chaugun notes per matra), summing to "
+                 f"pulse (subdivision: 4 = chaugun, 6 = chhagun notes per matra), summing to "
                  f"{window_beats:g}"], [])
     shape = _taan_plan_shape(phrases, window_beats)
     if shape:
@@ -1723,6 +1724,10 @@ def _taan_build_faults(phrases: list[TaanPhrase], peak: int, window_beats: float
     """Does the plan BUILD — the pulse never slows on the way up, the climax lands in the later
     half, and what follows it is short and keeps moving? Pure."""
     viol: list[str] = []
+    if phrases[0].subdivision < _TAAN_OPENING_PULSE:
+        viol.append(f"the taan opens at {_pulse_name(phrases[0].subdivision)} — launch it straight "
+                    f"at chaugun ({_TAAN_OPENING_PULSE} notes per matra, every note "
+                    f"{1 / _TAAN_OPENING_PULSE:g}) and keep that pulse; quicken only to chhagun")
     rising = [ph.subdivision for ph in phrases[:peak + 1]]
     if any(b < a for a, b in zip(rising, rising[1:])):
         viol.append(f"the taan's pulse slows on the way to its climax ({' -> '.join(map(str, rising))}"

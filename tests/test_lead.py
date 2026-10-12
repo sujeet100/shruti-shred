@@ -1545,10 +1545,9 @@ def test_antara_is_verified_and_rerolled_with_the_arc_feedback():
 # --- the developed taan (taan_long): verified peak ------------------------------
 
 def _flowing_taan_plan() -> PhrasePlan:
-    """A 16-beat taan plan: dugun statement, chaugun build, climax from the midpoint, cadence."""
+    """A 16-beat taan plan, chaugun throughout: statement, build, climax from the midpoint, cadence."""
     return _plan("d").model_copy(update={"taan_phrases": [
-        TaanPhrase(role=r, beats=4, subdivision=sub)
-        for r, sub in (("statement", 2), ("build", 4), ("climax", 4), ("cadence", 4))]})
+        TaanPhrase(role=r, beats=4, subdivision=4) for r in ("statement", "build", "climax", "cadence")]})
 
 
 def _flowing_taan_notes() -> list[LeadNote]:
@@ -1559,7 +1558,7 @@ def _flowing_taan_notes() -> list[LeadNote]:
             oct = 1 if tok.endswith("'") else (-1 if tok.endswith(".") else 0)
             out.append(LeadNote(swara=tok.rstrip("'."), oct=oct, dur=dur))
         return out
-    return (run("d. n. S m g m d m", 0.5)
+    return (run("d. n. S m g m d m g m d n d m g m", 0.25)
             + run("g m d n d m g m d n S' n d n S' n", 0.25)
             + run("d n S' g' S' n S' g' m' g' S' n d n S' n", 0.25)
             + run("d m d n d m g m g S g m g m g S", 0.25))

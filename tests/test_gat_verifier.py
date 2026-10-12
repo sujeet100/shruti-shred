@@ -580,9 +580,9 @@ def test_antara_must_rest_on_madhya_sa():
 
 _MOTIF = ["S", "g", "m", "d"]
 
-# statement (dugun) -> build (chaugun) -> ONE climax from the midpoint -> a short cadence
-_TAAN_PHRASES = [("statement", 2, 2), ("build", 4, 4), ("climax", 3, 4), ("cadence", 3, 4)]
-_STATEMENT = ["S", "g", "m", "d"]
+# all chaugun: statement -> build -> ONE climax from the midpoint -> a short cadence
+_TAAN_PHRASES = [("statement", 2, 4), ("build", 4, 4), ("climax", 3, 4), ("cadence", 3, 4)]
+_STATEMENT = ["S", "g", "m", "d", "m", "g", "m", "d"]
 _BUILD = ["g", "m", "d", "m", "d", "n", "d", "m", "g", "m", "d", "n", "d", "n", "S'", "n"]
 _CLIMAX = ["d", "n", "S'", "g'", "S'", "n", "S'", "g'", "m'", "g'", "S'", "n"]
 _CADENCE = ["d", "n", "d", "m", "g", "m", "d", "m", "g", "m", "g", "S"]
@@ -602,9 +602,9 @@ def _taan(*notes: LeadNote, phrases=_TAAN_PHRASES) -> LeadPhrase:
 
 
 def _good_taan() -> LeadPhrase:
-    # grows from the motif (S g m d opens it), builds dugun -> chaugun, peaks on taar m in the
-    # climax phrase past the middle, and keeps chaugun through the cadence onto Sa
-    return _taan(*_run(_STATEMENT, 0.5), *_run(_BUILD, 0.25), *_run(_CLIMAX, 0.25),
+    # grows from the motif (S g m d opens it), runs chaugun from its first note, peaks on taar m
+    # late in the climax phrase, and keeps chaugun through the cadence onto Sa
+    return _taan(*_run(_STATEMENT, 0.25), *_run(_BUILD, 0.25), *_run(_CLIMAX, 0.25),
                  *_run(_CADENCE, 0.25))
 
 
@@ -635,49 +635,56 @@ def test_a_taan_without_a_phrase_plan_is_rejected():
 def test_a_held_note_inside_a_run_breaks_its_pulse():
     # the 233435 failure: a fast run stalls on a held note mid-phrase, then restarts
     notes = list(_good_taan().notes)
-    notes[8:12] = [_n("m", 1.0)]                      # four build sixteenths -> one held beat
+    notes[12:16] = [_n("m", 1.0)]                     # four build sixteenths -> one held beat
     viol = _hard(_taan(*notes))
     assert any("phrase 2" in v and "off its pulse" in v for v in viol)
 
 
 def test_a_phrase_may_land_on_a_longer_note_at_its_boundary():
     notes = list(_good_taan().notes)
-    notes[16:20] = [_n("S", 1.0, oct=1)]              # the build's last beat rings on taar Sa
+    notes[20:24] = [_n("S", 1.0, oct=1)]              # the build's last beat rings on taar Sa
     assert not any("off its pulse" in v for v in _hard(_taan(*notes)))
 
 
 def test_a_gamak_note_keeps_the_run_moving():
     notes = list(_good_taan().notes)
-    notes[4:8] = [_n("g", 1.0, gamak_with="m")]       # re-struck by code, so it is not a stall
+    notes[8:12] = [_n("g", 1.0, gamak_with="m")]      # re-struck by code, so it is not a stall
     assert not any("off its pulse" in v for v in _hard(_taan(*notes)))
 
 
 def test_a_taan_never_rests():
     notes = list(_good_taan().notes)
-    notes[4] = _n("g", 0.25, rest=True)
+    notes[8] = _n("g", 0.25, rest=True)
     assert any("rests mid-flight" in v for v in _hard(_taan(*notes)))
 
 
 def test_a_plan_that_slows_before_its_climax_is_rejected():
-    slowing = [("statement", 2, 4), ("build", 4, 2), ("climax", 3, 4), ("cadence", 3, 4)]
+    slowing = [("statement", 2, 6), ("build", 4, 4), ("climax", 3, 4), ("cadence", 3, 4)]
     viol = _hard(_taan(*_good_taan().notes, phrases=slowing))
     assert any("pulse slows" in v for v in viol)
 
 
 def test_an_early_climax_and_a_long_descent_are_rejected():
-    early = [("statement", 2, 2), ("climax", 3, 4), ("cadence", 7, 4)]
+    early = [("statement", 2, 4), ("climax", 3, 4), ("cadence", 7, 4)]
     viol = _hard(_taan(*_good_taan().notes, phrases=early))
     assert any("later half" in v for v in viol)
     assert any("follow the climax" in v for v in viol)
 
 
+def test_a_taan_launches_straight_at_chaugun():
+    # Sujit, 2026-10-13: no dugun warm-up — the run is fast from its first note
+    dugun_first = [("statement", 2, 2), ("build", 4, 4), ("climax", 3, 4), ("cadence", 3, 4)]
+    notes = _run(_STATEMENT[:4], 0.5) + list(_good_taan().notes)[8:]
+    assert any("opens at dugun" in v for v in _hard(_taan(*notes, phrases=dugun_first)))
+
+
 def test_a_cadence_that_slows_down_is_rejected():
-    lazy = [("statement", 2, 2), ("build", 4, 4), ("climax", 3, 4), ("cadence", 3, 2)]
+    lazy = [("statement", 2, 4), ("build", 4, 4), ("climax", 3, 4), ("cadence", 3, 2)]
     assert any("cadence slows" in v for v in _hard(_taan(*_good_taan().notes, phrases=lazy)))
 
 
 def test_a_plan_must_fill_the_window_and_end_on_a_cadence():
-    short = [("statement", 2, 2), ("build", 4, 4), ("climax", 4, 4)]
+    short = [("statement", 2, 4), ("build", 4, 4), ("climax", 4, 4)]
     viol = _hard(_taan(*_good_taan().notes, phrases=short))
     assert any("sum to 10" in v for v in viol)
     assert any("last phrase is the cadence" in v for v in viol)
@@ -685,27 +692,27 @@ def test_a_plan_must_fill_the_window_and_end_on_a_cadence():
 
 def test_a_note_ringing_across_a_phrase_boundary_is_rejected():
     notes = list(_good_taan().notes)
-    notes[3:5] = [_n("d", 0.75)]                      # the statement's last note runs into the build
+    notes[7:9] = [_n("d", 0.5)]                       # the statement's last note runs into the build
     assert any("across the boundary" in v for v in _hard(_taan(*notes)))
 
 
 def test_a_leap_inside_a_phrase_is_rejected():
     notes = list(_good_taan().notes)
-    notes[4] = _n("g", 0.25, oct=1)                   # d -> taar g mid-phrase: a jump, not a run
+    notes[8] = _n("g", 0.25, oct=1)                   # then taar g -> m mid-phrase: a jump, not a run
     assert any("jumps" in v for v in _hard(_taan(*notes)))
 
 
 def test_the_highest_note_belongs_to_the_climax_phrase():
     notes = list(_good_taan().notes)
-    notes[18] = _n("m", 0.25, oct=1)                  # the build already touches taar m...
-    notes[19] = _n("g", 0.25, oct=1)
+    notes[22] = _n("m", 0.25, oct=1)                  # the build already touches taar m...
+    notes[23] = _n("g", 0.25, oct=1)
     assert any("not in the climax" in v for v in _hard(_taan(*notes)))
 
 
 def test_the_top_note_comes_late_in_the_climax():
     # the first live take (2026-10-13) peaked as the climax phrase began, at 52%, then cascaded
     notes = list(_good_taan().notes)
-    notes[20] = _n("m", 0.25, oct=1)                  # the climax OPENS on its top note: 50%
+    notes[24] = _n("m", 0.25, oct=1)                  # the climax OPENS on its top note: 50%
     assert any("highest note sounds at 50%" in v for v in _hard(_taan(*notes)))
 
 
