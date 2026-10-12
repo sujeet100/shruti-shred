@@ -861,6 +861,20 @@ and build order.
   with a register-aware arc (a mandra raga reaches DOWN — `gat_verifier.lives_low`), slow
   ornament only. Rasik judges an alap AS an alap. Replay: `out/fusion_20261012_112714_alapfix.wav`.
   1069 pure tests. **Pending:** guruji's slow Ga recording (3 renderings, unaccompanied).
+- **THE RIFF GROWS OUT OF THE MUKHADA — ✅ BUILT (2026-10-12):** in a `gat_first` piece CODE
+  derives the guitar's first statement from the realised head (`crew/riff_from_mukhada.py`) by a
+  preservation hierarchy decided in `crew/head_anatomy.py`: every pluck (each stroke of a dir/
+  dadir) and pause kept, the sam always struck, structural notes as power-chord roots on their
+  beats, passing/neighbour notes and chikari kept as chugs on the sounding root, the first
+  unaccented meend a slide, held notes strike + palm-muted chug run; roots seated low (floor) and
+  direction-safe, voiced by `riff_voicing`. The mukhada slot and every guitar-led section after it
+  (not a breakdown/tihai) play it with NO model call; it then develops by statement
+  (`crew/riff_statements.py`: faithful first, then heavy/pedal and a syncopated tali push; under
+  the sitar only the accents ring). Other slots, a reworked slot, and a head riff failing the hard
+  checks go to the model with it as `{mukhada_riff}` starting material. Overrides a Composer seed
+  riff on inherited slots (it was written before the head existed). Producer reads per-section
+  riff↔head KINSHIP (`crew/riff_kinship.py`: rhythm/accents/structure shares) — measured, never
+  enforced. Seam: `extra_onsets` (the sitar's chikari strokes). 1102 pure tests; live-untested.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

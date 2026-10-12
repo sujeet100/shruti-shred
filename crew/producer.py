@@ -43,6 +43,7 @@ from crew.contracts import (
 from crew.coexistence import coexistence_report, render_friction
 from crew.density import render_density
 from crew.metrics import composition_metrics, render_metrics
+from crew.riff_kinship import render_kinship
 from crew.user_request import render_request
 from subgenres import SUBGENRES
 
@@ -188,7 +189,8 @@ def judge_inputs(comp: Composition, arr: Arrangement,
         "lead_line": _render_lead_line(comp),
         "ensemble": _render_ensemble(comp),
         "metrics": "\n".join(filter(None, (render_metrics(composition_metrics(comp, arr)),
-                                            render_density(comp, arr)))),
+                                            render_density(comp, arr),
+                                            render_kinship(comp, arr)))),
         "friction": render_friction(coexistence_report(comp, arr)),
         "consultation": _render_consultation(rasik),
         "user_request": render_request(arr.request),

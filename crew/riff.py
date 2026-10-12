@@ -89,6 +89,8 @@ from crew.anchor import (
     riff_from_events,
     slot_of,
 )
+from crew.riff_from_mukhada import HeadRiff, head_riff, render_head_riff
+from crew.riff_statements import develop_statements
 from crew.riff_voicing import home_root, render_power_roots, voice_riff
 from crew.lead import render_direction_rule
 from crew.user_request import render_request
@@ -386,8 +388,10 @@ class _RiffContext:
     piece it is told it is the source the head will quote (`arr.anchor` decides)."""
 
     def __init__(self, arr: Arrangement, mukhada: LeadPhrase | None = None) -> None:
+        self._arr = arr
         self._mukhada = mukhada
         self._anchor = arr.anchor
+        self._head_riff = head_riff(arr, mukhada)   # the head on guitar — starting material
         s = SUBGENRES[arr.subgenre]
         r = RAGAS[arr.raga]
         accents = ", ".join(f"beat {a.beat:g} ({a.kind})"
@@ -438,6 +442,7 @@ class _RiffContext:
             "previous": _render_previous(memory),
             "mukhada_line": _render_mukhada_line(self._mukhada, section, self._anchor,
                                                  self._accent_beats),
+            "mukhada_riff": render_head_riff(self._head_riff, self._arr, slot_for(section)),
             "move": move.value,
             "canvas": _render_canvas_for_riff(canvas, move),
             "repair": _render_repair(feedback),
@@ -593,27 +598,38 @@ def _reprise_event(span: SectionSpan, slot: str) -> DebateEvent:
         data={"slot": slot, "reprise": True})
 
 
-def rhythm_layer_from(patterns: dict[int, RiffPattern], arr: Arrangement) -> Layer | None:
+def rhythm_layer_from(patterns: dict[int, RiffPattern], arr: Arrangement,
+                      head_slots: frozenset[str] = frozenset()) -> Layer | None:
     """Assemble the single rhythm layer from already-generated per-section riffs (section
     index -> the base cycle that plays there).
 
     Each section's base cycle is DEVELOPED across its bars into the riff family
     (`develop_section`) — so a recurring riff varies (chugged A', thinned under a taan, doubled
     to land the ending) instead of looping unchanged — then placed and accent-locked. A chart
-    with no declared gat form is placed literally (variant "base"). A section with no riff is
-    skipped. Returns None when nothing plays. Pure — so the studio reuses it."""
+    with no declared gat form is placed literally (variant "base"). A slot in `head_slots` plays
+    the HEAD RIFF and develops by statement instead (`develop_statements`: faithful first, then
+    heavier, making space under the sitar), its count threaded across its sections. A section
+    with no riff is skipped. Returns None when nothing plays. Pure — so the studio reuses it."""
     accents = _accent_beats(arr)
     spans = section_spans(arr)
     playing = [s.index for s in spans if patterns.get(s.index) is not None]
     final_rhythm = playing[-1] if playing else None      # the last section that actually plays a riff
     register = arr.registers[_RHYTHM_ROLE]
+    statements: dict[str, int] = {}                     # head slot -> guitar statements so far
     notes: list[Note] = []
     for span in spans:
         pattern = patterns.get(span.index)
         if pattern is None:
             continue
-        cycles = develop_section(pattern.notes, span.section,
-                                 is_final_rhythm=(span.index == final_rhythm))
+        slot = slot_for(span.section)
+        final = span.index == final_rhythm
+        if slot in head_slots:
+            cycles, statements[slot] = develop_statements(
+                pattern.notes, span.section, is_final_rhythm=final,
+                first_statement=statements.get(slot, 0), raga=arr.raga,
+                accents=frozenset(accents))
+        else:
+            cycles = develop_section(pattern.notes, span.section, is_final_rhythm=final)
         notes.extend(_place_cycles(cycles, start=span.start, cycle_beats=arr.beats_per_bar,
                                    register=register, accent_beats=accents, raga=arr.raga))
     if not notes:
@@ -623,8 +639,23 @@ def rhythm_layer_from(patterns: dict[int, RiffPattern], arr: Arrangement) -> Lay
                  channel=voice.channel, pan=voice.pan, notes=notes)
 
 
+def _head_take(span: SectionSpan, arr: Arrangement, riff: HeadRiff) -> RiffPattern:
+    """The head riff at the shared generation boundary — voiced and texture-finished like any
+    take (it already passed the hard checks, so no re-roll can fire)."""
+    return voiced_and_verified(lambda feedback: riff.pattern, span.section, arr)
+
+
+def _head_event(span: SectionSpan, pattern: RiffPattern, slot: str,
+                cycle_beats: float) -> DebateEvent:
+    event = _riff_event(span, pattern, slot, cycle_beats)
+    event.text = f"{slot} riff: derived from the gat head — " + event.text.split(": ", 1)[1]
+    event.data["from_head"] = True
+    return event
+
+
 def generate_riff(arr: Arrangement, *, gen_fn: RiffFn,
-                  keep: dict[str, RiffPattern] | None = None) -> tuple[Layer | None, list[DebateEvent]]:
+                  keep: dict[str, RiffPattern] | None = None, head: LeadPhrase | None = None,
+                  rework: frozenset[str] = frozenset()) -> tuple[Layer | None, list[DebateEvent]]:
     """Fill the rhythm layer across the arrangement's rhythm-active sections.
 
     A riff is written ONCE PER SLOT and REUSED wherever that slot recurs — so the main
@@ -637,7 +668,14 @@ def generate_riff(arr: Arrangement, *, gen_fn: RiffFn,
     `keep` (a REVISE): slots already settled — they play as before and count as memory, so
     `gen_fn` fires only for the slots the plan's sections play. The pass always ends with a
     `riff_realized_event`, the library a later revise keeps.
+
+    `head` (a gat_first piece's realised mukhada): the slots that inherit it (`derived_slots`)
+    play the HEAD RIFF derived by code — no model call — and develop by statement. A slot in
+    `rework` (a revise targeting it), or a head riff that fails the hard checks, goes to `gen_fn`
+    instead, whose prompt shows the head riff as its starting material.
     """
+    derived = head_riff(arr, head)
+    head_slots = derived.slots if derived is not None else frozenset()
     events: list[DebateEvent] = []
     patterns: dict[int, RiffPattern] = {}
     library: dict[str, RiffPattern] = dict(keep or {})   # slot -> its one-cycle riff
@@ -653,6 +691,12 @@ def generate_riff(arr: Arrangement, *, gen_fn: RiffFn,
                 order.append(slot)
             else:
                 events.append(_reprise_event(span, slot))
+        elif (derived is not None and derived.playable and slot in head_slots
+              and slot not in rework):              # the guitar takes up the sitar's head
+            pattern = _head_take(span, arr, derived)
+            library[slot] = pattern
+            order.append(slot)
+            events.append(_head_event(span, pattern, slot, arr.beats_per_bar))
         else:                                        # a new slot — write a riff that contrasts the rest
             memory = [RiffMemo(s, library[s]) for s in order]
             pattern = gen_fn(span, arr, memory)
@@ -666,7 +710,7 @@ def generate_riff(arr: Arrangement, *, gen_fn: RiffFn,
             seeded = True
         patterns[span.index] = pattern
 
-    layer = rhythm_layer_from(patterns, arr)
+    layer = rhythm_layer_from(patterns, arr, head_slots)
     if layer is None:
         events.append(DebateEvent(type=EventType.INFO, agent="Riff", role=_ROLE_GENERATOR,
                                   text="no rhythm-active sections in this arrangement"))
@@ -681,7 +725,9 @@ def revise_riff(arr: Arrangement, library: dict[str, RiffPattern], targets: list
     A targeted main slot is genuinely re-written — the plan has authority over the seed riff."""
     target_slots = {slot_for(span.section) for span in section_spans(arr) if span.index in targets}
     keep = kept_riffs(library, target_slots)
-    return generate_riff(arr, gen_fn=_LLMRiff(arr, hook_seed_for_riff(arr), agent_key), keep=keep)
+    head = hook_seed_for_riff(arr)
+    return generate_riff(arr, gen_fn=_LLMRiff(arr, head, agent_key), keep=keep, head=head,
+                         rework=frozenset(target_slots))
 
 
 def mukhada_riff_from_events(events: list[DebateEvent]) -> RiffPattern | None:
@@ -695,13 +741,15 @@ def mukhada_riff_from_events(events: list[DebateEvent]) -> RiffPattern | None:
 def compose_riff(arr: Arrangement,
                  mukhada: LeadPhrase | None = None) -> tuple[Layer | None, list[DebateEvent]]:
     """Run the real (LLM-backed) riff generation for a chart. `mukhada` (optional) is the
-    sitar's cached gat head of a `gat_first` piece — when given, the mukhada-role riff is
-    prompted as its rhythmic reduction, so the band hears the head IN the riff. A
+    sitar's cached gat head of a `gat_first` piece — when given, the slots that inherit it play
+    the HEAD RIFF derived from it by code (`crew/riff_from_mukhada.py`, no model call), so the
+    band hears the head IN the riff, and every other slot's prompt shows it as material. A
     `riff_first` piece runs this BEFORE the lead (no head yet), and its mukhada riff is
     published for the gat to quote (`mukhada_riff_from_events`). With no `mukhada` given, the
     chart's own seed is used (`hook_seed_for_riff`) — so a REVISE of the riff still reduces the
     head instead of being handed nothing."""
-    return generate_riff(arr, gen_fn=_LLMRiff(arr, mukhada or hook_seed_for_riff(arr)))
+    head = mukhada or hook_seed_for_riff(arr)
+    return generate_riff(arr, gen_fn=_LLMRiff(arr, head), head=head)
 
 
 class _SeededRiff:
@@ -724,9 +772,13 @@ class _SeededRiff:
 def compose_seeded_riff(arr: Arrangement, *, agent_key: str = "composer",
                         others: RiffFn | None = None) -> tuple[Layer | None, list[DebateEvent]]:
     """The DEVELOP half of the single Composer for the riff: the seed riff plays the main slot,
-    the other slots are composed by the `composer` persona. `others` is injectable for tests."""
-    fallback = others or _LLMRiff(arr, hook_seed_for_riff(arr), agent_key)
-    return generate_riff(arr, gen_fn=_SeededRiff(arr, fallback))
+    the other slots are composed by the `composer` persona. In a gat_first gat the realised head
+    (stored as `seed_hook` once the gat call composed it) takes precedence on the slots that
+    inherit it: the seed riff was written before the head existed, so it cannot be the head's
+    reduction. `others` is injectable for tests."""
+    head = hook_seed_for_riff(arr)
+    fallback = others or _LLMRiff(arr, head, agent_key)
+    return generate_riff(arr, gen_fn=_SeededRiff(arr, fallback), head=head)
 
 
 def riff_schema() -> str:

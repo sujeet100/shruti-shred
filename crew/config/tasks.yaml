@@ -676,6 +676,12 @@ generate_riff:
     THE RIFF AND THE SITAR'S GAT HEAD — one idea, and which of you seeds it:
     {mukhada_line}
 
+    THE HEAD, ON GUITAR — your STARTING MATERIAL when the piece has one. The guitar inherits the
+    head's IDENTITY, not every note: its accents and the arrival on the sam (keep them), its
+    structural roots and their order (keep them), its pauses (keep them); its exact rhythm values,
+    octave and density are yours to develop:
+    {mukhada_riff}
+
     THE RIFFS YOU ALREADY WROTE (the memory of the piece so far, octave in parentheses,
     +X = a power chord on that note):
     {previous}
@@ -687,8 +693,9 @@ generate_riff:
     where you deliberately depart; then a later section can return to the main riff.
 
     SHAPE IT TO ITS GAT ROLE ({form_role}) — the riff's job in the composition:
-      - mukhada: the main HOOK under the gat — your own figure, with enough SPACE (rests) for the
-        gat/sitar to speak.
+      - mukhada: the main HOOK under the gat — grown out of the head when the piece is gat_first
+        (THE HEAD, ON GUITAR above), your own figure when it is riff_first — with enough SPACE
+        (rests) for the gat/sitar to speak.
       - manjha: SIMPLER than the mukhada — the gat's low, calm bridge; settle onto ringing
         chordal support (keep the riff's DNA in the chord roots) and leave the space to the
         lead's quiet low line.
@@ -1046,8 +1053,9 @@ assess_composition:
     GROUND EVERY SCORE:
       - Justify each integer 1-5 in `reasoning` before you commit it, from the score above.
       - Ground scores in the MEASURED FACTS where they apply (dynamics/climax in the energy
-        curve and ornament rate, motif in motif_share, hook and structure in the riff form —
-        riff_recurrence (does the main riff RETURN?) and riff_variety — repetition in
+        curve and ornament rate, motif in motif_share and the riff ↔ gat-head kinship (does the
+        guitar's riff grow out of the sitar's head, or interrupt it?), hook and structure in the
+        riff form — riff_recurrence (does the main riff RETURN?) and riff_variety — repetition in
         riff_recurrence, motif_recurrence and section_variety, independence in the lead/riff
         and bass/riff and drums/tabla overlaps, balance in the register overlaps, the
         everyone-playing fraction and the audible lead per section). When your score departs
