@@ -118,9 +118,13 @@ def main_riff_slot(arr: Arrangement) -> str | None:
 
 def is_song_hook(section: Section, arr: Arrangement) -> bool:
     """In the SONG form the sitar's hook RECURS with the main riff: a lead section over the main
-    slot replays `seed_hook` (the gat form's equivalent is the mukhada). False without a seed."""
+    slot replays `seed_hook` (the gat form's equivalent is the mukhada). False without a seed,
+    and False for a section with a role of its own — an intro, a taan, a tihai or an outro is
+    NOT the hook even over the main riff (2026-10-12: the Darbari song's intro, taan and outro
+    sat on 'main', so the alap was composed as a one-avartan hook cell — nine seconds of sitar in
+    a 24-second intro — and the climax taan replayed the hook verbatim)."""
     return (arr.form == "song" and arr.seed_hook is not None and _LEAD in section.layers
-            and slot_of(section) == main_riff_slot(arr))
+            and section.form_role is None and slot_of(section) == main_riff_slot(arr))
 
 
 def hook_from_events(events: list[DebateEvent]) -> LeadPhrase | None:

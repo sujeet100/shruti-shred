@@ -146,6 +146,15 @@ def test_the_main_slot_plays_the_seed_riff_and_only_other_slots_are_composed():
     assert proposals[0].data["slot"] == "main"
 
 
+def test_a_section_with_its_own_role_is_never_the_song_hook():
+    # the 2026-10-12 song: intro, taan_long and outro on the 'main' slot all replayed the hook
+    arr = _seeded_song()
+    lead_spans = [s for s in section_spans(arr) if "lead" in s.section.layers]
+    for role in ("intro", "taan_long", "tihai", "outro"):
+        roled = lead_spans[0].section.model_copy(update={"form_role": role})
+        assert not is_song_hook(roled, arr), role
+
+
 def test_the_song_hook_recurs_and_loops_over_the_main_riff():
     arr = _seeded_song()
 
