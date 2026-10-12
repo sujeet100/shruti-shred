@@ -7,8 +7,12 @@ the gestures before any live run. Two files, each with a printed cue sheet:
               unstruck kan in the pakad, and a gamak run;
   Bageshree — Sujit's Ma->Ga: a slow reverse bend vs the quick gat pull, ga swaying UP toward
               ma after a Ma kan, and a slow meend D->m that rests on Pa on the way down.
+  Darbari   — the ornament-audit set (2026-10-12), at fusion_20261012_213455's own Sa (D) and
+              tempo (120): komal Ga andolan after a Re kan, komal Dha andolan in the mandra, a
+              Ga<>Ma gamak, the Ma->Ga meend slow and quick, and a whole phrase with the measured
+              Ga loops — the gestures and gamak strokes stamped by the pipeline's own expression.
 
-Run: `uv run python -m crew.ornament_demo` -> out/ornaments_<raga>_<timestamp>.wav
+Run: `uv run python -m crew.ornament_demo [raga ...]` -> out/ornaments_<raga>_<timestamp>.wav
 """
 
 from __future__ import annotations
@@ -26,6 +30,8 @@ from crew.generators import VOICES
 _BPM: Final = 60            # slow enough that every hold clears the 1-second andolan gate
 _SA: Final = 64             # E, the opener's key
 _GAP: Final = 2.0           # silence between cues, in beats
+_DARBARI_SA: Final = 62     # D — fusion_20261012_213455's own key...
+_DARBARI_BPM: Final = 120   # ...and tempo
 
 
 @dataclass
@@ -34,9 +40,11 @@ class _Cues:
     notes: list[Note] = field(default_factory=list)
     sheet: list[tuple[float, str]] = field(default_factory=list)
     t: float = 0.0
+    bpm: int = _BPM
+    sa: int = _SA
 
     def add(self, label: str, phrase: list[tuple[str, int, float, dict]]) -> None:
-        self.sheet.append((self.t * 60 / _BPM, label))
+        self.sheet.append((self.t * 60 / self.bpm, label))
         for swara, octave, dur, extra in phrase:
             self.notes.append(Note(swara=swara, oct=octave, start=self.t, dur=dur, vel=96, **extra))
             self.t += dur
@@ -80,6 +88,32 @@ def _bageshree() -> _Cues:
     return c
 
 
+def _darbari() -> _Cues:
+    from crew.expression import with_gamak_cells, with_gestures
+    c = _Cues(bpm=_DARBARI_BPM, sa=_DARBARI_SA)
+    andolan = {"andolan": True, "andolan_st": -0.5}       # Darbari's komal Ga/Dha sway below
+    c.add("komal Ga andolan, approached by a Re kan (R (R)g~ R S)",
+          [("R", 0, 1, {}), ("g", 0, 3, {"grace": ["R"], **andolan}), ("R", 0, 1, {}),
+           ("S", 0, 2, {})])
+    c.add("komal Dha andolan in the mandra (n (n)d~ n P)",
+          [("n", -1, 1, {}), ("d", -1, 3, {"grace": ["n"], **andolan}), ("n", -1, 1, {}),
+           ("P", -1, 2, {})])
+    c.add("gamak: Ga swung with Ma, re-struck on the stroke grid",
+          [("S", 0, 1, {}), ("g", 0, 2, {"gamak_with": "m"}), ("R", 0, 1, {}), ("S", 0, 2, {})])
+    c.add("meend: Ma down to Ga, slow (alap)",
+          [("m", 0, 3, {"meend_swara": "g", "meend_style": "slow"}), ("R", 0, 1, {}),
+           ("S", 0, 2, {})])
+    c.add("meend: Ma down to Ga, quick (gat)",
+          [("m", 0, 2, {"meend_swara": "g"}), ("R", 0, 1, {}), ("S", 0, 2, {})])
+    c.add("a phrase: S R g(loop to Ma) m R S, n (n)d~ n P, m P (P)d~ n S",
+          [("S", 0, 1, {}), ("R", 0, 1, {}), ("g", 0, 1, {}), ("m", 0, 1, {}), ("R", 0, 1, {}),
+           ("S", 0, 2, {}), ("n", -1, 1, {}), ("d", -1, 2, {"grace": ["n"], **andolan}),
+           ("n", -1, 1, {}), ("P", -1, 2, {}), ("m", -1, 1, {}), ("P", -1, 1, {}),
+           ("d", -1, 2, {"grace": ["P"], **andolan}), ("n", -1, 1, {}), ("S", 0, 3, {})])
+    c.notes = with_gestures(with_gamak_cells(c.notes, "darbari", c.bpm), "darbari", c.bpm)
+    return c
+
+
 def _composition(raga: str, cues: _Cues) -> Composition:
     sitar, drone = VOICES["sitar"], VOICES["drone"]
     end = cues.t
@@ -88,13 +122,16 @@ def _composition(raga: str, cues: _Cues) -> Composition:
     tanpura = Layer(role="drone", instrument=drone.instrument, program=drone.program,
                     channel=drone.channel, pan=drone.pan,
                     notes=[Note(swara="S", oct=-1, start=0.0, dur=end, vel=50),
-                           Note(swara="P" if raga == "bhairav" else "m", oct=-2, start=0.0,
+                           Note(swara="m" if raga == "bageshree" else "P", oct=-2, start=0.0,
                                 dur=end, vel=42)])
-    return Composition(raga=raga, sa=_SA, bpm=_BPM,
+    return Composition(raga=raga, sa=cues.sa, bpm=cues.bpm,
                        tala={"name": "teentaal", "beats_per_bar": 16.0}, layers=[tanpura, lead])
 
 
-def main() -> int:
+_SETS: Final = {"bhairav": _bhairav, "bageshree": _bageshree, "darbari": _darbari}
+
+
+def main(argv: list[str]) -> int:
     from crew.generators import render_composition
 
     root = Path(__file__).resolve().parents[1]
@@ -103,7 +140,8 @@ def main() -> int:
         print("-> render skipped (fluidsynth or soundfont not found)")
         return 1
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    for raga, cues in (("bhairav", _bhairav()), ("bageshree", _bageshree())):
+    for raga in argv or list(_SETS):
+        cues = _SETS[raga]()
         comp = _composition(raga, cues)
         wav = render_composition(comp, out_dir=root / "out", name=f"ornaments_{raga}_{stamp}",
                                  soundfont=soundfont)
@@ -114,4 +152,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

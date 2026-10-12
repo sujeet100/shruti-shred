@@ -148,15 +148,20 @@ def test_an_upward_andolan_never_dips_below_the_swara():
     assert min(vals) == 0 and max(vals) > 0
 
 
-def test_the_andolan_holds_at_its_turns():
-    # "multiple meend in succession, punctuated by delicate holds" — the edge is a plateau
+def test_the_andolan_touches_its_edge_without_holding_there():
+    # v4 (2026-10-12): a flat hold at the far edge read as a note gone flat, not a swing — the
+    # wave touches the periphery and turns, and sinks faster than it returns
     vals = [v for _, v in _andolan_wheel(0.0, 6.0, 60, depth_st=-1.0)]
     deepest = min(vals)
     run = longest = 0
     for v in vals:
         run = run + 1 if v == deepest else 0
         longest = max(longest, run)
-    assert longest >= 3
+    assert longest <= 2
+    first = vals.index(deepest)
+    back = next(i for i in range(first, len(vals)) if vals[i] == 0)
+    sink = first - next(i for i in range(first, -1, -1) if vals[i] == 0)
+    assert back - first > sink                            # the return is the slower half
 
 
 def test_a_slow_meend_holds_its_source_and_rests_on_the_swaras_between():
@@ -187,13 +192,15 @@ def test_a_gamak_swings_to_the_neighbour_and_back_a_few_times():
     assert gamak_wheel(0.0, 0.05, 120, 2) == []           # too short to swing
 
 
-def test_a_swaying_note_gets_an_unbent_sympathetic_layer():
+def test_only_a_plain_held_swara_wakes_the_taraf():
+    # Sujit, 2026-10-12: "play taraf only when the note is from the scale — any bent note should
+    # not trigger taraf" (an unbent copy under a sway beat 40-50 cents against the string)
     import mido
     lead = {"role": "lead", "instrument": "sitar", "program": 104, "channel": 2,
             "notes": [{"swara": "g", "oct": 0, "start": 0.0, "dur": 4.0, "vel": 100,
                        "andolan": True, "andolan_st": 1.0},
-                      {"swara": "m", "oct": 0, "start": 4.0, "dur": 0.5, "vel": 100,
-                       "andolan": True, "andolan_st": 1.0}]}           # too short to sway
+                      {"swara": "m", "oct": 0, "start": 4.0, "dur": 2.0, "vel": 100},   # plain, held
+                      {"swara": "P", "oct": 0, "start": 6.0, "dur": 0.2, "vel": 100}]}  # passing
     comp = {"raga": "bageshree", "sa": 60, "bpm": 60,
             "tala": {"name": "teentaal", "beats_per_bar": 16}, "layers": [lead]}
     path = os.path.join(os.environ.get("TMPDIR", "/tmp"), "rma_test_taraf.mid")
@@ -201,8 +208,8 @@ def test_a_swaying_note_gets_an_unbent_sympathetic_layer():
     msgs = [m for t in mido.MidiFile(path).tracks for m in t]
     os.remove(path)
     others = [m for m in msgs if m.type == "note_on" and m.velocity > 0 and m.channel != 2]
-    assert len(others) == 1                                # only the swaying note gets one
-    assert others[0].note == 63 and others[0].velocity < 100
+    assert len(others) == 1                                # only the plain held Ma gets one
+    assert others[0].note == 65 and others[0].velocity < 100
     assert not any(m.type == "pitchwheel" and m.channel == others[0].channel for m in msgs)
 
 

@@ -41,10 +41,14 @@ class Gesture:
     toward: str
     knots: tuple[tuple[float, float], ...]
     source: str
+    hold_range_ms: tuple[float, float] | None = None   # the measured spread of the hold at the neighbour
 
     @property
     def length_ms(self) -> float:
-        return self.knots[-1][0]
+        """The longest the gesture can take — its hold at the top of the measured range."""
+        if self.hold_range_ms is None:
+            return self.knots[-1][0]
+        return self.knots[-1][0] + self.hold_range_ms[1] - _hold_ms(self.knots)
 
 
 @dataclass(frozen=True)
@@ -58,15 +62,31 @@ class GestureRule:
 
 _GURUJI: Final = "Sujit's guruji, recorded Darbari gat (oral tradition, measured 2026-10-12)"
 
+
+def _hold_ms(knots: tuple[tuple[float, float], ...]) -> float:
+    """How long the path rests at the neighbour (the knots at full share)."""
+    top = [ms for ms, share in knots if share == 1.0]
+    return top[-1] - top[0] if len(top) >= 2 else 0.0
+
+
+def vary(seed: float, k: int) -> float:
+    """A deterministic fraction in [0, 1) keyed on a note's start and an index — the drum
+    machine's no-RNG humanising: the same note always plays the same way, and two notes rarely
+    do (a repeated gesture with one fixed trajectory reads as a machine)."""
+    key = (int(round(seed * 8)) * 2654435761 + k * 40503 + 12289) & 0xFFFFFFFF
+    return (key % 1024) / 1024.0
+
 GA_MA_LOOP: Final = Gesture(
     name="ga_ma_loop", toward="m",
     knots=((0, 0.0), (60, 0.0), (100, 1.0), (270, 1.0), (370, 0.0)),
-    source=f"{_GURUJI}; Parrikar 'The avarohi gandhar: (M)g, (M)g M (S)R, S' (his M = shuddha)")
+    source=f"{_GURUJI}; Parrikar 'The avarohi gandhar: (M)g, (M)g M (S)R, S' (his M = shuddha)",
+    hold_range_ms=(100.0, 245.0))
 
 GA_RE_DIP: Final = Gesture(
     name="ga_re_dip", toward="R",
     knots=((0, 0.0), (40, 0.0), (60, 1.0), (110, 1.0), (135, 0.0)),
-    source=f"{_GURUJI}; AUTRIM/NCPA ga moves 'between Re and Ga'; Deepak Raja 'Re-ga'")
+    source=f"{_GURUJI}; AUTRIM/NCPA ga moves 'between Re and Ga'; Deepak Raja 'Re-ga'",
+    hold_range_ms=(35.0, 70.0))
 
 GESTURES: dict[str, tuple[GestureRule, ...]] = {
     "darbari": (
@@ -92,12 +112,20 @@ def gesture_named(name: str) -> Gesture | None:
                  if r.gesture.name == name), None)
 
 
-def gesture_path(gesture: Gesture, swara: str) -> list[list[float]]:
+def gesture_path(gesture: Gesture, swara: str, seed: float | None = None) -> list[list[float]]:
     """The gesture as concrete (ms, semitones) knots from `swara` — the neighbour's interval
-    taken the short way round the octave (g -> m is +2, g -> R is -1)."""
+    taken the short way round the octave (g -> m is +2, g -> R is -1). With a `seed` (the note's
+    start) the hold at the neighbour takes a length inside its measured range, so each
+    occurrence differs as a player's does; without one, the measured median."""
     gap = (SWARAS[gesture.toward] - SWARAS[swara]) % 12
     interval = gap - 12 if gap > 6 else gap
-    return [[ms, round(share * interval, 3)] for ms, share in gesture.knots]
+    knots = gesture.knots
+    if seed is not None and gesture.hold_range_ms is not None:
+        lo, hi = gesture.hold_range_ms
+        shift = lo + (hi - lo) * vary(seed, 0) - _hold_ms(knots)
+        top_end = max(ms for ms, share in knots if share == 1.0)
+        knots = tuple((ms + shift if ms >= top_end else ms, share) for ms, share in knots)
+    return [[round(ms, 1), round(share * interval, 3)] for ms, share in knots]
 
 
 def check_gestures() -> list[str]:
@@ -169,13 +197,23 @@ def gamak_stroke_beats(bpm: int) -> float:
     return min(GAMAK_SUBDIVISIONS, key=lambda b: abs(b * 60000.0 / bpm - GAMAK_STROKE_MS))
 
 
-def gamak_stroke_path(stroke_ms: float, interval: int) -> list[list[float]]:
+GAMAK_VISIT_SPREAD: Final = 0.25   # each stroke's visits vary +/-25% (measured 35-210 ms)
+GAMAK_SETTLE_SHARE: Final = 0.9    # the swing is home by this share of the stroke — a varied,
+                                   # longer swing otherwise ended ON the next stroke, 9 cents short
+
+
+def gamak_stroke_path(stroke_ms: float, interval: int,
+                      seed: float | None = None) -> list[list[float]]:
     """One stroke of a gamak: out to the partner and back, as many round trips as fit
-    (at least one, compressed when the stroke is short), ending home. (ms, semitones)."""
-    trip = 2 * (GAMAK_VISIT_MS + GAMAK_MOVE_MS)
-    trips = max(1, int(stroke_ms // trip))
-    scale = min(1.0, stroke_ms / (trips * trip))
-    visit, move = GAMAK_VISIT_MS * scale, GAMAK_MOVE_MS * scale
+    (at least one, compressed when the stroke is short), ending home. (ms, semitones). With a
+    `seed` (the stroke's start) its visits are a little longer or shorter than the median."""
+    base = GAMAK_VISIT_MS
+    if seed is not None:
+        base *= 1.0 + GAMAK_VISIT_SPREAD * (2 * vary(seed, 1) - 1)
+    trip = 2 * (base + GAMAK_MOVE_MS)
+    trips = max(1, int(stroke_ms * GAMAK_SETTLE_SHARE // trip))
+    scale = min(1.0, stroke_ms * GAMAK_SETTLE_SHARE / (trips * trip))
+    visit, move = base * scale, GAMAK_MOVE_MS * scale
     path: list[list[float]] = [[0.0, 0.0]]
     t = 0.0
     for _ in range(trips):

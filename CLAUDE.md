@@ -990,6 +990,26 @@ and build order.
   answer keeps the part). Wired in both the Flow (`_voices_with_rhythm_section`, Composer and
   parallel paths; the studio ignores the flag) and `compose_band`. 1178 pure tests. **Next:**
   step 4 — ONE live call on 152048's sitar line (ASK first), rendered against `_chords`.
+- **ORNAMENT AUDIT + FIXES (2026-10-12;** the out-of-tune andolan/gamak of
+  `fusion_20261012_213455`**):** measured on the SOLO sitar (YIN): every bend lands where the MIDI
+  says (median 7.5 c, the sample's own sharpness) — the ±12 bend range is honoured; the faults
+  were in the INSTRUCTIONS. (1) andolan v4 (`src/render.py`): no flat hold at the edge (it held
+  300-420 ms at -44 c and read as a note gone flat), a continuous asymmetric swing, drawn only in
+  the note's AUDIBLE life (`ANDOLAN_AUDIBLE_MS` 1200; settle 150 ms, period 700 ms), the length gate
+  on the whole note incl. its kan (a 1 s Ga had played plain). (2) TARAF — Sujit's rule: only a
+  PLAIN held in-scale sitar note (≥`TARAF_MIN_MS` 400) wakes it; no bent note ever (it beat 40-50 c
+  against the sway); share 0.35 -> 0.30 (the shared chikari channel rose 96 -> 112). (3) SITAR
+  SUSTAIN: the Indian Ensemble sitar decays ~30 dB/s (envelope, looped sample) — FluidSynth SF2
+  NRPN gen 36 +1200 timecents (`SITAR_DECAY_TIMECENTS`) on every sitar channel: +9 dB at 1 s.
+  (4) gestures/gamak VARY per occurrence inside guruji's measured ranges (`Gesture.hold_range_ms`,
+  `gestures.vary`, gamak visits ±25%), gamak strokes home by 90% of the stroke, and a pull dips
+  CC11 (`PULL_CC11_DIP`). (5) chikari: vel +12, ring ×1.5, CC7 96 -> 112, reverb 72 -> 90.
+  Validation: `src/ornament_audit.py` (MIDI: unsettled / held_away / detuned_unison / clipped /
+  mechanical) + `crew/pitch_audit.py` (audio: solo render, `src/pitch_track.py` YIN vs intended).
+  Old render: 6 unison clashes, a 0.42 s flat hold, 3 mechanical repeats; re-render
+  `out/fusion_20261012_213455_ornaments.wav`: none on the sitar. Demos: `uv run python -m
+  crew.ornament_demo darbari` (before/after `out/ornaments_darbari_20261012_222332[_before].wav`).
+  Open: guitar pick scrapes clip the wheel (1:27, 1:35). 1186 pure tests.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

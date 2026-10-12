@@ -440,9 +440,14 @@ def test_andolan_is_deterministic():
     assert _andolan_wheel(3.0, 4.0, bpm=120) == _andolan_wheel(3.0, 4.0, bpm=120)
 
 
-def test_andolan_span_covers_the_note():
+def test_andolan_sways_only_while_the_note_is_audible_then_rests_on_the_swara():
+    # v4: the soundfont's sitar loses ~30 dB in its first second; a sway drawn across a 2 s note
+    # ended FLAT in the inaudible tail (the sour 0:07 of fusion_20261012_213455)
+    from render import ANDOLAN_AUDIBLE_MS
     events = _andolan_wheel(2.0, 4.0, bpm=120)
-    assert events[0][0] == 2.0 and events[-1][0] == 6.0   # spans start..start+dur
+    assert events[0][0] == 2.0
+    assert events[-1][0] <= 2.0 + ANDOLAN_AUDIBLE_MS * 120 / 60000.0 + 1e-9
+    assert events[-1][1] == 0                               # it ends ON the swara
 
 
 def test_andolan_cc_shimmer_tracks_the_dip_and_recenters():
@@ -458,10 +463,8 @@ def test_andolan_after_a_glide_leaves_the_onset_to_the_meend():
     composed = _andolan_wheel(0.0, 4.0, bpm=120, after_glide=True)
     assert composed == full[1:]
     assert all(t > 0.0 for t, _ in composed)
-    # the invariant that makes the composition safe: the settle outlasts any glide,
-    # so the first wave always departs from an in-tune, settled swara
-    from render import ANDOLAN_DELAY_MS as delay, MEEND_GLIDE_MAX_MS as glide_max
-    assert delay > glide_max
+    # (the sway after a glide is started where the glide ENDS — `build_midi` passes it the
+    # time after the glide — so its settle always follows a finished glide)
 
 
 # --- build_midi smoke: chords + techniques render without crashing --------------

@@ -110,8 +110,9 @@ def test_the_path_is_drawn_in_milliseconds_and_returns_home():
     assert min(on_ma) == 10.1 and max(on_ma) == 10.27        # rise ends 100 ms, dwell to 270
 
 
-def test_the_taraf_waits_until_the_gesture_has_come_home():
-    # GPT, 2026-10-12: an unbent Ga on the taraf channel sounded while the string bent up to Ma
+def test_a_gestured_note_never_wakes_the_taraf():
+    # GPT, 2026-10-12: an unbent Ga on the taraf channel sounded while the string bent up to Ma;
+    # Sujit, same day: no bent note triggers the taraf at all
     import mido
 
     from render import build_midi
@@ -129,7 +130,7 @@ def test_the_taraf_waits_until_the_gesture_has_come_home():
         t += m.time
         if m.type == "note_on" and m.velocity > 0 and m.channel != 2:
             taraf_on.append(t / mid.ticks_per_beat)
-    assert taraf_on and min(taraf_on) >= 0.37 - 1e-3          # 370 ms at 60 bpm = 0.37 beat
+    assert taraf_on == []
 
 
 def test_a_path_longer_than_its_note_is_not_drawn():

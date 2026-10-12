@@ -89,11 +89,15 @@ class _Policy:
 
 # The alap lets its few strokes ring longest and softest; the head's pattern is its pulse; the
 # climax strikes hardest and rings shortest, because it is busy and the band is loud.
+# Sujit, 2026-10-12, on fusion_20261012_213455: "the chikari sounds a bit thin — it needs more
+# reverb/sustain, and the volume felt less". Measured: a median stroke of 64 against the sitar's
+# 86, on a channel 16 below it, cut off after 1.6 s in the head. Every stroke now strikes 12
+# harder and rings half as long again (still re-struck by the next stroke).
 _POLICY: Final[dict[SectionRole, _Policy]] = {
-    SectionRole.ALAP: _Policy(per_cycle=1, vel=66, ring_ms=3000.0),
-    SectionRole.HEAD: _Policy(per_cycle=3, vel=80, ring_ms=1600.0),
-    SectionRole.LIGHT: _Policy(per_cycle=1, vel=72, ring_ms=1600.0),
-    SectionRole.CLIMAX: _Policy(per_cycle=2, vel=86, ring_ms=1200.0),
+    SectionRole.ALAP: _Policy(per_cycle=1, vel=78, ring_ms=4500.0),
+    SectionRole.HEAD: _Policy(per_cycle=3, vel=92, ring_ms=2400.0),
+    SectionRole.LIGHT: _Policy(per_cycle=1, vel=84, ring_ms=2400.0),
+    SectionRole.CLIMAX: _Policy(per_cycle=2, vel=98, ring_ms=1800.0),
 }
 
 

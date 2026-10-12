@@ -140,19 +140,33 @@ ANDOLAN_DEPTH_ST = 0.30      # the default dip when no direction is stamped (~30
 # raga-specific target). The July 65-100% depth jitter let it wander ~33-50 cents wave to wave;
 # now only the TIMING varies freely and the depth stays within a few percent of the target.
 ANDOLAN_DEPTH_SPREAD = 0.08  # each wave reaches 92-100% of the aimed depth
-ANDOLAN_DELAY_MS = 250       # land and settle on the swara before the sway begins
-ANDOLAN_PERIOD_MS = 900      # one slow undulation — about one per second
-ANDOLAN_MIN_MS = 1000        # shortest hold that carries the settle + one slow wave
+ANDOLAN_DELAY_MS = 150       # land and settle on the swara before the sway begins
+ANDOLAN_PERIOD_MS = 700      # one slow undulation
+ANDOLAN_MIN_MS = 800         # shortest NOTE (kan included) that carries the settle + one wave
+# v4 (2026-10-12, measured on the solo sitar of fusion_20261012_213455): the soundfont's sitar
+# loses ~20 dB in its first 0.6 s and ~30 dB by 1 s — far faster than a real sitar's jawari. A
+# sway spread across a 1.5 s note dipped at 0.6 s, held there, and drew its return at -50 dB,
+# so the last thing heard of Ga was a note 40 cents FLAT (Sujit: "0:07 sounds out of tune").
+# The waves now fit inside the note's AUDIBLE life; after it the string rests on the swara.
+ANDOLAN_AUDIBLE_MS = 1200
 ANDOLAN_STEPS_PER_CYCLE = 20 # wheel events per wave — dense enough that the curve has no zipper
 ANDOLAN_CC11_DIP = 8         # expression dips a hair with the pitch (a pulled string darkens)
 # v3 (2026-10-11 research): the sources describe GLIDES WITH HOLDS — "multiple meend in
 # succession, punctuated by delicate holds" (Kumar et al., IIT Kanpur) — not a sine. Each wave
 # rests on the swara, glides toward the neighbour, holds at its periphery, glides back.
-ANDOLAN_SHAPE = ((0.20, 0.0), (0.45, 1.0), (0.65, 1.0), (0.90, 0.0))  # (fraction, reach) knots
+# v4: no flat HOLD at the edge — held 300 ms, the dip read as a note gone flat, not a swing.
+# The wave rests on the swara, sinks to TOUCH the periphery (the smoothstep's zero slope there
+# is the brief turn) and returns more slowly than it went — the string dwells on its swara.
+ANDOLAN_SHAPE = ((0.15, 0.0), (0.50, 1.0), (0.95, 0.0))  # (fraction, reach) knots
 # A real sitar's pull bends ONE string while the sympathetic strings keep ringing the true note
 # (Chiruthapudi, ISMIR 2022 LBD) — a pitch-bent sample moves its baked-in resonance too, and
 # nothing holds steady. A quiet UNBENT copy of the swara on its own channel restores that anchor.
-TARAF_VEL_SHARE = 0.35       # the sympathetic layer sits well under the plucked string
+# Sujit, 2026-10-12: "play taraf only when the note is from the scale — any bent note should not
+# trigger taraf". An unbent copy under a sway sat 40-50 cents from the bending string and beat
+# against it (the sour 0:07 of fusion_20261012_213455). The taraf answers a plain, held swara
+# only. It shares the chikari channel, whose level rose 96 -> 112, so its share drops to match.
+TARAF_VEL_SHARE = 0.30       # the sympathetic layer sits well under the plucked string
+TARAF_MIN_MS = 400           # a passing note is gone before a sympathetic string could answer it
 
 # The SLOW (alap) meend — the sources' "very slow in early alap", the raga signposts (Malkauns
 # g held long then glided to S; Jog g->S; Bhairavi n-d-P with a dwell on d) and Sujit's Bageshree
@@ -232,7 +246,9 @@ _REVERB_SEND = {"lead": 56,     # a touch drier than it was (68): closer, in fro
                 # the orchestra lives in a CONCERT HALL: strings/choir wet and cinematic, brass
                 # tighter so its stabs still punch, timpani drier so the low hits stay defined.
                 "orch_strings": 80, "orch_choir": 85, "orch_brass": 55, "orch_timpani": 45,
-                "chikari": 72}  # the high drone strings shimmer a touch wetter than the melody
+                # the high drone strings ring out in the room, wetter than the melody (72 -> 90:
+                # Sujit 2026-10-12, "needs more reverb/sustain")
+                "chikari": 90}
 _REVERB_SEND_DEFAULT = 40
 
 
@@ -256,7 +272,9 @@ _MIX_LEVEL = {"lead": 112, "drone": 74, "tabla": 115,
               # the orchestra is an ACCOMPANIST, not the star: strings/choir sit under the
               # band, brass a touch more present for its accents, timpani solid on the low end.
               "orch_strings": 82, "orch_choir": 84, "orch_brass": 90, "orch_timpani": 100,
-              "chikari": 96}   # the drone strings sparkle around the melody, never over it
+              # level with the sitar: they are its own strings (96 -> 112, Sujit 2026-10-12:
+              # "the volume felt less"); the velocities keep them under the melody's attacks
+              "chikari": 112}
 
 
 def _mix_level(role) -> int | None:
@@ -272,6 +290,28 @@ def _fine_tune(mf: MIDIFile, track: int, ch: int, cents: int) -> None:
     mf.addControllerEvent(track, ch, 0, 100, 1)          # RPN LSB -> RPN(0,1) = fine tuning
     mf.addControllerEvent(track, ch, 0, 6, value >> 7)   # data entry MSB
     mf.addControllerEvent(track, ch, 0, 38, value & 0x7F)  # data entry LSB
+
+
+# The Indian Ensemble sitar decays ~30 dB in its first second — far faster than a real sitar,
+# whose jawari keeps a note ringing for seconds — so an andolan or a loop drawn on a held note
+# ran on into silence (Sujit, 2026-10-12: "do we need to increase sustain so certain bends get
+# more time and don't chop midway?"). Measured: its fade is the preset's volume-ENVELOPE decay
+# (a looped sample), so FluidSynth's SoundFont NRPN (MSB 120, LSB = generator 36 decayVolEnv)
+# lengthens it: +1200 timecents doubles the decay time — about 5 dB louder at 0.5 s and 9 dB at
+# 1 s (-30 -> -21 dB/s). The sustain level and release generators changed nothing. Kept moderate:
+# a much longer decay exposes the sample's loop. Synths without SF2 NRPNs ignore it.
+SITAR_DECAY_TIMECENTS = 1200
+_NRPN_SF2 = 120                     # FluidSynth's SoundFont-generator NRPN space
+_GEN_DECAY_VOL_ENV = 36
+
+
+def _sitar_sustain(mf: MIDIFile, track: int, ch: int) -> None:
+    """Lengthen a sitar channel's ring (see SITAR_DECAY_TIMECENTS)."""
+    value = 8192 + SITAR_DECAY_TIMECENTS
+    mf.addControllerEvent(track, ch, 0, 99, _NRPN_SF2)            # NRPN MSB
+    mf.addControllerEvent(track, ch, 0, 98, _GEN_DECAY_VOL_ENV)   # NRPN LSB = the generator
+    mf.addControllerEvent(track, ch, 0, 6, value >> 7)            # data entry MSB
+    mf.addControllerEvent(track, ch, 0, 38, value & 127)          # data entry LSB
 
 
 def _arm_bend_range(mf: MIDIFile, track: int, ch: int, semitones: int) -> None:
@@ -525,7 +565,8 @@ def _knot_shape(frac: float, knots: tuple[tuple[float, float], ...]) -> float:
 
 def _andolan_wheel(start: float, dur: float, bpm: float,
                    after_glide: bool = False,
-                   depth_st: float = -ANDOLAN_DEPTH_ST) -> list[tuple[float, int]]:
+                   depth_st: float = -ANDOLAN_DEPTH_ST, *, note_ms: float | None = None,
+                   lead_ms: float | None = None) -> list[tuple[float, int]]:
     """Pure: the (time, wheel) ramp for an andolan — land, settle, then a slow, one-sided
     undulation dipping BELOW the note toward its lower sruti. The pitch holds steady for
     ANDOLAN_DELAY_MS, then sways in waves of deterministically varied length and depth
@@ -537,13 +578,21 @@ def _andolan_wheel(start: float, dur: float, bpm: float,
     the sway ("R -> g~~"): the glide owns the onset, so the settle-at-0 event is dropped
     (it would yank the wheel to 0 mid-glide); the settle window always outlasts the
     glide (ANDOLAN_DELAY_MS 250 > MEEND_GLIDE_MAX_MS 220), so the first wave still
-    departs from a settled swara."""
+    departs from a settled swara.
+
+    v4: the gate reads the whole NOTE (`note_ms`, a kan included — the kan used to push a
+    one-second Ga under the gate, so it played plain while its neighbours swayed), and the waves
+    are drawn only within the note's audible life (`ANDOLAN_AUDIBLE_MS`, counted from the attack:
+    `lead_ms` is how much of it a kan or glide already used); the string then rests on 0."""
     dur_ms = dur * 60000.0 / bpm
-    if dur_ms < ANDOLAN_MIN_MS:
+    if (note_ms if note_ms is not None else dur_ms) < ANDOLAN_MIN_MS:
         return []                                        # too short to sway — leave it clean
+    window_ms = min(dur_ms, ANDOLAN_AUDIBLE_MS - (lead_ms or 0.0))
+    if window_ms - ANDOLAN_DELAY_MS < 0.75 * ANDOLAN_PERIOD_MS:
+        return []                                        # no room for one whole wave while audible
     delay = ANDOLAN_DELAY_MS * bpm / 60000.0             # the settle, in beats
-    sway = dur - delay                                   # the swaying span, in beats
-    n = max(1, int(round((dur_ms - ANDOLAN_DELAY_MS) / ANDOLAN_PERIOD_MS)))
+    sway = window_ms * bpm / 60000.0 - delay             # the swaying span, in beats
+    n = max(1, int(round((window_ms - ANDOLAN_DELAY_MS) / ANDOLAN_PERIOD_MS)))
     lengths = [0.85 + 0.3 * _andolan_jitter(start, k) for k in range(n)]        # ±15% per wave
     depths = [depth_st * (1.0 - ANDOLAN_DEPTH_SPREAD * _andolan_jitter(start, n + k))
               for k in range(n)]                                                # aimed, ±a hair
@@ -572,12 +621,14 @@ def _andolan_cc(wheel_val: int, depth_st: float = ANDOLAN_DEPTH_ST) -> int:
 
 def _render_andolan(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
                     bpm: float, *, shimmer: bool = True, after_glide: bool = False,
-                    depth_st: float = -ANDOLAN_DEPTH_ST) -> bool:
+                    depth_st: float = -ANDOLAN_DEPTH_ST, note_ms: float | None = None,
+                    lead_ms: float | None = None) -> bool:
     """Draw the sway on the wheel, with the expression shimmer riding the same curve.
     `shimmer` is off when the note also carries a fade — the fade owns CC11 then.
     `after_glide` is set when a meend leads INTO the sway (see `_andolan_wheel`). Returns
     whether a sway was drawn (a hold under the real-time gate plays plain)."""
-    events = _andolan_wheel(start, dur, bpm, after_glide=after_glide, depth_st=depth_st)
+    events = _andolan_wheel(start, dur, bpm, after_glide=after_glide, depth_st=depth_st,
+                            note_ms=note_ms, lead_ms=lead_ms)
     for t, val in events:
         mf.addPitchWheelEvent(track, ch, t, val)
         if shimmer:
@@ -625,6 +676,11 @@ def meend_via(raga: str, sa: int, from_pitch: int, to_pitch: int) -> list[int]:
 
 
 _PATH_STEPS = 8              # wheel events per moving segment of a gesture path
+# A pulled string loses a little energy and brightness while it is held away from its fret: a
+# loop to Ma at full level on the same bright sample read as a separate NOTE (fusion_
+# 20261012_213455 at 0:32.5 / 0:34 / 0:40.5). Expression dips with the pull and returns on the
+# swara. (Inference, for the ear — the measured paths give the pitch, not the level.)
+PULL_CC11_DIP = 14
 
 
 def path_wheel(start: float, dur: float, bpm: float,
@@ -692,6 +748,8 @@ def _taraf_channel(mf: MIDIFile, track: int, layer: dict, used: set[int],
     if layer.get("pan") is not None:
         mf.addControllerEvent(track, ch, 0, 10, max(0, min(127, layer["pan"])))
     mf.addControllerEvent(track, ch, 0, 91, _reverb_send(layer.get("role")))
+    if layer.get("instrument") == "sitar":
+        _sitar_sustain(mf, track, ch)
     return ch
 
 
@@ -790,6 +848,8 @@ def build_midi(comp: dict, path: str) -> None:
             mf.addControllerEvent(i, ch, 0, 7, lvl)
         if layer.get("detune_cents"):
             _fine_tune(mf, i, ch, layer["detune_cents"])
+        if layer.get("instrument") == "sitar":
+            _sitar_sustain(mf, i, ch)
         # If any note on this channel moves the pitch wheel (a meend glide, or a riff
         # slide/bend), arm a wide bend range once up front so the gesture spans cleanly.
         if any(_bends(n) for n in layer["notes"]):
@@ -804,9 +864,9 @@ def build_midi(comp: dict, path: str) -> None:
         taraf: list[int] = []               # the sympathetic companion, opened on first sway
 
         def _sympathetic(p: int, start: float, length: float, v: int) -> None:
-            # The taraf rings only once the main string RESTS on its pitch — after a kan, a glide
-            # or a gesture. Started at the attack, it held Ga while the string bent up to Ma
-            # (two semitones of unintended grind — GPT's review of the 2026-10-12 gesture replay).
+            # The taraf rings with a PLAIN held swara only (see the rule after the gestures): a
+            # sympathetic string sounds the scale's own pitch, so under a bending string it was a
+            # detuned unison (Ga against a loop to Ma; a 40-50 cent beat under every sway).
             if length <= 0:
                 return
             if not taraf:
@@ -892,6 +952,11 @@ def build_midi(comp: dict, path: str) -> None:
             # the note, and any glide or sway starts from there. A chord takes no kan — the
             # wheel would drag the whole voicing — so it stays a clean fretted attack.
             g_start, g_dur = n["start"], dur
+            bent = False                        # did any gesture move this note's pitch?
+
+            def _ms(beats: float) -> float:
+                return beats * 60000.0 / bpm
+
             if n.get("grace") and not polyphonic:
                 offsets = [kan_pitch(sa, gsw, pitch) - sounding for gsw in n["grace"]]
                 events, used = _kan_wheel(n["start"], dur, bpm, offsets)
@@ -899,6 +964,7 @@ def build_midi(comp: dict, path: str) -> None:
                 for t, val in events[:-1] if target is not None else events:
                     mf.addPitchWheelEvent(i, ch, t, val)
                 g_start, g_dur = n["start"] + used, max(dur - used, 0.0)
+                bent = True
             # Pitch-wheel gestures: a meend glide to a target swara, a riff
             # slide/bend/legato, or a slow andolan sway on a held komal note. One per
             # note, EXCEPT meend + andolan, which compose (glide in, settle, sway).
@@ -909,6 +975,7 @@ def build_midi(comp: dict, path: str) -> None:
             if polyphonic:
                 pass                             # a chord is fretted, never bent (see above)
             elif target is not None:
+                bent = True
                 sway_from = g_start
                 if n.get("meend_style") == "slow":
                     ramp = slow_meend_wheel(g_start, g_dur, pitch, target, bpm,
@@ -921,45 +988,62 @@ def build_midi(comp: dict, path: str) -> None:
                     sway_from = g_start + _meend_glide_beats(abs(target - pitch), g_dur, bpm)
                 if n.get("andolan"):             # meend INTO the sway: glide, settle, undulate
                     depth = n.get("andolan_st") or -ANDOLAN_DEPTH_ST
-                    if _render_andolan(mf, i, ch, sway_from, g_start + g_dur - sway_from, bpm,
-                                       shimmer=not fading, after_glide=True,
-                                       depth_st=depth):
-                        _sympathetic(target, sway_from, n["start"] + dur - sway_from, vel)
+                    _render_andolan(mf, i, ch, sway_from, g_start + g_dur - sway_from, bpm,
+                                    shimmer=not fading, after_glide=True, depth_st=depth,
+                                    note_ms=_ms(dur), lead_ms=_ms(sway_from - n["start"]))
             elif n.get("technique") == "slide":
+                bent = True
                 st = _pull_offset(connected, sounding, SLIDE_FROM_PREV_MAX) or SLIDE_IN_ST
                 _render_slide(mf, i, ch, n["start"], dur, st=st)
             elif n.get("technique") == "long_slide":
+                bent = True
                 _render_slide(mf, i, ch, n["start"], dur,
                               st=LONG_SLIDE_ST, frac=LONG_SLIDE_FRAC)
             elif n.get("technique") == "pick_scrape":
+                bent = True
                 _render_slide(mf, i, ch, n["start"], dur,
                               st=SCRAPE_ST, frac=SCRAPE_FRAC)
             elif n.get("technique") in ("hammer_on", "pull_off"):
                 st = _pull_offset(connected, sounding, LEGATO_PULL_MAX)
                 if st is not None:               # no usable previous note: soft attack only
+                    bent = True
                     _render_slide(mf, i, ch, n["start"], dur, st=st, frac=LEGATO_PULL_FRAC)
             elif n.get("technique") == "bend":
+                bent = True
                 _render_bend(mf, i, ch, n["start"], dur, st=n.get("bend_st") or BEND_ST)
             elif n.get("pitch_path"):
                 # a measured raga GESTURE (src/gestures.py): draw its whole path, then let a
                 # long held note settle into its slow sway after it, as after a glide
                 events, used = path_wheel(g_start, g_dur, bpm, n["pitch_path"])
+                full = max((abs(v) for _, v in events), default=0)
                 for t, val in events:
                     mf.addPitchWheelEvent(i, ch, t, val)
+                    if full and not fading:
+                        mf.addControllerEvent(i, ch, t, 11,
+                                              127 - round(PULL_CC11_DIP * abs(val) / full))
+                bent = bent or bool(events)
                 rest = g_dur - used
                 if n.get("andolan") and rest > 0:
                     depth = n.get("andolan_st") or -ANDOLAN_DEPTH_ST
-                    if _render_andolan(mf, i, ch, g_start + used, rest, bpm, shimmer=not fading,
-                                       after_glide=True, depth_st=depth):
-                        _sympathetic(sounding, g_start + used, rest, vel)
+                    bent = _render_andolan(mf, i, ch, g_start + used, rest, bpm,
+                                           shimmer=not fading, after_glide=True, depth_st=depth,
+                                           note_ms=_ms(dur),
+                                           lead_ms=_ms(g_start + used - n["start"])) or bent
             elif n.get("andolan"):
                 depth = n.get("andolan_st") or -ANDOLAN_DEPTH_ST
-                if _render_andolan(mf, i, ch, g_start, g_dur, bpm,
-                                   shimmer=not fading, depth_st=depth):
-                    _sympathetic(sounding, g_start, g_dur, vel)
+                bent = _render_andolan(mf, i, ch, g_start, g_dur, bpm, shimmer=not fading,
+                                       depth_st=depth, note_ms=_ms(dur),
+                                       lead_ms=_ms(g_start - n["start"])) or bent
             elif n.get("gamak_st"):
                 for t, val in gamak_wheel(g_start, g_dur, bpm, n["gamak_st"]):
                     mf.addPitchWheelEvent(i, ch, t, val)
+                    bent = True
+            # The taraf answers only a PLAIN swara — struck and held unbent, long enough for a
+            # sympathetic string to ring with it. A bent note (kan, meend, sway, gesture, gamak,
+            # slide) never wakes it: under a moving string an unbent copy is a detuned unison.
+            if (not bent and not polyphonic and layer.get("instrument") == "sitar"
+                    and layer.get("role") == "lead" and _ms(dur) >= TARAF_MIN_MS):
+                _sympathetic(sounding, n["start"], dur, vel)
             prev_pitch, prev_end = sounding, n["start"] + n["dur"]
     with open(path, "wb") as f:
         mf.writeFile(f)

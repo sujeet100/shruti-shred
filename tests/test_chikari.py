@@ -207,8 +207,9 @@ def test_the_chikari_has_its_own_channel_and_is_never_bent():
     assert any(m.type == "pitchwheel" and m.channel == sitar.channel for m in msgs)  # the sitar bends
     assert not any(m.type == "pitchwheel" and m.channel == ch for m in msgs)         # its strings never
     on = [m for m in msgs if m.type == "note_on" and m.velocity > 0]
-    # a planned stroke strums the Sa pair, a written one all four, plus the taraf's g, sharing
-    assert sum(m.channel == ch for m in on) == 2 + 4 + 1
+    # a planned stroke strums the Sa pair, a written one all four; the sitar's two notes are both
+    # bent (a meend, a sway), so no taraf joins them on the shared channel
+    assert sum(m.channel == ch for m in on) == 2 + 4
     assert {m.channel for m in on} == {sitar.channel, ch}                            # no third channel
 
 

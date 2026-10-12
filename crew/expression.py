@@ -102,12 +102,12 @@ def _gamak_strokes(n: Note, raga: str, bpm: int) -> list[Note]:
     if interval is None or count < 1 or n.chord or n.meend_swara is not None:
         return [n.model_copy(update={"gamak_with": None})]
     each = n.dur / count
-    path = gamak_stroke_path(each * 60000.0 / bpm, interval)
     return [n.model_copy(update={
         "start": round(n.start + k * each, 4), "dur": round(each, 4),
         "vel": n.vel if k == 0 else max(1, round(n.vel * _GAMAK_RESTRIKE_VEL)),
         "grace": n.grace if k == 0 else None, "andolan": None, "andolan_st": None,
-        "gesture": GAMAK_GESTURE, "pitch_path": path})
+        "gesture": GAMAK_GESTURE,
+        "pitch_path": gamak_stroke_path(each * 60000.0 / bpm, interval, seed=n.start + k * each)})
         for k in range(count)]
 
 
@@ -142,7 +142,7 @@ def _gestured(n: Note, approach: str | None, raga: str, bpm: int) -> Note:
     # the gesture REPLACES the sway: after the loop, guruji's Ga holds steady (52.0 s); a sway
     # bolted on after it read as two unrelated movements (GPT, 2026-10-12)
     return n.model_copy(update={"gesture": gesture.name, "andolan": None, "andolan_st": None,
-                                "pitch_path": gesture_path(gesture, n.swara)})
+                                "pitch_path": gesture_path(gesture, n.swara, seed=n.start)})
 
 
 def with_kan(line: list[Note], raga: str, bpm: int) -> list[Note]:
