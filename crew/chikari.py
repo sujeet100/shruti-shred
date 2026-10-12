@@ -59,6 +59,10 @@ _EPS: Final = 1e-6
 # bright stroke with a grain to it; a block chord (0 ms) reads as a keyboard, and past ~30 ms
 # the strings separate into an arpeggio.
 STRUM_MS: Final = 6.0
+# A stroke CODE planned sounds only the two Sa strings: four strings on every planned stroke read
+# as "a layered open-string chord, a resonance wash" rather than chikari (GPT, 2026-10-12). The
+# raga's colour strings sound on the strokes the COMPOSER wrote — an intentional accent.
+PLANNED_STRINGS: Final = 2
 # Two strokes closer than this crowd each other: the chikari punctuates, it does not chatter.
 MIN_SPACING_BEATS: Final = 2.0
 # The alap: a stroke waits this long after a phrase ends (the jod strikes the hole first), needs
@@ -369,7 +373,8 @@ def _beats(ms: float, bpm: float) -> float:
 def strum_notes(strokes: Sequence[ChikariStroke], arr: Arrangement) -> list[Note]:
     """Each stroke as a strum across the chikari strings: string k enters `STRUM_MS` x k after
     string 1, every string at its weight of the stroke's velocity, and rings until the next
-    stroke re-strikes it or its ring cap — no re-attack in between. Pure."""
+    stroke re-strikes it or its ring cap — no re-attack in between. A planned stroke strums only
+    the Sa pair (`PLANNED_STRINGS`); a written one, every string. Pure."""
     strings = chikari_strings(arr)
     sweep = _beats(STRUM_MS, arr.bpm)
     ordered = sorted(strokes, key=lambda s: s.start)
@@ -377,9 +382,10 @@ def strum_notes(strokes: Sequence[ChikariStroke], arr: Arrangement) -> list[Note
     for i, stroke in enumerate(ordered):
         nxt = ordered[i + 1].start if i + 1 < len(ordered) else math.inf
         ring = min(_beats(stroke.ring_ms, arr.bpm), nxt - stroke.start)
+        struck = strings if stroke.written else strings[:PLANNED_STRINGS]
         notes += [Note(swara=swara, oct=octave, start=round(stroke.start + k * sweep, 4),
                        dur=round(ring, 4), vel=max(1, min(127, round(stroke.vel * weight))))
-                  for k, (swara, octave, weight) in enumerate(strings)]
+                  for k, (swara, octave, weight) in enumerate(struck)]
     return notes
 
 

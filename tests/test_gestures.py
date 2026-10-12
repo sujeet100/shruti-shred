@@ -222,7 +222,7 @@ def test_a_composed_gamak_replaces_the_climax_fallback():
 
 
 def test_the_composer_is_told_where_gamak_belongs():
-    from crew.lead import render_gamak
+    from gestures import render_gamak
     assert "g<>m" in render_gamak("darbari")
     assert "gamak_with" in render_gamak("yaman")
     assert render_gamak("marwa").startswith("NONE")

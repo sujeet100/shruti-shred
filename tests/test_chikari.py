@@ -149,7 +149,7 @@ def test_the_lead_guitar_never_plays_a_chikari():
 
 def test_each_stroke_is_a_fast_strum_across_the_raga_strings():
     arr, _ = _gat()
-    notes = strum_notes([ChikariStroke(8.0, 80, 1600.0, written=False)], arr)
+    notes = strum_notes([ChikariStroke(8.0, 80, 1600.0, written=True)], arr)
     assert [n.swara for n in notes] == chikari_swaras(_RAGA)          # guruji's S S D m
     pitches = [SWARAS[n.swara] + 12 * n.oct for n in notes]
     assert len(set(pitches)) == len(pitches)                          # no unison pair on one channel
@@ -161,11 +161,21 @@ def test_each_stroke_is_a_fast_strum_across_the_raga_strings():
     assert notes[0].vel > notes[1].vel > notes[-1].vel                # string 1 a touch strongest
 
 
+def test_a_planned_stroke_is_the_sa_pair_not_a_wash():
+    # GPT, 2026-10-12: four strings on every stroke read as "a resonance wash"
+    from crew.chikari import PLANNED_STRINGS
+    arr, _ = _gat()
+    notes = strum_notes([ChikariStroke(8.0, 80, 1600.0, written=False)], arr)
+    assert len(notes) == PLANNED_STRINGS == 2
+    assert [n.swara for n in notes] == ["S", "S"] and notes[0].oct == notes[1].oct + 1
+
+
 def test_a_string_rings_until_the_next_stroke_or_its_cap():
     arr, _ = _gat()
     notes = strum_notes([ChikariStroke(0.0, 80, 1600.0, written=False),
                          ChikariStroke(1.0, 80, 1600.0, written=False)], arr)
-    first, last = notes[:4], notes[4:]
+    half = len(notes) // 2
+    first, last = notes[:half], notes[half:]
     assert all(abs(n.dur - 1.0) < 1e-3 for n in first)               # re-struck: rings to the stroke
     cap = 1600.0 * arr.bpm / 60000.0
     assert all(abs(n.dur - cap) < 1e-3 for n in last)                 # left alone: rings to its cap
@@ -197,7 +207,8 @@ def test_the_chikari_has_its_own_channel_and_is_never_bent():
     assert any(m.type == "pitchwheel" and m.channel == sitar.channel for m in msgs)  # the sitar bends
     assert not any(m.type == "pitchwheel" and m.channel == ch for m in msgs)         # its strings never
     on = [m for m in msgs if m.type == "note_on" and m.velocity > 0]
-    assert sum(m.channel == ch for m in on) == 8 + 1   # two strums of four + the taraf's g, sharing
+    # a planned stroke strums the Sa pair, a written one all four, plus the taraf's g, sharing
+    assert sum(m.channel == ch for m in on) == 2 + 4 + 1
     assert {m.channel for m in on} == {sitar.channel, ch}                            # no third channel
 
 

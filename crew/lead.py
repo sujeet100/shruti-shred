@@ -119,9 +119,8 @@ from gats import (
     gat_craft_for,
     is_compound,
 )
-from gestures import GAMAK_PAIRS
+from gestures import render_gamak
 from raga import (
-    KHADA_RAGAS,
     RAGAS,
     direction_violations,
     directional_varjya,
@@ -921,16 +920,6 @@ def render_direction_rule(rules: dict[str, str]) -> str:
         parts.append(f"{' '.join(up)} appear{'s' if len(up) == 1 else ''} ONLY in "
                      f"ASCENT — approached from below, never from above")
     return "; ".join(parts)
-
-
-def render_gamak(raga: str) -> str:
-    """The gamak line of the raga facts: none in a khada raga; otherwise the pairs a master's
-    gat was heard to swing, where measured."""
-    if raga in KHADA_RAGAS:
-        return "NONE: this raga is sung khada (direct, unwavering) — never write gamak_with"
-    pairs = GAMAK_PAIRS.get(raga)
-    heard = f"; a master's gat in this raga swings {', '.join(pairs)}" if pairs else ""
-    return f"write a gamak cell with \"gamak_with\" (an adjacent swara){heard}"
 
 
 def _render_raga_facts(raga: str) -> str:

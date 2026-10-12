@@ -74,6 +74,7 @@ from crew.form_budget import (
     render_budget,
 )
 from crew.user_request import render_request
+from gestures import render_gamak
 from raga import RAGAS, directional_varjya, render_character, render_nyas, render_register
 from subgenres import SUBGENRES
 from talas import TALAS
@@ -210,6 +211,7 @@ _DRAFT_NOTES: Final = """"reasoning" comes FIRST. "registers" is OPTIONAL — om
 "ending" is how the piece STOPS: "ring_out" (the DEFAULT — the last section's sound decays) or "hard_stop" (code lands ONE stroke on the sam right after the last section — the lead on taar Sa over guitar, bass and kit on low Sa — then silence). For a hard stop, make the last section DRIVE into that sam: a "taan_long" of at least 2 bars closes with a code-built tihai that lands exactly there (a 1-bar taan keeps its own ending, no tihai).
 "anchor" is the ONE idea the whole piece derives from: "gat_first" (the sitar mukhada is the source; the riff is a rhythmic reduction of it) or "riff_first" (the riff is the source; the mukhada quotes its accented notes).
 "form" is the piece's overall FORM: "gat" (the Hindustani instrumental form) or "song" (a metal song built on ONE main riff that RETURNS; form_role optional per section — use intro (FIRST section only)/breakdown/taan_long/tihai/outro (LAST section only) only where they fit, NEVER mukhada/manjha/antara/amad; the guardrail requires one riff_slot, normally "main", on at least two sections).
+THE SITAR STATES THE THEME BEFORE THE GUITAR TAKES IT (both forms): place any riff-only section (a breakdown, a guitar takeover) AFTER the sitar has stated the hook (the mukhada, or the song hook), ideally twice, so the guitar's turn TRANSFORMS a theme the listener already knows (in the gat form, code derives that riff from the head) rather than introducing one before it exists — a guitar section between the alap and the first hook breaks this.
 IN THE GAT FORM: set "form_role" on EVERY section — its place in the gat form (intro/mukhada/manjha/antara/taan_short/taan_long/breakdown/tihai/outro). The MUKHADA is the hook: STATE it and RETURN to it — mark at least TWO sections "mukhada" (the hook stated, and the hook coming back). The CLIMAX IS THE SITAR'S: build it with a long "taan_long", or with back-to-back taan sections (a "taan_short" running straight into the "taan_long", or two consecutive taans) that accelerate into the peak — do NOT give another instrument a solo section to share the spotlight. At most TWO "taan_long" sections, and only back-to-back if you use two. A MANJHA must sit between mukhada statements — place a "mukhada" section IMMEDIATELY after every "manjha" (head -> manjha -> head, one cohesive cycle), and give that returning mukhada at least 2 bars so the head re-establishes itself. The whole form gets AT MOST ONE section that RESTS the lead (riff-only/breakdown), no longer than 2 bars — the gat is the star and must never vanish for long.
 Every rhythm section needs a "riff_slot" naming which riff it plays — "main"/"chorus"/"breakdown". Sections that SHARE a slot replay the SAME riff, so REUSE "main" wherever the mukhada/main riff returns, and give the chorus/breakdown their OWN slots to contrast. Lead-only sections need no slot. In EITHER form, at most the FORM BUDGET's number of "taan_long" sections."""
 
@@ -267,6 +269,8 @@ def _render_raga_block(key: str) -> str:
     if register:
         lines.append(f"    register — where the raga LIVES (set the lead's register and the "
                      f"alaap's ground from it): {register}")
+    lines.append(f"    gamak — {render_gamak(key)}; a sitar hook or gat head that carries one in "
+                 f"its FIRST statement establishes the ornament every return develops")
     if r.get("andolan"):
         lines.append(f"    andolan (swaras that oscillate — idiomatic): {' '.join(r['andolan'])}")
     character = render_character(key)

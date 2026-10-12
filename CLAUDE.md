@@ -903,6 +903,15 @@ and build order.
   never a STARVED spotlight (the forced revise fired on it every round, so the Producer's climax
   call was never applied). A `tihai` section is at most 1 bar (that song used it for its main
   melody). Free preview: `out/fusion_20261012_135724_sitarmix.wav`. 1124 pure tests.
+- **GPT'S SECOND REVIEW, applied (2026-10-12):** the song-form HOOK BUG (`anchor.is_song_hook` took
+  any main-slot lead section — the intro became a 16-beat hook cell, the taan replayed the hook) is
+  fixed: a section with its own role is never the hook. Ring-out fades no longer snap CC11 back at the
+  note-off (that lifted the dying release); the reset waits for the next attack. The composer is told
+  the sitar states the theme BEFORE any riff-only section. Alap floor `INTRO_MIN_S` 18 -> 30 s (the
+  floor counts the lead-in and the breath; ~21 s of real alap at 120 bpm). `render_gamak` moved to
+  `src/gestures.py` and reaches the Composer's seed facts (a gamak in the theme's FIRST statement).
+  Planned chikari strokes strum only the Sa pair (`chikari.PLANNED_STRINGS`); written ones all four.
+  1127 pure tests.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

@@ -79,6 +79,25 @@ def test_fade_ramp_decays_to_the_floor_and_resets():
     assert values == sorted(values, reverse=True)  # monotonic decay — a dying string
 
 
+def test_a_ring_out_resets_expression_at_the_next_attack_not_at_its_note_off():
+    import mido
+    comp = {"raga": "darbari", "sa": 62, "bpm": 60, "layers": [{
+        "role": "lead", "instrument": "sitar", "program": 104, "channel": 2,
+        "notes": [{"swara": "S", "start": 0.0, "dur": 2.0, "fade": True},
+                  {"swara": "R", "start": 6.0, "dur": 1.0}]}]}
+    path = os.path.join(os.path.dirname(__file__), "_fade_reset.mid")
+    build_midi(comp, path)
+    mid = mido.MidiFile(path)
+    os.remove(path)
+    t, full = 0, []
+    for m in mido.merge_tracks(mid.tracks):
+        t += m.time
+        if m.type == "control_change" and m.control == 11 and m.value == 127:
+            full.append(t / mid.ticks_per_beat)
+    assert not any(1.9 < b < 5.9 for b in full)         # nothing lifts the dying release
+    assert any(5.9 <= b <= 6.0 for b in full)            # full again just before the next note
+
+
 def test_the_pieces_final_tail_fades_to_silence_without_snapping_back():
     # a snap to full on the last note-off lifted the release into an audible blip
     from render import _fade_ramp

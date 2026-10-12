@@ -100,7 +100,7 @@ def test_no_length_or_a_long_one_keeps_the_full_form():
 
 def test_a_short_clip_gives_the_alap_real_time_or_leaves_it_out():
     # Sujit, 2026-10-12: a one-avartan alap (7.5 s at 128 bpm) is refused even in a 60 s clip;
-    # the composer either drops the alap or gives it 3 avartans and tightens the rest
+    # the composer either drops the alap or gives it 4 avartans (30 s) and tightens the rest
     budget = form_budget(60, fixed_bpm=128)
     ok, msg = _check(budget, _opener())
     assert not ok and "leave the alap out" in msg
@@ -108,14 +108,14 @@ def test_a_short_clip_gives_the_alap_real_time_or_leaves_it_out():
     no_alap.sections.pop(0)
     ok, value = _check(budget, no_alap)
     assert ok, value
-    ok, value = _check(budget, _opener(intro=3, last=1).model_copy(update={"sections": [
-        _section("intro", 3, SectionKind.ALAAP), _section("mukhada", 2),
-        _section("taan_long", 2, SectionKind.TAAN), _section("mukhada", 1)]}))
+    ok, value = _check(budget, _opener(intro=4, last=1).model_copy(update={"sections": [
+        _section("intro", 4, SectionKind.ALAAP), _section("mukhada", 2),
+        _section("taan_long", 1, SectionKind.TAAN), _section("mukhada", 1)]}))
     assert ok, value
 
 
 def test_a_short_budget_rejects_a_chart_that_runs_long():
-    ok, msg = _check(form_budget(60, fixed_bpm=128), _opener(intro=3, taan=1, last=8))
+    ok, msg = _check(form_budget(60, fixed_bpm=128), _opener(intro=4, taan=1, last=8))
     assert not ok and "about 60 s" in msg
 
 
@@ -127,9 +127,10 @@ def test_a_short_budget_still_caps_the_climax_at_one_taan():
     assert not ok and "taan_long" in msg
 
 
-def test_the_full_form_still_wants_a_three_avartan_intro():
+def test_the_full_form_still_wants_a_roomy_intro():
+    # the gat form's own 3-avartan minimum, raised by the 30 s floor at 128 bpm (7.5 s/avartan)
     ok, msg = _check(FULL_FORM, _opener())
-    assert not ok and "at least 3" in msg
+    assert not ok and "at least 4" in msg
 
 
 # --- intake carries it, the prompt shows it ----------------------------------------------
@@ -168,7 +169,7 @@ def test_an_open_tempo_gets_the_formula_not_a_number():
 def test_the_alap_and_return_minimums_are_gat_rules_the_taan_cap_is_not():
     text = render_budget(form_budget(60), "teentaal", 128)
     assert "in either form" in text and "IN THE GAT FORM" in text
-    assert "THE ALAP is optional, but never rushed" in text and "3 avartan(s)" in text
+    assert "THE ALAP is optional, but never rushed" in text and "4 avartan(s)" in text
     assert "SONG form" in text                       # a short piece is steered to one idea
 
 # --- the intro window survives a one-avartan intro ---------------------------------------

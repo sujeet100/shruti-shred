@@ -399,9 +399,9 @@ def test_reasoning_monologue_is_carried_into_the_turn_event():
 # --- the gat is OPTIONAL: a song form (Sujit, 2026-10-11) ----------------------------------
 
 def _song(*, slots=("main", "breakdown", "main"), roles=(None, "breakdown", None),
-          intro_bars: int = 2) -> ArrangementDraft:
-    """A minimal SONG-form draft: a 2-avartan alap (26.7 s at teentaal 72 — over the time floor,
-    under the gat form's 3), the main riff, a breakdown, and the main riff back. No mukhada."""
+          intro_bars: int = 3) -> ArrangementDraft:
+    """A minimal SONG-form draft: a 3-avartan alap (40 s at teentaal 72 — over the 30 s time
+    floor), the main riff, a breakdown, and the main riff back. No mukhada."""
     def riff(slot, role, bars=4):
         return Section(kind=SectionKind.RIFF, bars=bars, layers=["lead", "rhythm", "drums", "drone"],
                        foreground="rhythm", riff_slot=slot, form_role=role)
@@ -421,8 +421,7 @@ def test_the_form_defaults_to_the_gat_and_round_trips_to_the_arrangement():
 
 
 def test_a_song_without_a_mukhada_passes_when_its_main_riff_returns():
-    # no mukhada, a role-less riff section, and a 2-bar intro — every one a gat violation,
-    # none of them a song violation
+    # no mukhada and a role-less riff section — gat violations, not song violations
     ok, value = _validate_turn(_FakeOutput(ComposerTurn(draft=_song(), note="x")))
     assert ok, value
 
@@ -464,7 +463,7 @@ def test_intro_is_only_the_first_section_and_outro_only_the_last():
 
 def test_an_alap_too_short_to_be_one_must_grow_or_go_in_either_form():
     # Sujit, 2026-10-12: allocate enough time for the alap, or leave it out
-    rushed = _song(intro_bars=1)                                   # 13 s at teentaal 72
+    rushed = _song(intro_bars=2)                                   # 27 s at teentaal 72
     ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=rushed, note="x")))
     assert not ok and "leave the alap out" in msg
     riff_intro = rushed.model_copy(update={"sections": [

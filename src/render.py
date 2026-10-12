@@ -475,6 +475,7 @@ def _render_bend(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
 # settling — the shape of a real string's decay), to a quiet floor rather than silence,
 # then snaps back to full at the note's end so the next section is untouched.
 _FADE_FLOOR = 16          # CC11 the decay settles on (quiet, still ringing)
+_FADE_RESET_LEAD = 0.004  # beats before the next attack that expression returns to full
 _FADE_STEPS = 24          # events across the note — dense enough to sound continuous
 
 
@@ -819,7 +820,12 @@ def build_midi(comp: dict, path: str) -> None:
 
         prev_pitch: int | None = None       # the previous SOUNDING pitch (legato/slide context)
         prev_end = -1.0
+        faded_from: float | None = None     # a ring-out fade left CC11 down from this beat
         for n in layer["notes"]:
+            if faded_from is not None:      # restore expression just BEFORE the next attack
+                mf.addControllerEvent(i, ch, max(faded_from, n["start"] - _FADE_RESET_LEAD),
+                                      11, 127)
+                faded_from = None
             oct = n.get("oct", 0)
             vel = n.get("vel", 100)
             # Technique first: it shapes the note's length/attack before it is sounded
@@ -867,7 +873,11 @@ def build_midi(comp: dict, path: str) -> None:
             # wheel gestures below — CC11, not pitch).
             fading = bool(n.get("fade") or n.get("fade_tail"))   # the fade owns CC11 then
             if n.get("fade"):
-                _render_fade(mf, i, ch, n["start"], dur)
+                # no snap back at the note-off: that lifted the dying release into a blip (GPT,
+                # 2026-10-12: "127 -> 16, then an immediate reset to 127"); the reset waits for
+                # the next attack on this channel instead
+                _render_fade(mf, i, ch, n["start"], dur, reset=False)
+                faded_from = n["start"]
             elif n.get("fade_tail"):
                 tail = min(n["fade_tail"], dur)          # the piece's end: decay to silence
                 _render_fade(mf, i, ch, n["start"] + dur - tail, tail, floor=0, reset=False)

@@ -40,9 +40,12 @@ LENGTH_TOLERANCE_AVARTANS: Final = 1
 # if the user asks for a smaller audio, allocate enough time for the alap, or remove the alap if
 # it's not possible to fit everything"). The 2026-10-12 Darbari intro was one short-form avartan
 # — ~10 s left to compose after code's pause — and came back as two phrases and eleven notes
-# (GPT: "an exercise rather than a raga exposition"). ~15 s of alap plus the breath before the
-# gat. A floor, not a target: how the time is split is the composer's call.
-INTRO_MIN_S: Final = 18.0
+# (GPT: "an exercise rather than a raga exposition"). Raised 18 -> 30 the same day: the floor
+# counts the whole intro SECTION, and a clean-guitar lead-in (up to an avartan) plus code's
+# breath before the gat come out of it — at 120 bpm an 18 s floor left ~13 s of actual alap,
+# where GPT's second review asked for 24-32 s of active development. 30 s leaves ~21 s.
+# A floor, not a target: how the time is split is the composer's call.
+INTRO_MIN_S: Final = 30.0
 
 
 @dataclass(frozen=True)

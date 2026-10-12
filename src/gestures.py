@@ -28,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from raga import RAGAS, SWARAS, directional_varjya, scale_step_up
+from raga import KHADA_RAGAS, RAGAS, SWARAS, directional_varjya, scale_step_up
 
 SETTLE_MS: Final = 60      # the note must still sound this long after the gesture ends
 
@@ -184,3 +184,13 @@ def gamak_stroke_path(stroke_ms: float, interval: int) -> list[list[float]]:
             t += visit + move
             path.append([round(t, 1), float(b)])
     return path
+
+
+def render_gamak(raga: str) -> str:
+    """The gamak line of the raga facts (the lead's and the composer's): none in a khada raga;
+    otherwise how to write one, and the pairs a master's gat was heard to swing, where measured."""
+    if raga in KHADA_RAGAS:
+        return "NONE: this raga is sung khada (direct, unwavering) — never write gamak_with"
+    pairs = GAMAK_PAIRS.get(raga)
+    heard = f"; a master's gat in this raga swings {', '.join(pairs)}" if pairs else ""
+    return f"write a gamak cell with \"gamak_with\" (an adjacent swara){heard}"
