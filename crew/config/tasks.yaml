@@ -920,8 +920,9 @@ assess_taste:
     {pakad_hint}
 
     THE LEAD LINE — the melodic voice, in order, by section. Octave in parentheses when not 0;
-    (X) before a swara = a kan touch of X; {X} = a left-hand gesture out to X and back on one
-    stroke; <>X = one stroke of a GAMAK swinging with X; ~ = an andolan; >X = a meend into X; [n] = held n beats (notes shorter than a
+    (X) before a swara = a kan touch of X; a swara followed by a neighbour in curly brackets =
+    a left-hand gesture out to that neighbour and back on one stroke; <>X = one stroke of a
+    GAMAK swinging with X; ~ = an andolan; >X = a meend into X; [n] = held n beats (notes shorter than a
     beat show no length):
     {lead_line}
 

@@ -189,6 +189,23 @@ def test_rasik_sees_the_register_fact_and_where_the_line_sits():
     assert "0% in the mandra" in inputs["motion"]
 
 
+def test_every_placeholder_in_rasiks_template_is_an_input_it_receives():
+    # 2026-10-12: a legend written as "{X}" was read by CrewAI as a template variable and
+    # killed a live run at Rasik — prompt text may contain no braces it is not given
+    import re
+
+    import yaml
+    from crew.contracts import Composition, Layer, Note
+    task = yaml.safe_load(open(os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "crew", "config", "tasks.yaml")))["assess_taste"]
+    wanted = set(re.findall(r"\{([^{}]*)\}", task["description"] + task["expected_output"]))
+    lead = Layer(role="lead", instrument="sitar", program=104, channel=2,
+                 notes=[Note(swara="S", start=0, dur=1)])
+    comp = Composition(raga="darbari", sa=62, bpm=64, layers=[lead],
+                       tala={"name": "keherwa", "beats_per_bar": 8.0})
+    assert wanted <= set(judge_inputs(comp)), wanted - set(judge_inputs(comp))
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0
