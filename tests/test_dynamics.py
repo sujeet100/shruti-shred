@@ -108,7 +108,10 @@ def test_rhythm_ducks_under_a_lead_foreground_section():
     _arr_, (_drone, lead, rhythm, _drums) = _band()
     ducked = _vel_at(rhythm, 32.0)                              # rhythm inside the lead-led taan
     assert ducked < 110                                         # below its authored velocity
-    assert ducked < _vel_at(lead, 32.0)                        # and below the lead it must not bury
+    # the sitar's presence comes from its CHANNEL level now, not from burying the riff
+    # (2026-10-12: the deep duck made the band "fade in and out" around every entry)
+    from render import _MIX_LEVEL
+    assert _MIX_LEVEL["lead"] >= 110
 
 
 def test_riff_led_section_keeps_the_rhythm_up():

@@ -227,7 +227,7 @@ LEGATO_MAX_GAP = 0.05    # beats: prev note must END this close for a legato con
 # reverb, sounds like noise" tone of the first live render. The tabla sits WETTER than the
 # kit (52 -> 78, Sujit's ear 2026-07-16: "tabla is very dry") — the Indian Ensemble strokes
 # are close-miked one-shots that need the room the metal samples carry baked in.
-_REVERB_SEND = {"lead": 68, "drone": 48, "rhythm": 30, "bass": 12, "tabla": 78, "drums": 38,
+_REVERB_SEND = {"lead": 56,     # a touch drier than it was (68): closer, in front of the guitars "drone": 48, "rhythm": 30, "bass": 12, "tabla": 78, "drums": 38,
                 "clean": 62,   # the clean arpeggios live in the room — shimmer, not chug
                 # the orchestra lives in a CONCERT HALL: strings/choir wet and cinematic, brass
                 # tighter so its stabs still punch, timpani drier so the low hits stay defined.
@@ -249,13 +249,16 @@ def _reverb_send(role) -> int:
 # Rhythm / bass / drums keep their ear-calibrated default level, and the palm-mute companion
 # keeps its own CC7=127 (MUTE_LEVEL) — so this cannot disturb the chug parity. None (unlisted
 # role) = leave the channel at its default.
-_MIX_LEVEL = {"lead": 92, "drone": 74, "tabla": 115,
+# The lead was pulled back to 92 when a doubling lead guitar shared the role and the two buried
+# the riff; with the lead guitar OFF (config.lead_guitar_enabled, 2026-10-12) that cut only made
+# the sitar "feeble compared to guitar" (Sujit), so the sitar comes back up.
+_MIX_LEVEL = {"lead": 112, "drone": 74, "tabla": 115,
               "clean": 84,     # the harmony shimmer sits UNDER the lead voices
               # the orchestra is an ACCOMPANIST, not the star: strings/choir sit under the
               # band, brass a touch more present for its accents, timpani solid on the low end.
               "orch_strings": 82, "orch_choir": 84, "orch_brass": 90, "orch_timpani": 100,
-              "jod": 90,       # the ringing home Sa, present under the melodic sitar (92)
-              "chikari": 84}   # the drone strings sparkle around the melody, never over it
+              "jod": 100,      # the ringing home Sa, present under the melodic sitar
+              "chikari": 96}   # the drone strings sparkle around the melody, never over it
 
 
 def _mix_level(role) -> int | None:
@@ -991,6 +994,7 @@ def render(
         cmd += ["-b", str(bank_offset), path]
     cmd.append(mid_path)
     subprocess.run(cmd, check=True, capture_output=True)
+    _compress_wav(wav_path)
     _normalize_wav(wav_path)
     return wav_path
 
@@ -1001,6 +1005,27 @@ def render(
 # is lifted afterwards. -2.0 ≈ their "gain 1.0" (Sujit dialed the first -0.5 ceiling
 # back, 2026-07-15). Skipped silently when ffmpeg is absent.
 NORMALIZE_PEAK_DB = -2.0
+
+
+# A gentle BUS COMPRESSOR before the peak-normalise (Sujit, 2026-10-12: "would using a compressor
+# help?" — yes, as the second half of evening the dynamics; the first is the narrower energy arc in
+# crew/dynamics.py). It smooths what the arrangement leaves and tames the breakdown peaks that hit
+# 0 dBFS, which in turn lets the normaliser lift the whole mix. Low ratio, soft knee, and an attack
+# slow enough to let a sitar pluck's transient through; heavier settings pump and flatten the
+# plucks. Inference for the ear — tune here.
+BUS_COMPRESSOR = "acompressor=threshold=-20dB:ratio=2.5:attack=25:release=250:knee=4"
+
+
+def _compress_wav(wav_path: str) -> None:
+    """Run the mix through `BUS_COMPRESSOR`; a no-op without ffmpeg."""
+    import os
+    import shutil
+    if shutil.which("ffmpeg") is None:
+        return
+    tmp = wav_path + ".comp.wav"
+    subprocess.run(["ffmpeg", "-y", "-i", wav_path, "-af", BUS_COMPRESSOR, tmp],
+                   check=True, capture_output=True)
+    os.replace(tmp, wav_path)
 
 
 def _normalize_wav(wav_path: str) -> None:

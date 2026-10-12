@@ -475,6 +475,19 @@ def test_an_alap_too_short_to_be_one_must_grow_or_go_in_either_form():
     assert ok, value                                               # no sitar, no alap, no floor
 
 
+def test_a_tihai_is_a_short_cadence_not_the_main_melody():
+    # the 2026-10-12 song labelled its two 2-avartan main melody sections 'tihai'
+    long_tihai = _song(roles=(None, "breakdown", None))
+    long_tihai.sections[1] = long_tihai.sections[1].model_copy(update={"form_role": "tihai"})
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=long_tihai, note="x")))
+    assert not ok and "CADENCE" in msg
+    short = long_tihai.model_copy(update={"sections": [
+        *long_tihai.sections[:1], long_tihai.sections[1].model_copy(update={"bars": 1}),
+        *long_tihai.sections[2:]]})
+    ok, value = _validate_turn(_FakeOutput(ComposerTurn(draft=short, note="x")))
+    assert ok, value
+
+
 def test_the_composers_set_the_register_from_the_raga():
     from crew.composers import _render_raga_block
     assert "MANDRA" in _render_raga_block("darbari")

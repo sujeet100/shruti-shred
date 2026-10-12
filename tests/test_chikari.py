@@ -299,6 +299,14 @@ def test_a_written_chikari_counts_toward_the_cap():
 
 
 def test_no_sitar_no_chikari():
+    os.environ["RMA_LEAD_GUITAR"] = "1"                     # a guitar solo needs the lead guitar
+    try:
+        _no_sitar_no_chikari()
+    finally:
+        os.environ.pop("RMA_LEAD_GUITAR", None)
+
+
+def _no_sitar_no_chikari():
     arr = _arr(_sec(SectionKind.SOLO, 1, None))            # a guitar solo: the sitar lays out
     lead = lead_layers_from({0: _phrase(("m", 2, None), ("-", 2, None), ("S", 1, "chikari"),
                                         ("D", 4, None))}, arr)

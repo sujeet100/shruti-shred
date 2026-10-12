@@ -48,14 +48,20 @@ _FINAL_FLOOR: float = 0.85   # the last section (unless an outro) lands strong �
 
 # Energy -> velocity gain. A soft section sits at ~0.62 of its authored velocity, the peak a
 # touch hotter than written — an audible dynamic swing without silencing the quiet sections.
-_GAIN_FLOOR: float = 0.62
-_GAIN_CEIL: float = 1.08
+# Narrowed 0.62-1.08 -> 0.80-1.00 (Sujit, 2026-10-12: "sometimes the guitars get too loud,
+# sometimes the sound fades in and out" — measured on that render, the guitars ran at velocity
+# 115-121 in the breakdowns and 53-87 elsewhere, and sections swung -16 to -26 dB). The arc still
+# builds; it no longer lurches.
+_GAIN_FLOOR: float = 0.80
+_GAIN_CEIL: float = 1.00
 
 # Layer-by-function gains for a NON-foreground voice (the foreground itself is always 1.0):
 # duck raised 0.55 -> 0.70 and the tabla bed 0.85 -> 0.95 (Sujit's live notes, 2026-07-16:
 # "riff sounded quiet under the mukhada" / "tabla could be louder" — the old duck buried the
 # chug, and the bed gain was shaving an already-quiet tabla).
-_DUCK_RHYTHM_UNDER_LEAD: float = 0.70   # the riff makes room for the lead without vanishing
+# 0.70 -> 0.82 the same day: the sitar now carries on its own channel level (render._MIX_LEVEL)
+# with no lead guitar on top, so the riff no longer has to drop away every time it enters.
+_DUCK_RHYTHM_UNDER_LEAD: float = 0.82   # the riff makes room for the lead without vanishing
 _LEAD_UNDER_RHYTHM: float = 0.90        # a background lead stays present but doesn't fight the riff
 _BED: dict[str, float] = {"tabla": 0.95, "bass": 0.90, "drums": 0.90}  # support beds sit under
 _BED_DEFAULT: float = 0.85

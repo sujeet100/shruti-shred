@@ -55,6 +55,7 @@ from crew.config import (
     GENERATOR_RETRIES,
     composer_llm,
     generator_llm,
+    lead_guitar_enabled,
     load_env,
     structured_output,
 )
@@ -775,7 +776,7 @@ def _voicing_for(section) -> Voicing:
     doubling the head note for note turned the gat into a guitar line — "our sitar mukhada sounds
     like electric guitar or keyboard" (Sujit, 2026-10-12). The head's weight now comes from its
     strokes (the bol figures) and the band under it, never from a second voice on top."""
-    if is_mukhada(section):
+    if is_mukhada(section) or not lead_guitar_enabled():
         return Voicing.SITAR
     return _VOICING_BY_KIND.get(section.kind, Voicing.SITAR)
 
@@ -1952,7 +1953,8 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
         # the pluck limit, on whatever placement produced: no hold outlives the string
         line = pluck_limited(line, register=register, metered=not is_unmetered(span.section),
                              closes_lead=closes_lead)
-        if span.section.kind is SectionKind.TAAN or span.section.form_role == "taan_long":
+        if lead_guitar_enabled() and (span.section.kind is SectionKind.TAAN
+                                      or span.section.form_role == "taan_long"):
             # the taan/solo peak trades sitar<->guitar, then joins — whatever KIND carries it
             # (a taan_long voiced as a plain SOLO would otherwise be guitar-only, no trade)
             sitar_line, guitar_line = _voice_taan_call_response(

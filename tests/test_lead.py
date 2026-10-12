@@ -69,6 +69,25 @@ from crew.lead import (  # noqa: E402
 )
 
 
+
+def _with_lead_guitar(test):
+    """Run a test of the lead-guitar VOICINGS (unison/octave/third, the taan trade) with the
+    guitar switched on — it is OFF by default since 2026-10-12 (config.lead_guitar_enabled)."""
+    import functools
+
+    @functools.wraps(test)
+    def run():
+        old = os.environ.get("RMA_LEAD_GUITAR")
+        os.environ["RMA_LEAD_GUITAR"] = "1"
+        try:
+            return test()
+        finally:
+            if old is None:
+                os.environ.pop("RMA_LEAD_GUITAR", None)
+            else:
+                os.environ["RMA_LEAD_GUITAR"] = old
+    return run
+
 def _arr(*section_layers: tuple[str, ...], kind: SectionKind = SectionKind.ALAAP,
          raga: str = "malkauns") -> Arrangement:
     """A real chart (teentaal, 16-beat cycles) with one section per arg. Default kind
@@ -284,6 +303,7 @@ def test_alaap_is_voiced_as_solo_sitar():
         v.instrument, v.program, v.channel)
 
 
+@_with_lead_guitar
 def test_solo_is_voiced_on_lead_guitar_only():
     arr = _arr(("lead", "drone"), kind=SectionKind.SOLO)   # SOLO -> GUITAR
     fn, _ = _fake([_phrase("S", "m")])
@@ -292,6 +312,7 @@ def test_solo_is_voiced_on_lead_guitar_only():
     assert layers[0].instrument == VOICES["lead_guitar"].instrument
 
 
+@_with_lead_guitar
 def test_melody_is_voiced_in_unison_on_two_layers():
     arr = _arr(("lead", "drone"), kind=SectionKind.MELODY)  # MELODY -> UNISON
     fn, _ = _fake([_phrase("S", "m")])
@@ -300,6 +321,7 @@ def test_melody_is_voiced_in_unison_on_two_layers():
     assert [[n.swara for n in x.notes] for x in layers] == [["S", "m"], ["S", "m"]]
 
 
+@_with_lead_guitar
 def test_a_one_bar_taan_is_played_by_both_voices_in_unison():
     arr = _arr(("lead", "drone"), kind=SectionKind.TAAN, raga="darbari")
     fn, _ = _fake([_phrase("S", "R", "g")])        # legal in darbari
@@ -310,6 +332,7 @@ def test_a_one_bar_taan_is_played_by_both_voices_in_unison():
     assert [n.swara for n in guitar.notes] == ["S", "R", "g"]   # unison: weight, not a 2nd melody
 
 
+@_with_lead_guitar
 def test_the_sitar_plays_the_WHOLE_taan_and_the_guitar_joins_at_the_end():
     """The voices used to TRADE the taan — sitar calls, guitar answers. That stopped the arc
     dead at the climax: the sitar builds, reaches intensity, and the piece pauses to give the
@@ -358,6 +381,7 @@ def test_harmony_strips_ornaments_but_the_melody_keeps_them():
 
 # --- lead_layers_from: assemble layers from already-generated phrases -----------
 
+@_with_lead_guitar
 def test_lead_layers_from_places_and_voices_by_index():
     arr = _arr(("lead", "drone"), ("lead", "drone"), kind=SectionKind.MELODY)  # UNISON -> 2 layers
     layers = lead_layers_from({0: _phrase("S", "m"), 1: _phrase("g", "d")}, arr)
@@ -1818,6 +1842,16 @@ def test_the_lead_is_told_where_the_raga_lives():
     from crew.lead import _render_raga_facts
     assert "register — where the raga LIVES" in _render_raga_facts("darbari")
     assert "register" not in _render_raga_facts("yaman")      # no verified entry, no claim
+
+
+def test_by_default_the_sitar_carries_every_lead_section_alone():
+    # Sujit, 2026-10-12: the unison guitar buried the sitar's gamaks and made it "feeble"
+    arr = _gat_arr((SectionKind.MELODY, 1, None), (SectionKind.SOLO, 1, None),
+                   (SectionKind.TAAN, 1, "taan_long"))
+    phrases = {i: _phrase("S", "g", "m", "d", dur=2.0) for i in range(3)}
+    layers = lead_layers_from(phrases, arr)
+    assert [ly.instrument for ly in layers] == [VOICES["sitar"].instrument]
+    assert len(layers[0].notes) == 12                       # the whole line, every section
 
 
 if __name__ == "__main__":

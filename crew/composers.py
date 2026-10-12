@@ -134,7 +134,7 @@ _FORM_DESC: Final[dict[str, str]] = {
     "taan_short": "a short cadential taan filler (half/one cycle) that resolves into the next mukhada",
     "taan_long": "the developed taan — the SITAR's peak; place it after the antara or before the final mukhada. The climax belongs to the sitar: build it with a LONG taan, or with back-to-back taan sections that accelerate into each other, rather than handing the melody to another instrument. By DEFAULT the band DRIVES it (sustained rhythm chords + climax drums under the taan, the lead guitar joining in unison only for the final avartan); set climax_style 'exposed' only when you want a short exposed breath (a few matras) before the re-entry sam — code thins the band there; it is a held breath, not a cycle without the band",
     "breakdown": "a heavy, sparse rhythmic climax",
-    "tihai": "a phrase stated thrice, landing on the sam — a cadence",
+    "tihai": "a phrase stated thrice, landing on the sam — a short cadence, at most ONE bar (never the main melody)",
     "outro": "settle back down to a held Sa",
 }
 
@@ -595,6 +595,19 @@ def _intro_error(draft: ArrangementDraft, budget: FormBudget) -> str | None:
             f"short to hold an alap AND the rest of the form, leave the alap out. Resend.")
 
 
+def _tihai_error(draft: ArrangementDraft, budget: FormBudget) -> str | None:
+    """Either form: a tihai is a CADENCE — one phrase stated three times, landing on the sam —
+    at most one avartan. The 2026-10-12 Darbari song labelled its two 2-avartan main melody
+    sections 'tihai', so a cadence brief and the tihai code pass met the piece's main theme."""
+    long = [f"#{i + 1}" for i, s in enumerate(draft.sections)
+            if s.form_role == "tihai" and s.bars > 1]
+    if not long:
+        return None
+    return (f"A tihai is a short CADENCE (one phrase stated three times, landing on the sam) — at "
+            f"most 1 avartan, never the main melody. Section(s) {', '.join(long)}: make the tihai "
+            f"1 bar, or give the melody its own role (mukhada in a gat; no role in a song). Resend.")
+
+
 def _manjha_error(draft: ArrangementDraft, budget: FormBudget) -> str | None:
     """Gat: the manjha is the head's COMPLEMENT — after the first mukhada, and the mukhada
     re-enters IMMEDIATELY after it (head -> manjha -> head, one cohesive cycle)."""
@@ -672,11 +685,12 @@ def _recurring_riff_error(draft: ArrangementDraft, budget: FormBudget) -> str | 
 # named riffs, the taan cap, harmony, length) bracket the form's own structure.
 _GAT_CHECKS: Final[tuple[_Check, ...]] = (
     _motif_error, _slot_error, _roleless_error, _edge_role_error, _mukhada_return_error,
-    _taan_cap_error, _intro_error, _manjha_error, _return_error, _long_leadless_error, _leadless_count_error,
+    _taan_cap_error, _intro_error, _tihai_error, _manjha_error, _return_error, _long_leadless_error,
+    _leadless_count_error,
     _harmony_check, _length_check)
 _SONG_CHECKS: Final[tuple[_Check, ...]] = (
     _motif_error, _slot_error, _gat_role_error, _edge_role_error, _recurring_riff_error,
-    _taan_cap_error, _intro_error, _harmony_check, _length_check)
+    _taan_cap_error, _intro_error, _tihai_error, _harmony_check, _length_check)
 
 
 def draft_error(draft: ArrangementDraft, budget: FormBudget) -> str | None:

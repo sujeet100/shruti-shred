@@ -198,6 +198,20 @@ def tabla_enabled() -> bool:
     return _env_flag("RMA_TABLA")
 
 
+def lead_guitar_enabled() -> bool:
+    """Whether the distorted LEAD GUITAR doubles, harmonises or trades the sitar's line; env
+    `RMA_LEAD_GUITAR` (default OFF as of 2026-10-12).
+
+    Sujit's call on the 2026-10-12 Darbari render: the unison guitar played the line plain (by
+    design, so it never sways out of tune with the sitar) and so BURIED the sitar's gamaks and
+    Ga gestures — measured, the first melody section carried 10 gamak strokes nobody heard until
+    the taan exposed the sitar — and the sitar sounded "feeble compared to guitar". A FLAG, not a
+    deletion: the voicings (unison/octave/third, the taan trade) are good code — RMA_LEAD_GUITAR=1
+    brings them back.
+    """
+    return _env_flag("RMA_LEAD_GUITAR")
+
+
 def studio_enabled() -> bool:
     """True iff the COOPERATIVE studio session is the generation path; env `RMA_STUDIO`.
 

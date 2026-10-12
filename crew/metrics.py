@@ -32,7 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from crew.contracts import Arrangement, Composition, Layer, Note
+from crew.contracts import Arrangement, Composition, Layer, Note, Section, SectionKind
 from crew.generators import section_spans
 
 # Voices whose octave ranges we check for collisions — the melodic/rhythmic parts. The
@@ -426,6 +426,14 @@ def _covered_beats(windows: list[tuple[float, float]], start: float, end: float)
     return covered
 
 
+def _is_alap(section: Section) -> bool:
+    """The alap is never a STARVED spotlight: its silences are composed (about a quarter of it,
+    by its brief) and the jod and chikari ring through them. On the 2026-10-12 Darbari run the
+    forced "barely audible" revise fired on the alap every round — the alap grew 45 -> 51 notes
+    and still tripped it — and the Producer's own call (a weak climax) was never applied."""
+    return section.form_role == "intro" or section.kind is SectionKind.ALAAP
+
+
 def lead_coverage(comp: Composition, arr: Arrangement) -> list[LeadCoverage]:
     """Per section the lead plays in: the share of its beats where a lead note still SOUNDS,
     a note counting only until its pluck decays. Pure; the input to the starved-lead fault."""
@@ -436,7 +444,8 @@ def lead_coverage(comp: Composition, arr: Arrangement) -> list[LeadCoverage]:
             continue
         share = _covered_beats(windows, span.start, span.end) / span.length
         rows.append(LeadCoverage(index=span.index, kind=span.section.kind.value,
-                                 spotlight=span.section.foreground == _LEAD_ROLE,
+                                 spotlight=span.section.foreground == _LEAD_ROLE
+                                 and not _is_alap(span.section),
                                  coverage=round(share, 3)))
     return rows
 

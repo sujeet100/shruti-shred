@@ -359,6 +359,21 @@ def test_only_a_lead_spotlight_section_can_be_starved():
     assert row.coverage < 0.1 and not row.spotlight and not row.starved
 
 
+def test_an_alap_is_never_a_starved_spotlight():
+    # 2026-10-12: the forced "barely audible" revise fired on the alap every round — its
+    # silences are composed, and the jod and chikari ring through them
+    from crew.metrics import lead_coverage
+    draft = ArrangementDraft(
+        raga="darbari", subgenre="doom", tala="teentaal", bpm=72, motif=_MOTIF,
+        sections=[Section(kind=SectionKind.ALAAP, bars=3, layers=["lead", "drone"],
+                          foreground="lead", form_role="intro")])
+    arr = build_arrangement(draft, CompositionBrief(mood="dark"))
+    sparse = Layer(role="lead", instrument="sitar",
+                   notes=[Note(swara="S", oct=0, start=0.0, dur=1.0)])
+    [row] = lead_coverage(_lead_comp(sparse), arr)
+    assert row.coverage < 0.1 and not row.starved
+
+
 def test_the_producer_sees_the_audible_lead_and_the_starved_flag():
     held = Layer(role="lead", instrument="sitar",
                  notes=[Note(swara="S", oct=0, start=0.0, dur=48.0)])

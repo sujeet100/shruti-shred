@@ -893,6 +893,16 @@ and build order.
   expose the combined melody+chikari right hand for the riff. Densities/strum/ring are
   inference for the ear. Sound check (A old / B new): `uv run python -m crew.chikari_demo`.
   1087 pure tests (+18 `test_chikari.py`). Live-untested.
+- **SITAR FORWARD + EVEN DYNAMICS (2026-10-12, Sujit's listen of `fusion_20261012_135724`):** the
+  LEAD GUITAR is OFF by default (`config.lead_guitar_enabled`, env `RMA_LEAD_GUITAR`) — its plain
+  unison buried the sitar's gamaks (10 in the first melody section, unheard) and made the sitar
+  "feeble"; the voicings stay, gated. Sitar mix level 92 -> 112, reverb send 68 -> 56. Dynamics:
+  energy gain 0.62-1.08 -> 0.80-1.00, rhythm duck under the lead 0.70 -> 0.82 (sections swung
+  -16 to -26 dB; guitars 115-121 vel in breakdowns vs 53-87 elsewhere); a gentle BUS COMPRESSOR
+  (`render.BUS_COMPRESSOR`, 2.5:1 soft knee, 25 ms attack) before the peak-normalise. The alap is
+  never a STARVED spotlight (the forced revise fired on it every round, so the Producer's climax
+  call was never applied). A `tihai` section is at most 1 bar (that song used it for its main
+  melody). Free preview: `out/fusion_20261012_135724_sitarmix.wav`. 1124 pure tests.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.
