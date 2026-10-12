@@ -39,7 +39,7 @@ from crew.metrics import LEAD_STARVED_COVERAGE, LeadCoverage, lead_coverage
 
 _ORCH_PREFIX: Final = "orch_"
 # Composition layer roles -> the creative voice that produces them. Bass and the double-tracked
-# guitar derive from the riff; drone, jod and the clean guitar are code and are not revisable.
+# guitar derive from the riff; drone and the clean guitar are code and are not revisable.
 _ROLE_VOICE: Final[dict[str, RevisionVoice]] = {"lead": "lead", "rhythm": "riff", "bass": "riff"}
 _STARVED_INSTRUCTION: Final = (
     "the lead is barely heard here — a plucked sitar note fades a few beats after its stroke, so "

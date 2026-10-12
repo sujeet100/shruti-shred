@@ -14,7 +14,7 @@ wheel is channel-wide). This module makes it the instrument it is, in two halves
   * WHERE (`chikari_strokes`, a pure planner) reads the PLACED sitar line and each section's
     role, never a fixed grid:
       - ALAP (the intro, or an alaap-kind section): sparse — at most one stroke an avartan, a
-        breath after a phrase ENDS, in the cycle's longest silence, stepped off the jod's beat;
+        breath after a phrase ENDS, in the cycle's longest silence;
       - HEAD (the mukhada, or the song form's hook): ONE pattern derived from the head's own
         right hand — the matras its stroke_line leaves empty ("-", rests, held notes) — so every
         return of the head brings the same chikari back with it (melodic + chikari identity);
@@ -65,13 +65,11 @@ STRUM_MS: Final = 6.0
 PLANNED_STRINGS: Final = 2
 # Two strokes closer than this crowd each other: the chikari punctuates, it does not chatter.
 MIN_SPACING_BEATS: Final = 2.0
-# The alap: a stroke waits this long after a phrase ends (the jod strikes the hole first), needs
-# a silence at least this long to be worth punctuating, must leave this much before the next
-# phrase, and steps a beat at a time off any jod stroke closer than the clearance.
+# The alap: a stroke waits this long after a phrase ends, needs a silence at least this long to
+# be worth punctuating, and must leave this much before the next phrase.
 ALAP_BREATH_BEATS: Final = 1.0
 ALAP_MIN_GAP_BEATS: Final = 2.0
 ALAP_TAIL_BEATS: Final = 1.0
-JOD_CLEARANCE_BEATS: Final = 0.75
 
 
 class SectionRole(Enum):
@@ -120,11 +118,10 @@ class RightHandStroke:
 @dataclass(frozen=True)
 class _Line:
     """The placed sitar line as the planner reads it: its melody strokes, the chikari strokes
-    the composer wrote, the head's chikari matras, and the jod's stroke beats."""
+    the composer wrote, and the head's chikari matras."""
     melody: tuple[Note, ...]
     written: tuple[Note, ...]
     head: tuple[int, ...]
-    jod: tuple[float, ...]
 
 
 @dataclass(frozen=True)
@@ -194,12 +191,10 @@ def _ended_within(t0: float, t1: float, melody: Sequence[Note]) -> bool:
 # Where: the planner                                                          #
 # --------------------------------------------------------------------------- #
 
-def chikari_strokes(arr: Arrangement, lead_layers: Iterable[Layer],
-                    jod_onsets: Sequence[float] = ()) -> list[ChikariStroke]:
+def chikari_strokes(arr: Arrangement, lead_layers: Iterable[Layer]) -> list[ChikariStroke]:
     """Every chikari stroke of the piece, written and planned, in time order. Pure."""
     melody, written = split_sitar_line(lead_layers)
-    line = _Line(tuple(melody), tuple(written), _head_pattern(arr, melody, written),
-                 tuple(jod_onsets))
+    line = _Line(tuple(melody), tuple(written), _head_pattern(arr, melody, written))
     strokes: list[ChikariStroke] = []
     for span in section_spans(arr):
         if any(_inside(n.start, span) for n in [*melody, *written]):
@@ -235,7 +230,7 @@ def _plan_bar(role: SectionRole, start: float, cycle: float, line: _Line) -> lis
     if room <= 0:
         return []
     if role is SectionRole.ALAP:
-        return _alap_beats(start, cycle, line.melody, line.jod)
+        return _alap_beats(start, cycle, line.melody)
     slots = _slots(start, cycle, line.melody, line.written)
     if role is SectionRole.HEAD:
         free = {s.offset for s in slots}
@@ -334,16 +329,13 @@ def _silences(start: float, end: float, melody: Sequence[Note]) -> list[tuple[fl
     return sorted(set(out), key=lambda g: (-(g[1] - g[0]), g[0]))
 
 
-def _alap_beats(start: float, cycle: float, melody: Sequence[Note],
-                jod_onsets: Sequence[float]) -> list[float]:
+def _alap_beats(start: float, cycle: float, melody: Sequence[Note]) -> list[float]:
     """At most one alap stroke this avartan: a breath into its longest post-phrase silence,
-    on the beat, stepped off the jod, with time left to ring before the next phrase."""
+    on the beat, with time left to ring before the next phrase."""
     for gap_start, gap_end in _silences(start, start + cycle, melody):
         if gap_end - gap_start < ALAP_MIN_GAP_BEATS - _EPS:
             break
         t = float(math.ceil(gap_start + ALAP_BREATH_BEATS - _EPS))
-        while any(abs(t - j) < JOD_CLEARANCE_BEATS for j in jod_onsets):
-            t += 1.0
         if t <= gap_end - ALAP_TAIL_BEATS + _EPS:
             return [t]
     return []
@@ -389,12 +381,9 @@ def strum_notes(strokes: Sequence[ChikariStroke], arr: Arrangement) -> list[Note
     return notes
 
 
-def chikari_layer(arr: Arrangement, lead_layers: Iterable[Layer],
-                  jod: Layer | None = None) -> Layer | None:
-    """The chikari as its own sitar layer and channel, or None when the sitar strikes none.
-    `jod` (the intro's drone-string layer) keeps the alap's strokes off the jod's beats."""
-    jod_onsets = tuple(n.start for n in (jod.notes or [])) if jod is not None else ()
-    strokes = chikari_strokes(arr, lead_layers, jod_onsets)
+def chikari_layer(arr: Arrangement, lead_layers: Iterable[Layer]) -> Layer | None:
+    """The chikari as its own sitar layer and channel, or None when the sitar strikes none."""
+    strokes = chikari_strokes(arr, lead_layers)
     if not strokes:
         return None
     voice = VOICES[CHIKARI_ROLE]
@@ -415,15 +404,15 @@ def _right_hand(start: float, end: float, melody: Sequence[Note],
     return sorted(out, key=lambda s: (s.beat, s.kind))
 
 
-def right_hand_rhythm(arr: Arrangement, lead_layers: Iterable[Layer], section_index: int,
-                      jod_onsets: Sequence[float] = ()) -> list[RightHandStroke]:
+def right_hand_rhythm(arr: Arrangement, lead_layers: Iterable[Layer],
+                      section_index: int) -> list[RightHandStroke]:
     """The sitar's whole right hand in one section — every melody stroke and every chikari
     stroke, beats from the section's start, in time order. Takes the lead layers as
     `lead_layers_from` builds them (written chikari still marked on the sitar line). Pure."""
     layers = list(lead_layers)
     span = section_spans(arr)[section_index]
     melody, _ = split_sitar_line(layers)
-    return _right_hand(span.start, span.end, melody, chikari_strokes(arr, layers, jod_onsets))
+    return _right_hand(span.start, span.end, melody, chikari_strokes(arr, layers))
 
 
 def head_right_hand(arr: Arrangement, lead_layers: Iterable[Layer]) -> list[RightHandStroke]:

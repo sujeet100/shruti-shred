@@ -17,13 +17,15 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 
-from crew.contracts import LeadNote, LeadPhrase, PhrasePlan  # noqa: E402
+from crew.contracts import HeadStage, LeadNote, LeadPhrase, PhrasePlan  # noqa: E402
 from crew.gat_verifier import (
     # noqa: E402,
     check_amad,
     check_antara,
     check_bol_frame,
     check_fill,
+    check_head_plan,
+    check_head_shape,
     check_intro,
     check_manjha,
     check_mukhada,
@@ -1116,6 +1118,94 @@ def test_notes_that_leave_their_line_are_reported_never_rejected():
     checks = check_stroke_line(head, cycle_beats=16.0)
     assert checks.hard == () and any("of 16 matras" in v for v in checks.craft)
 
+
+
+# --- the head is ONE idea (Sujit, 2026-10-12) -------------------------------------------------
+
+def test_a_head_broken_by_rests_or_chikari_is_rejected():
+    # fusion_20261012_152048: `da ra dir chikari` x4 — a hole on every fourth matra
+    chikari = _n("S", 1.0, oct=1, bol="chikari")
+    head = _cell(_n("S", 1.0), _n("R", 1.0), _n("g", 1.0), chikari,
+                 _n("m", 1.0), _n("P", 1.0), _n("P", 1.0), _n("S", 1.0, rest=True),
+                 _n("d", 2.0), _n("n", 2.0), _n("g", 1.0), _n("m", 1.0), _n("R", 2.0))
+    hard = check_head_shape(head, raga="darbari").hard
+    assert len(hard) == 1 and "4 8" in hard[0] and "ONE idea" in hard[0]
+
+
+def test_a_continuous_head_with_a_held_breather_passes():
+    # a quick (m)g m R S figure, a held andolit g as the breather, then the approach
+    head = _cell(_n("m", 0.5), _n("g", 0.5), _n("m", 0.5), _n("R", 0.5), _n("S", 1.0),
+                 _n("R", 1.0), _n("g", 3.0, andolan=True), _n("R", 1.0), _n("S", 1.0),
+                 _n("m", 1.0), _n("P", 1.0), _n("d", 1.0), _n("n", 1.0), _n("P", 1.0),
+                 _n("g", 1.0), _n("m", 1.0))
+    assert check_head_shape(head, raga="darbari").hard == ()
+    assert check_head_shape(head, raga="darbari").craft == ()
+
+
+def test_a_head_that_walks_the_scale_is_reported():
+    # the same head's opening, repeated strokes merged: S R g m P d n — the scale, not Darbari
+    head = _cell(*[_n(sw, 1.0) for sw in ["S", "S", "R", "g", "g", "m", "P", "P", "d", "n"]],
+                 _n("P", 2.0), _n("g", 1.0), _n("m", 1.0), _n("R", 2.0))
+    assert any("straight along the scale" in c for c in check_head_shape(head, raga="darbari").craft)
+
+
+def test_gamak_in_a_head_is_counted_as_the_ear_hears_it():
+    def g(sw: str, partner: str) -> LeadNote:
+        return _n(sw, 0.5, gamak_with=partner)
+    two = _cell(g("S", "R"), g("S", "R"), _n("R", 1.0), g("g", "m"), g("g", "m"), _n("m", 13.0))
+    assert check_head_shape(two, raga="darbari").craft == ()          # a dir doubling is ONE gamak
+    three = _cell(g("S", "R"), _n("R", 1.0), g("g", "m"), _n("m", 1.0), g("P", "m"), _n("R", 12.5))
+    assert any("gamak on 3 notes" in c for c in check_head_shape(three, raga="darbari").craft)
+
+
+# --- the breather: a held note, planned and heard ----------------------------------------------
+
+def _darbari_head() -> LeadPhrase:
+    # figure (4) -> breather on g (4) -> response (4) -> approach (4)
+    return _cell(_n("m", 0.5), _n("g", 0.5), _n("m", 0.5), _n("R", 0.5), _n("S", 1.0),
+                 _n("R", 1.0), _n("g", 3.0, andolan=True), _n("R", 1.0), _n("S", 1.0),
+                 _n("m", 1.0), _n("P", 1.0), _n("d", 1.0), _n("n", 1.0), _n("P", 1.0),
+                 _n("g", 1.0), _n("m", 1.0))
+
+
+def _shaped(cell: LeadPhrase, *stages: tuple) -> LeadPhrase:
+    shape = [HeadStage(stage=st, beats=b, target=tg) for st, b, tg in stages]
+    return cell.model_copy(update={"phrase_plan": cell.phrase_plan.model_copy(
+        update={"head_shape": shape})})
+
+
+def test_a_head_that_never_holds_a_note_is_rejected():
+    # fusion_20261012_152048's longest note was ONE beat; its "breath" was four rests
+    head = _cell(*[_n(sw, 1.0) for sw in ["S", "R", "g", "R", "m", "P", "d", "n",
+                                          "P", "m", "g", "m", "R", "S", "n", "R"]])
+    assert any("BREATHER" in h for h in check_head_shape(head, raga="darbari").hard)
+
+
+def test_a_restruck_long_note_is_no_breather():
+    # a gamak re-strikes about every quarter second; a compound bol divides the note
+    for long in (_n("g", 4.0, gamak_with="m"), _n("g", 4.0, bol="dara")):
+        head = _cell(*[_n(sw, 1.0) for sw in ["S", "R", "m", "R", "S", "n", "d", "n",
+                                              "P", "m", "R", "S"]], long)
+        assert any("BREATHER" in h for h in check_head_shape(head, raga="darbari").hard)
+
+
+def test_a_planned_shape_the_notes_keep_reports_nothing():
+    head = _shaped(_darbari_head(), ("figure", 4.0, None), ("breather", 4.0, "g"),
+                   ("response", 4.0, None), ("approach", 4.0, "S"))
+    assert check_head_plan(head, cycle_beats=16.0).craft == ()
+
+
+def test_the_plan_is_measured_against_the_notes():
+    missing = check_head_plan(_darbari_head(), cycle_beats=16.0).craft
+    assert any("no head_shape" in c for c in missing)
+    wrong = _shaped(_darbari_head(), ("figure", 4.0, None), ("breather", 4.0, "d"),
+                    ("approach", 6.0, "S"))
+    craft = check_head_plan(wrong, cycle_beats=16.0).craft
+    assert any("spans 14" in c for c in craft)
+    assert any("to hold d, but it holds g" in c for c in craft)
+    late = _shaped(_darbari_head(), ("figure", 8.0, None), ("breather", 4.0, None),
+                   ("approach", 4.0, "S"))
+    assert any("holds no note" in c for c in check_head_plan(late, cycle_beats=16.0).craft)
 
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

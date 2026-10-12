@@ -29,7 +29,6 @@ Entry point (deterministic, no LLM):  uv run python -m crew.generators
 
 from __future__ import annotations
 
-import math
 import shutil
 import sys
 from dataclasses import dataclass
@@ -100,13 +99,9 @@ VOICES: Final[dict[str, Voice]] = {
     "orch_brass": Voice("brass", 61, 7, pan=74),        # GM #62 Brass Section — right-of-centre
     "orch_choir": Voice("choir", 52, 11, pan=64),       # GM #53 Choir Aahs — centre, the wash
     "orch_timpani": Voice("timpani", 47, 12, pan=64),   # GM #48 Timpani — centre-low reinforcement
-    # The sitar's JOD drone string — a plucked mandra Sa struck ONCE and left to RING under the
-    # alap (a sustained open string, not a re-attacked pluck). Its OWN channel so the melodic
-    # sitar's meend/bend wheel never bends it; the GM sitar patch gives the plucked attack + ring.
-    "jod": Voice("sitar", 104, 13, pan=64),
     # The sitar's CHIKARI strings (crew/chikari.py) — the high drone strings the right hand
-    # strums between melody strokes, at the sitar's own pan. Their OWN channel for the same
-    # reason as the jod: a meend/andolan on the melodic channel bends everything on it. The
+    # strums between melody strokes, at the sitar's own pan. Their OWN channel: a meend/andolan
+    # on the melodic channel bends everything on it. The
     # renderer's unbent sympathetic (taraf) copy shares this channel — both are the sitar's
     # unbent strings — so the chikari costs no extra companion channel.
     "chikari": Voice("sitar", 104, 14, pan=44),
@@ -159,6 +154,12 @@ def total_beats(arr: Arrangement) -> float:
 
 _DRONE_VEL_SA: Final[int] = 55          # Sa is the loudest drone tone
 _DRONE_VEL_COMPANION: Final[int] = 45   # its companion sits a touch under it
+# The tanpura sounds an octave ABOVE the chart's drone register (the riff's floor). At the floor
+# itself (~D2) the pad was a sub-bass rumble that barely read as Sa — measured on
+# fusion_20261012_152048 at about -40 dB alone — which is why a plucked "jod" Sa was once added
+# an octave up to carry the alap's home. One octave up the tanpura carries it itself, all piece
+# long, and the jod is gone (2026-10-12: it double-knocked every alap gap with the chikari).
+_TANPURA_OCT_ABOVE_FLOOR: Final[int] = 1
 
 
 def drone_layer(arr: Arrangement) -> Layer:
@@ -167,11 +168,11 @@ def drone_layer(arr: Arrangement) -> Layer:
     Sounds Sa plus one companion tone, both drawn from the raga's own allowed
     swaras (`drone_swaras`), so the drone is LEGAL IN THE GRAMMAR by construction
     — the guardrail can never flag it (this matters for e.g. Malkauns, which has
-    no Pa: the tanpura tunes Sa-ma, not Sa-Pa). It sits at the chart's `drone`
-    register (the lowest voice) and holds the tonal centre the metal riff and the
-    raga lead both resolve to.
+    no Pa: the tanpura tunes Sa-ma, not Sa-Pa). It sounds an octave above the chart's
+    `drone` register (the riff's floor, where a pad does not read as a pitch) and holds
+    the tonal centre the metal riff and the raga lead both resolve to.
     """
-    octave = arr.registers["drone"]
+    octave = arr.registers["drone"] + _TANPURA_OCT_ABOVE_FLOOR
     length = total_beats(arr)
     tones = drone_swaras(arr.raga)
     velocities = [_DRONE_VEL_SA] + [_DRONE_VEL_COMPANION] * (len(tones) - 1)
@@ -182,107 +183,12 @@ def drone_layer(arr: Arrangement) -> Layer:
                  channel=voice.channel, pan=voice.pan, notes=notes)
 
 
-# The jod string sits an octave ABOVE the tanpura pad: the pad at the drone octave is a
-# sub-bass rumble that barely reads as Sa, so the jod is the AUDIBLE plucked home the ear
-# hears in the alap (Sujit, 2026-07-19: the alap's Sa is a plucked open string that RINGS
-# and FADES NATURALLY, re-plucked to hold home — not the melodic sitar re-attacking low Sa).
-_JOD_OCT_ABOVE_DRONE: Final[int] = 1
-_JOD_VEL: Final[int] = 78               # the pluck's attack — a present drone-anchor, under the melodic sitar
-
-# A jod stroke is PLAYED IN TIME, like any other note. Held for a whole avartan it stopped
-# being a stroke and became a pad — measured on all three 2026-07-20 renders, the intro
-# carried four 16-beat jod notes, one per cycle, under a 448-beat tanpura and 16-beat string
-# pads, with four drum hits the only attacks in 64 beats. That is why the alap read as
-# "unnaturally out of rhythm" (Sujit, 2026-09-14): nothing in it was rhythmic. A sitarist
-# strikes the drone string where the melody LEAVES SPACE — to fill an empty matra — so the
-# strokes are placed against the melody, on the beat grid, and allowed to ring only briefly.
-_JOD_RING: Final[float] = 2.0           # beats a stroke rings before the next event (it fades)
-_JOD_MIN_GAP: Final[float] = 1.0        # a hole shorter than this needs no filling
-_JOD_GRID: Final[float] = 0.5           # strokes land on the beat grid, like any played note
-_JOD_MAX_PER_CYCLE: Final[int] = 4      # ...and never so many that the drone becomes the part
-
-
-def _sounding_spans(notes: list[Note]) -> list[tuple[float, float]]:
-    """Merged (start, end) spans where a voice is sounding — the melody's occupied time."""
-    spans: list[tuple[float, float]] = []
-    for note in sorted(notes, key=lambda n: n.start):
-        start, end = note.start, note.start + note.dur
-        if spans and start <= spans[-1][1]:
-            spans[-1] = (spans[-1][0], max(spans[-1][1], end))
-        else:
-            spans.append((start, end))
-    return spans
-
-
-def _gaps_in(spans: list[tuple[float, float]], start: float, end: float) -> list[tuple[float, float]]:
-    """The holes in [start, end) the melody leaves — where a drone stroke belongs."""
-    gaps: list[tuple[float, float]] = []
-    edge = start
-    for span_start, span_end in spans:
-        if span_end <= start or span_start >= end:
-            continue
-        if span_start > edge:
-            gaps.append((edge, min(span_start, end)))
-        edge = max(edge, span_end)
-    if edge < end:
-        gaps.append((edge, end))
-    return [(a, b) for a, b in gaps if b - a >= _JOD_MIN_GAP]
-
-
-def _on_grid(beat: float) -> float:
-    """The next beat-grid position at or after `beat` — a stroke is played in time."""
-    return round(math.ceil(beat / _JOD_GRID - 1e-9) * _JOD_GRID, 4)
-
-
-def _jod_strokes(gaps: list[tuple[float, float]], octave: int) -> list[Note]:
-    """One short plucked Sa at the head of each hole, ringing into the space and fading."""
-    notes: list[Note] = []
-    for gap_start, gap_end in gaps[:_JOD_MAX_PER_CYCLE]:
-        start = _on_grid(gap_start)
-        if start >= gap_end:
-            continue
-        notes.append(Note(swara="S", oct=octave, start=start,
-                          dur=round(min(_JOD_RING, gap_end - start), 4),
-                          vel=_JOD_VEL, fade=True))
-    return notes
-
-
-def intro_jod_layer(arr: Arrangement, lead_layers: list[Layer] = ()) -> Layer | None:
-    """The sitar's JOD drone string under the alap — a plucked mandra Sa struck WHERE THE
-    MELODY LEAVES SPACE, on the beat grid, ringing briefly and fading (a real jod: played in
-    time like any note, filling an empty matra — never a bowed pad spanning the avartan, and
-    never the melodic sitar re-attacking low Sa). It rings over the sustained tanpura beneath,
-    and IS the alap's audible 'home', so the melodic sitar need not mark Sa itself.
-
-    Deterministic and raga-trivially legal (it sounds Sa). Without `lead_layers` there is no
-    melody to answer, so it falls back to one stroke on each avartan's sam — still a stroke,
-    never a pad. None when the chart declares no intro section. Pure.
-    """
-    octave = arr.registers.get("drone", 0) + _JOD_OCT_ABOVE_DRONE
-    cycle = arr.beats_per_bar
-    lead = _sounding_spans([n for ly in lead_layers if ly.role == "lead"
-                            for n in (ly.notes or [])])
-    notes: list[Note] = []
-    for span in section_spans(arr):
-        if span.section.form_role != "intro":
-            continue
-        for bar in range(span.section.bars):
-            start = span.start + bar * cycle
-            gaps = _gaps_in(lead, start, start + cycle) if lead else [(start, start + cycle)]
-            notes.extend(_jod_strokes(gaps, octave))
-    if not notes:
-        return None
-    voice = VOICES["jod"]
-    return Layer(role="jod", instrument=voice.instrument, program=voice.program,
-                 channel=voice.channel, pan=voice.pan, notes=notes)
-
-
 # --------------------------------------------------------------------------- #
 # The Bass — a DETERMINISTIC shadow of the riff, no agent (see DESIGN.md).      #
 # --------------------------------------------------------------------------- #
 
 _BASS_VEL_SCALE: Final[float] = 0.9    # the bass sits just under the guitar it follows
-_BASS_FLOOR: Final[int] = -3           # deepest octave the bass drops to (~D1) — never subsonic
+BASS_FLOOR: Final[int] = -3           # deepest octave the bass drops to (~D1) — never subsonic
 # Bass momentum (GPT: "climbing into the next chord before the riff changes creates momentum").
 # A SUSTAINED root leans up/down one raga step in its last half-beat, INTO the next root.
 _APPROACH_BEATS: Final[float] = 0.5    # the walk-up takes the last half-beat before a root change
@@ -304,7 +210,7 @@ def _bass_approach(cur: tuple[str, int], nxt: tuple[str, int],
     sw, od = scale_step_up(nxt[0], raga, step)
     ap = (sw, nxt[1] + od)
     ap_pitch = SWARAS[sw] + 12 * ap[1]
-    if ap[1] < _BASS_FLOOR or ap_pitch in (cur_pitch, nxt_pitch):
+    if ap[1] < BASS_FLOOR or ap_pitch in (cur_pitch, nxt_pitch):
         return None                                        # subsonic, or no real step between roots
     if direction_violations([cur, ap, nxt], raga):         # respect directional varjya (aroha/avaroha)
         return None
@@ -335,11 +241,11 @@ def bass_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
     notes: list[Note] = []
     for i, n in enumerate(on_beat):
         end = on_beat[i + 1].start if i + 1 < len(on_beat) else riff_end
-        b_oct = max(n.oct - 1, _BASS_FLOOR)
+        b_oct = max(n.oct - 1, BASS_FLOOR)
         vel = max(1, round(n.vel * _BASS_VEL_SCALE))
         dur = end - n.start
         nxt = on_beat[i + 1] if i + 1 < len(on_beat) else None
-        approach = (_bass_approach((n.swara, b_oct), (nxt.swara, max(nxt.oct - 1, _BASS_FLOOR)),
+        approach = (_bass_approach((n.swara, b_oct), (nxt.swara, max(nxt.oct - 1, BASS_FLOOR)),
                                    arr.raga)
                     if nxt is not None and dur >= _APPROACH_MIN_DUR else None)
         if approach is not None:                          # hold the root, then walk into the change

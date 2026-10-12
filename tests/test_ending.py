@@ -88,14 +88,45 @@ def test_ring_out_lets_what_sounds_at_the_end_decay_past_it():
 
 
 def test_a_palm_muted_chug_does_not_ring():
+    # a chug on the sitar's channel stays a chug; only the band's FINAL stroke opens up
     arr = _arr("ring_out")
     end = total_beats(arr)
-    v = VOICES["rhythm"]
-    chug = Note(swara="S", oct=-2, start=end - 0.5, dur=0.5, technique="palm_mute")
-    layer = Layer(role="rhythm", instrument=v.instrument, program=v.program, channel=v.channel,
+    v = VOICES["sitar"]
+    chug = Note(swara="S", oct=0, start=end - 0.5, dur=0.5, technique="palm_mute")
+    layer = Layer(role="lead", instrument=v.instrument, program=v.program, channel=v.channel,
                   notes=[chug])
     [rung] = apply_ending([layer], arr)
     assert rung.notes == [chug]
+
+
+def test_the_bands_last_stroke_opens_and_rings_even_after_a_rest():
+    # fusion_20261012_152048: the final bar's chugs stopped a beat early and nothing rang, so the
+    # mix fell ~30 dB in a second. The last stroke now lifts the palm and decays past the end.
+    arr = _arr("ring_out")
+    end = total_beats(arr)
+    tail = RING_TAIL_S * arr.bpm / 60.0
+    v = VOICES["rhythm"]
+    early = Note(swara="R", oct=-2, start=end - 3, dur=1.0, technique="palm_mute")
+    last = Note(swara="S", oct=-2, start=end - 2, dur=1.0, chord=["P", "S"], technique="palm_mute")
+    layer = Layer(role="rhythm", instrument=v.instrument, program=v.program, channel=v.channel,
+                  notes=[early, last])
+    [rung] = apply_ending([layer], arr)
+    assert rung.notes[0] == early                              # only the final stroke changes
+    final = rung.notes[1]
+    assert final.technique is None and final.chord == ["P", "S"]
+    assert final.start + final.dur == end + tail and final.fade_tail == tail
+
+
+def test_a_band_voice_that_stopped_before_the_last_avartan_stays_stopped():
+    arr = _arr("ring_out")
+    end = total_beats(arr)
+    v = VOICES["bass"]
+    note = Note(swara="S", oct=-3, start=0.0, dur=1.0)
+    layer = Layer(role="bass", instrument=v.instrument, program=v.program, channel=v.channel,
+                  notes=[note])
+    assert end - arr.beats_per_bar > 1.0
+    [rung] = apply_ending([layer], arr)
+    assert rung.notes == [note]
 
 
 def test_the_lead_lands_on_taar_sa_on_the_final_sam():

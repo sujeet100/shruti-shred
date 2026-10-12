@@ -296,8 +296,10 @@ compose_seed:
           * `cell` — the few swaras of the core cell that recurs, from the raga's pakad and chalan
             or alluding to them;
           * `stroke_line` — the right hand, one token per matra of the avartan on the stroke frame
-            below (a bol word, chikari, or "-" where a note rings on): the head's rhythmic HOOK, as
-            recognisable clapped as sung — a gat played as plain notes sounds like a keyboard melody;
+            below (a bol word, or "-" where a note rings on — no chikari inside a head): the head's
+            rhythmic HOOK, as recognisable clapped as sung — a gat played as plain notes sounds like
+            a keyboard melody. Plan ONE sentence, not equal cells: a quick figure, a held breather,
+            then the approach into the sam;
           * `idea` — one line naming what the head is.
         In a riff_first piece let the sam swara and the cell come from the riff's own swaras —
         the composed head must sound the riff's swara on at least half its sam/tali beats.
@@ -438,8 +440,8 @@ generate_lead:
       - LAND THE SAM: matra 1 of each cycle is the arrival — land on one of the raga's resting
         swaras (the raga facts list them; not always Sa) and let it RING or REST there.
       - Silence is a choice your section's job sets: true RESTS (set "rest": true) where the
-        phrase breathes, settling on the raga's resting notes. A gat head usually runs without
-        silence — its breath is a settle on a resting swara just before its approach.
+        phrase breathes, settling on the raga's resting notes. A gat head runs without silence —
+        its breath is a HELD resting swara just before its approach.
       - FAST RUNS LAND: where your section has a fast run, let it arrive on a held or resolving
         note rather than blur — your section's job says how fast it goes and how it is shaped.
 
@@ -451,7 +453,7 @@ generate_lead:
       - bol (the sitar's mizrab stroke): mix "da" (strong) and "ra" (softer) with the compound
         figures — "dir", "rda", "dar", "dara", "dadir", "darada", "daradara" — whose strokes divide
         the note in their ratios, at whatever length you give it; "chikari" sparingly, to
-        punctuate a phrase-end or answer the tabla. On the gat HEAD the right hand is planned
+        punctuate a phrase-end or answer the tabla — never inside a gat head. On the gat HEAD the right hand is planned
         first (phrase_plan.stroke_line — see THE STROKE FRAME) and every note carries the bol
         its matra asks for; vary other cells by bol-bant (redistribute the bols, keep the
         melodic DNA).
@@ -577,12 +579,16 @@ generate_gat:
         shaped by the pakad and chalan. Its FIRST note sounds ON the sam every avartan: make it a
         resting swara of the raga you choose deliberately (not always Sa), struck "da". Land the
         LAST note on a resting swara, written to lead back into the FIRST (it loops), and make the
-        final ~5 matras a driving APPROACH into the next sam. Plan its stroke_line FIRST (the
-        stroke frame above), then write notes that play it, every note carrying its bol. This is
-        the identity the other parts develop; pour everything in.
+        final ~5 matras a driving APPROACH into the next sam. It is ONE continuous sentence, never
+        equal cells joined end to end: a quick figure that opens with a phrase only this raga
+        plays (never a straight walk along the scale), a HELD breather on a resting swara (where
+        the raga's andolan or meend lives), then the approach. No rest and no chikari inside it.
+        Gamak is an event here: one or two at most, on the notes the phrase leans on. Plan its
+        stroke_line and its head_shape FIRST (the stroke frame above; figure → breather →
+        approach), then write notes that play them, every note carrying its bol. This is the identity the other parts develop; pour everything in.
       - manjha: the LOWER-REGISTER BRIDGE (Parikh — the manjha takes the melody DOWN into the
-        mandra). SHORT (about one avartan), CALM: ONE spacious idea, longer nyas and meend, NOT a
-        busy run. Keep the centre of gravity in the mandra / lower-madhya and do NOT climb into the
+        mandra). CALM, and filling its window (the beats listed above — code keeps a short breath
+        after it): ONE spacious idea, longer nyas and meend, NOT a busy run. Keep the centre of gravity in the mandra / lower-madhya and do NOT climb into the
         taar (the antara owns the upper octave). Contrast the mukhada by register and contour (dip
         down, settle), stay unmistakably in the raga, and lead your final notes stepwise back into
         the mukhada's first swara.
@@ -601,6 +607,9 @@ generate_gat:
     HARD RULES (only these get a gat rejected):
       - Use ONLY the raga's allowed swaras — every part, every note, each grace and meend target.
       - Compose ONLY the parts listed in {parts_needed} (omit the others from the JSON).
+      - Each part fills its window (the beats listed); the mukhada lands its sam and loops.
+      - The mukhada has no rest and no chikari anywhere inside it, and it HOLDS one note, struck
+        once (no gamak, no compound bol), for at least two beats — its breather.
     CRAFT (reported back, never a rejection): the parts SHARE the anchor/motif — one composition,
     not unrelated tunes; the register arc (mukhada madhya, manjha low, antara reaching the taar,
     amad descending home) is the shape to aim for.
@@ -1082,5 +1091,87 @@ assess_composition:
     Use exactly this shape:
     {output_schema}
 
+# The RHYTHM SECTION task (crew/rhythm_section_call.py): guitar + bass for the whole piece, from the
+# realised sitar line. Braces live only in {output_schema}; every HARD rule here is one
+# `rhythm_section.part_errors` enforces.
+compose_rhythm_section:
+  description: |
+    You are arranging the rhythm guitar and bass for a Hindustani-raga x metal fusion. The sitar
+    part is FINISHED — it is below, note by note — and your job is to make it sound bigger and
+    more expressive, the way a guitarist arranges around a sitarist on stage. The drums are
+    written for you afterwards and lock to your guitar's attacks.
 
+    THE RAGA: {raga}. Allowed swaras (every root, chord tone and bass note): {allowed}
+    Direction rule for roots: {direction_rule}
+    Home root: {home_root}
+    Power-chord roots in this raga: {power_roots}
+    Half-step grinds available: {half_steps}
+    Its signature movement — pakad: {pakad}; chalan: {chalan}
+    Metal: {subgenre} — {subgenre_feel}. Subdivision: {subdivision}. Groove: {groove_brief}
+    Techniques you may use: {techniques}
+    Tempo {bpm} bpm. Tala: {tala}, one avartan = {cycle_beats} beats. Its marked beats: {accents}
+    {playability}
+
+    HOW TO ARRANGE IT — the principles of a sitar-metal arrangement that works:
+      - HOME, HELD LONG: the home chord sustains for long stretches; it establishes the key and
+        re-establishes it every time it returns. Most of the piece sits on it.
+      - THE HEAD'S CHORD PATTERN RECURS: the gat head (mukhada) gets ONE chord pattern, and it
+        comes back with every return of the head — write it once and give the later mukhada
+        sections `same_as` that section. Mostly home, with one move that resolves on the sam.
+      - THE MANJHA AND ANTARA MOVE: the chords change there, following the section's harmony
+        plan below; in the antara the guitar climbs an octave ("oct": 1) as the sitar climbs.
+      - A SLOW CHORD PLAN, A FAST PICKING PATTERN: decide each section's chords first (a root per
+        vibhag or longer), then the right hand plays on them — chugs, ringing chords, stops. A
+        guitar that changes root with every melody note is harmonising the tune, not arranging it.
+      - RING, DON'T STRIKE, UNDER THE SITAR'S MOMENTS: where the sitar holds a note, sways it
+        (~), swings a gamak (<>) or glides (>), let a chord RING through (a long note, no palm
+        mute) instead of striking into it; strike the next chord where the sitar arrives.
+      - ANSWER WHERE IT RESTS: the sitar's rests are where the guitar speaks — a fill, a chug
+        figure, a stop.
+      - SAM AND ARRIVALS: hit the sam, and the sitar's phrase arrivals, with weight.
+      - THE CLIMAX (taan) DRIVES: under the long taan keep full rhythmic drive on a home pedal —
+        the band simplifies harmonically there, never rhythmically. Where the guitar leads a
+        section (a breakdown, a guitar-only section), the riff is yours to play hard.
+      - THE BASS holds the floor an octave under you: long roots under held chords, locking to
+        your attacks where you drive. Leave a section's bass out and code derives it from your
+        guitar.
+
+    WHAT THE USER ASKED FOR (verbatim — honour it where it speaks to the rhythm section):
+    {user_request}
+
+    THE CHART — every section, in order (index, role, avartans, whether the guitar plays, its
+    harmony plan, its intent). The harmony plan is the composers' decision: use its roots for the
+    section's moves.
+    {chart}
+    The energy arc: {energy_arc}
+
+    THE MAIN RIFF the composers wrote (given material — use it where the guitar leads or
+    answers, and let the head's pattern relate to it; leave it aside where it fights the sitar):
+    {seed_riff}
+
+    THE SITAR, AS PLACED — section by section, avartan by avartan; each note is "beat swara",
+    beats counted from the avartan's sam. (X)g = a kan from X; g~ = an andolan; g<>m = a gamak
+    swinging with m; a neighbour swara in curly brackets after a note = a left-hand gesture out
+    to it and back on one stroke; g>S = a meend into S; [n] = held n beats;
+    (-1)/(+1) = the octave below/above home.
+    {sitar_line}
+
+    {repair}
+
+    HARD RULES (only these get the part rejected):
+      - Every section where the guitar plays has a part: its own guitar cycles, or `same_as` a
+        section that has its own. No part for a section that does not exist.
+      - Every cycle's durations, rests included, add up to exactly one avartan ({cycle_beats}
+        beats); no cycle is empty.
+      - Every swara is in the raga — roots, chord tones and bass notes — and roots are entered
+        from the side the direction rule allows.
+      - A palm mute is a beat or shorter; slides, bends and legato sit on single notes, never a
+        chord.
+      - The bass plays single notes (no chord).
+
+    Write "reasoning" FIRST — the arrangement plan — then the parts, in this shape:
+    {output_schema}
+  expected_output: |
+    A single RhythmSection JSON object and nothing else — reasoning, then one part per section
+    the guitar plays in.
 

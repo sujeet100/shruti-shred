@@ -304,6 +304,13 @@ def _gat_seed(**update) -> SongSeed:
     return _seed(chart=_gat_chart(), hook=None, head=_idea()).model_copy(update=update)
 
 
+def test_a_chikari_in_the_heads_stroke_line_becomes_a_held_matra():
+    # fusion_20261012_152048's idea: `da ra dir chikari` x4 — four holes in the head
+    idea = HeadIdea(idea="x", sam_swara="S", cell=["S"],
+                    stroke_line="da ra dir chikari da ra dir chikari")
+    assert idea.stroke_line == ["da", "ra", "dir", "-", "da", "ra", "dir", "-"]
+
+
 def test_a_gat_seed_writes_the_heads_idea_and_the_chart_carries_it():
     assert seed_errors(_gat_seed(), _BRIEF) == []
     arr = seed_arrangement(_gat_seed(), _BRIEF)

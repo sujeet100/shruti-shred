@@ -39,13 +39,15 @@ from crew.generators import (
     bass_layer,
     double_track,
     drone_layer,
-    intro_jod_layer,
     render_composition,
 )
+from crew.articulation import articulate
 from crew.chikari import chikari_layer, without_chikari
+from crew.chord_floor import lift_antara, on_floor
 from crew.dynamics import apply_dynamics, apply_taan_exposure
 from crew.groove import groove_layer, tabla_layer
 from crew.harmonic_guide import harmonic_guide
+from crew.rhythm_section import realise, with_rhythm_section
 from crew.ending import apply_ending
 from crew.harmony import clean_layer
 from raga import validate_composition
@@ -80,35 +82,43 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
 
     The sitar's CHIKARI strokes (crew/chikari.py) leave the melody here: the written ones are
     lifted off the lead line and, with the strokes the planner places around the sitar's
-    phrases, sound on their own unbent strings beside it. The jod is derived first because
-    the alap's chikari steps off its beats.
+    phrases, sound on their own unbent strings beside it.
     """
-    jod = intro_jod_layer(arr, lead_layers)
     melody_layers = without_chikari(lead_layers)
-    chikari = chikari_layer(arr, lead_layers, jod=jod)
+    chikari = chikari_layer(arr, lead_layers)
     layers: list[Layer] = [drone_layer(arr)]
     layers.extend(melody_layers)
     layers.extend([chikari] if chikari is not None else [])
     layers.extend(orchestra_layers)   # the cinematic voices (symphonic; sparse colour elsewhere)
+    # A COMPOSED rhythm section (written from the placed sitar, carried on the chart) plays as
+    # written, its bass included. Otherwise the guitar's roots come from a slow chord floor under
+    # the sitar — home held long, the head's one recurring move, the manjha and antara moving
+    # (`crew/chord_floor.py`) — and the bass is derived from it.
+    composed = arr.rhythm_section is not None
+    floor = rhythm if composed else on_floor(rhythm, melody_layers, arr)
     if rhythm is not None:
-        # The riff plays AS COMPOSED under the raga line: a half-step against a held sitar
-        # note is often the sound (Sujit kept the grinds by ear over damping them, 2026-10-11),
-        # so nothing thins it here — `crew/coexistence.py` measures the friction for the Producer.
-        layers.append(rhythm)                        # the hard-left rhythm track
-        double = double_track(rhythm)                # the hard-right double (different gain patch)
+        # Nothing damps a pitch against the sitar (Sujit kept the grinds by ear, 2026-10-11;
+        # `crew/coexistence.py` measures the friction for the Producer). The floor only CHOOSES
+        # its departures away from a held note's grind. Then WHEN it strikes: under a sitar-led
+        # section the guitar rings through the sitar's held notes, ornaments and bursts instead
+        # of striking through them (`crew/articulation.py`), and the antara climbs an octave.
+        played = floor if composed else lift_antara(articulate(floor, melody_layers, arr), arr)
+        layers.append(played)                        # the hard-left rhythm track
+        double = double_track(played)                # the hard-right double (different gain patch)
         if double is not None:
             layers.append(double)
-    # Bass, groove and tabla derive from the ORIGINAL riff (never the double), so the
-    # low end and kit stay locked to one rhythm-guitar line, not a smeared pair. The
+    # Bass, groove and tabla derive from the FLOORED riff (never the double, the ringing
+    # articulation or the antara's lift), so the low end holds the floor and the kit keeps
+    # driving while the guitar rings over them. The
     # clean guitar realises the chart's per-section HARMONY plan (crew/harmony.py) —
     # deterministic like the rest: the composers decided the modes, code plays them.
     # ONE harmonic guide, read by every accompanying voice: what the melody settles on, and
     # what must not sustain under it. Derived from the realized lead, so it exists only now —
     # which is exactly why the composers' colour choices could not have known it.
     guide = harmonic_guide(melody_layers, arr)
-    for derived in (clean_layer(arr, guide=guide), jod,
-                    bass_layer(arr, rhythm),
-                    groove_layer(arr, rhythm), _tabla_if_enabled(arr)):
+    bass = realise(arr.rhythm_section, arr)[1] if composed else bass_layer(arr, floor)
+    for derived in (clean_layer(arr, guide=guide), bass,
+                    groove_layer(arr, floor), _tabla_if_enabled(arr)):
         if derived is not None:
             layers.append(derived)
     # The taan exposure runs BEFORE the balance pass: the band-drop window empties first, then
@@ -169,6 +179,21 @@ def compose_creative_voices(
     return lead_layers, rhythm, [*lead_events, *riff_events]
 
 
+def _creative_voices(arr: Arrangement) -> tuple[list[Layer], Layer | None, list[DebateEvent]]:
+    """The parallel path's lead + riff, or — with `RMA_RHYTHM_SECTION` — the lead and then ONE
+    rhythm-section call around it (the riff the fallback)."""
+    from crew.config import rhythm_section_enabled
+    if not rhythm_section_enabled():
+        return compose_creative_voices(arr)
+    from crew.lead import mukhada_cell_from_events
+    from crew.rhythm_section_call import compose_rhythm_section
+    from crew.rhythm_voice import creative_voices_with_rhythm_section
+    from crew.riff import compose_riff
+    return creative_voices_with_rhythm_section(
+        arr, voices=compose_creative_voices, composer=False, call=compose_rhythm_section,
+        legacy_riff=lambda a, events: compose_riff(a, mukhada_cell_from_events(events)))
+
+
 def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:
     """Generate every voice for a chart and assemble the full Composition.
 
@@ -179,8 +204,10 @@ def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:
     from crew.orchestra import compose_orchestra, uses_orchestra
 
     # Cross-voice seeding in ANCHOR order: the source voice first, the other derived from it.
-    # The two lines go on as composed — their friction is measured, never repaired.
-    lead_layers, rhythm, events = compose_creative_voices(arr)
+    # The two lines go on as composed — their friction is measured, never repaired. With
+    # `RMA_RHYTHM_SECTION` the guitar + bass are ONE call written around the placed sitar.
+    lead_layers, rhythm, events = _creative_voices(arr)
+    arr = with_rhythm_section(arr, events)
     # The Orchestra is CAPABILITY-GATED: it joins ONLY when the chart calls for it (symphonic
     # charts always; other subgenres where the composers added it as colour). It runs after
     # the creative voices so it can ANSWER the realized lead + riff rather than double them.

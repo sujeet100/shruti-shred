@@ -137,7 +137,7 @@ def test_a_path_longer_than_its_note_is_not_drawn():
 
 
 def test_rasik_reads_the_gesture():
-    from crew.rasik import _note_token
+    from crew.lead_notation import note_token as _note_token
     looped = Note(swara="g", start=0, dur=1, gesture="ga_ma_loop",
                   pitch_path=gesture_path(GA_MA_LOOP, "g"))
     assert _note_token(looped) == "g{m}[1]"
@@ -236,7 +236,7 @@ def test_junk_gamak_partners_are_absorbed_at_the_boundary():
 
 def test_rasik_and_the_density_measure_see_a_gamak():
     from crew.density import moves_per_beat
-    from crew.rasik import _note_token
+    from crew.lead_notation import note_token as _note_token
     sitar, _ = _express([Note(swara="g", start=0, dur=1, gamak_with="m")])
     assert _note_token(sitar[0]) == "g<>m"
     assert moves_per_beat(sitar, 1)[0] >= 8                   # four strokes, each out and back

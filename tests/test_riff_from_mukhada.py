@@ -38,7 +38,13 @@ from crew.contracts import (  # noqa: E402
 )
 from crew.generators import assemble_composition, drone_layer, section_spans  # noqa: E402
 from crew.head_anatomy import head_anatomy, head_onsets, structural_notes  # noqa: E402
-from crew.riff import _RiffContext, compose_seeded_riff, generate_riff, riff_grammar_error  # noqa: E402
+from crew.riff import (  # noqa: E402
+    _RiffContext,
+    compose_seeded_riff,
+    generate_riff,
+    rhythm_layer_from,
+    riff_grammar_error,
+)
 from crew.riff_from_mukhada import (  # noqa: E402
     derive_riff_from_mukhada,
     derived_slots,
@@ -46,7 +52,12 @@ from crew.riff_from_mukhada import (  # noqa: E402
     render_head_riff,
 )
 from crew.riff_kinship import kinship_report, render_kinship  # noqa: E402
-from crew.riff_statements import apply_statement, develop_statements, statement_variant  # noqa: E402
+from crew.riff_statements import (  # noqa: E402
+    apply_statement,
+    develop_statements,
+    riff_first_variant,
+    statement_variant,
+)
 from crew.riff_texture import verify_riff  # noqa: E402
 from raga import RAGAS, direction_violations, validate_composition  # noqa: E402
 from tests.test_lead import _good_head, _plan  # noqa: E402
@@ -339,6 +350,34 @@ def test_the_statement_count_threads_across_sections_and_skips_the_sitars():
                                        first_statement=after_mukhada, raga="malkauns",
                                        accents=_ACCENTS)
     assert cycles[0] == base and after == 2
+
+
+def _role(form_role: str, bars: int = 2) -> Section:
+    return Section(kind=SectionKind.MELODY, bars=bars, layers=_LEAD, foreground="lead",
+                   form_role=form_role, riff_slot="main")
+
+
+def test_a_riff_first_main_riff_develops_by_the_sections_role():
+    def bars(section: Section, reprise: bool = False) -> list[str]:
+        return [riff_first_variant(section, b, 2, is_final_rhythm=False, reprise=reprise)
+                for b in range(2)]
+    assert bars(_role("mukhada")) == ["base", "base"]                 # the head is the riff sung
+    assert bars(_role("mukhada"), reprise=True) == ["base", "syncopated"]
+    assert bars(_role("manjha")) == ["space", "space"]                # the sitar goes low
+    assert bars(_role("antara")) == ["heavy", "syncopated"]           # stop tracing the head
+    assert bars(_role("taan_long")) == ["pedal", "pedal"]             # the family still decides
+
+
+def test_a_riff_first_riff_no_longer_loops_unchanged_under_every_section():
+    # fusion_20261012_152048: one cycle ran eight times under head, manjha, head and antara
+    arr = _chart(_role("mukhada"), _role("manjha"), _role("mukhada"), _role("antara"),
+                 anchor="riff_first")
+    base = list(_derive(_good_head()).notes)
+    layer = rhythm_layer_from({i: RiffPattern(notes=base) for i in range(4)}, arr)
+    cycles = [tuple((n.swara, round(n.start % 16, 3), n.dur, n.technique)
+                    for n in layer.notes if c * 16 <= n.start < (c + 1) * 16) for c in range(8)]
+    assert cycles[0] == cycles[1]                                     # the first head: faithful
+    assert len(set(cycles)) >= 4
 
 
 def test_heavy_keeps_the_accents_and_drops_the_chugs_onto_a_pedal():

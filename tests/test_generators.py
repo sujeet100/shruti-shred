@@ -34,7 +34,6 @@ from crew.generators import (  # noqa: E402
     bass_layer,
     double_track,
     drone_layer,
-    intro_jod_layer,
     section_spans,
     total_beats,
 )
@@ -75,81 +74,6 @@ def test_beats_per_bar_follows_the_tala():
     assert section_spans(arr)[0].length == 14.0
 
 
-# --- the intro jod string (the alap's ringing home Sa) ------------------------
-
-def _arr_with_intro(intro_bars: int = 3) -> Arrangement:
-    sections = [Section(kind=SectionKind.ALAAP, bars=intro_bars, layers=["lead", "drone"],
-                        foreground="lead", form_role="intro"),
-                Section(kind=SectionKind.RIFF, bars=1, layers=["rhythm", "drone"],
-                        foreground="rhythm", form_role="mukhada")]
-    draft = ArrangementDraft(raga="kirwani", subgenre="symphonic", tala="keherwa", bpm=120,
-                             motif=["S", "g", "P"], sections=sections)
-    return build_arrangement(draft, CompositionBrief(mood="epic"))
-
-
-def test_the_jod_is_a_STROKE_not_a_pad():
-    """Held for a whole avartan the jod stopped being a plucked string and became a bowed
-    pad — measured on all three 2026-07-20 renders as four 16-beat notes under a 448-beat
-    tanpura, which is why the alap read as out of rhythm."""
-    arr = _arr_with_intro(intro_bars=3)
-    layer = intro_jod_layer(arr)
-    assert layer is not None and layer.role == "jod"
-    cycle = arr.beats_per_bar
-    for n in layer.notes:
-        assert n.swara == "S" and n.fade is True
-        assert n.dur < cycle, "a stroke rings and fades; it does not span the avartan"
-        assert n.oct == arr.registers["drone"] + 1      # audible mandra, above the tanpura pad
-    comp = assemble_composition(arr, [drone_layer(arr), layer])
-    assert validate_composition(comp.model_dump(exclude_none=True)) == []   # trivially legal (Sa)
-
-
-def test_the_jod_fills_the_holes_the_melody_LEAVES():
-    """A sitarist strikes the drone string where the melody leaves space, to fill an empty
-    matra — so the strokes are placed against the line, not on a timer."""
-    arr = _arr_with_intro(intro_bars=1)
-    intro = section_spans(arr)[0]
-    # a melody occupying the first half of the avartan, silent through the second
-    half = arr.beats_per_bar / 2
-    lead = [Layer(role="lead", notes=[Note(swara="g", oct=0, start=intro.start, dur=half)])]
-    layer = intro_jod_layer(arr, lead)
-    assert layer is not None
-    assert all(n.start >= intro.start + half for n in layer.notes), "a stroke landed over the melody"
-
-
-def test_the_jod_is_silent_where_the_melody_never_stops():
-    arr = _arr_with_intro(intro_bars=1)
-    intro = section_spans(arr)[0]
-    lead = [Layer(role="lead", notes=[Note(swara="g", oct=0, start=intro.start,
-                                           dur=arr.beats_per_bar)])]
-    assert intro_jod_layer(arr, lead) is None, "nothing to fill — the drone string stays quiet"
-
-
-def test_jod_strokes_land_on_the_beat_grid():
-    """Played in time, like any other note."""
-    arr = _arr_with_intro(intro_bars=1)
-    intro = section_spans(arr)[0]
-    lead = [Layer(role="lead", notes=[Note(swara="g", oct=0, start=intro.start, dur=3.3)])]
-    for n in intro_jod_layer(arr, lead).notes:
-        assert abs((n.start * 2) - round(n.start * 2)) < 1e-9
-
-
-def test_the_jod_never_becomes_the_part():
-    """A hole-filling rule with no cap would machine-gun a sparse alap, and the drone string
-    would stop being punctuation."""
-    from crew.generators import _jod_strokes
-    many = [(float(i) * 2, float(i) * 2 + 1.5) for i in range(10)]
-    assert len(_jod_strokes(many, 0)) <= 4
-
-
-def test_a_hole_too_short_to_hear_is_left_alone():
-    from crew.generators import _gaps_in
-    assert _gaps_in([(0.0, 1.0), (1.5, 4.0)], 0.0, 4.0) == []      # a 0.5-beat hole is not a space
-
-
-def test_intro_jod_is_none_without_an_intro():
-    assert intro_jod_layer(_arr(bars=(1, 2))) is None       # no form_role='intro' -> no jod
-
-
 # --- the drone: raga-aware, legal by construction ------------------------------
 
 def test_drone_tones_are_always_legal_in_the_raga():
@@ -170,7 +94,9 @@ def test_ragas_with_pa_tune_sa_pa():
     assert drone_swaras("bhairav") == ["S", "P"]
 
 
-def test_drone_spans_the_whole_piece_at_its_register():
+def test_drone_spans_the_whole_piece_an_octave_above_the_riff_floor():
+    """At the riff's floor (~D2) the pad was a sub-bass rumble that barely read as Sa, which is
+    why a plucked jod Sa was once layered an octave up. The tanpura now sounds there itself."""
     arr = _arr(bars=(1, 2))
     layer = drone_layer(arr)
     assert layer.role == "drone"
@@ -178,7 +104,7 @@ def test_drone_spans_the_whole_piece_at_its_register():
     for note in layer.notes:
         assert note.start == 0.0
         assert note.dur == total_beats(arr)     # one sustained pad, full length
-        assert note.oct == arr.registers["drone"]
+        assert note.oct == arr.registers["drone"] + 1
 
 
 def test_drone_uses_the_configured_voice():

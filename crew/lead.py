@@ -86,6 +86,8 @@ from crew.gat_verifier import (
     check_bol_frame,
     check_fill,
     check_head_idea,
+    check_head_plan,
+    check_head_shape,
     check_intro,
     check_manjha,
     check_mukhada,
@@ -174,8 +176,7 @@ _PHRASE_BREAK_MIN_BEATS: Final = 1.0       # a rest this long ends a phrase; sho
 # SUB-CYCLE (~12 matras in a 16-matra teentaal), matching the sources and Sujit's ear (8-11 matras).
 # The old manjha filled its whole multi-bar section — a long developmental episode the tradition
 # does NOT have. Register (dip to the mandra, no taar) is reported by check_manjha (craft).
-_MANJHA_MAX_CYCLES: Final = 1.0            # never longer than one avartan (a manjha is a short line)
-_MANJHA_GAP_FRACTION: Final = 0.25         # reserve this much as a breath before the head returns
+_MANJHA_GAP_FRACTION: Final = 0.25         # of ONE avartan: the breath before the head returns
 
 # The mukhada taan FILLS — splice sixteenth-note taans into head statements (the classic gat
 # move). GEOMETRY FIXED by the 2026-07-20 gat research: the tradition improvises the FRONT of
@@ -240,7 +241,10 @@ _OUTPUT_SCHEMA: Final = """{
     "contour": "<one of the contours below>",
     "transformations": ["<in the order they happen, from the list below>"],
     "climax_and_sam": "<where the line peaks, and how it lands on the sam>",
-    "stroke_line": ["<gat HEAD only: one stroke token per matra — see below>"]
+    "stroke_line": ["<gat HEAD only: one stroke token per matra — see below>"],
+    "head_shape": [{"stage": "<gat HEAD only: figure / breather / response / approach>",
+                    "beats": <beats>, "target": "<the swara it lands on or holds>",
+                    "ornament": "<andolan / meend / gamak / plain>"}]
   },
   "notes": [
     {"swara": "<raga swara>", "oct": <octave>, "dur": <beats>},
@@ -258,10 +262,15 @@ stroke_line asks for; in other sections a bol is optional. "contour" is one of
 ascending / descending / arch / wave / landing / explosion. "transformations" (in the
 order they happen) are drawn from repeat, answer, fragment, rhythmic_compression,
 accelerate, octave_shift, resolve — and sequence_up / sequence_down only where the raga's
-chalan itself moves that way. For a GAT HEAD (the mukhada) the plan has ONE more required
-field: "stroke_line", the right hand planned before the notes — exactly one token per matra
-of the avartan: a bol word, "chikari", or "-" for a matra with no new stroke (a note ringing
-on, or a silence); write the notes so each matra sounds the strokes its token asks for. For a TAAN/SOLO section
+chalan itself moves that way. For a GAT HEAD (the mukhada) the plan has TWO more required
+fields. "stroke_line": the right hand planned before the notes — exactly one token per matra
+of the avartan: a bol word, or "-" for a matra with no new stroke (a note ringing on); a head
+holds no chikari; write the notes so each matra sounds the strokes its token asks for.
+"head_shape": the head as ONE thought, its stages in order, their beats summing to the avartan
+— a quick "figure" that builds anticipation, a "breather" that releases it (ONE swara, its
+"target", struck once and held at least two beats, with the raga's own ornament), an optional
+"response" that develops the figure, and the "approach" that lands the sam. The breather grows
+out of the figure; it is not a separate tune. For a TAAN/SOLO section
 the plan has THREE more required fields (omit them elsewhere): "taan_style" (the ONE
 dominant style — pick from the section guidance), "register_plan" (the arc in one line:
 where you start, where the single peak lands, the descent), and "rhythm_plan" (the
@@ -509,11 +518,15 @@ def _place_intro(notes: list[LeadNote], span: SectionSpan, arr: Arrangement, *, 
 
 
 def _manjha_gen_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
-    """The manjha's SHORT generation window: at most one avartan, minus a reserved breath before
-    the mukhada re-enters, so the low bridge lands sub-cycle instead of filling a whole multi-bar
-    section (Parikh: the manjha is a short line that takes the melody into the lower octave, not a
-    long development). Front-positioned like the intro; code leaves the trailing beats as silence."""
-    length = min(span.length, cycle_beats * _MANJHA_MAX_CYCLES) * (1.0 - _MANJHA_GAP_FRACTION)
+    """The manjha's generation window: its whole section minus a BREATH of a quarter avartan
+    before the mukhada re-enters. Front-positioned like the intro; code leaves the breath silent.
+
+    The manjha is short when its section is (Parikh: a short line into the lower octave), and
+    that is the composer's call in the chart. It used to be capped at one avartan whatever the
+    section's length, so the breath grew with the section: on `fusion_20261012_152048` a 2-bar
+    manjha played 12 beats and left 20 — ten seconds of riff alone, which both reviews heard as
+    a break with nothing in it."""
+    length = span.length - cycle_beats * _MANJHA_GAP_FRACTION
     return SectionSpan(index=span.index, section=span.section,
                        start=span.start, end=span.start + length)
 
@@ -1453,12 +1466,32 @@ class _GatContext:
             "riff_source": render_gat_source(arr, riff),
             "gat_output_schema": _GAT_OUTPUT_SCHEMA,
         }
+        self._windows = gat_part_windows(arr)
 
     def inputs_for(self, *, needs_manjha: bool, needs_antara: bool,
                    needs_amad: bool) -> dict[str, Any]:
         parts = (["mukhada"] + (["manjha"] if needs_manjha else [])
                  + (["antara"] if needs_antara else []) + (["amad"] if needs_amad else []))
-        return {**self._static, "parts_needed": ", ".join(parts)}
+        named = [f"{p} ({self._windows[p]:g} beats)" if p in self._windows else p for p in parts]
+        return {**self._static, "parts_needed": ", ".join(named)}
+
+
+def gat_part_windows(arr: Arrangement) -> dict[str, float]:
+    """Each gat part's window in beats — the length its verifier holds it to, so the one gat call
+    writes each part to size instead of paying a repair to fit it. Pure."""
+    spans = section_spans(arr)
+    cycle = arr.beats_per_bar
+    windows: dict[str, float] = {_MUKHADA: cycle}
+    manjha = next((s for s in spans if is_manjha(s.section)), None)
+    if manjha is not None:
+        windows[_MANJHA] = _manjha_gen_span(manjha, cycle).length
+    antara = next((s for s in spans if is_antara(s.section)), None)
+    if antara is not None:
+        with_amad = antara.section.bars >= 2
+        windows[_ANTARA] = antara.length - cycle if with_amad else antara.length
+        if with_amad:
+            windows[_AMAD] = cycle
+    return windows
 
 
 def _gat_from_output(output: Any) -> Gat | None:
@@ -1548,6 +1581,10 @@ def _render_plan(plan: PhrasePlan) -> str:
         line = f"{line} · badhat: {plan.badhat_plan}"
     if plan.stroke_line:
         line = f"{line} · strokes: {' '.join(plan.stroke_line)}"
+    if plan.head_shape:
+        stages = " → ".join(f"{st.stage} {st.beats:g}" + (f" on {st.target}" if st.target else "")
+                            for st in plan.head_shape)
+        line = f"{line} · shape: {stages}"
     return line
 
 
@@ -1770,11 +1807,16 @@ def _amad_gen_span(antara_span: SectionSpan, cycle_beats: float, reentry: str) -
                        start=antara_span.end - cycle_beats, end=antara_span.end)
 
 
-def _head_strokes(cell: LeadPhrase, *, cycle_beats: float, frame: str) -> CellChecks:
-    """The gat head's right hand, as one check wherever a head is judged: the sourced stroke frame
-    (`check_bol_frame`) plus the head's own planned stroke line (`check_stroke_line`). Pure."""
+def _head_checks(cell: LeadPhrase, *, cycle_beats: float, frame: str, raga: str) -> CellChecks:
+    """What only a GAT head answers to, wherever one is judged: the sourced stroke frame
+    (`check_bol_frame`), the head's own planned stroke line (`check_stroke_line`) and its shape —
+    planned shape (`check_head_plan`) and its shape as heard — one continuous idea with a held
+    breather (`check_head_shape`). A song-form hook sung over a riff answers to none of these.
+    Pure."""
     return (check_bol_frame(cell, cycle_beats=cycle_beats, frame=frame)
-            + check_stroke_line(cell, cycle_beats=cycle_beats))
+            + check_stroke_line(cell, cycle_beats=cycle_beats)
+            + check_head_plan(cell, cycle_beats=cycle_beats)
+            + check_head_shape(cell, raga=raga))
 
 
 def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
@@ -1813,7 +1855,7 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
     mukhada = _verify_or_repair_part(
         gat.mukhada, _MUKHADA, _one_cycle_span(mspan, cycle), arr, memory,
         verify=lambda c: (check_mukhada(c, cycle_beats=cycle, raga=raga)
-                          + _head_strokes(c, cycle_beats=cycle, frame=frame)
+                          + _head_checks(c, cycle_beats=cycle, frame=frame, raga=raga)
                           + check_head_idea(c, arr.seed_head)
                           + hard_only(verify_riff_quote(c, accents))),
         gen_fn=gen_fn, events=events)
@@ -2065,14 +2107,16 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = No
             elif arr.seed_hook is not None and keep is None:   # a revise that names the head rewrites it
                 phrase, tries, viol = arr.seed_hook, 1, []
                 # the Composer's head answers to the same stroke frame — reported, not enforced
-                craft = (list(_head_strokes(phrase, cycle_beats=cycle_beats, frame=frame).craft)
+                craft = (list(_head_checks(phrase, cycle_beats=cycle_beats, frame=frame,
+                                           raga=raga).craft)
                          if is_mukhada(section) else [])  # the Composer's seed, already verified
             else:
                 gen_span = _one_cycle_span(span, cycle_beats)
                 phrase, tries, viol, craft = _generate_verified_cell(
                     gen_span, arr, memory, gen_fn=gen_fn,
                     verify=lambda c: (check_mukhada(c, cycle_beats=cycle_beats, raga=raga)
-                                      + _head_strokes(c, cycle_beats=cycle_beats, frame=frame)))
+                                      + _head_checks(c, cycle_beats=cycle_beats, frame=frame,
+                                                     raga=raga)))
             mukhada_cell = phrase                   # cache the head for its returns
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats, loop=True)

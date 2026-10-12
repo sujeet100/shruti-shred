@@ -75,7 +75,7 @@ def _stripped(notes: list[RiffNote]) -> list[RiffNote]:
 
 def _pedal(notes: list[RiffNote]) -> list[RiffNote]:
     """The CLIMAX version — every attack kept, every pitch collapsed onto the cycle's GROUND
-    (its commonest sounding pitch) with that note's power chord. Under the long taan the band
+    (`_ground`: its Sa, else its commonest sounding pitch) with that note's power chord. Under the long taan the band
     must simplify HARMONICALLY, not rhythmically (Sujit, f65dbce): the sitar's fast runs get a
     single unmoving floor to fly over, while the guitar keeps driving at full density. The
     stripped variant halved the attacks there (song C: 28 strokes per cycle -> 14 at the peak,
@@ -85,12 +85,22 @@ def _pedal(notes: list[RiffNote]) -> list[RiffNote]:
     sounding = [n for n in notes if not n.rest]
     if not sounding:
         return [n.model_copy() for n in notes]
-    ground = Counter((n.swara, n.oct) for n in sounding).most_common(1)[0][0]
-    anchor = next(n for n in sounding if (n.swara, n.oct) == ground)
+    anchor = _ground(sounding)
     return [n.model_copy() if n.rest else n.model_copy(update={
                 "swara": anchor.swara, "oct": anchor.oct, "chord": anchor.chord,
                 "technique": None if n.technique in _PITCH_MOVES else n.technique})
             for n in notes]
+
+
+def _ground(sounding: list[RiffNote]) -> RiffNote:
+    """The note the climax pedal holds: the cycle's SA when it plays one (its commonest octave,
+    a chorded stroke preferred), else its commonest pitch. The sitar's taan cadences on Sa again
+    and again; on `fusion_20261012_152048` the commonest root was Ma, so the whole climax sat on
+    a Ma floor and every landing on Sa sounded suspended over it (GPT: "a G-centred pedal")."""
+    pool = [n for n in sounding if n.swara == "S"] or sounding
+    ground = Counter((n.swara, n.oct) for n in pool).most_common(1)[0][0]
+    matches = [n for n in pool if (n.swara, n.oct) == ground]
+    return next((n for n in matches if n.chord), matches[0])
 
 
 def _double(notes: list[RiffNote]) -> list[RiffNote]:

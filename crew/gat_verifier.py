@@ -40,7 +40,7 @@ from math import ceil
 from typing import Final
 
 from crew.anchor import RiffAccent, render_accents
-from crew.contracts import HeadIdea, LeadNote, LeadPhrase
+from crew.contracts import HEAD_STAGES, HeadIdea, LeadNote, LeadPhrase
 from gats import BOL_WORDS, GAT_FRAMES, STROKE_HOLD, bol_onsets, is_compound, stroke_line_attacks
 from chalan import ang_matches, octave_span, scalar_runs
 from raga import REGISTER, RAGAS, SWARAS, direction_violations, nyas_problem, resting_swaras
@@ -640,6 +640,141 @@ def check_stroke_line(cell: LeadPhrase, *, cycle_beats: float) -> CellChecks:
                                  f"stroke line (they differ at matra(s) {' '.join(map(str, off))}) "
                                  f"— give each note the bol its matra asks for, or revise the line",))
     return CellChecks()
+
+
+# THE HEAD IS ONE SENTENCE (Sujit, 2026-10-12, on fusion_20261012_152048: "the mukhada sounds
+# like 3 distinct phrases stitched together by rests — the entire mukhada should sound like an
+# idea"). That head planned `da ra dir chikari` three times over, so every fourth matra became a
+# melodic hole with a chikari strum in it. GAT_COMPOSITION.md §3.1 already said it (rule 6: no
+# chikari and no gaps in the mukhda line; rule 5: its breath is a HELD resting swara, not a rest),
+# and the shape Sujit asks for is a quick figure, then a held breather, then the approach into the
+# sam. A gap is structural, so it is HARD; the shape's taste is reported.
+_HEAD_SCALAR_MAX: Final = 4        # a head walking more swaras than this straight up/down is the scale
+_HEAD_GAMAK_MAX: Final = 2         # gamak belongs in a head, sparingly (Sujit: "use wisely")
+_EPS: Final = 1e-6
+
+
+def _gamak_moments(notes: list[LeadNote]) -> int:
+    """Gamaks as the ear counts them: consecutive gamak notes on one swara (a dir stroke split
+    in two, a cell restruck) are ONE gamak."""
+    moments, previous = 0, None
+    for note in _melodic(notes):
+        here = (note.swara, note.oct) if note.gamak_with else None
+        if here is not None and here != previous:
+            moments += 1
+        previous = here
+    return moments
+
+
+def _held(note: LeadNote) -> bool:
+    """A note the ear hears as ONE sustained sound: melodic, struck once (a compound bol re-strikes
+    it, a gamak re-strikes it about every quarter second)."""
+    strokes = stroke_line_attacks(note.bol) if note.bol else 1
+    return (not note.rest and note.bol != "chikari" and not note.gamak_with
+            and (strokes is None or strokes <= 1))
+
+
+def _held_notes(notes: list[LeadNote]) -> list[tuple[float, LeadNote]]:
+    """(onset, note) for every held note of at least `_MUKHADA_LONG` beats — a breather."""
+    out: list[tuple[float, LeadNote]] = []
+    t = 0.0
+    for note in notes:
+        if _held(note) and note.dur >= _MUKHADA_LONG - _EPS:
+            out.append((t, note))
+        t += note.dur
+    return out
+
+
+def _collapsed(notes: list[LeadNote]) -> list[tuple[str, int]]:
+    """The head's swaras with repeated strokes merged — a dir doubling is one swara, not a turn."""
+    out: list[tuple[str, int]] = []
+    for note in _melodic(notes):
+        pitch = (_landing_swara(note), _landing_oct(note))
+        if not out or out[-1] != pitch:
+            out.append(pitch)
+    return out
+
+
+def check_head_shape(cell: LeadPhrase, *, raga: str) -> CellChecks:
+    """Is the gat head ONE continuous idea? HARD: no rest and no chikari anywhere in it (the head
+    runs to the sam), and it HOLDS one note for at least `_MUKHADA_LONG` beats, struck once — the
+    breather. CRAFT: it does not walk the bare scale, and it spends gamak on at most a couple of
+    moments. Pure.
+
+    The breather is HARD for a gat head (Sujit asked for it by name) where `check_mukhada` only
+    reports a missing long note: the `fusion_20261012_152048` head's longest note was ONE beat,
+    its "breath" four scheduled rests, and the craft note shipped with it unheeded."""
+    hard: list[str] = []
+    craft: list[str] = []
+    gaps = [i + 1 for i, n in enumerate(cell.notes) if n.rest or n.bol == "chikari"]
+    if gaps:
+        hard.append(f"the head breaks at note(s) {' '.join(map(str, gaps))} with a rest or a "
+                    f"chikari — it must sound as ONE idea: a quick figure, then a HELD breather "
+                    f"(a resting swara left to ring, \"{STROKE_HOLD}\" in the stroke line), then "
+                    f"the approach into the sam. Hold a note where you wanted the gap; no chikari "
+                    f"inside the head")
+    if not _held_notes(cell.notes):
+        hard.append(f"the head never holds a note — it needs a BREATHER: one swara struck once "
+                    f"and left to ring for at least {_MUKHADA_LONG:g} beats (no gamak, no compound "
+                    f"bol on it), after the quick figure and before the approach. That held note "
+                    f"is where the raga's own andolan or meend lives")
+    run = max(scalar_runs(_collapsed(cell.notes), raga), default=0)
+    if run > _HEAD_SCALAR_MAX:
+        craft.append(f"the head walks {run} swaras straight along the scale — open with a phrase "
+                     f"only this raga would play (its pakad or chalan), not the scale")
+    moments = _gamak_moments(cell.notes)
+    if moments > _HEAD_GAMAK_MAX:
+        craft.append(f"the head swings a gamak on {moments} notes — in a head a gamak is an "
+                     f"event: keep it to {_HEAD_GAMAK_MAX}, on the notes the phrase leans on, and "
+                     f"let the breather ring with the raga's own andolan or meend")
+    return CellChecks(tuple(hard), tuple(craft))
+
+
+_SHAPE_FIT: Final = 1.0          # beats the planned stages may miss the avartan by
+
+
+def _shape_windows(shape: list) -> list[tuple[str, float, float, str | None]]:
+    """(stage, start, end, target) per planned stage, in beats from the sam."""
+    out, t = [], 0.0
+    for st in shape:
+        out.append((st.stage, t, t + st.beats, st.target))
+        t += st.beats
+    return out
+
+
+def check_head_plan(cell: LeadPhrase, *, cycle_beats: float) -> CellChecks:
+    """The head's planned SHAPE (`PhrasePlan.head_shape`), measured against its notes. CRAFT only —
+    like the stroke line, the plan is the composer's own and the judges read how far the notes kept
+    to it: the stages are known and fill the avartan, there is a breather, and the notes HOLD a note
+    (struck once, at least `_MUKHADA_LONG` beats) that starts inside the breather — on its target
+    swara when one was named. Pure."""
+    shape = cell.phrase_plan.head_shape
+    if not shape:
+        return CellChecks(craft=("no head_shape planned — plan the head's stages first (a quick "
+                                 "figure, a held breather, then the approach into the sam)",))
+    craft: list[str] = []
+    unknown = sorted({st.stage for st in shape if st.stage not in HEAD_STAGES})
+    if unknown:
+        craft.append(f"head_shape names {' '.join(unknown)} — the stages are "
+                     f"{' / '.join(HEAD_STAGES)}")
+    total = sum(st.beats for st in shape)
+    if abs(total - cycle_beats) > _SHAPE_FIT:
+        craft.append(f"head_shape spans {total:g} beats for a {cycle_beats:g}-beat avartan — the "
+                     f"stages are the whole head, in order")
+    breathers = [w for w in _shape_windows(shape) if w[0] == "breather"]
+    if not breathers:
+        craft.append("head_shape has no breather — the head needs one held arrival")
+        return CellChecks(craft=tuple(craft))
+    held = _held_notes(cell.notes)
+    for _, start, end, target in breathers:
+        inside = [n for t, n in held if start - _EPS <= t < end - _EPS]
+        if not inside:
+            craft.append(f"your breather (beats {start:g}-{end:g}) holds no note — strike one swara "
+                         f"there and let it ring")
+        elif target and all(_landing_swara(n) != target for n in inside):
+            craft.append(f"your breather was to hold {target}, but it holds "
+                         f"{' '.join(_landing_swara(n) for n in inside)}")
+    return CellChecks(craft=tuple(craft))
 
 
 def check_head_idea(cell: LeadPhrase, idea: HeadIdea | None) -> CellChecks:

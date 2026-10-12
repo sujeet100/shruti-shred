@@ -22,7 +22,7 @@ from crewai import Agent, Task  # noqa: E402
 from crewai.agent.utils import build_task_prompt_with_schema  # noqa: E402
 
 from crew.config import structured_output  # noqa: E402
-from crew.contracts import LeadPhrase  # noqa: E402
+from crew.contracts import LeadPhrase, RiffPattern  # noqa: E402
 
 
 def _prompt(**kwargs) -> str:
@@ -39,6 +39,18 @@ def test_the_schema_is_not_pasted_into_the_prompt():
 def test_the_task_still_parses_into_the_model():
     kwargs = structured_output(LeadPhrase)
     assert kwargs["output_pydantic"] is LeadPhrase and kwargs["response_model"] is LeadPhrase
+
+
+def test_a_rest_spelled_as_a_swara_parses_as_a_rest():
+    # 2026-10-12: three `"swara": "rest"` notes in one lead phrase failed the parse and the
+    # whole live Flow stopped — a spelling, not a fault
+    phrase = LeadPhrase.model_validate_json(
+        '{"phrase_plan": {"seed": ["S"], "contour": "arch", "transformations": ["repeat"],'
+        ' "climax_and_sam": "x"}, "notes": [{"swara": "g", "dur": 2}, {"swara": "rest", "dur": 1}]}')
+    assert phrase.notes[1].rest and phrase.notes[1].swara == "S"
+    riff = RiffPattern.model_validate_json('{"notes": [{"swara": "S", "dur": 15},'
+                                           ' {"swara": "REST", "dur": 1}]}')
+    assert riff.notes[1].rest
 
 
 if __name__ == "__main__":

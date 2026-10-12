@@ -28,13 +28,13 @@ from crew.contracts import (  # noqa: E402
 )
 from crew.rasik import (  # noqa: E402
     _lead_swaras,
-    _note_token,
     _render_pakad_hint,
     assess,
     judge_inputs,
     pakad_presence,
     register_profile,
 )
+from crew.lead_notation import note_token as _note_token  # noqa: E402
 from raga import RAGAS  # noqa: E402
 
 _RAGA = "darbari"

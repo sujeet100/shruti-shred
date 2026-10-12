@@ -428,7 +428,7 @@ def _covered_beats(windows: list[tuple[float, float]], start: float, end: float)
 
 def _is_alap(section: Section) -> bool:
     """The alap is never a STARVED spotlight: its silences are composed (about a quarter of it,
-    by its brief) and the jod and chikari ring through them. On the 2026-10-12 Darbari run the
+    by its brief) and the chikari rings through them. On the 2026-10-12 Darbari run the
     forced "barely audible" revise fired on the alap every round — the alap grew 45 -> 51 notes
     and still tripped it — and the Producer's own call (a weak climax) was never applied."""
     return section.form_role == "intro" or section.kind is SectionKind.ALAAP

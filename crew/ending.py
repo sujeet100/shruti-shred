@@ -18,7 +18,12 @@ sustaining voice was written to stop on the final beat, so drone, sitar, guitars
 released together at full level and the file fell ~60 dB in a quarter-second (the listening
 pass heard "an unnatural cut" on `fusion_20261012_112714`). Now each sustained note still
 sounding at the end rings `RING_TAIL_S` past it and its expression decays across that tail
-only (`Note.fade_tail`); a palm-muted chug cannot ring, so it is left as written.
+only (`Note.fade_tail`); a palm-muted chug cannot ring, so it is left as written. The band is
+the exception that made the piece still CUT: its last bar is the heaviest variant, all chugs, and
+a riff cycle often ends on a beat of rest, so on `fusion_20261012_152048` nothing from the guitars
+or bass was sounding at the end and the mix fell from -16 to -44 dB in a second. So the band's
+FINAL stroke (rhythm guitar, bass, clean guitar) is opened and let ring — the guitarist lifts the
+palm off the last chord — whenever it falls in the final avartan.
 The composers choose (a closed Literal on the draft); code places every note, because "land
 on the sam together" is timing arithmetic, not taste.
 
@@ -41,6 +46,9 @@ _LEAD_ROLE: Final = "lead"
 _RHYTHM_ROLE: Final = "rhythm"
 _BASS_ROLE: Final = "bass"
 _DRUMS_ROLE: Final = "drums"
+_LET_RING_ROLES: Final = frozenset({"rhythm", "bass", "clean"})   # the band's last stroke rings
+_PITCH_MOVES: Final = frozenset({"slide", "long_slide", "pick_scrape", "bend",
+                                 "hammer_on", "pull_off"})
 _EPS: Final = 1e-6
 
 
@@ -49,7 +57,8 @@ def apply_ending(layers: list[Layer], arr: Arrangement) -> list[Layer]:
     past it; `hard_stop` adds the final stroke on the landing sam and silences everything
     after it."""
     if arr.ending != "hard_stop":
-        return [_rung_out(layer, total_beats(arr), RING_TAIL_S * arr.bpm / 60.0)
+        end, tail = total_beats(arr), RING_TAIL_S * arr.bpm / 60.0
+        return [_rung_out(_last_stroke_rings(layer, end, arr.beats_per_bar), end, tail)
                 for layer in layers]
     sam = total_beats(arr)
     final_cycle = sam - arr.beats_per_bar
@@ -74,6 +83,23 @@ def _rung_out(layer: Layer, end: float, tail: float) -> Layer:
              if n.start + n.dur >= end - _EPS and n.technique != "palm_mute" else n
              for n in layer.notes]
     return layer.model_copy(update={"notes": notes})
+
+
+def _last_stroke_rings(layer: Layer, end: float, cycle: float) -> Layer:
+    """A band voice whose final stroke falls in the last avartan holds that stroke OPEN to the end
+    (no palm mute, no pitch gesture), so `_rung_out` can let it decay. Unchanged when the voice
+    is not a band voice, already sounds at the end, or stopped before the final avartan."""
+    notes = layer.notes or []
+    if layer.role not in _LET_RING_ROLES or not notes or _sounds_after(layer, end - _EPS):
+        return layer
+    last = max(n.start for n in notes)
+    if last < end - cycle - _EPS:
+        return layer
+    opened = [n.model_copy(update={"dur": round(end - n.start, 4),
+                                   "technique": None if n.technique == "palm_mute"
+                                   or n.technique in _PITCH_MOVES else n.technique})
+              if abs(n.start - last) < _EPS else n for n in notes]
+    return layer.model_copy(update={"notes": opened})
 
 
 def _sounds_after(layer: Layer, t: float) -> bool:

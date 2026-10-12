@@ -56,6 +56,7 @@ from crew.contracts import (
     plan_layer,
 )
 from crew.live import publish, publish_all
+from crew.rhythm_section import with_rhythm_section
 from crew.revision import (
     is_stalled,
     revise_arrangement,
@@ -139,8 +140,10 @@ def _creative_voices(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], li
     """Lead + riff, by the configured path: the single Composer DEVELOPING its seed
     (`RMA_COMPOSER` — the studio is not used there: one owner is the point), the cooperative
     studio (`RMA_STUDIO`), or the parallel voices in anchor order (the default)."""
-    from crew.config import canvas_passes, composer_enabled, studio_enabled
+    from crew.config import canvas_passes, composer_enabled, rhythm_section_enabled, studio_enabled
     announce = lambda agent, text: publish(_running(agent, text))  # noqa: E731
+    if rhythm_section_enabled() and (composer_enabled() or not studio_enabled()):
+        return (*_voices_with_rhythm_section(arr, composer_enabled(), announce), [])
     if composer_enabled():
         from crew.composer import compose_seeded_voices
         lead_layers, rhythm, events = compose_seeded_voices(arr, announce=announce, emit=publish_all)
@@ -154,6 +157,30 @@ def _creative_voices(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], li
     # call, so the UI spotlights the voice WHILE it composes.
     lead_layers, rhythm, events = compose_creative_voices(arr, announce=announce, emit=publish_all)
     return lead_layers, rhythm, events, []
+
+
+def _voices_with_rhythm_section(arr: Arrangement, composer: bool, announce: Callable[[str, str], None]
+                                ) -> tuple[list[Layer], Optional[Layer], list[DebateEvent]]:
+    """The sitar on the path's own composer, then ONE call for guitar + bass around it
+    (`RMA_RHYTHM_SECTION`); the path's per-section riff is the fallback."""
+    from crew.rhythm_section_call import compose_rhythm_section
+    from crew.rhythm_voice import creative_voices_with_rhythm_section
+    if composer:
+        from crew.composer import compose_seeded_voices as voices
+        from crew.riff import compose_seeded_riff
+
+        def legacy(a: Arrangement, events: list[DebateEvent]):
+            return compose_seeded_riff(with_realized_seeds(a, events))
+    else:
+        from crew.band import compose_creative_voices as voices
+        from crew.lead import mukhada_cell_from_events
+        from crew.riff import compose_riff
+
+        def legacy(a: Arrangement, events: list[DebateEvent]):
+            return compose_riff(a, mukhada_cell_from_events(events))
+    return creative_voices_with_rhythm_section(arr, voices=voices, composer=composer,
+                                               call=compose_rhythm_section, legacy_riff=legacy,
+                                               announce=announce, emit=publish_all)
 
 
 def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[Layer],
@@ -247,6 +274,13 @@ def _regenerate(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Lay
         return (_spliced_lead(arr, plan, lead_layers, new_lead),
                 _spliced_riff(arr, plan, rhythm, new_rhythm), orchestra_layers, events,
                 new_canvases)
+    if plan.voice == "riff" and arr.rhythm_section is not None:
+        from crew.rhythm_section_call import compose_rhythm_section
+        from crew.rhythm_voice import revise_rhythm_voice
+        announce = lambda agent, text: publish(_running(agent, text))  # noqa: E731
+        new_rhythm, events = revise_rhythm_voice(arr, revised, plan, lead_layers,
+                                                 call=compose_rhythm_section, announce=announce)
+        return lead_layers, new_rhythm, orchestra_layers, events, canvases
     if plan.voice == "riff":
         new_rhythm, events = _revise_riff(arr, revised, plan, list(history or []))
         return lead_layers, splice_layer(arr, plan, rhythm, new_rhythm), orchestra_layers, events, canvases
@@ -405,12 +439,13 @@ class ComposeFlow(Flow[ComposeState]):
         lead_layers, rhythm, orchestra_layers, e3, canvases = self._stages.generate(arr)   # emits its own RUNNING beats
         # The chart keeps the REALIZED head + main riff as its seeds (a Composer's seeds are kept
         # as they are), so a revise hands the riff its head and the gat its riff, never nothing.
-        st.arrangement = with_realized_seeds(arr, e3)
+        # A composed rhythm section rides the chart too, so assembly realises its bass.
+        st.arrangement = with_rhythm_section(with_realized_seeds(arr, e3), e3)
         st.lead_layers = lead_layers
         st.rhythm = rhythm
         st.orchestra_layers = orchestra_layers
         st.canvases = canvases
-        st.composition = self._stages.assemble(arr, lead_layers, rhythm, orchestra_layers)
+        st.composition = self._stages.assemble(st.arrangement, lead_layers, rhythm, orchestra_layers)
         st.events.extend([*e1, *e2, *e3])
 
     @router("revise")
@@ -428,6 +463,7 @@ class ComposeFlow(Flow[ComposeState]):
         lead_layers, rhythm, orchestra_layers, events, canvases = self._stages.regenerate(
             st.arrangement, st.lead_layers, st.rhythm, st.orchestra_layers, st.plan, st.canvases,
             st.events)
+        st.arrangement = with_rhythm_section(st.arrangement, events)   # a rhythm revise rewrote it
         st.lead_layers = lead_layers
         st.rhythm = rhythm
         st.orchestra_layers = orchestra_layers

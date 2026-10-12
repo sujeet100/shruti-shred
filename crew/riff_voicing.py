@@ -172,7 +172,7 @@ def voice_riff(pattern: RiffPattern, raga: str,
     return pattern.model_copy(update={"notes": notes})
 
 
-def _weight(root: str, raga: str) -> int:
+def power_weight(root: str, raga: str) -> int:
     """How heavy the strongest legal power chord on `root` is: 2 = fifth, 1 = fourth, 0 = octave."""
     chord = power_voicing(root, _HELD_BEATS, raga, StrokeRole.ACCENT)
     if len(chord) == 1:
@@ -188,7 +188,7 @@ def home_root(raga: str) -> str:
     core = NYAS[raga]["core"]
     if "S" in core:
         return "S"
-    return max(core, key=lambda sw: (_weight(sw, raga), -core.index(sw)))
+    return max(core, key=lambda sw: (power_weight(sw, raga), -core.index(sw)))
 
 
 def render_power_roots(raga: str) -> str:
@@ -196,7 +196,7 @@ def render_power_roots(raga: str) -> str:
     algorithm's step 4: prefer a root whose full power chord is legal). Pure."""
     by_weight: dict[int, list[str]] = {2: [], 1: [], 0: []}
     for sw in RAGAS[raga]["allowed"]:
-        by_weight[_weight(sw, raga)].append(sw)
+        by_weight[power_weight(sw, raga)].append(sw)
     parts = [f"full power chord (root + fifth): {' '.join(by_weight[2]) or '—'}",
              f"inverted (root + fourth): {' '.join(by_weight[1]) or '—'}",
              f"octave only: {' '.join(by_weight[0]) or '—'}"]

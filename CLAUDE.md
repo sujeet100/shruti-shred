@@ -912,6 +912,84 @@ and build order.
   `src/gestures.py` and reaches the Composer's seed facts (a gamak in the theme's FIRST statement).
   Planned chikari strokes strum only the Sa pair (`chikari.PLANNED_STRINGS`); written ones all four.
   1127 pure tests.
+- **DARBARI 152048 REVIEW, applied (2026-10-12;** Claude's + GPT's review of
+  `fusion_20261012_152048`**):** (1) the HEAD is ONE idea — `gat_verifier.check_head_shape`:
+  HARD no rest/chikari inside a gat head (that head planned `da ra dir chikari` x4 and Sujit heard
+  "three phrases stitched by rests"); CRAFT a scale-walk opening (>4 swaras straight) and gamak on
+  more than 2 moments (Sujit: gamak belongs in a mukhada, "use wisely"); a seed idea's chikari
+  token is read as a held matra; prompts teach figure → held breather → approach (Sujit's /
+  GPT's fast-then-breather shape, now in GAT_COMPOSITION.md §3.1 6a/6b, §5). Applies only to gat
+  heads (`lead._head_checks`), never a song hook. (2) the manjha fills its SECTION minus a
+  quarter-avartan breath (a 2-bar manjha had left 10 s of riff alone); the gat call is told each
+  part's length (`gat_part_windows`). (3) riff_first main riffs develop by role
+  (`riff_statements.riff_first_variant`: head faithful, reprise syncopated, manjha SPACE, antara
+  heavy→syncopated) — one cycle had looped 8x; the climax pedal holds SA (`riff_family._ground`;
+  it had sat on Ma). (4) ring-out: the band's last stroke opens and rings (`ending._last_stroke_rings`
+  — the final bar's chugs had stopped a beat early, −16 → −44 dB in a second). (5) the JOD is
+  DELETED (it double-knocked every alap gap with the chikari; jod is also a different thing in
+  Hindustani music) and the tanpura sounds an octave above the riff floor
+  (`_TANPURA_OCT_ABOVE_FLOOR`). (6, after GPT's second review) the head PLANS ITS SHAPE —
+  `PhrasePlan.head_shape` (`HeadStage`: figure / breather / response / approach, beats, target,
+  ornament), measured against the notes by `check_head_plan` (CRAFT); a gat head must HOLD one
+  note struck once for ≥2 beats (`check_head_shape`, HARD — that head's longest note was one
+  beat). 1136 pure tests; live-untested.
+- **RIFF ORCHESTRATION step 1 — phrase-aware articulation ✅ BUILT (2026-10-12;** GPT's review of
+  Sujit's real Yaman sitar-metal recording + our MIDI**):** measured: not one rhythm-guitar note in
+  `fusion_20261012_152048` lasted over a beat, and 70% of the head's sitar attacks landed on a
+  guitar attack. `crew/articulation.py` (pure, in `band_layers` before the double-track): under a
+  sitar-led section the guitar RINGS THROUGH the sitar's expressive events (held ≥1 beat, andolan,
+  gamak cell, gesture, meend) and bursts (`density.BUSY_MOVES`) instead of striking, opens its
+  stroke on a sitar arrival, always strikes the sam, plays as written where the sitar rests. Only
+  attacks/sustain change, never pitch (grinds kept). Taans, guitar-led, breakdown/tihai exempt
+  (f65dbce); bass + kit still follow the riff as written. Free A/B (same piece, guitars only):
+  `out/fusion_20261012_152048_ringing.wav`. 1144 pure tests. **Queued:** (2) mix pass calibrated
+  to Sujit's Yaman (ours is ~11 dB bottom-heavy in 400-1.5k vs sub; alap sitar 8-10 dB under the
+  band; ring-out ~3 s vs his ~15 s), (3) two guitar roles (rhythmic vs sustaining), (4) arrangement
+  measurements for the Producer (attack interference, repetition vs sitar change, texture balance).
+  **Step 1b — THE CHORD FLOOR ✅ BUILT (2026-10-12;** Sujit: "the chords are not that great" + how his
+  Yaman does it: the head's chord pattern recurs with every mukhada, the chords move in the manjha
+  and antara and climb a register in the antara, the home chord is sustained long to establish the
+  key**):** measured: our riff changed root 13x per avartan (the melody in parallel power chords,
+  Sa only 13% of the time); his recording holds home over half the time. `crew/chord_floor.py`
+  (pure, in `band_layers` BEFORE articulation; bass + kit derive from the floored riff): under
+  sitar-led sections strokes keep rhythm/articulation/velocity and take their root from a slow
+  floor — home held, the HEAD one identical pattern (departure only in the last vibhag into the
+  sam), MANJHA/ANTARA moving vibhag by vibhag, `lift_antara` an octave up for the guitar only.
+  Departures come ONLY from the section's `HarmonyPlan` roots with a full power chord
+  (`riff_voicing.power_weight`; Re in Darbari is never a guitar root), skipped where they would
+  grind against a HELD sitar note or break direction; where the sitar is silent the riff answers
+  as written. Free A/B: `out/fusion_20261012_152048_chords.wav` (vs `_ringing`): root changes
+  0.89 → 0.47/s, home 13% → 39% (audio estimate). 1152 pure tests.
+- **RHYTHM SECTION FROM THE LEAD LINE (Sujit's decision, 2026-10-12): ONE LLM call writes guitar +
+  bass for the WHOLE piece AFTER the sitar is placed, seeing it note by note; drums stay code
+  (lock to the guitar); the articulation pass + chord floor become FALLBACK + measurements. Step 1
+  ✅ BUILT (pure):** `RhythmSection`/`SectionPart` contracts (per-section `role` first, guitar/bass
+  avartan cycles in the riff-note format, `same_as` for the head recurring identically);
+  `crew/rhythm_section.py` — `render_timed_lead` (each sitar note at its beat with its ornaments,
+  repeated avartans named once; ~3.2k chars for 152048), `part_errors` (HARD: every guitar section
+  has a part, cycles fill + physical via `verify_riff`, legal via `riff_grammar_error`, bass single
+  notes), `realise` (voice + place guitar cycles; bass an octave under, floored; sections without
+  bass get the code-derived bass). Shared `crew/lead_notation.py` (Rasik's note tokens);
+  `riff.place_cycles` + `generators.BASS_FLOOR` made public. **Step 2 ✅ BUILT:** the
+  `rhythm_section` agent + `compose_rhythm_section` task (Sujit's Yaman principles as the brief:
+  home held long, the head's chord pattern recurring via `same_as`, manjha/antara moving and the
+  antara climbing, slow chord plan + fast picking, ring under the sitar's held notes/ornaments,
+  answer its rests, the taan drives on a home pedal; HARD rules = exactly `part_errors`);
+  `crew/rhythm_section_call.py` — `rhythm_section_inputs` (riff facts, accents incl. khali, chart
+  with harmony plans, seed riff, timed sitar line, repair), the guardrail (`part_errors`, ONE
+  bounded retry), `compose_rhythm_section` at the conception tier. ~3.1k input tokens on 152048
+  (interpolated through CrewAI's own `interpolate_only`). **Step 3 ✅ BUILT — wired behind
+  `RMA_RHYTHM_SECTION` (default OFF):** `crew/rhythm_voice.py` — the path's own lead composer runs
+  WITHOUT the per-section riff (`no_riff`; except a riff_first head on the parallel path, which
+  quotes the riff — that riff is then the fallback), then the call; ANY failure (raise or
+  unplayable) falls back to the path's legacy riff with an event. The composed part rides the
+  event stream and then the chart (`Arrangement.rhythm_section`, set by
+  `rhythm_section.with_rhythm_section` in the Flow's begin + revise), so `band_layers` plays it AS
+  WRITTEN with its own bass (`realise`) and skips the chord floor + articulation. A riff revise on
+  a composed part re-asks for the plan's sections only and `splice_parts` them in (an unplayable
+  answer keeps the part). Wired in both the Flow (`_voices_with_rhythm_section`, Composer and
+  parallel paths; the studio ignores the flag) and `compose_band`. 1178 pure tests. **Next:**
+  step 4 — ONE live call on 152048's sitar line (ASK first), rendered against `_chords`.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

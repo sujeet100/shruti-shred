@@ -67,10 +67,9 @@ _BED: dict[str, float] = {"tabla": 0.95, "bass": 0.90, "drums": 0.90}  # support
 _BED_DEFAULT: float = 0.85
 
 # Sustained tonal ANCHORS — exempt from the section-by-section energy/balance scaling: each is
-# one long note holding the tonal centre (the tanpura pad; the alap's ringing jod Sa), not a
-# voice that swells section to section. Scaling the jod by the intro's low energy would bury the
-# very home the alap is meant to ring on.
-_ANCHOR_ROLES = frozenset({"drone", "jod"})
+# one long note holding the tonal centre (the tanpura pad), not a voice that swells section to
+# section. Scaling it by the intro's low energy would bury the very home the alap rings on.
+_ANCHOR_ROLES = frozenset({"drone"})
 # Layers that are part of another voice's instrument, and so take that voice's balance gain.
 _PART_OF: dict[str, str] = {"chikari": "lead"}
 
@@ -126,7 +125,7 @@ def _gain_for(section: Section, role: str, *, is_final: bool) -> float:
 
 def _balance_layer(layer: Layer, gain_at: Callable[[float, str], float]) -> Layer:
     """Scale a layer's note/hit velocities by the gain of the section each event falls in. A
-    sustained anchor (the drone; the alap's jod Sa) is returned unchanged — a constant tonal
+    sustained anchor (the drone) is returned unchanged — a constant tonal
     centre, not a section-by-section voice."""
     if layer.role in _ANCHOR_ROLES:
         return layer

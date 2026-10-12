@@ -47,6 +47,7 @@ from crew.lead import (  # noqa: E402
     _LeadContext,
     _lead_guardrail,
     _doubled_hook,
+    _GatContext,
     _generate_verified_cell,
     _restated_to_window,
     _role_briefs,
@@ -56,6 +57,7 @@ from crew.lead import (  # noqa: E402
     apply_ornaments,
     apply_strokes,
     approach_cut,
+    gat_part_windows,
     generate_lead,
     is_mukhada,
     is_underfilled,
@@ -599,14 +601,19 @@ def test_the_lead_prompt_states_objectives_not_recipes():
 
 
 def test_a_head_check_measures_its_stroke_line():
-    from crew.lead import _head_strokes, _render_plan
+    from crew.lead import _head_checks, _render_plan
     head = LeadPhrase(phrase_plan=PhrasePlan(seed=["S"], contour="arch", transformations=["repeat"],
                                              climax_and_sam="x"),
                       notes=[LeadNote(swara="S", dur=16.0, bol="da")])
     assert any("no stroke_line planned" in v
-               for v in _head_strokes(head, cycle_beats=16.0, frame="razakhani").craft)
+               for v in _head_checks(head, cycle_beats=16.0, frame="razakhani",
+                                     raga="malkauns").craft)
     planned = head.phrase_plan.model_copy(update={"stroke_line": ["da"] + ["-"] * 15})
     assert "strokes: da - -" in _render_plan(planned)
+    shaped = PhrasePlan.model_validate({**planned.model_dump(), "head_shape": [
+        {"stage": "Figure", "beats": 4}, {"stage": "breather", "beats": 8, "target": "g"},
+        {"stage": "approach", "beats": 4}]})
+    assert "shape: figure 4 → breather 8 on g → approach 4" in _render_plan(shaped)
 
 
 def test_dir_is_two_half_matra_strokes():
@@ -923,6 +930,25 @@ def test_non_mukhada_roles_are_not_looped():
     layers, _ = generate_lead(arr, gen_fn=fn)
     assert calls[0].section.bars == 2                        # the section's bars are NOT coerced to 1
     assert len(layers[0].notes) == 6                         # placed once, not looped per bar
+
+
+def test_a_two_bar_manjha_fills_its_section_minus_one_short_breath():
+    # fusion_20261012_152048: the window was capped at one avartan, so a 2-bar manjha played 12
+    # beats and left 20 beats of riff alone. The breath is a quarter avartan whatever the length.
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"), (SectionKind.ALAAP, 2, "manjha"),
+                   (SectionKind.ALAAP, 1, "mukhada"))
+    assert gat_part_windows(arr)["manjha"] == 2 * 16 - 4
+    one = _gat_arr((SectionKind.ALAAP, 1, "mukhada"), (SectionKind.ALAAP, 1, "manjha"),
+                   (SectionKind.ALAAP, 1, "mukhada"))
+    assert gat_part_windows(one)["manjha"] == 12             # a 1-bar manjha is unchanged
+
+
+def test_the_gat_call_is_told_each_parts_length():
+    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"), (SectionKind.ALAAP, 2, "manjha"),
+                   (SectionKind.ALAAP, 1, "mukhada"), (SectionKind.ALAAP, 2, "antara"))
+    parts = _GatContext(arr).inputs_for(needs_manjha=True, needs_antara=True,
+                                        needs_amad=True)["parts_needed"]
+    assert parts == "mukhada (16 beats), manjha (28 beats), antara (16 beats), amad (16 beats)"
 
 
 # --- gat verifier repair: a weak mukhada is RE-ROLLED before it's cached (fix #4) -

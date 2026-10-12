@@ -253,7 +253,24 @@ they must be identical every time and land the sam unmistakably.
    (VERIFIED: Lokogandhar, Vishwamohini; all six textbook lines end `G R S` / `g R S` on
    9-11).
 6. **No chikari and no gaps in the mukhda line** (SINGLE: the Pilu exemplar). The head runs
-   continuously; its "breath" is the soft ra on 11, not a rest.
+   continuously; its "breath" is the soft ra on 11, not a rest. **Now HARD in the engine**
+   (`gat_verifier.check_head_shape`, 2026-10-12), after `fusion_20261012_152048` planned
+   `da ra dir chikari` four times and Sujit heard "three distinct phrases stitched together by
+   rests"; a chikari token in a seed's head idea is read as a held matra.
+6a. **One idea: a fast figure, then a slow breather** (SUJIT, 2026-10-12, from the GPT guide he
+   gathered: "a mukhada can have a fast section followed by a slow part which is the breather";
+   "the entire mukhada should sound like an idea"). The head is one sentence: a quick figure,
+   a held resting swara that breathes (the place for the raga's own andolan or meend), then the
+   approach into the sam. This agrees with rule 5 (the settle on matra 11) and with the
+   left-hand density Sujit's guruji's gat showed (a burst of a beat or two, then a ringing
+   note). Not separately sourced from a published gat. The engine plans it as
+   `PhrasePlan.head_shape` (figure → breather → response → approach, GPT's second review),
+   measured against the notes as craft (`check_head_plan`); the breather itself (one note
+   struck once and held at least 2 beats) is HARD for a gat head (`check_head_shape`), because
+   a rest is not a breather.
+6b. **Open with the raga, not the scale.** A head that opens by walking S R g m P is the
+   scale (both reviews of `fusion_20261012_152048`); its first few swaras should be a phrase
+   only the raga plays. Reported as craft (`check_head_shape`, more than 4 swaras straight).
 7. **Write the vocal ornaments in.** Meend and slow murki belong in the head because the head
    is a sung line (VERIFIED: Parikh, "the bols of the bandish verbatim"; Raja). Krintan,
    gamak and fast ornaments do not (§5).
@@ -400,7 +417,10 @@ true, since Maihar jhala uses chikari).
 The organising principle is the gayaki ang. The head is a **sung line**, so it carries vocal
 ornaments: meend, kan, and slow murki. The fast and percussive ornaments (krintan, gamak,
 ghaseet) belong to the improvisations (fills, taans, jod) and to the alap (VERIFIED in
-outline: Parikh, Raja, Ramprapanna).
+outline: Parikh, Raja, Ramprapanna). **Gamak is the exception Sujit corrected** (2026-10-12:
+"gamak are also present in mukhada — use wisely"; his guruji's recorded Darbari gat opens on
+one): it belongs on a head as an event, one or two at most, never on every note. The engine
+reports more than two (`check_head_shape`); a run of strokes on one swara counts once.
 
 | Ornament | On the composed head? | Where it belongs | Grade, source |
 |---|---|---|---|
@@ -409,7 +429,7 @@ outline: Parikh, Raja, Ramprapanna).
 | **Murki** (wrap-around turn) | Yes, as a **meend-type turn under one stroke** | head; Vilayat Khan's khayal-ang passages | VERIFIED (Parikh ×2, Raja, Nad Sadhna; see below) |
 | **Andolan** (slow swing) | Not sourced for gat placement | raga-specific swaras (our per-raga data) | per-raga data; GURUJI for Bageshree |
 | **Krintan** (left-hand hammer cluster) | **No** | alap, jod, and drut-gat fill alankars | SINGLE (Ramprapanna; mechanics Parikh) |
-| **Gamak** (heavy oscillation) | **No** | gamak taans (vilambit and drut), jod | VERIFIED (Nad Sadhna, Ramprapanna, Raja) |
+| **Gamak** (heavy oscillation) | **Sparingly** (one or two) | gamak taans (vilambit and drut), jod; a head as an event | VERIFIED for taans (Nad Sadhna, Ramprapanna, Raja); GURUJI/SUJIT for the head |
 | **Ghaseet** (slide, often across octaves) | No | alap octave jumps, jod, with meend and jhala | SINGLE (Ramprapanna; mechanics Parikh) |
 | **Zamzama, khatka** | Not found | n/a | §11 |
 
@@ -586,8 +606,8 @@ the rules it applies.
 8. **Write the amad** (§3.4). A composed descent from the antara's peak back to the mukhda's
    first swara, with no re-peak.
 9. **Ornament pass** (§5). Meend (≤5 swaras per pull, shorter in the head), one kan, slow
-   one-stroke murki, and the raga's own andolan swaras. No krintan, gamak or ghaseet on the
-   head; save them for fills and taans.
+   one-stroke murki, and the raga's own andolan swaras. No krintan or ghaseet on the head, and
+   gamak only as one or two events; save the rest for fills and taans.
 10. **Check the hand-backs** (§8). Every line ends where the next can start. Improvisations
     return either through the mukhda's approach at matra 12 or by a closing figure or tihai
     onto the sam, and tihais go only in the antara section.
@@ -608,7 +628,7 @@ follows. Nothing here has been built yet; it is for Sujit's review first.
   restatement on 1-3; rest on Sa at matra 11; mukhda peak below taar Sa; manjha's
   share of time in mandra; antara peak in taar on or near the sam; chikari/gap density
   per line (mukhda 0, manjha ~1, antara ~2); leap sizes; meend span; ornaments that
-  belong elsewhere appearing on the head (krintan, gamak).
+  belong elsewhere appearing on the head (krintan; gamak beyond one or two).
 - **New relative to the engine today:** the per-line chikari and gap texture; the antara
   contour (enter at 12 mid-scale, taar on the sam); the ornament-placement table and
   Parikh's ornament spans as measurements; the toda closing-formula hand-back as a second

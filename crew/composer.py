@@ -83,7 +83,7 @@ _HEAD_SCHEMA: Final = """{
   "idea": "<one line: what this head is>",
   "sam_swara": "<the swara that sounds ON every sam — the head's first note>",
   "cell": ["<the few swaras of the core cell that recurs>"],
-  "stroke_line": ["<one stroke token per matra of the avartan: a bol word, chikari, or ->"]
+  "stroke_line": ["<one stroke token per matra of the avartan: a bol word or - (no chikari)>"]
 }"""
 
 

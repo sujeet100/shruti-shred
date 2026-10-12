@@ -27,6 +27,7 @@ from typing import Any, Callable, Final, Literal, Optional, get_args
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from fretboard import LOWEST_OPEN
+from gats import STROKE_HOLD
 from raga import RAGAS, SWARAS  # single source of truth for ragas + legal sargam symbols
 from subgenres import SUBGENRES
 from talas import TALAS
@@ -670,6 +671,10 @@ class Arrangement(BaseModel):
     seed_hook: Optional[LeadPhrase] = None          # ONE avartan: the mukhada (gat) / the sitar's hook (song)
     seed_head: Optional[HeadIdea] = None            # GAT form: the head's IDEA the gat call composes from
     energy_arc: str = ""                            # the Composer's plan for how intensity moves
+    # The COMPOSED rhythm section (guitar + bass, written from the placed sitar — crew/rhythm_voice.py),
+    # carried on the chart like the seeds so assembly realises its bass and a riff revise edits it
+    # section by section. None = the per-section riff path (the bass derived by code).
+    rhythm_section: Optional[RhythmSection] = None
 
     @field_validator("raga")
     @classmethod
@@ -857,6 +862,18 @@ def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arran
 # --------------------------------------------------------------------------- #
 # Contract 1: Composition                                                     #
 # --------------------------------------------------------------------------- #
+
+_REST_SPELLINGS: Final = frozenset({"rest", "silence", "-"})
+
+
+def _rest_as_swara(data: Any) -> Any:
+    """A silence the model spelled as `"swara": "rest"` instead of `"rest": true`, read as the rest
+    it means. The 2026-10-12 live run died on it: three such notes in one lead phrase failed the
+    swara check, the parse raised, and the whole Flow stopped — for a spelling, not a fault."""
+    if isinstance(data, dict) and str(data.get("swara", "")).strip().lower() in _REST_SPELLINGS:
+        return {**data, "swara": "S", "rest": True}
+    return data
+
 
 def _clean_meend_swara(v):
     """Normalize a `meend_swara` (the glide TARGET) to a legal swara or None.
@@ -1062,6 +1079,11 @@ class LeadNote(BaseModel):
     gamak_with: Optional[str] = None     # a GAMAK: swing fast between this swara and that ADJACENT
                                          # raga neighbour for the note's length — code plays the swing
 
+    @model_validator(mode="before")
+    @classmethod
+    def _rest_spelling(cls, data: Any) -> Any:
+        return _rest_as_swara(data)
+
     @field_validator("swara")
     @classmethod
     def _known_swara(cls, v: str) -> str:
@@ -1138,6 +1160,28 @@ def _stroke_tokens(v):
     return tokens or None
 
 
+HEAD_STAGES: Final = ("figure", "breather", "response", "approach")
+
+
+class HeadStage(BaseModel):
+    """One stage of a gat head's SHAPE — what that stretch of the avartan is FOR (GPT's second
+    review of `fusion_20261012_152048`, and Sujit's "a fast section followed by a slow part which
+    is the breather"): a quick FIGURE that builds anticipation, a held BREATHER that releases it
+    on one swara, an optional RESPONSE that develops the figure, the APPROACH that lands the sam.
+    Planned before the notes so the head is composed as one thought with contrasting speeds, not
+    as equal blocks joined end to end. Lenient like the rest of the plan: an unknown stage name or
+    an odd length is kept as written and reported by `gat_verifier.check_head_plan`."""
+    stage: str                                # figure / breather / response / approach
+    beats: float                              # how long the stage lasts, in beats
+    target: Optional[str] = None              # the swara it lands on or holds (the breather's)
+    ornament: Optional[str] = None            # e.g. andolan / meend / gamak / plain
+
+    @field_validator("stage", mode="before")
+    @classmethod
+    def _norm_stage(cls, v):
+        return str(v).strip().lower()
+
+
 class PhrasePlan(BaseModel):
     """The compositional plan the Lead commits to BEFORE any notes — so a taan DEVELOPS one
     idea (the way a real improviser does) instead of running the scale (the "drunken
@@ -1167,6 +1211,8 @@ class PhrasePlan(BaseModel):
     # composed as a PATTERN (the gat's identity) rather than decorated note by note. Lenient like
     # the fields above: junk is kept as written and reported by `check_stroke_line`, never a dead parse.
     stroke_line: Optional[list[str]] = None
+    # ...and its SHAPE, planned with it: the stages in order (`HeadStage`), summing to the avartan.
+    head_shape: Optional[list[HeadStage]] = None
 
     @field_validator("stroke_line", mode="before")
     @classmethod
@@ -1235,7 +1281,12 @@ class HeadIdea(BaseModel):
     @field_validator("stroke_line", mode="before")
     @classmethod
     def _norm_stroke_line(cls, v):
-        return _stroke_tokens(v)
+        # A chikari never sits inside a gat head (GAT_COMPOSITION.md §3.1 rule 6; HARD in
+        # `gat_verifier.check_head_shape`). The idea is the seed's and is copied into the head, so
+        # a chikari matra here would push the head into a paid repair; it is read as what the
+        # head must do instead, a held matra the previous note rings through.
+        tokens = _stroke_tokens(v)
+        return [STROKE_HOLD if t == "chikari" else t for t in tokens] if tokens else tokens
 
 
 class RiffNote(BaseModel):
@@ -1264,6 +1315,11 @@ class RiffNote(BaseModel):
     chord: Optional[list[str]] = None
     technique: Optional[RiffTechnique] = None
     rest: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _rest_spelling(cls, data: Any) -> Any:
+        return _rest_as_swara(data)
 
     @field_validator("swara")
     @classmethod
@@ -1304,6 +1360,34 @@ class RiffPattern(BaseModel):
     """
     reasoning: str = ""
     notes: list[RiffNote] = Field(min_length=1)
+
+
+class SectionPart(BaseModel):
+    """The rhythm section's part for ONE section of the chart — written by the rhythm-section call
+    AFTER the sitar line exists, seeing it note by note (`crew/rhythm_section.py`).
+
+    `role` comes first: what the guitar does here and why (supports a held note, drives, breathes,
+    answers, lifts). `guitar` and `bass` are avartan CYCLES in the riff's note format (durations
+    filling one cycle each; `oct` local to the voice's register): cycle i plays bar i, and a
+    section longer than its cycles repeats the last one. `same_as` replays another section's part
+    exactly — how the head's part recurs identically with every return of the mukhada. A section
+    with no bass cycles takes the bass code derives from its guitar."""
+    section: int
+    role: str = ""
+    same_as: Optional[int] = None
+    guitar: list[list[RiffNote]] = Field(default_factory=list)
+    bass: list[list[RiffNote]] = Field(default_factory=list)
+
+
+class RhythmSection(BaseModel):
+    """The whole rhythm section — guitar and bass — composed in ONE call from the realised sitar
+    line (Sujit, 2026-10-12: "ask the LLM to build the entire rhythm section based on the lead
+    line"). `reasoning` is the arrangement plan, written first: the home chord and how long it
+    holds, the head's recurring chord pattern, how the manjha and antara move, where the guitar
+    rings under the sitar and where it answers. Legality and cycle arithmetic are checked by code
+    (`rhythm_section.part_errors`), so `output_pydantic` can always parse a well-formed answer."""
+    reasoning: str = ""
+    parts: list[SectionPart] = Field(min_length=1)
 
 
 # --------------------------------------------------------------------------- #

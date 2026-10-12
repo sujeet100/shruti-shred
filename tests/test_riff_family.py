@@ -131,6 +131,22 @@ def test_the_pedal_keeps_every_attack_on_one_floor():
     assert [n.technique for n in out] == ["palm_mute", None, "palm_mute", None, None, None]
 
 
+def test_the_climax_pedal_holds_sa_even_when_another_root_is_commoner():
+    # fusion_20261012_152048: Ma was the commonest root, so the climax sat on a Ma floor under a
+    # taan that kept cadencing on Sa
+    base = [RiffNote(swara="S", dur=1.0, chord=["P", "S"]),
+            RiffNote(swara="m", dur=1.0, chord=["S", "m"]),
+            RiffNote(swara="m", dur=1.0, chord=["S", "m"]),
+            RiffNote(swara="m", dur=1.0, chord=["S", "m"])]
+    out = apply_variant(base, "pedal")
+    assert {(n.swara, tuple(n.chord or [])) for n in out} == {("S", ("P", "S"))}
+
+
+def test_without_sa_the_pedal_holds_the_commonest_root():
+    base = [RiffNote(swara="P", dur=1.0), RiffNote(swara="m", dur=1.0), RiffNote(swara="m", dur=1.0)]
+    assert {n.swara for n in apply_variant(base, "pedal")} == {"m"}
+
+
 def test_primes_every_third_bar_of_a_long_section():
     sec = _sec(form_role="mukhada", bars=6)
     got = [variant_for_bar(sec, i, 6, is_final_rhythm=False) for i in range(6)]

@@ -53,25 +53,33 @@ roles:
         a note rings on ("-"), using the whole range — quick figures, single strokes, held
         notes. Clap the stroke line alone and it should still be recognisably this head.
         Then write the notes that play it, every note carrying the bol its matra asks for.
-      - LET IT BREATHE: the right hand keeps a steady pulse; the LEFT hand makes the
-        contrast. A quick figure lasts a matra or two — often several swaras on ONE stroke
-        (a note's "grace" list) — and then a note RINGS ("-" in the stroke line) before the
-        next idea. The same density on every matra is a march, not a gat.
-      - A GAMAK CELL can be the head's signature (where the raga facts allow one): a note of
-        a beat or two written with "gamak_with", swinging hard against its neighbour while
-        the right hand keeps striking — a master's Darbari gat OPENS on one (Sa, then Ma
-        swung onto Ga). Give those matras strokes in the stroke_line; the gamak re-strikes.
-      - ONE IDEA, HEARD AGAIN: let one short cell — a few swaras, or a stroke figure, with
-        its own rhythm — recur inside the head. The head is the simplest, most memorable
-        thing in the piece, not a demonstration of the raga: a few swaras used beautifully
-        beat a cycle that tries to show everything the raga can do.
+      - ONE IDEA, ONE BREATH — PLAN ITS SHAPE (phrase_plan.head_shape) with the stroke line:
+        the whole avartan is ONE continuous sentence, never a few equal cells joined end to
+        end. A quick FIGURE builds anticipation (a matra or two, often several swaras on ONE
+        stroke via a note's "grace" list); a held BREATHER fulfils it — one swara struck once
+        and left to ring at least two beats ("-" in the stroke line), the natural home for the
+        raga's own andolan or meend; a RESPONSE may develop the figure; the APPROACH resolves
+        it into the sam. The breather grows out of the figure. No rest and no chikari anywhere
+        inside the head: where you want air, HOLD a note instead.
+      - OPEN WITH THE RAGA, NOT THE SCALE: the first four or five swaras should be a phrase
+        only this raga plays (from its pakad or chalan), never a straight climb or fall
+        along the scale. A head that would still be recognisable played slowly, plain, with
+        no accompaniment is the goal.
+      - GAMAK, USED WISELY: a gamak ("gamak_with", swinging hard against its neighbour while
+        the right hand keeps striking) is an EVENT in a head — one or two at most, on the
+        notes the phrase leans on. A master's Darbari gat OPENS on one (Sa, then Ma swung
+        onto Ga). Give those matras strokes in the stroke_line; the gamak re-strikes. A
+        gamak on every note is a texture, not a gat, and the breather rings without one.
+      - KEEP IT SIMPLE: the head is the simplest, most memorable thing in the piece, not a
+        demonstration of the raga — a few swaras used beautifully beat a cycle that tries to
+        show everything the raga can do.
       - LET THE SAM RE-ENTER: cadence to a DIFFERENT note than the one you open on. A head
         that ends on its own opening note merges with itself across the loop, and the
         downbeat disappears.
   manjha: |
-    The MANJHA — the LOWER-REGISTER BRIDGE (part of the sthayi; short and calm):
-      - ONE clear, spacious idea filling the window (about one avartan) — longer nyas,
-        meend and breathing room, never a busy taan-like run.
+    The MANJHA — the LOWER-REGISTER BRIDGE (part of the sthayi; calm):
+      - ONE clear, spacious idea filling the whole window (code keeps a short breath after
+        it) — longer nyas, meend and breathing room, never a busy taan-like run.
       - Centre of gravity in the mandra / lower-madhya: DIP into the mandra (oct -1)
         and do NOT touch the taar — the antara owns the upper octave.
       - Vary the note lengths (a flat wall of equal durations reads as a drone).

@@ -1,7 +1,7 @@
 """
 A no-LLM SOUND CHECK for the chikari (crew/chikari.py): a short hand-written Bageshree gat —
 alap, the head stated twice, the manjha, the head's return, the climax — placed by the REAL
-lead pipeline (`lead_layers_from`) and rendered twice over the tanpura and the jod:
+lead pipeline (`lead_layers_from`) and rendered twice over the tanpura:
 
   A — the old chikari: the head's written chikari is ONE taar Sa on the melodic sitar channel,
       and nothing else strikes the drone strings;
@@ -35,7 +35,7 @@ from crew.contracts import (
     SectionKind,
     build_arrangement,
 )
-from crew.generators import drone_layer, intro_jod_layer, section_spans
+from crew.generators import drone_layer, section_spans
 
 _RAGA: Final = "bageshree"
 _BPM: Final = 72
@@ -94,9 +94,8 @@ def _lead(arr: Arrangement) -> list[Layer]:
 def _compositions(arr: Arrangement) -> dict[str, Composition]:
     """A (the old single-note chikari on the melody channel) and B (the chikari layer)."""
     lead = _lead(arr)
-    jod = intro_jod_layer(arr, lead)
-    bed = [drone_layer(arr), *([jod] if jod is not None else [])]
-    chikari = chikari_layer(arr, lead, jod=jod)
+    bed = [drone_layer(arr)]
+    chikari = chikari_layer(arr, lead)
     new = [*without_chikari(lead), *([chikari] if chikari is not None else [])]
 
     def comp(layers: list[Layer]) -> Composition:

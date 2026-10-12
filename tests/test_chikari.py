@@ -251,14 +251,6 @@ def test_the_alap_punctuates_phrase_endings_sparsely():
     assert len(_per_bar(strokes, arr, 0)[0]) == 1                              # not every rest
 
 
-def test_the_alap_stroke_steps_off_the_jod():
-    arr, lead = _gat()
-    free = _in_section(chikari_strokes(arr, lead), arr, 0)
-    jod = tuple(s.start for s in free)                     # a jod stroke exactly where it would land
-    moved = _in_section(chikari_strokes(arr, lead, jod_onsets=jod), arr, 0)
-    assert moved and all(min(abs(s.start - j) for j in jod) >= 0.75 for s in moved)
-
-
 def test_the_head_brings_the_same_chikari_back_every_time():
     arr, lead = _gat()
     strokes = chikari_strokes(arr, lead)

@@ -90,7 +90,7 @@ from crew.anchor import (
     slot_of,
 )
 from crew.riff_from_mukhada import HeadRiff, head_riff, render_head_riff
-from crew.riff_statements import develop_statements
+from crew.riff_statements import develop_riff_first, develop_statements
 from crew.riff_voicing import home_root, render_power_roots, voice_riff
 from crew.lead import render_direction_rule
 from crew.user_request import render_request
@@ -213,7 +213,7 @@ def _sequence_cycle(pattern: list[RiffNote], cycle_beats: float, register: int,
     return placed
 
 
-def _place_cycles(cycles: list[list[RiffNote]], *, start: float, cycle_beats: float,
+def place_cycles(cycles: list[list[RiffNote]], *, start: float, cycle_beats: float,
                   register: int, accent_beats: set[float],
                   raga: str | None = None) -> list[Note]:
     """Place a per-bar SEQUENCE of cycles (one RiffNote list per bar), sequencing each onto its
@@ -237,7 +237,7 @@ def place_riff(pattern: list[RiffNote], *, start: float, bars: int, cycle_beats:
     """Repeat ONE cycle across `bars` from `start`, locking each bar to the sam — the LITERAL
     (no-variation) placement. `rhythm_layer_from` uses the developed placement (the riff family)
     instead; this stays as the primitive the accent/loop tests target. Pure."""
-    return _place_cycles([pattern] * bars, start=start, cycle_beats=cycle_beats,
+    return place_cycles([pattern] * bars, start=start, cycle_beats=cycle_beats,
                          register=register, accent_beats=accent_beats, raga=raga)
 
 
@@ -616,6 +616,8 @@ def rhythm_layer_from(patterns: dict[int, RiffPattern], arr: Arrangement,
     final_rhythm = playing[-1] if playing else None      # the last section that actually plays a riff
     register = arr.registers[_RHYTHM_ROLE]
     statements: dict[str, int] = {}                     # head slot -> guitar statements so far
+    anchor_slot = _riff_first_slot(arr)
+    heads_heard = 0                                     # riff_first: mukhada sections so far
     notes: list[Note] = []
     for span in spans:
         pattern = patterns.get(span.index)
@@ -628,15 +630,30 @@ def rhythm_layer_from(patterns: dict[int, RiffPattern], arr: Arrangement,
                 pattern.notes, span.section, is_final_rhythm=final,
                 first_statement=statements.get(slot, 0), raga=arr.raga,
                 accents=frozenset(accents))
+        elif slot == anchor_slot:
+            cycles = develop_riff_first(pattern.notes, span.section, is_final_rhythm=final,
+                                        reprise=heads_heard > 0, raga=arr.raga,
+                                        accents=frozenset(accents))
+            heads_heard += span.section.form_role == "mukhada"
         else:
             cycles = develop_section(pattern.notes, span.section, is_final_rhythm=final)
-        notes.extend(_place_cycles(cycles, start=span.start, cycle_beats=arr.beats_per_bar,
+        notes.extend(place_cycles(cycles, start=span.start, cycle_beats=arr.beats_per_bar,
                                    register=register, accent_beats=accents, raga=arr.raga))
     if not notes:
         return None
     voice = VOICES[_RHYTHM_ROLE]
     return Layer(role=_RHYTHM_ROLE, instrument=voice.instrument, program=voice.program,
                  channel=voice.channel, pan=voice.pan, notes=notes)
+
+
+def _riff_first_slot(arr: Arrangement) -> str | None:
+    """The slot whose riff the head quotes in a riff_first piece — the first mukhada's — or None
+    (gat_first, a song form, or no mukhada that plays a riff)."""
+    if arr.anchor != "riff_first":
+        return None
+    head = next((s for s in arr.sections if s.form_role == "mukhada" and "rhythm" in s.layers),
+                None)
+    return slot_for(head) if head is not None else None
 
 
 def _head_take(span: SectionSpan, arr: Arrangement, riff: HeadRiff) -> RiffPattern:

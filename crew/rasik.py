@@ -48,9 +48,9 @@ from crew.contracts import (
     RasikVerdict,
 )
 from crew.density import render_density
+from crew.lead_notation import note_token
 from crew.generators import section_spans
 from crew.user_request import render_request
-from gestures import gesture_named
 from raga import RAGAS, SWARAS, render_character, render_kan, render_nyas, render_register
 
 # DebateEvent role for a critic turn (shared with Ustad).
@@ -231,35 +231,6 @@ def _render_motion(comp: Composition) -> str:
         f"movements (its pakad/chalan phrases), rather than merely using its swaras"))
 
 
-def _swara_with_oct(swara: str, oct_: int) -> str:
-    return swara if oct_ == 0 else f"{swara}({oct_:+d})"
-
-
-_HOLD_BEATS: Final = 1.0          # a note this long or longer shows its length in the lead line
-
-
-def _note_token(n: Note) -> str:
-    """One lead note as Rasik reads it: `(R)g~[1.5]` — kan in front (Parrikar's notation),
-    `{m}` a measured gesture visiting m and back, `<>m` a gamak stroke swinging with m, `~` an andolan, `>S` a meend into S,
-    `[beats]` a hold. A bare swara list hid exactly what makes a raga recognisable: whether
-    its komal Ga is held and swayed or merely passed."""
-    token = _swara_with_oct(n.swara, n.oct)
-    if n.grace:
-        token = f"({''.join(n.grace)}){token}"
-    gesture = gesture_named(n.gesture) if n.gesture else None
-    if gesture is not None:
-        token += f"{{{gesture.toward}}}"
-    elif n.gamak_with and n.pitch_path:
-        token += f"<>{n.gamak_with}"
-    if n.andolan:
-        token += "~"
-    if n.meend_swara:
-        token += f">{n.meend_swara}"
-    if n.dur >= _HOLD_BEATS:
-        token += f"[{n.dur:g}]"
-    return token
-
-
 def register_profile(notes: list[Note], home: int) -> dict[str, float]:
     """Where the line spends its TIME (duration-weighted): below home Sa (mandra), in the home
     octave (madhya), above it (taar), and in the lower tetrachord (S..m) at any octave. Pure."""
@@ -299,13 +270,13 @@ def _render_lead_line(comp: Composition, arr: Arrangement | None = None) -> str:
     if not notes:
         return "  (no lead voice in this piece)"
     if arr is None:
-        return "  " + " ".join(_note_token(n) for n in notes)
+        return "  " + " ".join(note_token(n) for n in notes)
     lines = []
     for span in section_spans(arr):
         inside = [n for n in notes if span.start <= n.start < span.end]
         if inside:
             label = span.section.form_role or span.section.kind.value
-            phrase = " ".join(_note_token(n) for n in inside)
+            phrase = " ".join(note_token(n) for n in inside)
             lines.append(f"  section {span.index} ({label}): {phrase}")
     return "\n".join(lines)
 

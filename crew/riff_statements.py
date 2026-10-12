@@ -18,7 +18,16 @@ statements of a head-derived slot follow their own policy (the generic riff fami
     the long taan drives on a pedal, the very last bar of the piece doubles.
 
 Only guitar-led statements advance the count, so a statement under the sitar never uses up the
-faithful one. Every transform reuses the cycle's own roots and is re-voiced inside the raga; one
+faithful one.
+
+A RIFF_FIRST piece has no head riff (the head quotes the riff instead), so its main riff used to
+take the generic family, which plays a 2-bar section as "base, base": on
+`fusion_20261012_152048` one 16-beat cycle ran eight times, unchanged, under a head, a manjha
+and an antara (both the GPT review and ours flagged it). `riff_first_variant` develops it by the
+section's ROLE with the same statements: faithful under every first statement of the head (the
+head is the riff sung), a syncopated reprise after it, SPACE under the manjha (the sitar goes
+down into the guitar's register), and heavy then syncopated under the antara, where the sitar
+leaves the head's contour and the guitar stops tracing it. Every transform reuses the cycle's own roots and is re-voiced inside the raga; one
 that would enter a root against the raga's direction rule falls back to a pitch-safe variant
 (`prime` for the heavy ones, a sam-root pedal for space). Pure: no LLM, no I/O.
 """
@@ -177,6 +186,34 @@ def statement_variant(section: Section, bar_index: int, bars: int, *, is_final_r
     if statement == 0:
         return "base"
     return "heavy" if statement % 2 == 1 else "syncopated"
+
+
+_ROLE_STATEMENTS: Final = {"manjha": ("space",), "antara": ("heavy", "syncopated")}
+
+
+def riff_first_variant(section: Section, bar_index: int, bars: int, *, is_final_rhythm: bool,
+                       reprise: bool) -> str:
+    """The POLICY for one bar of a riff_first piece's main riff. `reprise` is True from the second
+    mukhada section on. Pure."""
+    family = variant_for_bar(section, bar_index, bars, is_final_rhythm=is_final_rhythm)
+    if family in _FAMILY_FIRST:
+        return family
+    if section.form_role == "mukhada":
+        return "syncopated" if reprise and bar_index % 2 == 1 else "base"
+    cycle = _ROLE_STATEMENTS.get(section.form_role or "")
+    return cycle[bar_index % len(cycle)] if cycle else family
+
+
+def develop_riff_first(base: list[RiffNote], section: Section, *, is_final_rhythm: bool,
+                       reprise: bool, raga: str,
+                       accents: frozenset[float]) -> list[list[RiffNote]]:
+    """A riff_first section's per-bar cycles of the main riff, each the statement
+    `riff_first_variant` selects. Pure."""
+    return [apply_statement(base, riff_first_variant(section, bar, section.bars,
+                                                     is_final_rhythm=is_final_rhythm,
+                                                     reprise=reprise),
+                            raga=raga, accents=accents)
+            for bar in range(section.bars)]
 
 
 def develop_statements(base: list[RiffNote], section: Section, *, is_final_rhythm: bool,

@@ -232,7 +232,6 @@ _REVERB_SEND = {"lead": 56,     # a touch drier than it was (68): closer, in fro
                 # the orchestra lives in a CONCERT HALL: strings/choir wet and cinematic, brass
                 # tighter so its stabs still punch, timpani drier so the low hits stay defined.
                 "orch_strings": 80, "orch_choir": 85, "orch_brass": 55, "orch_timpani": 45,
-                "jod": 58,     # the jod string rings in a little room, like the sitar lead
                 "chikari": 72}  # the high drone strings shimmer a touch wetter than the melody
 _REVERB_SEND_DEFAULT = 40
 
@@ -257,7 +256,6 @@ _MIX_LEVEL = {"lead": 112, "drone": 74, "tabla": 115,
               # the orchestra is an ACCOMPANIST, not the star: strings/choir sit under the
               # band, brass a touch more present for its accents, timpani solid on the low end.
               "orch_strings": 82, "orch_choir": 84, "orch_brass": 90, "orch_timpani": 100,
-              "jod": 100,      # the ringing home Sa, present under the melodic sitar
               "chikari": 96}   # the drone strings sparkle around the melody, never over it
 
 
@@ -669,7 +667,7 @@ def gamak_wheel(start: float, dur: float, bpm: float, st: int) -> list[tuple[flo
 def _chikari_channel(layers: list[dict]) -> int | None:
     """The chikari layer's channel, if the piece has one (crew/chikari.py). The chikari and the
     taraf are both the sitar's UNBENT strings on the sitar's own patch, so the taraf rides this
-    channel rather than claiming a companion of its own — with the jod, the orchestra and both
+    channel rather than claiming a companion of its own — with the orchestra and both
     palm-mute companions in play, a separate one would starve a chug channel."""
     return next((la["channel"] for la in layers
                  if la.get("role") == "chikari" and la.get("channel") is not None), None)

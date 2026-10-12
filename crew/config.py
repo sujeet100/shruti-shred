@@ -235,6 +235,16 @@ def listen_model() -> str:
     return os.getenv("RMA_LISTEN_MODEL", _DEFAULT_LISTEN_MODEL)
 
 
+def rhythm_section_enabled() -> bool:
+    """True iff ONE call writes guitar + bass for the whole piece from the placed sitar line
+    (crew/rhythm_voice.py, Sujit's decision 2026-10-12); env `RMA_RHYTHM_SECTION`.
+
+    Opt-in — default OFF until a live run has been heard. Off, the per-section riff + the code
+    passes (chord floor, articulation) + the derived bass play as before; on, they are the
+    fallback when the call fails. The studio path ignores it."""
+    return _env_flag("RMA_RHYTHM_SECTION")
+
+
 def composer_enabled() -> bool:
     """True iff the single COMPOSER owns the music (crew/composer.py: one seed call co-writes the
     chart, main riff and hook; the generators develop around it); env `RMA_COMPOSER`.
