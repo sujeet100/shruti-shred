@@ -1,28 +1,21 @@
 """
-Rasik (agent #5, finishing step 5) — the TASTE critic.
+Rasik — the RAGA CONSULTANT (the redesign, 2026-10-11; agent #5 before it).
 
-The pattern on show: LLM-AS-JUDGE, and the discipline it needs. This is the
-deliberate OPPOSITE of Ustad. Legality is a fact, so code owns Ustad's verdict; but
-taste — is the raga's soul present, does the line move idiomatically, does it serve
-the rasa — is NOT checkable, so here the model genuinely judges. Rasik owns exactly
-ONE dimension: the RAGA AUTHENTICITY OF THE MELODIC LINE (the uniquely Hindustani
-questions). The scope is narrower than it once claimed: the only evidence Rasik is given
-is the lead line, so judging "the composition" was a promise the prompt could not keep — a
-piece with a beautiful sitar line over strange guitar colours would have scored 5/5.
-Accompaniment legality is code's, and how the accompaniment SITS under the melody is the
-Arranger's (crew/arranger.py); Rasik scores what it can actually hear. Whether the
-piece works AS A SONG — structure, motif, dynamics, arrangement — is the Producer's
-job, deliberately kept out of Rasik so each critic owns a sharp responsibility.
-LLM judges are biased (verbosity, gestalt "vibe" scoring, self-preference), and the
-fix is not to take the pen away but to DISCIPLINE the judgment:
+The pattern on show: LLM-AS-JUDGE, and the discipline it needs. Legality is a fact, so code
+owns it (crew/ustad.py); but raga authenticity — is the raga's soul present, does the line
+move idiomatically, does it serve the rasa — is NOT checkable, so here the model genuinely
+judges. Rasik owns exactly ONE dimension: the RAGA AUTHENTICITY OF THE MELODIC LINE, the only
+evidence it is given. Since the redesign it also CONSULTS: besides the rubric it names the few
+concrete phrase-level edits to the LEAD (section, change, why) that would most raise it. It no
+longer debates the Producer — the Producer reads these notes and, holding the final say, may
+adopt one as its revision plan. Rasik never targets the riff, the form or another voice.
+LLM judges are biased (verbosity, gestalt "vibe" scoring, self-preference), and the fix is
+not to take the pen away but to DISCIPLINE the judgment:
 
   * a FIXED 1-5 rubric with three named authenticity criteria (a bounded scale beats a vibe number);
   * scores GROUNDED in the encoded pakad/chalan/rasa facts — criteria, not vibes;
   * a code-computed pakad hint handed to the judge so its pakad score is anchored;
   * a justification required per criterion (reasoning FIRST, then the numbers).
-
-(Rasik scores ONE composition, so the position-swap countermeasure — for A/B
-comparisons — does not apply here; it belongs to the Conductor's later tie-breaks.)
 
 Layering follows the repo's pure-core / imperative-shell split:
   * pure       — `assess` is control flow over an injected `judge_fn` (tested with no
@@ -45,14 +38,20 @@ import yaml
 from crewai import Agent, Crew, Process, Task
 from pydantic import ValidationError
 
-from crew.config import AGENT_RETRY_LIMIT, CRITIC_MAX_ITER, critic_llm, load_env
+from crew.config import AGENT_RETRY_LIMIT, CRITIC_MAX_ITER, critic_llm, load_env, structured_output
 from crew.contracts import (
+    Arrangement,
     Composition,
     DebateEvent,
     EventType,
+    Note,
     RasikVerdict,
 )
-from raga import RAGAS
+from crew.density import render_density
+from crew.generators import section_spans
+from crew.user_request import render_request
+from gestures import gesture_named
+from raga import RAGAS, SWARAS, render_character, render_kan, render_nyas, render_register
 
 # DebateEvent role for a critic turn (shared with Ustad).
 _ROLE_CRITIC: Final = "critic"
@@ -62,8 +61,12 @@ _ROLE_CRITIC: Final = "critic"
 _RUBRIC_SCHEMA: Final = """{
   "reasoning": "criterion by criterion (pakad, idiom, rasa): the evidence in the notes that justifies each score",
   "scores": {"pakad": 4, "idiom": 3, "rasa": 4},
-  "notes": "a short 2-3 sentence critique a musician can act on"
+  "notes": "a short 2-3 sentence critique a musician can act on",
+  "suggestions": [
+    {"section": 2, "change": "end the phrase on komal dha, held", "why": "d is the raga's resting note; the phrase ends on a passing Ga"}
+  ]
 }"""
+_MAX_SUGGESTIONS: Final = 3       # a consultant names the few edits that matter most
 
 
 # --------------------------------------------------------------------------- #
@@ -170,9 +173,19 @@ def _render_raga_facts(raga: str) -> str:
         f"  pakad: {' | '.join(' '.join(p) for p in r['pakad'])}",
         f"  chalan: {' | '.join(' '.join(p) for p in r['chalan'])}",
         f"  vadi {r['vadi']}, samvadi {r['samvadi']}; rasa/samay: {r['samay']}",
+        f"  nyas (where its phrases rest): {render_nyas(raga)}",
     ]
+    register = render_register(raga)
+    if register:
+        lines.append(f"  register (where it LIVES): {register}")
     if r.get("andolan"):
         lines.append(f"  andolan (swaras that oscillate — idiomatic): {' '.join(r['andolan'])}")
+    kan = render_kan(raga)
+    if kan:
+        lines.append(f"  kan (how a swara is approached): {kan}")
+    character = render_character(raga)
+    if character:
+        lines.append(f"  character (how it treats its swaras): {character}")
     return "\n".join(lines)
 
 
@@ -222,12 +235,79 @@ def _swara_with_oct(swara: str, oct_: int) -> str:
     return swara if oct_ == 0 else f"{swara}({oct_:+d})"
 
 
-def _render_lead_line(comp: Composition) -> str:
+_HOLD_BEATS: Final = 1.0          # a note this long or longer shows its length in the lead line
+
+
+def _note_token(n: Note) -> str:
+    """One lead note as Rasik reads it: `(R)g~[1.5]` — kan in front (Parrikar's notation),
+    `{m}` a measured gesture visiting m and back, `<>m` a gamak stroke swinging with m, `~` an andolan, `>S` a meend into S,
+    `[beats]` a hold. A bare swara list hid exactly what makes a raga recognisable: whether
+    its komal Ga is held and swayed or merely passed."""
+    token = _swara_with_oct(n.swara, n.oct)
+    if n.grace:
+        token = f"({''.join(n.grace)}){token}"
+    gesture = gesture_named(n.gesture) if n.gesture else None
+    if gesture is not None:
+        token += f"{{{gesture.toward}}}"
+    elif n.gamak_with and n.pitch_path:
+        token += f"<>{n.gamak_with}"
+    if n.andolan:
+        token += "~"
+    if n.meend_swara:
+        token += f">{n.meend_swara}"
+    if n.dur >= _HOLD_BEATS:
+        token += f"[{n.dur:g}]"
+    return token
+
+
+def register_profile(notes: list[Note], home: int) -> dict[str, float]:
+    """Where the line spends its TIME (duration-weighted): below home Sa (mandra), in the home
+    octave (madhya), above it (taar), and in the lower tetrachord (S..m) at any octave. Pure."""
+    total = sum(n.dur for n in notes) or 1.0
+
+    def share(picked: list[Note]) -> float:
+        return round(sum(n.dur for n in picked) / total, 3)
+
+    return {"mandra": share([n for n in notes if n.oct < home]),
+            "madhya": share([n for n in notes if n.oct == home]),
+            "taar": share([n for n in notes if n.oct > home]),
+            "poorvanga": share([n for n in notes if SWARAS[n.swara] < SWARAS["P"]])}
+
+
+def _render_register_profile(comp: Composition, arr: Arrangement | None) -> str:
+    notes = _lead_notes(comp)
+    if not notes:
+        return ""
+    home = arr.registers.get("lead", 0) if arr is not None else 0
+    p = register_profile(notes, home)
+    return (f"\n  - by time, the line sits {p['mandra']:.0%} in the mandra (below home Sa), "
+            f"{p['madhya']:.0%} in the madhya, {p['taar']:.0%} in the taar; {p['poorvanga']:.0%} "
+            f"of it on the lower tetrachord (S..m) — read against the raga's register above")
+
+
+def _lead_notes(comp: Composition) -> list:
     for layer in comp.layers:
         if layer.role == "lead" and layer.notes:
-            ordered = sorted(layer.notes, key=lambda note: note.start)
-            return "  " + " ".join(_swara_with_oct(n.swara, n.oct) for n in ordered)
-    return "  (no lead voice in this piece)"
+            return sorted(layer.notes, key=lambda note: note.start)
+    return []
+
+
+def _render_lead_line(comp: Composition, arr: Arrangement | None = None) -> str:
+    """The lead line, in order — grouped by SECTION (index, kind, form role) when the chart is
+    given, so a suggestion can name the section it edits."""
+    notes = _lead_notes(comp)
+    if not notes:
+        return "  (no lead voice in this piece)"
+    if arr is None:
+        return "  " + " ".join(_note_token(n) for n in notes)
+    lines = []
+    for span in section_spans(arr):
+        inside = [n for n in notes if span.start <= n.start < span.end]
+        if inside:
+            label = span.section.form_role or span.section.kind.value
+            phrase = " ".join(_note_token(n) for n in inside)
+            lines.append(f"  section {span.index} ({label}): {phrase}")
+    return "\n".join(lines)
 
 
 # --------------------------------------------------------------------------- #
@@ -246,6 +326,22 @@ def _verdict_from_output(output: Any) -> RasikVerdict | None:
         return None
 
 
+def judge_inputs(comp: Composition, request: str = "",
+                 arr: Arrangement | None = None) -> dict[str, Any]:
+    """The assess_taste prompt inputs — the grounded facts, the lead (by section when the chart
+    is given), and the user's request."""
+    return {
+        "raga": comp.raga,
+        "raga_facts": _render_raga_facts(comp.raga),
+        "pakad_hint": _render_pakad_hint(comp),
+        "motion": (_render_motion(comp) + _render_register_profile(comp, arr)
+                   + (f"\n{render_density(comp, arr)}" if arr is not None else "")),
+        "lead_line": _render_lead_line(comp, arr),
+        "user_request": render_request(request),
+        "output_schema": _RUBRIC_SCHEMA,
+    }
+
+
 class _RasikCrew:
     """Runs ONE taste critique as an isolated, single-agent crew.
 
@@ -260,20 +356,14 @@ class _RasikCrew:
         self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())["rasik"]
         self._task_config = yaml.safe_load((config_dir / "tasks.yaml").read_text())["assess_taste"]
 
-    def run(self, comp: Composition) -> RasikVerdict:
+    def run(self, comp: Composition, request: str = "",
+            arr: Arrangement | None = None) -> RasikVerdict:
         agent = Agent(config=self._agent_config, llm=critic_llm(),
                       allow_delegation=False, max_iter=CRITIC_MAX_ITER,
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
-        task = Task(config=self._task_config, agent=agent, output_pydantic=RasikVerdict)
+        task = Task(config=self._task_config, agent=agent, **structured_output(RasikVerdict))
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
-        result = crew.kickoff(inputs={
-            "raga": comp.raga,
-            "raga_facts": _render_raga_facts(comp.raga),
-            "pakad_hint": _render_pakad_hint(comp),
-            "motion": _render_motion(comp),
-            "lead_line": _render_lead_line(comp),
-            "output_schema": _RUBRIC_SCHEMA,
-        })
+        result = crew.kickoff(inputs=judge_inputs(comp, request, arr))
         verdict = _verdict_from_output(result)
         if verdict is None:
             raise ValueError("Rasik returned no parseable RasikVerdict")
@@ -288,11 +378,13 @@ type JudgeFn = Callable[[Composition], RasikVerdict]
 class _LLMJudge:
     """The real (LLM-backed) `judge_fn` — holds the crew across calls."""
 
-    def __init__(self) -> None:
+    def __init__(self, request: str = "", arr: Arrangement | None = None) -> None:
         self._crew = _RasikCrew()
+        self._request = request
+        self._arr = arr
 
     def __call__(self, comp: Composition) -> RasikVerdict:
-        return self._crew.run(comp)
+        return self._crew.run(comp, self._request, self._arr)
 
 
 # --------------------------------------------------------------------------- #
@@ -307,7 +399,8 @@ def _verdict_event(verdict: RasikVerdict) -> DebateEvent:
         type=EventType.CRITIQUE, agent="Rasik", role=_ROLE_CRITIC,
         text=verdict.notes,
         scores={"pakad": float(s.pakad), "idiom": float(s.idiom), "rasa": float(s.rasa)},
-        data={"reasoning": verdict.reasoning})
+        data={"reasoning": verdict.reasoning,
+              "suggestions": [x.model_dump() for x in verdict.suggestions]})
 
 
 def assess(comp: Composition, *, judge_fn: JudgeFn) -> tuple[RasikVerdict, list[DebateEvent]]:
@@ -318,12 +411,15 @@ def assess(comp: Composition, *, judge_fn: JudgeFn) -> tuple[RasikVerdict, list[
     this plumbing is tested with no LLM.
     """
     verdict = judge_fn(comp)
+    verdict = verdict.model_copy(update={"suggestions": verdict.suggestions[:_MAX_SUGGESTIONS]})
     return verdict, [_verdict_event(verdict)]
 
 
-def critique_taste(comp: Composition) -> tuple[RasikVerdict, list[DebateEvent]]:
-    """Run the real (LLM-backed) Rasik critique on a composition."""
-    return assess(comp, judge_fn=_LLMJudge())
+def critique_taste(comp: Composition, request: str = "",
+                   arr: Arrangement | None = None) -> tuple[RasikVerdict, list[DebateEvent]]:
+    """Run the real (LLM-backed) Rasik consultation on a composition, told what the user asked;
+    with the chart, its lead is shown by section so its suggestions can name one."""
+    return assess(comp, judge_fn=_LLMJudge(request, arr))
 
 
 # --------------------------------------------------------------------------- #

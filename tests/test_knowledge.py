@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
-from raga import RAGAS, SWARAS, check_raga_consistency, validate_composition  # noqa: E402
+from raga import RAGAS, SWARAS, check_raga_consistency, half_step_pairs, validate_composition  # noqa: E402
 from talas import TALAS, check_tala_consistency                              # noqa: E402
 from subgenres import SUBGENRES, check_subgenre_consistency                  # noqa: E402
 from demo import build_fusion                                                # noqa: E402
@@ -45,6 +45,35 @@ MODES = {
 def test_raga_consistency():
     for name in RAGAS:
         assert check_raga_consistency(name) == [], f"{name}: {check_raga_consistency(name)}"
+
+
+def test_register_is_claimed_only_where_two_sources_agree():
+    # a raga with no verified entry gets no register line at all — the prompt says nothing
+    # rather than guessing; an entry names its saptaks, its anga and >=2 sources
+    from raga import ANGAS, REGISTER, SAPTAKS, render_register
+    for name, entry in REGISTER.items():
+        assert name in RAGAS
+        assert set(entry["saptak"]) <= set(SAPTAKS) and entry["anga"] in ANGAS
+        assert len(entry["sources"]) >= 2
+    for name in RAGAS:
+        assert (render_register(name) is None) == (name not in REGISTER)
+
+
+def test_kan_and_character_are_claimed_only_on_two_sources_and_render():
+    from raga import CHARACTER, render_character, render_kan
+    for name, rules in CHARACTER.items():
+        assert name in RAGAS and all(len(r["sources"]) >= 2 for r in rules)
+    assert render_kan("jog") == "g takes (S) falling"            # one direction only
+    assert render_kan("bhimpalasi") == "n takes (S) rising; g takes (m) falling"
+    assert render_kan("yaman") is None and render_character("kirwani") is None
+
+
+def test_darbari_lives_low():
+    # Parrikar 'poorvanga-pradhana ... lower registers'; Tanarang 'Mandra and Madhya Saptaks'
+    from raga import render_register
+    line = render_register("darbari")
+    assert "MANDRA" in line and "octave -1" in line
+    assert "LOWER tetrachord (S R g m)" in line
 
 
 def test_raga_allowed_matches_declared_mode():
@@ -155,15 +184,19 @@ def test_directional_varjya_is_derived_from_the_ladders():
     assert directional_varjya("malkauns") == {}
 
 
-def test_resting_swaras_are_sa_vadi_samvadi_and_legal():
-    # the raga's settling points — Sa (always) plus vadi + samvadi — used to snap a trading
-    # solo's handoff to a clean landing. Every resting note must be a legal swara of the raga.
-    from raga import resting_swaras
+def test_resting_swaras_are_the_researched_nyas_and_legal():
+    # the raga's settling points come from the NYAS table now (2026-10-11): every rest a strong
+    # source permits, plus Sa unless the raga deliberately weakens it. The vadi and samvadi
+    # still land inside it for every raga, and every resting note is legal.
+    from raga import NYAS, resting_swaras
     for name, r in RAGAS.items():
         rs = resting_swaras(name)
-        assert "S" in rs and r["vadi"] in rs and r["samvadi"] in rs
-        assert rs <= set(r["allowed"])                  # every resting note is legal in the raga
-    assert resting_swaras("darbari") == {"S", "R", "P"}  # vadi R, samvadi P
+        assert r["vadi"] in rs and r["samvadi"] in rs, name
+        assert rs <= set(r["allowed"])
+        assert ("S" in rs) == ("S" not in NYAS[name]["avoid"])
+    assert resting_swaras("darbari") == {"S", "R", "P"}
+    assert "P" in resting_swaras("yaman")               # the old vadi/samvadi rule rejected this
+    assert "S" not in resting_swaras("marwa")           # Marwa's Sa is deliberately weak
 
 
 def test_ascent_step_skips_descent_only_swaras():
@@ -250,6 +283,18 @@ def test_bageshree_and_todi_take_the_madhyam_drone():
 def test_a_raga_with_a_free_pa_keeps_it():
     from raga import drone_swaras
     assert drone_swaras("darbari") == ["S", "P"]   # no directional varjya — Pa is a real rest
+
+
+def test_half_step_pairs_are_derived_from_the_allowed_swaras():
+    # every pair is two LEGAL swaras one semitone apart (Ni to upper Sa wraps the octave)
+    for raga, facts in RAGAS.items():
+        for low, high in half_step_pairs(raga):
+            assert low in facts["allowed"] and high in facts["allowed"], (raga, low, high)
+            assert (SWARAS[high] - SWARAS[low]) % 12 == 1, (raga, low, high)
+    # Bhairav's grind is song A's riff: S-r (E5-F5) and P-d (B5-C5), its komal resolutions
+    assert half_step_pairs("bhairav") == [("S", "r"), ("G", "m"), ("P", "d"), ("N", "S")]
+    assert half_step_pairs("jog") == [("g", "G"), ("G", "m")]      # both gandhars
+    assert half_step_pairs("malkauns") == []                        # pentatonic, no semitone
 
 
 if __name__ == "__main__":

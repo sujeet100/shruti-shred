@@ -395,6 +395,91 @@ def test_reasoning_monologue_is_carried_into_the_turn_event():
     assert debate.data["reasoning"] == "respect the tempo, push the alaap"
 
 
+
+# --- the gat is OPTIONAL: a song form (Sujit, 2026-10-11) ----------------------------------
+
+def _song(*, slots=("main", "breakdown", "main"), roles=(None, "breakdown", None),
+          intro_bars: int = 2) -> ArrangementDraft:
+    """A minimal SONG-form draft: a 2-avartan alap (26.7 s at teentaal 72 — over the time floor,
+    under the gat form's 3), the main riff, a breakdown, and the main riff back. No mukhada."""
+    def riff(slot, role, bars=4):
+        return Section(kind=SectionKind.RIFF, bars=bars, layers=["lead", "rhythm", "drums", "drone"],
+                       foreground="rhythm", riff_slot=slot, form_role=role)
+    return ArrangementDraft(
+        raga="malkauns", subgenre="doom", tala="teentaal", bpm=72, motif=["d", "n", "S", "m"],
+        form="song",
+        sections=[Section(kind=SectionKind.ALAAP, bars=intro_bars, layers=["lead", "drone"],
+                          foreground="lead", form_role="intro"),
+                  *[riff(sl, ro) for sl, ro in zip(slots, roles)]])
+
+
+def test_the_form_defaults_to_the_gat_and_round_trips_to_the_arrangement():
+    assert _draft().form == "gat"
+    assert build_arrangement(_draft(), _BRIEF).form == "gat"
+    assert build_arrangement(_song(), _BRIEF).form == "song"
+    assert ArrangementDraft.model_validate({**_draft().model_dump(), "form": None}).form == "gat"
+
+
+def test_a_song_without_a_mukhada_passes_when_its_main_riff_returns():
+    # no mukhada, a role-less riff section, and a 2-bar intro — every one a gat violation,
+    # none of them a song violation
+    ok, value = _validate_turn(_FakeOutput(ComposerTurn(draft=_song(), note="x")))
+    assert ok, value
+
+
+def test_a_song_whose_riff_never_returns_is_rejected():
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(
+        draft=_song(slots=("main", "breakdown", "chorus")), note="x")))
+    assert not ok and "RETURNS" in msg and "riff_slot" in msg
+
+
+def test_a_song_may_not_borrow_the_gats_roles():
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(
+        draft=_song(roles=("mukhada", "breakdown", "mukhada")), note="x")))
+    assert not ok and "gat-only role" in msg and "form to 'gat'" in msg
+
+
+def test_the_gat_form_still_enforces_the_mukhada_return():
+    # the SAME song chart declared a gat fails the gat's own rules
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(
+        draft=_song().model_copy(update={"form": "gat"}), note="x")))
+    assert not ok and "form_role" in msg
+
+
+def test_both_forms_keep_the_taan_cap():
+    song = _song(roles=("taan_long", "taan_long", "taan_long"))
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=song, note="x")))
+    assert not ok and "taan_long" in msg
+
+
+def test_intro_is_only_the_first_section_and_outro_only_the_last():
+    # the 2026-10-11 live run labelled the main melody 'intro' -> one note left ringing 48 beats
+    for draft in (_song(roles=("intro", None, None)), _song(roles=("outro", None, None))):
+        ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=draft, note="x")))
+        assert not ok and "FIRST section" in msg, msg
+    ok, value = _validate_turn(_FakeOutput(ComposerTurn(
+        draft=_song(roles=(None, None, "outro")), note="x")))
+    assert ok, value
+
+
+def test_an_alap_too_short_to_be_one_must_grow_or_go_in_either_form():
+    # Sujit, 2026-10-12: allocate enough time for the alap, or leave it out
+    rushed = _song(intro_bars=1)                                   # 13 s at teentaal 72
+    ok, msg = _validate_turn(_FakeOutput(ComposerTurn(draft=rushed, note="x")))
+    assert not ok and "leave the alap out" in msg
+    riff_intro = rushed.model_copy(update={"sections": [
+        rushed.sections[0].model_copy(update={"layers": ["rhythm", "drone"],
+                                              "foreground": "rhythm", "riff_slot": "main"}),
+        *rushed.sections[1:]]})
+    ok, value = _validate_turn(_FakeOutput(ComposerTurn(draft=riff_intro, note="x")))
+    assert ok, value                                               # no sitar, no alap, no floor
+
+
+def test_the_composers_set_the_register_from_the_raga():
+    from crew.composers import _render_raga_block
+    assert "MANDRA" in _render_raga_block("darbari")
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

@@ -79,6 +79,30 @@ def test_fade_ramp_decays_to_the_floor_and_resets():
     assert values == sorted(values, reverse=True)  # monotonic decay — a dying string
 
 
+def test_the_pieces_final_tail_fades_to_silence_without_snapping_back():
+    # a snap to full on the last note-off lifted the release into an audible blip
+    from render import _fade_ramp
+    ramp = _fade_ramp(10.0, 3.0, floor=0, reset=False)
+    assert ramp[-1] == (13.0, 0)
+
+
+def test_a_fade_tail_decays_only_the_end_of_a_long_note():
+    import mido
+    comp = {"raga": "darbari", "sa": 62, "bpm": 60, "layers": [{
+        "role": "drone", "instrument": "strings", "program": 48, "channel": 1,
+        "notes": [{"swara": "S", "start": 0.0, "dur": 20.0, "fade_tail": 4.0}]}]}
+    path = os.path.join(os.path.dirname(__file__), "_fade_tail.mid")
+    build_midi(comp, path)
+    mid = mido.MidiFile(path)
+    os.remove(path)
+    t, cc11 = 0, []
+    for m in mido.merge_tracks(mid.tracks):
+        t += m.time
+        if m.type == "control_change" and m.control == 11:
+            cc11.append(t / mid.ticks_per_beat)
+    assert cc11 and min(cc11) >= 16.0 - 1e-6       # the drone holds full until the tail
+
+
 # --- _apply_technique: palm-mute chug + legato attack, pitch left alone ---------
 
 def test_palm_mute_gates_but_keeps_its_punch():
@@ -373,13 +397,22 @@ def test_andolan_waves_are_slow():
     assert sway_ms / waves >= 0.75 * ANDOLAN_PERIOD_MS
 
 
-def test_andolan_waves_are_uneven():
-    # no two waves alike — a perfectly periodic dip reads as machine vibrato
+def test_andolan_waves_vary_in_time_but_aim_at_one_depth():
+    # no two waves alike in TIME — a perfectly periodic sway reads as machine vibrato — but the
+    # far turning point is AIMED at the neighbour's edge, not drifting (ITC: it "touches the
+    # periphery of an adjacent note"); the July 65-100% depth jitter let it wander.
+    from render import ANDOLAN_DEPTH_SPREAD
     events = _andolan_wheel(0.0, 4.0, bpm=120)
+    times = [t for t, _ in events[1:]]
     vals = [v for _, v in events[1:]]                  # drop the settle event
-    per_wave = [vals[k * ANDOLAN_STEPS_PER_CYCLE:(k + 1) * ANDOLAN_STEPS_PER_CYCLE]
-                for k in range(len(vals) // ANDOLAN_STEPS_PER_CYCLE)]
-    assert len({min(w) for w in per_wave}) > 1         # depths differ wave to wave
+    step = ANDOLAN_STEPS_PER_CYCLE
+    spans = {round(times[(k + 1) * step - 1] - times[k * step], 4)
+             for k in range(len(vals) // step)}
+    per_wave = [vals[k * step:(k + 1) * step] for k in range(len(vals) // step)]
+    target = abs(_wheel(-ANDOLAN_DEPTH_ST))
+    assert len(spans) > 1                              # wave lengths differ
+    for w in per_wave:
+        assert (1 - ANDOLAN_DEPTH_SPREAD) * target - 1 <= abs(min(w)) <= target
 
 
 def test_andolan_is_deterministic():
@@ -484,6 +517,56 @@ def test_constants_are_sane():
     assert 0.4 <= PALM_MUTE_GATE <= 0.8
     assert 20 <= PALM_MUTE_MIN_MS < PALM_MUTE_MAX_MS <= 1200
     assert SLIDE_IN_ST < 0 and BEND_ST > 0
+
+
+
+
+# --- the unstruck kan (2026-10-11 ornament research: sparsh / krintan are left-hand touches) --
+
+def _sitar_comp(notes: list[dict]) -> dict:
+    lead = {"role": "lead", "instrument": "sitar", "program": 104, "channel": 2, "notes": notes}
+    return {"raga": "bhairav", "sa": 64, "bpm": 120,
+            "tala": {"name": "teentaal", "beats_per_bar": 16}, "layers": [lead]}
+
+
+def _channel_messages(comp: dict, name: str, channel: int):
+    import mido
+    path = os.path.join(os.environ.get("TMPDIR", "/tmp"), name)
+    build_midi(comp, path)
+    msgs = [m for track in mido.MidiFile(path).tracks for m in track
+            if getattr(m, "channel", None) == channel]
+    os.remove(path)
+    return msgs
+
+
+def test_a_kan_is_one_pluck_not_two():
+    """A kan used to be struck as its own crushed note — two attacks. On a sitar it is a
+    left-hand touch: ONE note-on, and the wheel carries the kan before stepping to the note."""
+    msgs = _channel_messages(_sitar_comp([{"swara": "G", "oct": 0, "start": 1.0, "dur": 2.0,
+                                           "grace": ["m"]}]), "rma_test_kan.mid", 2)
+    note_ons = [m for m in msgs if m.type == "note_on" and m.velocity > 0]
+    wheel = [m.pitch for m in msgs if m.type == "pitchwheel"]
+    assert len(note_ons) == 1 and note_ons[0].note == 64 + 4          # the main swara, once
+    assert wheel[0] == _wheel(1) and wheel[-1] == 0                   # kan (m, a semitone up), then G
+
+
+def test_the_kan_sits_in_the_nearest_octave():
+    from render import kan_pitch
+    assert kan_pitch(64, "N", 64) == 63            # Ni just below Sa, not ten semitones above it
+    assert kan_pitch(64, "r", 64) == 65
+
+
+def test_a_kan_hands_over_to_a_meend_without_a_blip():
+    from render import _kan_wheel
+    events, used = _kan_wheel(1.0, 2.0, 120.0, [1])
+    assert events[0][1] == _wheel(1) and events[-1] == (round(1.0 + used, 4), 0)
+    assert used < 2.0 * 0.4 + 1e-9                 # never more than its share of the note
+    msgs = _channel_messages(_sitar_comp([{"swara": "r", "oct": 0, "start": 1.0, "dur": 2.0,
+                                           "grace": ["G"], "meend_swara": "S"}]),
+                             "rma_test_kanmeend.mid", 2)
+    wheel = [m.pitch for m in msgs if m.type == "pitchwheel"]
+    # kan G (+4 over the sounding S), then the meend's pre-bend to r (+1) — never a 0 between
+    assert wheel[0] == _wheel(4) and wheel[1] == _wheel(1)
 
 
 if __name__ == "__main__":

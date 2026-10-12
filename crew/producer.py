@@ -1,33 +1,16 @@
 """
-Producer (agent #7) — the COMPOSITION-QUALITY critic. The third critic dimension.
+Producer — the COMPOSITION-QUALITY critic, and since the redesign (2026-10-11) the ONE judge
+with authority.
 
-The insight this agent fixes (Sujit, 2026-07-12): there are THREE different questions
-about a piece of music, and Rasik was answering two of them at once.
-
-  1. Is it LEGAL?                 -> Ustad  (code decides, LLM narrates)
-  2. Does it sound like the RAGA? -> Rasik  (raga authenticity — LLM judges)
-  3. Does it WORK AS A SONG?      -> Producer (composition quality — LLM judges)
-
-So the Producer is RAGA-AGNOSTIC: it does not care whether it is Malkauns or Yaman, only
-whether the arrangement holds together as music. It owns the songwriting/arrangement
-questions nobody checked while Rasik was overloaded — an 8-criterion 1-5 rubric
-(`ProducerScores`): structure, dynamics, climax, motif, hook, balance, independence,
-mood_fit. Same LLM-as-judge discipline as Rasik: a fixed bounded rubric, a per-criterion
-justification (reasoning FIRST), and grounding in the actual piece — here the whole
-symbolic score (the section timeline, the motif, the riff, the lead, the ensemble),
-NOT just the lead. (Chunk B will add code-computed metrics — motif similarity, active
-voices per section, register overlap, the dynamics curve — as grounding facts the
-Producer reasons over. "Code measures, the LLM evaluates.")
-
-The judgment is GROUNDED in code-computed metrics (`crew/metrics.py`) — the dynamics
-curve, the motif share, the lead/riff overlap, register collisions, arrangement density —
-handed to the Producer as facts it reasons over, the way `pakad_presence` grounds Rasik.
-"Code measures, the LLM evaluates": the model spends its judgment on what the numbers
-MEAN, not on deriving them.
-
-Unlike Rasik (which judges a `Composition`), the Producer needs the `Arrangement` too —
-the chart is the score a musical director reads: which sections, in what order, with the
-motif and the subgenre's intended feel. So `critique_composition(comp, arr)`.
+There are three questions about a piece of music: is it LEGAL (code — crew/ustad.py), does it
+sound like the RAGA (Rasik, a consultant), does it WORK AS A SONG (the Producer). The Producer
+owns the last and decides: it reads the whole symbolic score, the code-computed metrics
+(`crew/metrics.py` — "code measures, the LLM evaluates"), the riff/melody friction counts
+(`crew/coexistence.py`, information, not faults), and Rasik's consultation, scores a fixed
+10-criterion 1-5 rubric (`ProducerScores`), and returns `decision` + at most ONE `RevisionPlan`
+(voice, sections, instruction, preserve). It may adopt one of Rasik's lead edits when the raga
+is the weakest link. There is no debate and no referee: `crew/triage.py` lets its decision
+stand unless the piece is illegal.
 
 Layering follows the repo's pure-core / imperative-shell split:
   * pure       — `assess` over an injected `judge_fn`; the `_render_*` helpers.
@@ -48,15 +31,19 @@ import yaml
 from crewai import Agent, Crew, Process, Task
 from pydantic import ValidationError
 
-from crew.config import AGENT_RETRY_LIMIT, CRITIC_MAX_ITER, critic_llm, load_env
+from crew.config import AGENT_RETRY_LIMIT, CRITIC_MAX_ITER, critic_llm, load_env, structured_output
 from crew.contracts import (
     Arrangement,
     Composition,
     DebateEvent,
     EventType,
     ProducerVerdict,
+    RasikVerdict,
 )
+from crew.coexistence import coexistence_report, render_friction
+from crew.density import render_density
 from crew.metrics import composition_metrics, render_metrics
+from crew.user_request import render_request
 from subgenres import SUBGENRES
 
 _ROLE_CRITIC: Final = "critic"
@@ -64,10 +51,14 @@ _ROLE_CRITIC: Final = "critic"
 # The exact JSON shape we want back, injected as an input so CrewAI's {placeholder}
 # interpolation never has to parse these literal braces.
 _RUBRIC_SCHEMA: Final = """{
-  "reasoning": "criterion by criterion (structure, dynamics, climax, motif, hook, balance, independence, mood_fit, repetition, performance): the evidence in the score that justifies each score",
+  "reasoning": "criterion by criterion (structure, dynamics, climax, motif, hook, balance, independence, mood_fit, repetition, performance): the evidence in the score that justifies each score — then which ONE change (if any) would improve the music most",
   "scores": {"structure": 4, "dynamics": 3, "climax": 3, "motif": 4, "hook": 4, "balance": 3, "independence": 4, "mood_fit": 4, "repetition": 3, "performance": 4},
-  "notes": "a short 2-3 sentence critique a musician can act on"
-}"""
+  "notes": "a short 2-3 sentence critique a musician can act on",
+  "decision": "revise",
+  "plan": {"voice": "lead", "sections": [3], "instruction": "end the taan on komal dha and hold it", "preserve": ["the mukhada", "the main riff's rhythm"]}
+}
+(On "accept", set "plan" to null. "voice" is one of: lead, riff, orchestra. "sections" are the
+section numbers from THE STRUCTURE; an empty list means everywhere that voice plays.)"""
 
 
 # --------------------------------------------------------------------------- #
@@ -95,7 +86,7 @@ def _render_sections(arr: Arrangement) -> str:
     voices playing (density), and the composer's intent/transition — everything the
     Producer needs to judge whether the piece BUILDS rather than sits flat."""
     lines = []
-    for i, s in enumerate(arr.sections, start=1):
+    for i, s in enumerate(arr.sections):          # 0-based: plans, Rasik and revision share it
         bits = [f"  {i}. {s.kind.value} — {s.bars} bar(s), spotlight={s.foreground}",
                 f"voices=[{', '.join(s.layers)}]"]
         if s.intent:
@@ -171,6 +162,40 @@ def _verdict_from_output(output: Any) -> ProducerVerdict | None:
         return None
 
 
+def _render_consultation(rasik: RasikVerdict | None) -> str:
+    """Rasik's raga consultation as the Producer reads it: the scores and the lead edits."""
+    if rasik is None:
+        return "  (no raga consultation for this piece)"
+    s = rasik.scores
+    lines = [f"  scores: pakad {s.pakad}, idiom {s.idiom}, rasa {s.rasa} (1-5) — {rasik.notes}"]
+    lines += [f"  suggestion: section {x.section}: {x.change} ({x.why})" for x in rasik.suggestions]
+    if not rasik.suggestions:
+        lines.append("  (no lead edits suggested — the line already sounds like the raga)")
+    return "\n".join(lines)
+
+
+def judge_inputs(comp: Composition, arr: Arrangement,
+                 rasik: RasikVerdict | None = None) -> dict[str, Any]:
+    """The assess_composition prompt inputs — the whole symbolic score, the measured facts
+    (riff/melody friction included, as information), Rasik's raga consultation, and the user's
+    request the song is judged against."""
+    return {
+        "subgenre": SUBGENRES[arr.subgenre]["display"],
+        "subgenre_facts": _render_subgenre(arr),
+        "sections": _render_sections(arr),
+        "motif": " ".join(arr.motif),
+        "riff_line": _render_riff_line(comp, arr),
+        "lead_line": _render_lead_line(comp),
+        "ensemble": _render_ensemble(comp),
+        "metrics": "\n".join(filter(None, (render_metrics(composition_metrics(comp, arr)),
+                                            render_density(comp, arr)))),
+        "friction": render_friction(coexistence_report(comp, arr)),
+        "consultation": _render_consultation(rasik),
+        "user_request": render_request(arr.request),
+        "output_schema": _RUBRIC_SCHEMA,
+    }
+
+
 class _ProducerCrew:
     """Runs ONE composition-quality critique as an isolated, single-agent crew. No tool:
     like Rasik, the Producer judges from the rendered score — songwriting craft is not a
@@ -181,23 +206,14 @@ class _ProducerCrew:
         self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())["producer"]
         self._task_config = yaml.safe_load((config_dir / "tasks.yaml").read_text())["assess_composition"]
 
-    def run(self, comp: Composition, arr: Arrangement) -> ProducerVerdict:
+    def run(self, comp: Composition, arr: Arrangement,
+            rasik: RasikVerdict | None = None) -> ProducerVerdict:
         agent = Agent(config=self._agent_config, llm=critic_llm(),
                       allow_delegation=False, max_iter=CRITIC_MAX_ITER,
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
-        task = Task(config=self._task_config, agent=agent, output_pydantic=ProducerVerdict)
+        task = Task(config=self._task_config, agent=agent, **structured_output(ProducerVerdict))
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
-        result = crew.kickoff(inputs={
-            "subgenre": SUBGENRES[arr.subgenre]["display"],
-            "subgenre_facts": _render_subgenre(arr),
-            "sections": _render_sections(arr),
-            "motif": " ".join(arr.motif),
-            "riff_line": _render_riff_line(comp, arr),
-            "lead_line": _render_lead_line(comp),
-            "ensemble": _render_ensemble(comp),
-            "metrics": render_metrics(composition_metrics(comp, arr)),
-            "output_schema": _RUBRIC_SCHEMA,
-        })
+        result = crew.kickoff(inputs=judge_inputs(comp, arr, rasik))
         verdict = _verdict_from_output(result)
         if verdict is None:
             raise ValueError("Producer returned no parseable ProducerVerdict")
@@ -206,7 +222,7 @@ class _ProducerCrew:
 
 # A judge provider: given the composition + its chart, return the Producer's verdict.
 # Injected so `assess` is tested with no LLM.
-type JudgeFn = Callable[[Composition, Arrangement], ProducerVerdict]
+type JudgeFn = Callable[[Composition, Arrangement, RasikVerdict | None], ProducerVerdict]
 
 
 class _LLMDirector:
@@ -215,8 +231,9 @@ class _LLMDirector:
     def __init__(self) -> None:
         self._crew = _ProducerCrew()
 
-    def __call__(self, comp: Composition, arr: Arrangement) -> ProducerVerdict:
-        return self._crew.run(comp, arr)
+    def __call__(self, comp: Composition, arr: Arrangement,
+                 rasik: RasikVerdict | None = None) -> ProducerVerdict:
+        return self._crew.run(comp, arr, rasik)
 
 
 # --------------------------------------------------------------------------- #
@@ -234,23 +251,27 @@ def _verdict_event(verdict: ProducerVerdict) -> DebateEvent:
                 "balance": float(s.balance), "independence": float(s.independence),
                 "mood_fit": float(s.mood_fit), "repetition": float(s.repetition),
                 "performance": float(s.performance)},
-        data={"reasoning": verdict.reasoning})
+        verdict=verdict.decision,
+        data={"reasoning": verdict.reasoning, "decision": verdict.decision,
+              "plan": verdict.plan.model_dump() if verdict.plan else None})
 
 
-def assess(comp: Composition, arr: Arrangement, *,
-           judge_fn: JudgeFn) -> tuple[ProducerVerdict, list[DebateEvent]]:
+def assess(comp: Composition, arr: Arrangement, *, judge_fn: JudgeFn,
+           rasik: RasikVerdict | None = None) -> tuple[ProducerVerdict, list[DebateEvent]]:
     """Judge a composition's craft on the fixed rubric and stream it as one CRITIQUE.
 
     The verdict IS the model's (songwriting quality is not checkable) — the shell only
     renders the score, wraps the result, and emits the event. `judge_fn` is injected so
     this plumbing is tested with no LLM."""
-    verdict = judge_fn(comp, arr)
+    verdict = judge_fn(comp, arr, rasik)
     return verdict, [_verdict_event(verdict)]
 
 
-def critique_composition(comp: Composition, arr: Arrangement) -> tuple[ProducerVerdict, list[DebateEvent]]:
-    """Run the real (LLM-backed) Producer critique on a composition + its chart."""
-    return assess(comp, arr, judge_fn=_LLMDirector())
+def critique_composition(comp: Composition, arr: Arrangement, rasik: RasikVerdict | None = None
+                         ) -> tuple[ProducerVerdict, list[DebateEvent]]:
+    """Run the real (LLM-backed) Producer — the one judge with authority — on a composition,
+    its chart, and Rasik's raga consultation."""
+    return assess(comp, arr, judge_fn=_LLMDirector(), rasik=rasik)
 
 
 # --------------------------------------------------------------------------- #

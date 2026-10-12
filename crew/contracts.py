@@ -26,6 +26,7 @@ from typing import Any, Callable, Final, Literal, Optional, get_args
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
+from fretboard import LOWEST_OPEN
 from raga import RAGAS, SWARAS  # single source of truth for ragas + legal sargam symbols
 from subgenres import SUBGENRES
 from talas import TALAS
@@ -62,6 +63,10 @@ _NULLISH = {"", "null", "none", "n/a", "na", "unspecified", "unknown", "any",
 # (unstated), the composer draft REJECTS it (schema retry).
 _BPM_MIN: Final = 40
 _BPM_MAX: Final = 300
+# A stated piece length, in seconds — outside this range it is junk, not a request (same rule
+# as an implausible bpm: a 2-second or a 3-hour "piece" means the extractor misread).
+_DURATION_MIN_S: Final = 10
+_DURATION_MAX_S: Final = 1200
 
 # Laya = the tempo CLASS a user may name (a Hindustani vocabulary word, not a bpm number). Kept as
 # a separate field so "vilambit" isn't lost by the bpm validator; the composer reads it as guidance
@@ -97,6 +102,8 @@ class RawIntent(BaseModel):
     tala: Optional[str] = None          # a rhythmic cycle the user named (e.g. "teentaal")
     laya: Optional[str] = None          # a tempo class the user named (vilambit / madhya / drut)
     instruments: Optional[list[str]] = None
+    duration_s: Optional[int] = None    # a piece length the user stated, in seconds
+    playable_rhythm: Optional[bool] = None  # the user asked for a rhythm part a human can play
 
     @field_validator("raga", "key", "subgenre", "mood", "tala", "laya", mode="before")
     @classmethod
@@ -114,6 +121,22 @@ class RawIntent(BaseModel):
         except (TypeError, ValueError):
             return None
         return bpm if bpm is not None and _BPM_MIN <= bpm <= _BPM_MAX else None
+
+    @field_validator("duration_s", mode="before")
+    @classmethod
+    def _bad_duration_to_none(cls, v):
+        try:
+            seconds = None if v is None else int(v)
+        except (TypeError, ValueError):
+            return None
+        return seconds if seconds is not None and _DURATION_MIN_S <= seconds <= _DURATION_MAX_S else None
+
+    @field_validator("playable_rhythm", mode="before")
+    @classmethod
+    def _only_true_counts(cls, v):
+        # Only an explicit yes turns the constraint on; "false", junk and "not stated" all mean
+        # "no constraint was asked for", which is the same thing as None.
+        return True if v is True or (isinstance(v, str) and v.strip().lower() == "true") else None
 
     @field_validator("instruments", mode="before")
     @classmethod
@@ -144,6 +167,13 @@ class CompositionBrief(BaseModel):
     instruments: Optional[list[str]] = None  # only if the user named some
     mood: Optional[str] = None         # emotional vibe (e.g. angry, romantic) — a hint for the composers
     notes: list[str] = Field(default_factory=list)
+    duration_s: Optional[int] = None   # a stated length in seconds — code turns it into an
+                                       # avartan budget (crew/form_budget.py); None = open
+    playable_rhythm: bool = False      # the rhythm guitar must be playable by a human on a six-
+                                       # string in E standard (crew/riff_playability.py)
+    request: str = ""                  # the user's words VERBATIM — copied by code, never by the
+                                       # LLM, so what no field captures (form, ending, playability)
+                                       # still reaches every agent that makes a musical decision
 
     @field_validator("raga")
     @classmethod
@@ -229,8 +259,11 @@ def _match_laya(text: Optional[str]) -> Optional[str]:
     return None
 
 
-def resolve_brief(intent: RawIntent) -> CompositionBrief:
+def resolve_brief(intent: RawIntent, request: str = "") -> CompositionBrief:
     """Extract & validate ONLY what the user stated; invent nothing. Always succeeds.
+
+    `request` is the user's original text, carried onto the brief untouched: the fields
+    below are what the system can ENFORCE, the request is everything the user said.
 
     Pure and deterministic — no LLM, no network. NOTHING is required: the user may
     give only a mood. A stated raga or subgenre is kept only if we support it (else
@@ -292,7 +325,10 @@ def resolve_brief(intent: RawIntent) -> CompositionBrief:
 
     return CompositionBrief(raga=raga, key=key, sa=sa, subgenre=subgenre,
                             bpm=intent.bpm, tala=tala, laya=laya,
-                            instruments=intent.instruments, mood=intent.mood, notes=notes)
+                            instruments=intent.instruments, mood=intent.mood, notes=notes,
+                            duration_s=intent.duration_s,
+                            playable_rhythm=bool(intent.playable_rhythm),
+                            request=request.strip())
 
 
 # --------------------------------------------------------------------------- #
@@ -391,6 +427,20 @@ ClimaxStyle = Literal["driven", "exposed"]
 # the mukhada quotes its accented notes. A first-class DECISION the composers make (agents map
 # to decisions, not instruments), not something code invents.
 CompositionAnchor = Literal["gat_first", "riff_first"]
+
+# How the piece STOPS — a composer decision, realised by code (crew/ending.py). `ring_out`:
+# the last section's sound simply decays (the old behaviour, the default). `hard_stop`: the
+# whole band lands ONE stroke on the sam after the last section — the lead on taar Sa, guitar,
+# bass and kit on low Sa — then silence. A tihai closing the final taan lands on that sam.
+Ending = Literal["ring_out", "hard_stop"]
+
+# The piece's overall FORM — a composer decision (Sujit, 2026-10-11: the gat is OPTIONAL). `gat`:
+# the Hindustani instrumental form (intro/alap, a mukhada stated and RETURNED, manjha, antara,
+# the long taan) — the guardrail enforces its structure. `song`: a metal song built on ONE main
+# riff (intro -> main riff -> development -> contrast -> the riff RETURNS -> climax -> ending);
+# its sections ride `kind` + `riff_slot` recurrence, `form_role` optional and never a gat-only
+# role. The default keeps every existing chart a gat.
+SongForm = Literal["gat", "song"]
 
 
 class Section(BaseModel):
@@ -498,6 +548,8 @@ class ArrangementDraft(BaseModel):
     tala: str
     bpm: int = Field(ge=_BPM_MIN, le=_BPM_MAX)   # playable range — an absurd tempo is a schema retry
     anchor: CompositionAnchor = "gat_first"  # which idea seeds the piece (gat_first | riff_first)
+    ending: Ending = "ring_out"              # how the piece stops (ring_out | hard_stop)
+    form: SongForm = "gat"                   # the overall form (gat | song)
     motif: list[str] = Field(min_length=1)   # the composer's melodic seed (legal in the raga)
     sections: list[Section] = Field(min_length=1)
     registers: Optional[dict[str, int]] = None   # optional: composer voices the parts itself
@@ -522,6 +574,22 @@ class ArrangementDraft(BaseModel):
         if v not in TALAS:
             raise ValueError(f"unknown tala '{v}' (expected one of {sorted(TALAS)})")
         return v
+
+    @field_validator("form", mode="before")
+    @classmethod
+    def _norm_form(cls, v):
+        # nullish -> the default gat; an unknown value still fails the Literal (a retry)
+        if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
+            return "gat"
+        return str(v).strip().lower()
+
+    @field_validator("ending", mode="before")
+    @classmethod
+    def _norm_ending(cls, v):
+        # nullish -> the default ring-out; an unknown value still fails the Literal (a retry)
+        if v is None or (isinstance(v, str) and v.strip().lower() in _NULLISH):
+            return "ring_out"
+        return str(v).strip().lower()
 
     @field_validator("registers", mode="before")
     @classmethod
@@ -583,12 +651,25 @@ class Arrangement(BaseModel):
     sa: int
     bpm: int = Field(gt=0)
     anchor: CompositionAnchor = "gat_first"         # which idea seeds the piece (carried from the draft)
+    ending: Ending = "ring_out"                     # how the piece stops (carried from the draft)
+    form: SongForm = "gat"                          # the overall form (carried from the draft)
+    playable_rhythm: bool = False                   # the riff must be playable by a human (from the brief)
     beats_per_bar: float                            # one tala cycle, in quarter-note beats
     sections: list[Section] = Field(min_length=1)
     accent_grid: list[Accent] = Field(min_length=1)
     motif: list[str] = Field(min_length=1)          # swaras drawn from the raga's pakad
     registers: dict[str, int]                       # base octave per voice
     notes: list[str] = Field(default_factory=list)
+    request: str = ""                               # the user's words verbatim (from the brief) —
+                                                    # every downstream agent reads it off the chart
+    # THE SONG'S SEED — the core idea, carried on the chart so every later call (develop AND
+    # revise) is handed it instead of nothing. Set at seed time by the single Composer
+    # (crew/composer.py); on the legacy path the Flow stores the REALIZED head + main riff here
+    # after the first generation (`anchor.with_realized_seeds`). None = no seed yet.
+    seed_riff: Optional[RiffPattern] = None         # ONE cycle of the main riff (the slot that recurs)
+    seed_hook: Optional[LeadPhrase] = None          # ONE avartan: the mukhada (gat) / the sitar's hook (song)
+    seed_head: Optional[HeadIdea] = None            # GAT form: the head's IDEA the gat call composes from
+    energy_arc: str = ""                            # the Composer's plan for how intensity moves
 
     @field_validator("raga")
     @classmethod
@@ -729,6 +810,17 @@ def voice_registers(subgenre: str) -> dict[str, int]:
             "clean": max(lead - 1, rhythm), "orchestra": lead}
 
 
+def _playable(registers: dict[str, int], sa: int, playable: bool) -> dict[str, int]:
+    """When a human will play the rhythm part, seat its home octave where its Sa is a real
+    guitar note: the lowest octave whose Sa sits at or above the open low string (E2). In E
+    that is exactly the open low E; in a lower key it lifts the riff an octave rather than
+    asking for a note below the instrument."""
+    if not playable:
+        return registers
+    lowest = -((sa - LOWEST_OPEN) // 12)          # smallest oct with sa + 12*oct >= LOWEST_OPEN
+    return {**registers, "rhythm": max(registers.get("rhythm", RHYTHM_FLOOR), lowest)}
+
+
 def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arrangement:
     """Expand a final composer draft into the full chart. Pure, no LLM.
 
@@ -749,11 +841,16 @@ def build_arrangement(draft: ArrangementDraft, brief: CompositionBrief) -> Arran
     return Arrangement(
         raga=raga, subgenre=subgenre, tala=draft.tala, sa=sa, bpm=bpm,
         anchor=draft.anchor,
+        ending=draft.ending,
+        form=draft.form,
+        playable_rhythm=brief.playable_rhythm,
         beats_per_bar=float(matras),
         sections=draft.sections,
         accent_grid=accent_grid(draft.tala),
         motif=draft.motif,
-        registers=draft.registers or voice_registers(subgenre),
+        registers=_playable(draft.registers or voice_registers(subgenre), sa,
+                            brief.playable_rhythm),
+        request=brief.request,
     )
 
 
@@ -806,10 +903,28 @@ class Note(BaseModel):
     andolan: Optional[bool] = None               # a slow, shallow pitch OSCILLATION on this held note
                                                  # (Darbari komal g/d, Bhairav komal r/d) — code sets it
                                                  # deterministically on the raga's andolan swaras
+    andolan_st: Optional[float] = None           # the sway's signed depth in semitones — negative swings
+                                                 # BELOW, positive ABOVE (code stamps it from the raga's
+                                                 # ANDOLAN_TOWARD); None = the renderer's default dip
+    meend_style: Optional[Literal["quick", "slow"]] = None  # how the glide moves: a quick gat pull
+                                                 # (None/quick) or a slow alap meend that holds the source
+                                                 # and pauses on the raga swaras it passes (code-set)
+    gamak_st: Optional[int] = None               # a GAMAK: forceful repeated swings up to the raga
+                                                 # swara this many semitones above, with audible stops
+                                                 # on each (code-set in the climax taan)
     fade: Optional[bool] = None                  # a RING-OUT: expression decays across the note like a
                                                  # struck string dying away — code sets it on the intro's
                                                  # final Sa so the resolution rings into the reserved
                                                  # silence before the gat
+    gamak_with: Optional[str] = None             # a GAMAK cell: swing with this adjacent swara (code
+                                                 # splits the note into strokes, each a measured swing)
+    gesture: Optional[str] = None                # a measured raga GESTURE this note is played with
+                                                 # (src/gestures.py, e.g. "ga_ma_loop") — code-set
+    pitch_path: Optional[list[list[float]]] = None  # that gesture resolved: [[ms after the note sounds,
+                                                 # semitones from the swara], ...] — the renderer draws it
+    fade_tail: Optional[float] = None            # a RING-OUT over only the note's LAST this-many beats —
+                                                 # the piece's `ring_out` ending: a drone held for the
+                                                 # whole piece decays at the end, not from its attack
 
     @field_validator("swara")
     @classmethod
@@ -890,14 +1005,17 @@ def parse_composition(comp: dict) -> tuple[Optional[Composition], list[str]]:
 # `oct` is LOCAL to the voice's register (0 = home; +1 to climb for a climax). #
 # --------------------------------------------------------------------------- #
 
-# The sitar's right-hand mizrab (plectrum) STROKE — a closed set (Hindustani only; sources +
-# verification tier recorded in DESIGN.md, step 5): `da` the strong stroke (inward/upward), `ra`
-# the softer return, `diri` a fast da+ra DOUBLE-stroke (a PAIR), `darada` a da+ra+da TRIPLE-stroke
-# (a TRIPLET), `chikari` a bright high-Sa drone-string accent (punctuation, not a melody pitch). A
-# bol is a STROKE, not a subdivision — it carries no duration; rhythm comes from where it is placed,
-# and a compound simply names 2 (diri) or 3 (darada) strokes. Code realises a bol as sitar
-# ARTICULATION (crew/lead.py `apply_strokes`), never as pitch — orthogonal to `dur`, no renderer change.
-Bol = Literal["da", "ra", "diri", "darada", "chikari"]
+# The sitar's right-hand mizrab (plectrum) STROKE WORD — a closed set, the Imdadkhani inventory
+# (Parikh; the data and its sources live in src/gats.py `BOL_WORDS`): `da` the strong inward
+# stroke, `ra` the softer return, and the COMPOUNDS, each a stroke pattern given as RATIOS that divide
+# the note's length — `dir` di:r 1:1, `dara` 1:1, `dar` da:r 2:1, `dadir` 2:1:1, `darada` 1:1:1,
+# `daradara` 1:1:1:1 — every stroke plucked on the note's swara (many bols can share a matra);
+# `chikari` a bright high-Sa drone-string accent (punctuation, not a melody pitch). Code realises a
+# bol as sitar ARTICULATION (crew/lead.py `apply_strokes`), never as pitch. The compounds were
+# `diri`/`darada` until 2026-10-12, and `diri` split whatever length its note had — the compressed
+# reading Sujit had already corrected in Swarmatra; `diri` still parses, as `dir`. `rda` (r:da 1:1, the
+# mirror of dir) joined 2026-10-12 from Parikh's "Origin of the Sitar" — his four basic strokes.
+Bol = Literal["da", "ra", "dir", "rda", "dara", "dar", "dadir", "darada", "daradara", "chikari"]
 
 # A light DECORATIVE ornament the sitar flicks on a note — a small crushed neighbour-cluster
 # wrapping the main note. `murki` is delicate and fast; `khatka` the same shape but sharper and
@@ -934,9 +1052,11 @@ class LeadNote(BaseModel):
     grace: Optional[list[str]] = None
     meend_swara: Optional[str] = None
     meend_oct: Optional[int] = None
-    bol: Optional[Bol] = None            # the mizrab stroke (da/ra/diri/chikari) — sitar articulation
+    bol: Optional[Bol] = None            # the mizrab stroke word (da/ra/dir/dar/...) — sitar articulation
     rest: bool = False                   # a SILENT beat (nyas/space) — occupies dur, sounds nothing
     ornament: Optional[Ornament] = None  # a murki/khatka flick — code realises the neighbour-cluster
+    gamak_with: Optional[str] = None     # a GAMAK: swing fast between this swara and that ADJACENT
+                                         # raga neighbour for the note's length — code plays the swing
 
     @field_validator("swara")
     @classmethod
@@ -964,13 +1084,13 @@ class LeadNote(BaseModel):
     @classmethod
     def _norm_bol(cls, v):
         # Normalize the stroke: nullish sentinels and junk both absorb to None (an unknown
-        # stroke plays plain — see _clean_meend_swara for why raising here is fatal), and the
-        # names the prompts use informally map to their canonical bols ("dir" is the pair's
-        # NAME in the grids; the note-level bol is "diri").
+        # stroke plays plain — see _clean_meend_swara for why raising here is fatal). The old
+        # note-level name `diri` reads as `dir`; `dara` is its OWN word (two strokes) — it used
+        # to be mapped to `darada` (three), which played a da-ra as a triplet.
         if v is None or not isinstance(v, str):
             return None
-        s = v.strip().lower()
-        s = {"dir": "diri", "dara": "darada"}.get(s, s)
+        s = v.strip().lower().replace("-", "").replace(" ", "")
+        s = {"diri": "dir"}.get(s, s)
         return s if s in get_args(Bol) else None
 
     @field_validator("ornament", mode="before")
@@ -982,6 +1102,13 @@ class LeadNote(BaseModel):
         s = v.strip().lower()
         return s if s in get_args(Ornament) else None
 
+    @field_validator("gamak_with", mode="before")
+    @classmethod
+    def _known_gamak_partner(cls, v):
+        # same absorption: junk plays plain. Raga-fit (adjacent, direction-legal) is checked
+        # where the raga is known — `gestures.gamak_partner_ok`.
+        return v if isinstance(v, str) and v in SWARAS else None
+
 
 # A phrase's overall shape, and the transformations that develop its seed — closed sets
 # (Literal, friendly to Gemini's controlled generation) so the model picks from a fixed
@@ -991,6 +1118,20 @@ PhraseMove = Literal[
     "repeat", "sequence_up", "sequence_down", "invert", "fragment",
     "accelerate", "answer", "resolve", "octave_shift", "rhythmic_compression",
 ]
+
+
+def _stroke_tokens(v):
+    """A stroke line as tokens — from a string ("da - dir da | ...") or a list: vibhag bars dropped,
+    dashes unified, `diri` read as `dir`. Anything that is not a sequence absorbs to None, and junk
+    tokens are kept as written for the checks to report (a lenient plan never dead-parses)."""
+    if isinstance(v, str):
+        v = v.split()
+    if not isinstance(v, list):
+        return None
+    tokens = [str(t).strip().lower() for t in v]
+    tokens = [{"diri": "dir", "–": "-", "—": "-", ".": "-", "_": "-"}.get(t, t)
+              for t in tokens if t and t != "|"]
+    return tokens or None
 
 
 class PhrasePlan(BaseModel):
@@ -1017,6 +1158,16 @@ class PhrasePlan(BaseModel):
     # the taan fields above). The intro develops ONE recurring motif (its `seed`, drawn from the
     # mukhada head) rather than inventing independent phrases; this names the reveal.
     badhat_plan: Optional[str] = None   # intro only: the progressive reveal — the fragment phrase 1 states, what each later phrase adds, where the widest reach lands
+    # Gat head architecture: the RIGHT HAND planned before the notes — one token per matra of the
+    # avartan (a bol word, "chikari", or "-" for a matra with no new stroke), so the rhythm is
+    # composed as a PATTERN (the gat's identity) rather than decorated note by note. Lenient like
+    # the fields above: junk is kept as written and reported by `check_stroke_line`, never a dead parse.
+    stroke_line: Optional[list[str]] = None
+
+    @field_validator("stroke_line", mode="before")
+    @classmethod
+    def _norm_stroke_line(cls, v):
+        return _stroke_tokens(v)
 
     @field_validator("seed")
     @classmethod
@@ -1061,6 +1212,26 @@ class Gat(BaseModel):
     manjha: Optional[LeadPhrase] = None
     antara: Optional[LeadPhrase] = None
     amad: Optional[LeadPhrase] = None             # the composed descent re-entering the head
+
+
+class HeadIdea(BaseModel):
+    """The IDEA of a gat head — what the single Composer's seed writes in the GAT form instead of a
+    finished avartan (Sujit's Option A, 2026-10-12). The head is the piece's most important object,
+    and written as one-fifth of the seed's JSON beside the chart and the riff it got the least
+    attention of anything there, then was copied verbatim forever. So the seed fixes what makes the
+    head THIS head — the swara on every sam, the recurring cell, the right hand's stroke line — and
+    the gat call composes the notes from it with its full attention, beside the manjha and antara
+    it must share a motif with. Legality (every swara in the raga) is the seed guardrail's; whether
+    the composed head kept the idea is MEASURED (`gat_verifier.check_head_idea`), never enforced."""
+    idea: str = ""                                # one line: what the head is
+    sam_swara: str                                # the swara that sounds ON every sam (the head's first note)
+    cell: list[str] = Field(min_length=1)         # the recurring core cell — a few swaras
+    stroke_line: Optional[list[str]] = None       # the right hand, one token per matra (as PhrasePlan's)
+
+    @field_validator("stroke_line", mode="before")
+    @classmethod
+    def _norm_stroke_line(cls, v):
+        return _stroke_tokens(v)
 
 
 class RiffNote(BaseModel):
@@ -1220,7 +1391,7 @@ class OrchestraScore(BaseModel):
 # --------------------------------------------------------------------------- #
 
 # The two LLM voices that collaborate, named by their LAYER role — the same
-# strings Section.layers / VOICES / ConductorRuling.layer already use — so the
+# strings Section.layers / VOICES / `plan_layer` already use — so the
 # canvas speaks the system's existing vocabulary rather than inventing its own.
 CreativeRole = Literal["lead", "rhythm"]
 
@@ -1329,12 +1500,9 @@ class SectionCanvas(BaseModel):
 # --------------------------------------------------------------------------- #
 # Contract 1.75: Critic verdicts                                              #
 #                                                                             #
-# Ustad (legality) judges a finished Composition. The lesson lives in the type #
-# split: legality is CHECKABLE, so CODE owns it — the deterministic            #
-# validate_composition decides `verdict`/`violations`, and the LLM's output    #
-# (UstadNarration) can only EXPLAIN, never DECLARE. The shell assembles the    #
-# two into an UstadVerdict, so the headline can never be an LLM hallucination. #
-# (Rasik's taste verdict, LLM-owned on a rubric, lands as the next step.)      #
+# Legality is CHECKABLE, so CODE owns it entirely (crew/ustad.py — no LLM since  #
+# the 2026-10-11 redesign). Raga authenticity (Rasik, a consultant) and song    #
+# craft (the Producer, the one judge with authority) are LLM-owned on rubrics.  #
 # --------------------------------------------------------------------------- #
 
 class Violation(BaseModel):
@@ -1347,50 +1515,14 @@ class Violation(BaseModel):
     reason: str                                  # why it is illegal (names the allowed swaras)
 
 
-class UstadNarration(BaseModel):
-    """Ustad's LLM output — the human EXPLANATION, and nothing that decides legality.
-
-    There is deliberately NO verdict field here: Ustad cannot DECLARE a piece legal
-    or illegal, because that is the deterministic validator's call, not the model's.
-    `reasoning` (filled FIRST) notes what the validate_composition tool returned;
-    `explanation` turns that into a musician's account. Code pairs this with the
-    tool's authoritative result to build the UstadVerdict below.
-    """
-    reasoning: str = ""
-    explanation: str = ""
-
-
 class UstadVerdict(BaseModel):
-    """The legality critic's verdict, ASSEMBLED by code (see `crew/ustad.py`).
-
-    `verdict` and `violations` come straight from the deterministic
-    `raga.validate_composition` — never from the LLM — so "code decides the
-    checkable" holds even for the critic's headline. `explanation` is Ustad's
-    narration. This flows to the Conductor (a legality conflict is what the debate
-    arbitrates) and onto the event stream.
-    """
+    """The legality verdict, built ENTIRELY by code (see `crew/ustad.py`): `verdict`,
+    `violations` and the `explanation` all come from the deterministic
+    `raga.validate_composition`. An illegal piece is a forced revise (`crew/triage.py`)."""
     verdict: Literal["legal", "illegal"]
     violations: list[Violation] = Field(default_factory=list)
     explanation: str = ""
     reasoning: str = ""
-
-
-class ArrangerChoice(BaseModel):
-    """One decision: for finding `finding`, apply the offered repair `repair`.
-
-    The agent picks from a menu CODE built, so it cannot invent a repair or an illegal
-    pitch — the worst it can do is choose a legal repair that serves the music less well
-    than another. `repair` is one of the ids listed with that finding.
-    """
-    finding: int = Field(ge=0)      # the finding's number as listed in the prompt
-    repair: str                     # the chosen repair's id, verbatim from the offered list
-    reason: str = ""                # one short clause — why this repair serves the music
-
-
-class ArrangerDecision(BaseModel):
-    """The arranger's answer for ONE section: reasoning first, then a choice per finding."""
-    reasoning: str = ""
-    choices: list[ArrangerChoice] = Field(default_factory=list)
 
 
 class RasikScores(BaseModel):
@@ -1407,16 +1539,25 @@ class RasikScores(BaseModel):
     rasa: int = Field(ge=1, le=5)       # does the music serve the raga's emotional essence / samay?
 
 
+class RasikSuggestion(BaseModel):
+    """One concrete edit Rasik, the raga CONSULTANT, proposes — always to the LEAD line, never
+    to the riff, the form or another voice. `section` is the section's index in the chart."""
+    section: int = Field(ge=0)
+    change: str                      # what to change (e.g. "end the phrase on the pakad's d")
+    why: str = ""                    # the raga reason (e.g. "Bhairav rests on komal dha")
+
+
 class RasikVerdict(BaseModel):
-    """The taste critic's verdict — LLM-OWNED, the deliberate opposite of Ustad's
-    code-owned legality verdict. Taste is not checkable, so here the model DOES judge;
-    we discipline it (not replace it) with a fixed rubric and encoded-fact grounding.
-    `reasoning` (filled FIRST) justifies each score from the evidence before it is
-    committed; `scores` is the rubric; `notes` is the short actionable critique.
+    """The raga consultant's verdict — LLM-OWNED (taste is not checkable), disciplined by a
+    fixed rubric and encoded-fact grounding. `reasoning` (filled FIRST) justifies each score;
+    `scores` is the rubric; `notes` the short critique; `suggestions` the few phrase-level
+    edits to the lead that would most raise its raga authenticity — the Producer, who has the
+    final say, may adopt one as its revision plan.
     """
     reasoning: str = ""
     scores: RasikScores
     notes: str = ""
+    suggestions: list[RasikSuggestion] = Field(default_factory=list)
 
 
 class ProducerScores(BaseModel):
@@ -1444,101 +1585,42 @@ class ProducerScores(BaseModel):
                                             # numbers, not from listening.)
 
 
+# What a revision may regenerate: the creative voices. (Bass, drums, drone and the clean guitar
+# are derived by code and follow the riff/lead they depend on.)
+RevisionVoice = Literal["lead", "riff", "orchestra"]
+
+# The Section.layers name each revisable voice plays under.
+_VOICE_LAYER: dict[str, str] = {"lead": "lead", "riff": "rhythm", "orchestra": "orchestra"}
+
+
+class RevisionPlan(BaseModel):
+    """ONE surgical, EDIT-BASED revision — what the Producer (or code, for an illegal piece)
+    asks for. `voice` is the one creative voice to rework; `sections` are the chart indices it
+    is reworked in (empty = everywhere it plays); `instruction` says what to change and
+    `preserve` what must survive (e.g. "the main riff's rhythm", "the mukhada"). Both ride the
+    targeted sections' intent, and only those sections' notes are replaced (`crew/revision.py`)."""
+    voice: RevisionVoice
+    sections: list[int] = Field(default_factory=list)
+    instruction: str
+    preserve: list[str] = Field(default_factory=list)
+
+
+def plan_layer(plan: RevisionPlan) -> str:
+    """The Section.layers name the plan's voice plays under. Pure."""
+    return _VOICE_LAYER[plan.voice]
+
+
 class ProducerVerdict(BaseModel):
-    """The composition-quality critic's verdict — LLM-OWNED, like Rasik's (songwriting
-    craft is judgment, not a checkable fact). `reasoning` (filled FIRST) justifies each
-    score from the piece's structure/motif/riff/ensemble before it is committed; `scores`
-    is the rubric; `notes` is the short actionable critique.
-    """
+    """The Producer's verdict — the ONE judge with authority (the redesign, 2026-10-11).
+    `reasoning` (filled FIRST) justifies each score; `scores` is the rubric; `notes` the short
+    critique; `decision` accepts the piece or asks for a revision, and on a revise `plan` is the
+    ONE edit to make (it may adopt one of Rasik's lead suggestions). A revise without a plan is
+    read as an accept (`crew/triage.py`) — nothing actionable, nothing regenerated."""
     reasoning: str = ""
     scores: ProducerScores
     notes: str = ""
-
-
-# --------------------------------------------------------------------------- #
-# Contract 1.9: The arbitration (Conductor)                                   #
-#                                                                             #
-# When the critics disagree over whether a finished piece should ship, the    #
-# Conductor is the referee WITH A CLOCK. Legality is non-negotiable (code      #
-# forces a revise on an illegal piece, no debate); the genuine judgment is the #
-# AESTHETIC one — SOUL (Rasik) vs WORKS-AS-MUSIC (Producer): is either worth a  #
-# revise, or is the piece good enough? A bounded Rasik<->Producer debate feeds  #
-# the Conductor's final ruling. The ruling drives the Flow's surgical revise    #
-# (step 6b), which is why it names ONE layer.                                  #
-# --------------------------------------------------------------------------- #
-
-class DebateTurn(BaseModel):
-    """One critic's turn in the bounded Rasik<->Producer arbitration debate.
-
-    `reasoning` (filled FIRST) reads the other side; `argument` is the short in-character
-    point the transcript streams as a DEBATE event; `stance` is what this critic wants;
-    `target_layer` names the ONE voice to regenerate when the stance is revise.
-    """
-    reasoning: str = ""
-    argument: str = ""
-    stance: Literal["accept", "revise"]
-    target_layer: Optional[str] = None
-
-
-# What a revise may actually DO. Naming a LAYER was the only vocabulary the Conductor had
-# while every repair was a regeneration, and it forced the wrong operation on a whole class
-# of faults: several things that go wrong are RELATIONSHIPS between voices, not a bad voice.
-# Told "the guitar fights the sitar", a layer-only ruling can only re-roll the riff — throwing
-# away a working hook, and re-rolling it against the same information that produced the clash.
-# An operation vocabulary lets the referee ask for the repair the fault actually needs.
-RepairOperation = Literal[
-    "regenerate_lead",            # the raga line itself is weak — compose it again
-    "regenerate_riff",            # the riff itself is weak — compose it again
-    "regenerate_orchestra",       # the orchestration is wrong — re-score around the band
-    "arrange_riff_against_lead",  # the parts are each fine but FIGHT — repair the relationship
-]
-
-# Which voice a repair operates on, so a directive still reaches the right sections'
-# `intent` (see flow.revise_arrangement). A relationship repair carries no regeneration,
-# so it threads no directive.
-_OPERATION_LAYER: dict[str, Optional[str]] = {
-    "regenerate_lead": "lead",
-    "regenerate_riff": "rhythm",
-    "regenerate_orchestra": "orchestra",
-    "arrange_riff_against_lead": None,
-}
-
-
-class ConductorRuling(BaseModel):
-    """The Conductor's FINAL call on a critiqued composition — the referee's verdict.
-
-    Always terminating by design (the round cap is the guarantee, not organic
-    consensus). `directive` is accept or revise; on a revise, `operation` is WHAT to do and
-    `reason` is the SURGICAL directive a generator can act on (what to fix, not a vague
-    complaint). `reasoning` weighs the two sides first.
-
-    `layer` predates `operation` and remains as the voice a regeneration targets; a ruling
-    that names only a layer still works (`repair_operation` reads it as "regenerate that
-    voice"), so a model answering in the old shape is never a failed run.
-    """
-    reasoning: str = ""
-    directive: Literal["accept", "revise"]
-    operation: Optional[RepairOperation] = None
-    layer: Optional[str] = None
-    reason: str = ""
-
-
-def repair_operation(ruling: ConductorRuling) -> Optional[str]:
-    """The operation a ruling asks for — its own, or a regeneration of the layer it named.
-    None when the ruling accepts or names nothing actionable. Pure."""
-    if ruling.directive != "revise":
-        return None
-    if ruling.operation is not None:
-        return ruling.operation
-    return {"lead": "regenerate_lead", "rhythm": "regenerate_riff",
-            "orchestra": "regenerate_orchestra"}.get(ruling.layer or "")
-
-
-def repair_layer(ruling: ConductorRuling) -> Optional[str]:
-    """The voice a ruling's repair targets — used to thread the directive into that voice's
-    sections. None for a relationship repair, which regenerates nothing. Pure."""
-    operation = repair_operation(ruling)
-    return _OPERATION_LAYER.get(operation) if operation else None
+    decision: Literal["accept", "revise"] = "accept"
+    plan: Optional[RevisionPlan] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -1553,8 +1635,8 @@ class EventType(str, Enum):
     PROPOSE = "propose"    # a generator emits a candidate
     VALIDATE = "validate"  # the deterministic guardrail runs
     CRITIQUE = "critique"  # a critic scores / comments
-    DEBATE = "debate"      # a turn in the Ustad<->Rasik argument
-    VERDICT = "verdict"    # the Conductor rules (accept / revise)
+    DEBATE = "debate"      # (retired 2026-10-11 — no critic debate; kept for replay/UI compatibility)
+    VERDICT = "verdict"    # the final call: the Producer's accept/revise (or code's forced legality revise)
     REVISE = "revise"      # a generator reworks
     RENDER = "render"      # audio produced
 
@@ -1604,3 +1686,46 @@ class EventStream:
 
     def to_list(self) -> list[dict]:
         return [e.model_dump(mode="json") for e in self.events]
+
+
+# --------------------------------------------------------------------------- #
+# The single Composer's SEED (crew/composer.py) — the core idea, co-conceived.  #
+# --------------------------------------------------------------------------- #
+
+class SongSeed(BaseModel):
+    """What the ONE Composer emits first: the chart AND the core musical material, conceived
+    together in one context (the riff, the hook and the form are one idea — the single bare call
+    that beat the multi-agent pipeline wrote them in one breath). `reasoning` is filled FIRST. The
+    sitar's part is a finished `hook` in the SONG form and only the head's IDEA (`head`) in the GAT
+    form, where the gat call composes the head's notes with its full attention (Option A).
+    Legality, the form rules and the hard cell checks are the guardrail's job, not the schema's,
+    so `output_pydantic` can always parse a well-formed seed."""
+    reasoning: str = ""
+    energy_arc: str = ""                            # one line per section: how intensity moves
+    chart: ArrangementDraft
+    main_riff: RiffPattern                          # ONE cycle of the riff that recurs
+    hook: Optional[LeadPhrase] = None               # SONG form: ONE avartan of the sitar's recurring hook
+    head: Optional[HeadIdea] = None                 # GAT form: the head's IDEA (the gat call writes its notes)
+
+
+class DebateTurn(BaseModel):
+    """One composer's turn in the SEED DEBATE (`crew/seed_debate.py`): having heard a rival
+    composer's seed for the same request, it argues (`argument`, filled FIRST — what the rival does
+    better and worse, judged on the notes and code's measurements) and returns its OWN seed, revised
+    where it was persuaded and unchanged where it was not (`changed` says which). It keeps its own
+    idea: a debate turn is not a merge. The seed guardrail holds `seed` to the usual hard lines."""
+    argument: str = ""
+    changed: bool = False
+    seed: SongSeed
+
+
+class SeedChoice(BaseModel):
+    """The seed SELECTOR's verdict over labelled candidate seeds: `reasoning` first (each
+    candidate weighed on the rubric), then `choice`, the 1-based label of the strongest. Run twice
+    with the order reversed; code reads a disagreement as a tie (position bias, not a preference)."""
+    reasoning: str = ""
+    choice: int = Field(ge=1)
+
+
+# The chart refers to the riff/phrase contracts defined further down this module.
+Arrangement.model_rebuild()

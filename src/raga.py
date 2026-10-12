@@ -13,6 +13,8 @@ A trailing "'" means the next octave up (S' = Sa an octave above); handled by
 the note's `oct` field at render time, so validation ignores octave.
 """
 
+from typing import Final
+
 SWARAS = {
     "S": 0, "r": 1, "R": 2, "g": 3, "G": 4, "m": 5,
     "M": 6, "P": 7, "d": 8, "D": 9, "n": 10, "N": 11,
@@ -139,6 +141,14 @@ RAGAS = {
         "jati": "audhav-sampurna",   # 5 up, 7 down
         "andolan": [],
         "ornaments": [],    # a romantic raga on meend + kan-swar, not signature murki/khatka
+        # Kan (2026-10-12): Ni takes a Sa touch (Parrikar "P (S')n, n S'" — the antara launch,
+        # ascending; Tanarang "adjacent Shadj is used as a Kan-Swar"); Ga takes a Ma touch
+        # (Parrikar descending "(M)g" — his M = our m; Tanarang "Gandhar is rendered with
+        # madhyam as a Kan-Swar"). Only the direction a source SHOWS is encoded.
+        "kan": {
+            "n": {"aroha": "S"},
+            "g": {"avaroha": "m"},
+        },
         "pakad": [
             ["n", "S", "g", "m", "P"],
             ["m", "g", "R", "S"],
@@ -312,7 +322,7 @@ RAGAS = {
         "vadi": "m",      # Madhyam
         "samvadi": "S",   # Shadj (Tanarang/Courtney/Wikipedia; ragajunglism's Pa is a weaker outlier)
         "jati": "audhav-sampurna",   # 5 up, 7 down (R/P dropped ascending)
-        "andolan": [],
+        "andolan": ["g"],   # ga sways UP toward ma (Parrikar "(m)g"; Sujit's guruji, oral tradition — see ANDOLAN_TOWARD)
         "ornaments": [],  # lyrical/romantic — light murki possible but not an identity ornament
         "pakad": [
             ["m", "D", "n", "D", "m", "g", "R", "S"],
@@ -453,6 +463,11 @@ RAGAS = {
         "jati": "audhav-audhav",   # 5 swara-positions up/down (Ga counted once)
         "andolan": [],
         "ornaments": [],  # the Gmg is a vakra gamak/kan gesture, not a light murki/khatka
+        # Kan (2026-10-12): descending, komal ga takes a Sa touch — Tanarang "m (S)g S";
+        # Parrikar "M (S)g->S" (his M = our m).
+        "kan": {
+            "g": {"avaroha": "S"},
+        },
         "pakad": [
             ["G", "m", "P", "m", "G"],
             ["m", "G", "g", "S"],         # the Gmg zigzag resolving to Sa — the fingerprint
@@ -522,7 +537,7 @@ RAGAS = {
         "vadi": "d",      # komal Dhaivat
         "samvadi": "g",   # komal Gandhar
         "jati": "sampurna-sampurna",   # all 7 present (Pa sparse, not absent)
-        "andolan": [],
+        "andolan": ["r"],   # komal re sways UP toward komal ga (ITC; Parrikar "S, r<->g")
         "ornaments": [],  # plaintive meend + the ati-komal shruti carry it, not light murki/khatka
         "pakad": [
             ["d", "N", "S", "r", "g", "r", "S"],
@@ -541,6 +556,410 @@ RAGAS = {
         ],
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# NYAS — where a phrase may come to REST (researched 2026-10-11).
+#
+# A nyas is a swara the performer pauses on to "build and subsequently sustain the format of
+# a rag"; it delimits phrases (A.K. Dey, *Nyasa in raga*, via Gulati et al. 2014). Two facts
+# shape this table:
+#   * a long HOLD is not automatically a rest — Parrikar separates deergha bahutva (elongation)
+#     from nyasa bahutva (resting): Darbari's andolit g and d are long holds, not endings;
+#   * resting can depend on DIRECTION — Bhairav's komal re and Bageshree's ga rest only in
+#     the avaroha (Tanarang lists rests per direction; Parrikar names them).
+#
+# Fields per raga:
+#   core          the rests the sources AGREE on — the ones the prompt leads with
+#   permitted     every rest at least one strong source gives (a superset of core). The phrase-
+#                 ending check enforces THIS, not core: three rules last month were tighter than
+#                 the tradition and each was refuted by a real gat, so the check stays loose
+#   descent_only  rests only when reached from above (the avaroha)
+#   ascent_only   rests only when reached from below (the aroha)
+#   avoid         swaras a source names as damaging/weak as a rest — rejected outright
+#   note          discrepancies and coverage, so the encoding stays auditable
+#   sources       T = Tanarang "Vishranti Sthan" field, P = Parrikar, DR = Deepak Raja,
+#                 RJ = Ragajunglism (weaker; often quotes Parrikar)
+# ---------------------------------------------------------------------------
+
+NYAS: dict[str, dict] = {
+    "bhairav": {
+        "core": ["S", "d", "P"], "permitted": ["S", "d", "P", "r", "m"],
+        "descent_only": ["r"], "ascent_only": [], "avoid": [],
+        "note": "r rests in the avaroha only (T: 'S;m;P;d; - S';d;P;r;'; P: 'andolita komal "
+                "rishab in the avarohi'). P: Parrikar descent-only, Tanarang both ways — "
+                "permitted both. m: Tanarang only. No source flags G as avoided.",
+        "sources": ["https://tanarang.com/raag-bhairav/",
+                    "https://www.parrikar.org/hindustani/bhairav/", "Ragajunglism"],
+    },
+    "bhairavi": {
+        "core": ["S", "P"], "permitted": ["S", "P", "g", "m"],
+        "descent_only": [], "ascent_only": [], "avoid": [],
+        "note": "P: 'The nyasa swaras are S, g and P; in addition, M and d are often sought for "
+                "elongation' (d is elongated, not a rest). T: 'S;m;P; - S';P;m;'. g (P) vs m (T).",
+        "sources": ["https://www.parrikar.org/hindustani/bhairavi/",
+                    "https://tanarang.com/raag-bhairavi/"],
+    },
+    "bhimpalasi": {
+        "core": ["m", "S"], "permitted": ["m", "S", "P"],
+        "descent_only": [], "ascent_only": [], "avoid": [],
+        "note": "P: 'preponderance of the madhyam (nyasa bahutva)'; R and D are deergha bahutva "
+                "(elongated) in the avaroha, not rests. T: 'S;m;P; - S';P;m;'.",
+        "sources": ["https://www.parrikar.org/hindustani/bhimpalasi/",
+                    "https://tanarang.com/raag-bhimpalasi/", "Ragajunglism"],
+    },
+    "darbari": {
+        "core": ["R", "P", "S"], "permitted": ["R", "P", "S"],
+        "descent_only": [], "ascent_only": [], "avoid": [],
+        "note": "P: 'rishab serves as the vadi, an important nyasa sthana, while the pancham "
+                "provides repose'. T: 'S;R;P; - S';P;R;'. FLAG: g and d are excluded only because "
+                "no source lists them — they are long andolit holds that resolve onward "
+                "(g -> m R S, d -> n P), an inference from absence.",
+        "sources": ["https://www.parrikar.org/hindustani/kanada/",
+                    "https://tanarang.com/raag-darbari-kanada/"],
+    },
+    "malkauns": {
+        "core": ["m", "S", "g"], "permitted": ["m", "S", "g", "d", "n"],
+        "descent_only": [], "ascent_only": [], "avoid": [],
+        "note": "P: 'each one of its swaras is considered apposite for nyasa… madhyam… primus "
+                "inter pares'; RJ: all five rest both ways. FLAG: T lists only S g m.",
+        "sources": ["https://www.parrikar.org/hindustani/malkauns/",
+                    "https://tanarang.com/raag-malkauns/", "Ragajunglism"],
+    },
+    "kirwani": {
+        "core": ["P", "R", "S"], "permitted": ["P", "R", "S"],
+        "descent_only": [], "ascent_only": [], "avoid": [],
+        "note": "T: 'S R P - S' P R'; indianclassicalmusic.com 'Nyaas Swars: s, r, p'; RJ: shuddha "
+                "Re a popular resting tone. FLAG: one strong source only (no Parrikar/Raja page).",
+        "sources": ["https://tanarang.com/raag-kirwani/", "indianclassicalmusic.com",
+                    "Ragajunglism"],
+    },
+    "charukeshi": {
+        "core": ["d", "S"], "permitted": ["d", "S", "R", "G", "m", "P"],
+        "descent_only": [], "ascent_only": [], "avoid": [],
+        "note": "P: 'strength and importance of the dhaivat (nyasa sthana)'; T: 'R;G;m;P;d;' (Sa "
+                "implicit per Tanarang's glossary). FLAG: R G m P rest on Tanarang alone.",
+        "sources": ["https://www.parrikar.org/hindustani/charukeshi/",
+                    "https://tanarang.com/raag-charukeshi/"],
+    },
+    "bageshree": {
+        "core": ["m", "D", "S"], "permitted": ["m", "D", "S", "g"],
+        "descent_only": ["g"], "ascent_only": [], "avoid": ["P"],
+        "note": "P: 'a modest pause on g is prescribed' in the avaroha, 'nyasa bahutva role of D', "
+                "madhyam the 'melodic centre of gravity'; T: 'S;m;D; - S';D;m;g;' (g in the "
+                "descent list only). P is varjit in the aroha and only touched in descent.",
+        "sources": ["https://www.parrikar.org/hindustani/bageshree/",
+                    "https://tanarang.com/raag-bageshree/", "Ragajunglism"],
+    },
+    "puriya_dhanashree": {
+        "core": ["P", "G", "S"], "permitted": ["P", "G", "S", "N", "r"],
+        "descent_only": ["r"], "ascent_only": ["N"], "avoid": [],
+        "note": "P: 'the breath of Pooriya Dhanashree's life is pancham'; T: 'S;G;P;N; - "
+                "S';P;G;r;'. FLAG: N (ascent) and r (descent) are Tanarang only; RJ calls N a "
+                "launchpoint. Sa is passed through mid-phrase and closes via M G r S.",
+        "sources": ["https://www.parrikar.org/hindustani/poorvi/",
+                    "https://tanarang.com/raag-puriya-dhanashree/", "Ragajunglism"],
+    },
+    "yaman": {
+        "core": ["S", "G", "N", "P"], "permitted": ["S", "G", "N", "P", "R"],
+        "descent_only": [], "ascent_only": [], "avoid": ["D"],
+        "note": "P: 'nyasa sthanas – S, R, G, P, N… [dhaivat] a nyasa there is damaging to the "
+                "raga dharma'; T: 'S;G;N; - S';N;P;G;'. m is elongated, not a rest. R is "
+                "Parrikar only.",
+        "sources": ["https://www.parrikar.org/hindustani/kalyan/",
+                    "https://tanarang.com/raag-yaman/", "Ragajunglism"],
+    },
+    "chandrakauns": {
+        "core": ["S", "m", "N"], "permitted": ["S", "m", "N"],
+        "descent_only": [], "ascent_only": [], "avoid": [],
+        "note": "T: 'S;m;N; - S';N;m;'; P (in the Malkauns article): 'the nyasa on mandra nishad "
+                "via M g S N'. g and d only implied by 'lakshanas stay true to Malkauns' — not added.",
+        "sources": ["https://tanarang.com/raag-chandrakauns/",
+                    "https://www.parrikar.org/hindustani/malkauns/"],
+    },
+    "jog": {
+        "core": ["S", "G", "P", "m"], "permitted": ["S", "g", "G", "m", "P", "n"],
+        "descent_only": [], "ascent_only": [], "avoid": [],
+        "note": "MODERN recension (Sujit's choice, 2026-10-11). DR: traditionally 'phrases are "
+                "permitted to terminate only on S, [shuddha] G, and P… contemporary Jog… treating "
+                "all the swaras as permissible terminal points'; P: 'Pancham is a nyasa swara', "
+                "'empowering M and displacing P'. T: 'G;m;P; - P;m;G;'.",
+        "sources": ["Deepak Raja (swaratala.blogspot.com), Jog",
+                    "https://www.parrikar.org/hindustani/jog/", "https://tanarang.com/raag-jog/"],
+    },
+    "marwa": {
+        "core": ["r", "D"], "permitted": ["r", "D"],
+        "descent_only": [], "ascent_only": [], "avoid": ["S"],
+        "note": "P: 'Both the swaras [r, D] are full-blown nyasa locations… langhan of shadaj in "
+                "both arohi and avarohi'; T: 'r;D; - D;r;', 'skipping of Shadj'; DR: base Sa 'only "
+                "as an isolated swara'. Sa is held back for the closing motion only (RJ). The "
+                "contemporary D-nyas sits in the mandra (DR).",
+        "sources": ["https://www.parrikar.org/hindustani/marwa/",
+                    "https://tanarang.com/raag-marwa/", "Deepak Raja (swaratala.blogspot.com), Marwa"],
+    },
+    "todi": {
+        "core": ["g", "d", "S"], "permitted": ["g", "d", "S", "P"],
+        "descent_only": [], "ascent_only": [], "avoid": [],
+        "note": "P: 'r→g, with a nyasa on the gandhar, is vital', 'dominance of the dhaivat "
+                "(nyasa bahutva)', pancham a nyasa for some, 'others reserve it for repose in "
+                "avarohi'; T: 'S;g;d; - d;g;S;'. r lingers before dissolving on S — not terminal.",
+        "sources": ["https://www.parrikar.org/hindustani/todi/",
+                    "https://tanarang.com/raag-todi/", "Deepak Raja (swaratala.blogspot.com), Todi"],
+    },
+}
+
+
+def nyas_problem(raga: str, swara: str, from_below: bool | None) -> str | None:
+    """Why `swara` cannot END a phrase in `raga` — or None when it may. `from_below` is how the
+    line arrived (True = rising into it, False = falling, None = unknown/repeated), which
+    decides the direction-only rests. Pure."""
+    n = NYAS[raga]
+    if swara in n["avoid"]:
+        return f"'{swara}' is a weak swara in this raga — it must never be a resting point"
+    if swara not in n["permitted"]:
+        rests = " ".join(n["permitted"])
+        return f"'{swara}' is not a nyas of this raga — phrases rest on {rests}"
+    if swara in n["descent_only"] and from_below:
+        return f"'{swara}' rests only in the AVAROHA — arrive on it from above, not rising into it"
+    if swara in n["ascent_only"] and from_below is False:
+        return f"'{swara}' rests only in the AROHA — arrive on it from below"
+    return None
+
+
+def render_nyas(raga: str) -> str:
+    """The raga's resting swaras as one prompt line — core first, then the conditions."""
+    n = NYAS[raga]
+    extra = [s for s in n["permitted"] if s not in n["core"]]
+    parts = [f"rest on {' '.join(n['core'])}"]
+    if extra:
+        parts.append(f"also {' '.join(extra)}")
+    if n["descent_only"]:
+        parts.append(f"{' '.join(n['descent_only'])} only coming DOWN")
+    if n["ascent_only"]:
+        parts.append(f"{' '.join(n['ascent_only'])} only going UP")
+    if n["avoid"]:
+        parts.append(f"never rest on {' '.join(n['avoid'])}")
+    return "; ".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# REGISTER — where a raga LIVES (researched 2026-10-12).
+#
+# A raga is not only its notes but where it spends its time: Darbari is developed in the mandra
+# and madhya and gets its gravity from the lower tetrachord; Adana, on the same notes, is
+# uttaranga-pradhan. A GPT review of the 2026-10-12 Darbari render found the lead never went
+# below mandra Ni — the composer had never been told, and Rasik could not see the register.
+#
+# Fields per raga (an entry exists ONLY where >=2 approved sources agree — no entry, no claim):
+#   saptak   the octaves the raga is mainly developed in: mandra / madhya / taar
+#   anga     which tetrachord carries its weight: poorvanga (S..m) / uttaranga (P..S') / balanced
+#   note     the verbatim evidence and any discrepancy, so the encoding stays auditable
+#   sources  P = Parrikar, T = Tanarang ("expanded in ... Saptaks"), ITC = ITC-SRA
+# ---------------------------------------------------------------------------
+
+SAPTAKS: Final = ("mandra", "madhya", "taar")
+ANGAS: Final = ("poorvanga", "uttaranga", "balanced")
+
+REGISTER: dict[str, dict] = {
+    "darbari": {
+        "saptak": ["mandra", "madhya"], "anga": "poorvanga",
+        "note": "P: 'Darbari is a poorvanga-pradhana raga, with most melodic activity "
+                "concentrated in the lower registers.' T: 'is generally expanded in Mandra and "
+                "Madhya Saptaks'. ITC (Falguni Mitra, archived): 'concentrates on the lower and "
+                "middle registers'; 'the development in the mandra saptak ... is very absorbing'.",
+        "sources": ["https://www.parrikar.org/hindustani/kanada/",
+                    "https://tanarang.com/raag-darbari-kanada/",
+                    "http://itcsra.org/sra_raga/jaunpuri_darbari_kanhada_adana.html (Wayback)"],
+    },
+}
+
+# ---------------------------------------------------------------------------
+# CHARACTER — how a raga TREATS its swaras, beyond its notes (researched 2026-10-12).
+#
+# Movement rules a composer needs and the other tables do not carry: a swara skipped on the way
+# up, a characteristic leap, a centre of gravity, a phrase that keeps returning. Only rules that
+# >=2 approved sources state (Parrikar, Tanarang, ITC-SRA) are here; each is written in OUR
+# notation (Parrikar writes M for shuddha Ma — the reverse of ours — so his "(M)g" is our "(m)g").
+# These are told to the LLMs, never enforced: they describe idiom, and the legality rules live
+# in the aroha/avaroha and the direction rule. Deliberately LEFT OUT, both sourced: Bhairavi's
+# "all twelve swaras" (our validator forbids the vivadi notes it would invite) and Bageshree's
+# Re in a vakra rise "R g m" and Pa inside the cluster "m P D (m)g" (our direction rule makes R
+# and P descent-only, so the guardrails would reject both). DECIDED: keep the direction rule
+# STRICT (Sujit, 2026-10-12) — these two sourced phrases stay out by choice, not oversight.
+# Kirwani has one approved source only (Tanarang), so it has no entry.
+# ---------------------------------------------------------------------------
+
+_P: Final = "https://www.parrikar.org/hindustani/"
+_T: Final = "https://tanarang.com/raag-"
+
+CHARACTER: dict[str, list[dict]] = {
+    "darbari": [
+        {"text": "komal dha is skipped in a straight descent: no plain n d P — touch d vakra "
+                 "(S' d n P)", "sources": [f"{_P}kanada/", f"{_T}darbari-kanada/"]},
+        {"text": "a gamak- and meend-pradhan raga: gamaks and meends are used widely, with care",
+         "sources": [f"{_T}darbari-kanada/", "ITC-SRA (Falguni Mitra, archived)"]},
+        {"text": "the g m R S and d n P cells come back again and again",
+         "sources": ["ITC-SRA (Falguni Mitra, archived)", f"{_T}darbari-kanada/"]},
+    ],
+    "puriya_dhanashree": [
+        {"text": "Pa is the centre of all development", "sources": [f"{_P}poorvi/",
+                                                                   f"{_T}puriya-dhanashree/"]},
+        {"text": "ascent launches from mandra N, skipping Sa: N r G M P",
+         "sources": [f"{_P}poorvi/", f"{_T}puriya-dhanashree/"]},
+        {"text": "the reiterated G M r G, returning to Pa (P M G M r G P), is essential",
+         "sources": [f"{_P}poorvi/", f"{_T}puriya-dhanashree/"]},
+        {"text": "the taar sentence S' N S' r' N d P", "sources": [f"{_P}poorvi/",
+                                                                  f"{_T}puriya-dhanashree/"]},
+    ],
+    "yaman": [
+        {"text": "ascent skips Sa from mandra N (N R G) and Pa (M D N)",
+         "sources": [f"{_P}kalyan/", f"{_T}yaman/"]},
+    ],
+    "chandrakauns": [
+        {"text": "shuddha N is prominent (tension); phrases rest on mandra N via m g S N",
+         "sources": [f"{_P}malkauns/", f"{_T}chandrakauns/"]},
+    ],
+    "jog": [
+        {"text": "shuddha G rising, komal g falling; the two meet in P m G m G g S",
+         "sources": [f"{_P}jog/", f"{_T}jog/"]},
+        {"text": "the meend g -> S is its signpost", "sources": [f"{_P}jog/", f"{_T}jog/"]},
+    ],
+    "marwa": [
+        {"text": "Sa is skipped in both ascent and descent", "sources": [f"{_P}marwa/",
+                                                                       f"{_T}marwa/"]},
+        {"text": "N is weak (alpa), often skipped on the way to taar Sa: M D S'",
+         "sources": [f"{_P}marwa/", f"{_T}marwa/"]},
+    ],
+    "todi": [
+        {"text": "r and g are joined by meend: r -> g resting on g; g -> r lingers on r "
+                 "before Sa", "sources": [f"{_P}todi/", f"{_T}todi/"]},
+        {"text": "Pa is sparse: skip it rising (M d N S'), use it coming down",
+         "sources": [f"{_P}todi/", f"{_T}todi/", "ITC-SRA samay-raga"]},
+    ],
+    "bhairav": [
+        {"text": "Pa is skipped rising but prominent descending; r is light rising",
+         "sources": [f"{_P}bhairav/", f"{_T}bhairav/"]},
+    ],
+    "bhimpalasi": [
+        {"text": "R and D are skipped rising and dwelt on descending",
+         "sources": [f"{_P}bhimpalasi/", f"{_T}bheempalasi/"]},
+        {"text": "Ma is the centre: phrases keep returning to it (m g m g R S)",
+         "sources": [f"{_P}bhimpalasi/", f"{_T}bheempalasi/"]},
+    ],
+    "malkauns": [
+        {"text": "Ma is the centre of gravity", "sources": [f"{_P}malkauns/", f"{_T}malkauns/"]},
+        {"text": "the leap Sa -> Ma (mandra d n S m) is characteristic",
+         "sources": [f"{_P}malkauns/", f"{_T}malkauns/"]},
+    ],
+    "charukeshi": [
+        {"text": "d is strong, a resting note", "sources": [f"{_P}charukeshi/",
+                                                           f"{_T}charukeshi/"]},
+        {"text": "Pa is skipped now and then (d m in descent)",
+         "sources": [f"{_P}charukeshi/", f"{_T}charukeshi/"]},
+        {"text": "borrowed colours: the Bhairav cluster G m d P, the Nat poorvanga S R G m and "
+                 "R G m R S", "sources": [f"{_P}charukeshi/", f"{_T}charukeshi/"]},
+    ],
+    "bageshree": [
+        {"text": "Ma is the centre of gravity; D rests and the D-m pairing is characteristic "
+                 "(m D n D m)", "sources": ["https://www.parrikar.org/?p=702", f"{_T}bageshree/"]},
+        {"text": "a modest pause on g when descending",
+         "sources": ["https://www.parrikar.org/?p=702", f"{_T}bageshree/"]},
+        {"text": "Pa is never used rising; it lives only inside descending movement",
+         "sources": ["https://www.parrikar.org/?p=702", f"{_T}bageshree/"]},
+    ],
+}
+
+
+def render_kan(raga: str) -> str | None:
+    """How the raga's kan-bearing swaras are approached, as one prompt line, or None:
+    `g takes (R) rising, (m) falling` — only the directions the sources show."""
+    words = {"aroha": "rising", "avaroha": "falling"}
+    parts = [f"{sw} takes " + ", ".join(f"({t}) {words[d]}" for d, t in touch.items())
+             for sw, touch in RAGAS[raga].get("kan", {}).items()]
+    return "; ".join(parts) or None
+
+
+def render_character(raga: str) -> str | None:
+    """The raga's sourced treatment rules as one prompt line, or None."""
+    rules = CHARACTER.get(raga)
+    return "; ".join(r["text"] for r in rules) if rules else None
+
+
+_ANGA_TEXT: Final = {
+    "poorvanga": "the LOWER tetrachord ({tetra}) carries its weight",
+    "uttaranga": "the UPPER tetrachord ({tetra}) carries its weight",
+    "balanced": "both tetrachords carry it",
+}
+
+
+def render_register(raga: str) -> str | None:
+    """Where the raga lives, as one prompt line — None when no verified entry exists (the
+    prompt then says nothing rather than guessing). Phrased as composing guidance: a saptak
+    the raga is developed in is somewhere to DWELL, one it is not is somewhere to visit."""
+    entry = REGISTER.get(raga)
+    if entry is None:
+        return None
+    lives = " and ".join(s.upper() for s in entry["saptak"])
+    parts = [f"developed mainly in the {lives} saptak{'s' if len(entry['saptak']) > 1 else ''}"]
+    if "mandra" in entry["saptak"]:
+        parts.append("DWELL below home Sa (octave -1), do not just touch it")
+    if "taar" not in entry["saptak"]:
+        parts.append("the taar is a peak to visit, not a home")
+    tetra = _tetrachord(raga, entry["anga"])
+    parts.append(_ANGA_TEXT[entry["anga"]].format(tetra=" ".join(tetra)))
+    return "; ".join(parts)
+
+
+def _tetrachord(raga: str, anga: str) -> list[str]:
+    allowed = RAGAS[raga]["allowed"]
+    if anga == "poorvanga":
+        return [s for s in allowed if SWARAS[s] < SWARAS["P"]]
+    return [s for s in allowed if SWARAS[s] >= SWARAS["P"]] + ["S'"]
+
+
+# ---------------------------------------------------------------------------
+# ANDOLAN DIRECTION — which neighbour an andolit swara swings toward (researched 2026-10-11).
+#
+# ITC: andolan is "a gentle swing or oscillation that starts from a fixed note and touches the
+# periphery of an adjacent note", and "andolit swars are raga specific" — the neighbour can be
+# ABOVE or BELOW. The renderer used to dip below every andolit note; Bageshree's ga and Todi's re
+# swing UP. Depth is a share of the gap to that neighbour (no source measures it in cents).
+#   below  toward the next raga swara beneath it      above  toward the next one above it
+# ---------------------------------------------------------------------------
+
+ANDOLAN_TOWARD: dict[str, dict[str, str]] = {
+    # ITC: Bhairav's komal re is sung "within the periphery of S". Its dha's direction is not
+    # stated by a source — kept BELOW (toward Pa), the July gesture's direction. FLAG.
+    "bhairav": {"r": "below", "d": "below"},
+    # AUTRIM/NCPA: ga's movements "occur between Re and Ga"; Deepak Raja: oscillating "between
+    # Re–ga and Pa–dha" — both swing down toward their lower neighbour.
+    "darbari": {"g": "below", "d": "below"},
+    # Parrikar: "(m)g" — ga takes its kan from ma above, with "a modest pause on g"; Sujit's
+    # guruji (oral tradition, 2026-10-11): a slow Ma->Ga reverse bend or andolan on Ga is common.
+    "bageshree": {"g": "above"},
+    # ITC: Todi's re sits "in the periphery of komal gandhar", at a higher shruti; Parrikar writes
+    # the raganga as "S, r<->g". (Tanarang calls the same r<->g movement meend.)
+    "todi": {"r": "above"},
+}
+
+
+def andolan_neighbour_st(raga: str, swara: str) -> int:
+    """The signed interval, in semitones, from an andolit swara to the neighbour it swings
+    toward — negative below, positive above (the next raga swara in that direction). Pure."""
+    toward = ANDOLAN_TOWARD.get(raga, {}).get(swara, "below")
+    allowed = RAGAS[raga]["allowed"]
+    i = allowed.index(swara)
+    if toward == "above":
+        nxt = allowed[(i + 1) % len(allowed)]
+        return (SWARAS[nxt] - SWARAS[swara]) % 12 or 12
+    prev = allowed[i - 1]
+    return -((SWARAS[swara] - SWARAS[prev]) % 12 or 12)
+
+
+# KHADA swaras — a raga sung "direct and unwavering, shorn of delicacies and meends" (Parrikar on
+# Marwa). Code adds no oscillating ornament (gamak) there. Single source — an EXCLUSION, which
+# errs on the plain side.
+KHADA_RAGAS: frozenset[str] = frozenset({"marwa"})
 
 
 def check_raga_consistency(name: str) -> list[str]:
@@ -574,6 +993,46 @@ def check_raga_consistency(name: str) -> list[str]:
         check_phrase(phrase, f"pakad[{i}]")
     for i, phrase in enumerate(raga.get("chalan", [])):
         check_phrase(phrase, f"chalan[{i}]")
+
+    toward = ANDOLAN_TOWARD.get(name, {})
+    if set(toward) != set(raga.get("andolan", [])):
+        problems.append("ANDOLAN_TOWARD must name a direction for exactly the andolit swaras")
+    if any(v not in ("above", "below") for v in toward.values()):
+        problems.append("an andolan direction is 'above' or 'below'")
+
+    nyas = NYAS.get(name)
+    if nyas is None:
+        problems.append("no NYAS entry")
+    else:
+        for key in ("core", "permitted", "descent_only", "ascent_only", "avoid"):
+            check_phrase(nyas[key], f"nyas.{key}")
+        if not set(nyas["core"]) <= set(nyas["permitted"]):
+            problems.append("nyas.core must be a subset of nyas.permitted")
+        if set(nyas["avoid"]) & set(nyas["permitted"]):
+            problems.append("a swara cannot be both a permitted rest and avoided")
+        directional = set(nyas["descent_only"]) | set(nyas["ascent_only"])
+        if not directional <= set(nyas["permitted"]):
+            problems.append("a direction-only rest must also be permitted")
+        if len(nyas["sources"]) < 2:
+            problems.append("nyas needs at least two sources")
+
+    register = REGISTER.get(name)
+    if register is not None:
+        if not register["saptak"] or not set(register["saptak"]) <= set(SAPTAKS):
+            problems.append(f"register.saptak must be a non-empty subset of {SAPTAKS}")
+        if register["anga"] not in ANGAS:
+            problems.append(f"register.anga must be one of {ANGAS}")
+        if len(register["sources"]) < 2:
+            problems.append("register needs at least two sources")
+
+    for sw, touch in raga.get("kan", {}).items():
+        if not touch or set(touch) - {"aroha", "avaroha"}:
+            problems.append(f"kan.{sw} names an aroha and/or avaroha touch, nothing else")
+        check_phrase([sw, *touch.values()], f"kan.{sw}")
+
+    for i, rule in enumerate(CHARACTER.get(name, [])):
+        if len(rule["sources"]) < 2:
+            problems.append(f"character[{i}] needs at least two sources")
 
     return problems
 
@@ -658,18 +1117,15 @@ def drone_swaras(raga: str) -> list[str]:
 
 
 def resting_swaras(raga: str) -> set[str]:
-    """The raga's resting / cadence notes — where a phrase can SETTLE: Sa (the home, always a
-    nyas), plus the vadi and samvadi (the raga's two most prominent swaras, and so its natural
-    resting points).
+    """The raga's resting / cadence notes — where a phrase can SETTLE: every NYAS a strong
+    source permits, plus Sa unless the raga deliberately weakens it (Marwa). Direction is NOT
+    applied here; `nyas_problem` owns the direction-only rests.
 
-    Used to snap a trading solo's handoff to a CLEAN LANDING — a taan phrase ends on a resting
-    note and the next voice starts fresh (Sujit's steer: 'the previous solo ends on a beat /
-    resting note / Sa'). Pure: reads only the encoded, source-verified raga facts, invents
-    nothing. A dedicated per-raga `nyas` set could refine this later; Sa + vadi + samvadi is a
-    faithful, grounded approximation.
-    """
-    r = RAGAS[raga]
-    return {"S", r["vadi"], r["samvadi"]}
+    This replaced the old Sa + vadi + samvadi approximation (2026-10-11), which was tighter than
+    the tradition — it rejected a Yaman head cadencing on Pa, a nyas in every source. Used for a
+    cell's final cadence (mukhada, taan) and a trading solo's clean handoff. Pure."""
+    n = NYAS[raga]
+    return set(n["permitted"]) | ({"S"} - set(n["avoid"]))
 
 
 def scale_step_up(swara: str, raga: str, steps: int = 1) -> tuple[str, int]:
@@ -704,6 +1160,19 @@ def directional_varjya(raga: str) -> dict[str, str]:
         elif sw not in avaroha:
             out[sw] = "aroha"
     return out
+
+
+def half_step_pairs(raga: str) -> list[tuple[str, str]]:
+    """The raga's HALF-STEP NEIGHBOURS — pairs of allowed swaras exactly one semitone apart,
+    as (lower, upper), in ascending order, including Ni-to-upper-Sa across the octave. DERIVED
+    from the verified allowed swaras (arithmetic, no new facts). For a riff these are the
+    one-fret power-chord moves metal grinds on: Bhairav's S-r and P-d are its signature komal
+    resolutions (r falls to S, d falls to P). Empty for a raga with no semitone steps
+    (Malkauns). Pure."""
+    allowed = RAGAS[raga]["allowed"]
+    semis = {SWARAS[sw]: sw for sw in allowed}
+    return [(sw, semis[(SWARAS[sw] + 1) % 12]) for sw in allowed
+            if (SWARAS[sw] + 1) % 12 in semis]
 
 
 def direction_violations(seq: list[tuple[str, int]], raga: str) -> list[str]:

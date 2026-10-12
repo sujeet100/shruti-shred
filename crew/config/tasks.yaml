@@ -8,7 +8,8 @@ interpret_query:
     states and leave the rest for the code — every creative decision is made downstream.
 
     METHOD — fill `reasoning` first, then the value fields. In `reasoning`, go field
-    by field (raga, key, subgenre, mood, bpm, tala, laya, instruments) and for each
+    by field (raga, key, subgenre, mood, bpm, tala, laya, instruments, duration_s,
+    playable_rhythm) and for each
     state either the exact words from the request that give it, or "not stated". Then
     set each field to that value, or null wherever you wrote "not stated". A field the
     request does not mention stays null. It is normal and correct for most fields to be
@@ -30,8 +31,13 @@ interpret_query:
                   it ("in vilambit teentaal" -> tala "teentaal", laya "vilambit"). Else null.
       laya        a tempo CLASS the user names: vilambit (slow), madhya (medium), or drut
                   (fast) — or its English gloss (slow / medium / fast). Else null.
-      instruments specific instruments the user names (tabla, drums, sitar, ...).
-                  A vibe word or a phrase counts as mood, not an instrument. Else null.
+      instruments specific instruments the user wants IN the piece (tabla, drums, sitar,
+                  ...). A vibe word or a phrase counts as mood, not an instrument. Else null.
+      duration_s  the length of the piece the user states, converted to whole SECONDS
+                  ("60-second" -> 60, "two minutes" -> 120, "1:30" -> 90). Else null.
+      playable_rhythm  true ONLY when the user asks for the rhythm-guitar part to be
+                  playable by a human (e.g. "I will play rhythm guitar live", "keep the riff
+                  playable"). Else null.
 
     GROUNDING RULES:
       - Copy only spans that appear verbatim in the request; leave every field the
@@ -46,7 +52,8 @@ interpret_query:
   expected_output: >
     A RawIntent JSON with `reasoning` FIRST (your per-field grounding: the exact
     words that set each field, or "not stated"), then raga, key, subgenre, mood,
-    bpm, tala, laya, instruments — each set only if this request states it, otherwise null.
+    bpm, tala, laya, instruments, duration_s, playable_rhythm — each set only if this request
+    states it, otherwise null.
 
 # The composers share ONE task template (their differing bias lives in the agent
 # backstories, not here). {placeholders} are filled per turn from the evolving Flow
@@ -76,6 +83,18 @@ compose_turn:
     THE REQUEST (honor what is FIXED exactly; decide only what is OPEN):
     {brief_context}
 
+    THE FORM BUDGET (code computed it from the request; the guardrail enforces it):
+    {form_budget}
+
+    THE USER'S OWN WORDS (verbatim — the request above was extracted from them):
+    {user_request}
+    The FIXED values already carry what these words pin down. Everything else they ask of
+    the MUSIC — the form, how the ideas develop, how the piece opens and ends, who plays
+    what — is yours to honour in the chart. Write it into the form, the section intents and
+    the transitions: the voices that compose each section read your intents. Where the
+    words ask for something the facts below rule out, keep the facts and serve the intent.
+    Asks about files, deliverables or how the result will be used are outside the chart.
+
     THE FACTS YOU CHOOSE FROM (the single source of truth — do not contradict these):
     Ragas:
     {raga_context}
@@ -85,8 +104,9 @@ compose_turn:
     {subgenre_context}
     Section kinds you may use (how a block is RENDERED):
     {section_kinds}
-    Form roles — the GAT FORM (what each section DOES); set `form_role` on EVERY section,
-    orthogonal to its kind:
+    Form roles — what each section DOES in the GAT form, orthogonal to its kind (in the SONG
+    form a section may carry intro/breakdown/taan_long/tihai/outro where it genuinely fits,
+    and otherwise no form_role):
     {form_roles}
     Layers (voices) you may activate per section — tabla and the metal drums CAN
     play together (tabla holding the theka under the metal groove is a core fusion
@@ -111,12 +131,24 @@ compose_turn:
     YOUR TASK THIS TURN:
       - If there is no draft yet, PROPOSE a complete arrangement from your point of view;
         otherwise REVISE the current draft — change what matters to you, keep what works.
-      - GAT IS THE FORM: build the piece as a gat, in tala cycles — an intro/alaap, then a
-        MUKHADA (the recurring melodic + rhythmic head that resolves to the sam), develop it
-        through a manjha and a higher-register antara, RETURN the mukhada as the hook, reserve
-        ONE long taan/solo for the peak (after the antara or before the final mukhada), and
-        settle in an outro. Set `form_role` on EVERY section to name its place in this form;
-        the mukhada must appear at least twice (stated, then returned as the hook).
+      - CHOOSE THE FORM and declare it in `form` — two forms serve this fusion, both in tala
+        cycles:
+          * "gat" — the Hindustani instrumental form: an intro/alaap, then a MUKHADA (the
+            recurring melodic + rhythmic head that resolves to the sam), developed through a
+            manjha and a higher-register antara, the mukhada RETURNING as the hook, ONE long
+            taan/solo for the peak (after the antara or before the final mukhada), and an
+            outro. Set `form_role` on EVERY section to name its place in this form; the
+            mukhada appears at least twice (stated, then returned as the hook).
+          * "song" — a metal song built on ONE main riff: an intro, the main riff and its
+            hook, a development, a contrast (a breakdown or a bridge), the main riff RETURNING
+            varied and heavier, a climax (a taan_long or solo fits here when it serves the
+            piece), and the ending. The sections ride `kind` and `riff_slot` — the main riff's
+            sections share one slot so it comes back. `form_role` is optional: use intro,
+            breakdown, taan_long, tihai or outro where they genuinely fit and leave it null
+            elsewhere; mukhada/manjha/antara/amad belong to the gat form.
+        Choose by the music and the length: a piece under about two minutes usually lands
+        harder as ONE memorable idea and its development (the song form); a longer piece, or
+        a request for a gat, carries the full gat.
       - DECLARE THE ANCHOR (`anchor`): ONE idea seeds the whole piece — gat_first (the sitar
         mukhada is the source; the main riff is a rhythmic REDUCTION of it) or riff_first (the
         riff is the source; the mukhada QUOTES the riff's accented notes). Do not invent two
@@ -160,31 +192,205 @@ compose_turn:
       - Every section's foreground must be one of that section's own layers.
       - Every section that includes the `rhythm` layer must carry a `riff_slot` — reuse a
         slot to bring a riff back, use a new slot for a contrasting riff.
-      - Every section must carry a `form_role`; a MUKHADA must be STATED and RETURN (mark at
-        least two sections 'mukhada'); at most ONE section may be 'taan_long'.
+      - Declare `form` ("gat" or "song"). GAT form: every section carries a `form_role`, and
+        a MUKHADA is STATED and RETURNS (at least two sections 'mukhada'). SONG form: one
+        riff_slot recurs (the main riff returns), and no section uses a gat-only role
+        (mukhada/manjha/antara/amad). Either form: 'taan_long' sections within the FORM
+        BUDGET's cap.
       - Keep bpm within the chosen subgenre's range.
 
     BEFORE YOU FINALIZE — run this CHECKLIST over your own draft (each miss is a rejected
     turn and a redo, so verify first):
       [ ] every FIXED value honored; raga/subgenre/tala from the supported lists
       [ ] motif uses ONLY the raga's allowed swaras
-      [ ] every section: form_role set, foreground is one of its own layers
+      [ ] `form` declared; every section's foreground is one of its own layers
       [ ] every section: a one-line musical `intent` and a `transition` into the next
       [ ] every rhythm section carries a riff_slot (reuse = the hook returns)
-      [ ] 'mukhada' on at least TWO sections (stated + returned); at most ONE 'taan_long'
-      [ ] the intro/alap has at least 3 avartans (bars)
-      [ ] every manjha sits AFTER a mukhada and is IMMEDIATELY followed by one, and that
-          returning mukhada has at least 2 bars
+      [ ] BOTH forms: 'intro' only on the FIRST section, 'outro' only on the LAST (an intro
+          label makes the lead play a slow alap — never put it on a riff or melody section)
+      [ ] GAT form: form_role on every section, 'mukhada' on at least TWO sections (stated +
+          returned), the intro meets the FORM BUDGET's minimum, and every manjha sits AFTER a
+          mukhada and is IMMEDIATELY followed by one that meets the budget's return minimum
+      [ ] SONG form: the main riff's slot appears on at least two sections, and no section
+          uses mukhada/manjha/antara/amad
+      [ ] 'taan_long' within the cap; the bars add up to the FORM BUDGET's length (when one
+          is fixed)
       [ ] the metal drums keep driving the taan — the sitar's speed rides the band's
           propulsion; any exposure is a brief breath before the sam, not a cycle off
       [ ] harmony roots are raga swaras; any progression has 2-4 roots ENDING ON S, sits on
           a chorus-like section (never intro/taan_long/outro), and roots avoid the raga's
           descent-only swaras
       [ ] bpm within the subgenre's range
+      [ ] `ending` matches how the piece should stop — "hard_stop" when it should land one
+          stroke on the final sam and cut to silence, else "ring_out"
   expected_output: |
     A single ComposerTurn as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
     {output_schema}
+
+# The single COMPOSER's SEED (crew/composer.py, behind RMA_COMPOSER): ONE call co-writes the chart,
+# the main riff and the hook — the core idea in one context (the single bare call that beat the
+# multi-agent pipeline wrote everything in one breath). Hard constraints are stated as hard (the
+# guardrail enforces exactly these); everything else is a palette. Braces live only in placeholders.
+compose_seed:
+  description: |
+    You are the Composer of a Hindustani-raga x metal fusion: ONE musician who owns the whole
+    piece. Write its CORE IDEA in one go — the chart, the MAIN RIFF and the sitar's part — conceived
+    together, the way a band's songwriter brings in a riff, a melody that sings over it, and a
+    plan for the song. Everything later DEVELOPS what you write here; nothing replaces it.
+
+    METHOD — fill `reasoning` FIRST: the one idea (what the riff and the sitar share — a rhythm, a
+    pair of swaras, a shape), how the form develops it, and where the climax lands. Then
+    `energy_arc` (one short line per section: how intensity moves), then the chart, the main riff
+    and the sitar's part (`hook` in the song form, `head` in the gat form).
+
+    THE REQUEST (honour what is FIXED exactly; decide only what is OPEN):
+    {brief_context}
+
+    THE FORM BUDGET (code computed it from the request; the guardrail enforces it):
+    {form_budget}
+
+    THE USER'S OWN WORDS (verbatim):
+    {user_request}
+
+    THE FACTS YOU CHOOSE FROM (the single source of truth):
+    Ragas:
+    {raga_context}
+    Talas:
+    {tala_context}
+    Subgenres:
+    {subgenre_context}
+    Section kinds:
+    {section_kinds}
+    Form roles (the GAT form's places; the SONG form uses intro/breakdown/taan_long/tihai/outro
+    only where they fit):
+    {form_roles}
+    Layers (voices) per section:
+    {layer_roles}
+    THE RIFF PALETTE — per raga, the riff's home root, its HALF-STEP neighbours (one way to grind:
+    the power-chord shape moved a fret between them and back) and which roots carry a full
+    power chord:
+    {riff_palette}
+
+    WHAT TO WRITE:
+      - THE CHART (`chart`): the form ("gat" or "song" — a piece under about two minutes usually
+        lands harder as ONE idea developed, the song form), the sections with a one-line musical
+        `intent` and a `transition` each, the anchor, the ending, the harmony, the motif. Its
+        shape is the `draft` object below.
+      - THE MAIN RIFF (`main_riff`): ONE tala cycle of the riff that RECURS (the slot shared by the
+        most rhythm sections — normally "main"). It is the band's figure, something the drums lock
+        to and the ear recognises on return; which roots, how much it moves, its rhythm and its
+        register are yours. A riff is not the raga's scale walked up and down in power chords —
+        that is a melody. Write ROOTS and RHYTHM; code voices every bare stroke as a power chord
+        inside the raga.
+      - THE SONG FORM — THE HOOK (`hook`; leave `head` out): ONE avartan the sitar sings over the
+        main riff, recurring with it. Unmistakably THIS raga — quote, vary or only allude to its
+        pakad and chalan, in a shape of your own — singable, resolving on a resting swara of the
+        raga, its last note leading back into its first (it loops). In a riff_first piece it
+        QUOTES the main riff: sound the riff's swara on at least half of the riff's sam/tali beats.
+      - THE GAT FORM — THE HEAD'S IDEA (`head`; leave `hook` out): not the head's notes but what
+        makes it THIS head — a gat composer writes the notes from it next, with its whole
+        attention, beside the manjha and antara. Spend your effort on the idea:
+          * `sam_swara` — the swara that sounds ON every sam, struck "da": a strong arrival you
+            choose deliberately (real gats land the sam on Sa, Pa, Ma, even Re — not always Sa);
+          * `cell` — the few swaras of the core cell that recurs, from the raga's pakad and chalan
+            or alluding to them;
+          * `stroke_line` — the right hand, one token per matra of the avartan on the stroke frame
+            below (a bol word, chikari, or "-" where a note rings on): the head's rhythmic HOOK, as
+            recognisable clapped as sung — a gat played as plain notes sounds like a keyboard melody;
+          * `idea` — one line naming what the head is.
+        In a riff_first piece let the sam swara and the cell come from the riff's own swaras —
+        the composed head must sound the riff's swara on at least half its sam/tali beats.
+      - In a sitar gat the STROKE PATTERN is often the motif: a recurring bol figure can be what
+        the ear holds on to, as much as the swaras; where it fits, the riff's attacks can echo it.
+      - YOUR STARTING POINT: {approach}
+    {gat_strokes}
+      - Make the riff and the sitar's part ONE idea — how they relate is yours to decide, with
+        one fixed relationship: in a riff_first piece the head quotes the riff (that is what
+        riff_first means).
+
+    HARD RULES (only these get the seed rejected):
+      - The chart honours every FIXED value and the FORM BUDGET; every foreground is one of its
+        section's layers; every rhythm section names a `riff_slot`; 'intro' only on the first
+        section and 'outro' only on the last; 'taan_long' within the cap;
+        harmony roots are raga swaras and a progression has 2-4 roots ending on S; bpm within the
+        subgenre's range.
+      - GAT form: every section carries a `form_role`; 'mukhada' on at least two sections; the
+        intro meets the budget's minimum; every manjha sits after a mukhada and is immediately
+        followed by one that meets the budget's return minimum; at most one lead-less section,
+        at most 2 bars. SONG form: the main riff's slot on at least two sections; no section uses
+        mukhada/manjha/antara/amad.
+      - Every swara — chart motif, riff roots and chord tones, hook notes, graces and meend
+        targets — is in the chosen raga, and one-directional swaras are entered from their side.
+      - The main riff's durations (rests included) fill exactly one cycle; a palm-muted note is
+        a beat or shorter; slides and bends sit on single notes.
+      - SONG form: a `hook` that fills about one avartan, ends on a resting swara and does not end
+        on the note it opens with. GAT form: a `head` whose sam_swara and cell are swaras of the
+        raga.
+
+    THE OUTPUT — one SongSeed JSON object with five keys, in this order: "reasoning" (text),
+    "energy_arc" (text), "chart" (the draft object), "main_riff" (one riff cycle), and then the
+    sitar's part — "hook" (one lead phrase) in the song form, or "head" (the head's idea) in the
+    gat form.
+    The chart:
+    {chart_schema}
+    The main riff (one cycle):
+    {riff_schema}
+    The song form's hook (one phrase):
+    {phrase_schema}
+    The gat form's head idea:
+    {head_schema}
+  expected_output: |
+    A single SongSeed JSON object and nothing else — reasoning, energy_arc, chart, main_riff, and
+    the hook (song form) or the head idea (gat form) — every swara legal in the chosen raga.
+
+# The SEED DEBATE (crew/seed_debate.py). A debate turn is the compose_seed task with this block
+# appended (same facts, schemas and hard rules — never a second copy of the seed prompt), and its
+# own expected output. The selector is a separate, short task.
+debate_seed:
+  addendum: |
+
+    THE DEBATE — another composer answered the same request independently. Here are YOUR seed and
+    THE RIVAL'S seed — the notes, and code's measurements of both:
+    {debate}
+
+    Argue first (`argument`, 3-5 sentences): where the rival's seed is stronger than yours and
+    where yours is stronger, judged on the NOTES and the MEASUREMENTS — the gat's strokes and its
+    stroke motif, how the head lands on the sam, how the hook and the riff share accents and
+    attacks, whether it is unmistakably this raga, and whether it answers the request.
+    Then return YOUR seed (`seed`): revise it where the rival or the numbers persuaded you — take
+    a principle, never the rival's notes — and return it unchanged where yours is already the
+    stronger idea (`changed`: false). Do not merge the two ideas: your seed stays your own. Every
+    hard rule above still applies to it.
+  expected_output: |
+    A single DebateTurn JSON object and nothing else: "argument" (3-5 sentences), "changed"
+    (true or false), and "seed" — a SongSeed exactly as specified above.
+
+select_seed:
+  description: |
+    You are choosing the strongest MUSICAL IDENTITY for a Hindustani-raga x metal piece: a chart,
+    a main riff and the sitar's hook, written by composers who answered the same request. You
+    choose ONE; nobody merges them. The candidates are labelled 1 to {count}; their order and
+    labels carry no meaning, and neither does how much a composer wrote about its own idea.
+
+    WHAT THE USER ASKED FOR (verbatim):
+    {user_request}
+
+    THE CANDIDATES — each with its notes (the hook as swara:bol(beats), or a gat seed's head idea)
+    and code's measurements:
+    {candidates}
+
+    Judge the NOTES, with the measurements as evidence, on these five, in this order of weight:
+      1. A sitar gat head, unmistakably: the strokes carry it (bols on most notes, dir / dar
+         figures, a recurring stroke motif), and it lands its home swara on the sam.
+      2. A hook the ear keeps: one figure stated and answered, singable, recognisable on return.
+      3. The hook and the riff are ONE idea: they share accents and attacks, a register apart.
+      4. The raga is unmistakable: its pakad and chalan move the line, not its scale.
+      5. It answers the request.
+    Reason through each candidate on these points first, then choose.
+  expected_output: |
+    A single SeedChoice JSON object and nothing else: "reasoning" (each candidate weighed on the
+    five points), then "choice" — the label (1 to {count}) of the strongest candidate.
 
 # The Lead generator fills ONE section per call. It emits notes as swaras with
 # DURATIONS (not start times) — the arrangement code lays the phrase across the
@@ -197,8 +403,8 @@ compose_turn:
 # the final line asks for the composition AFTER the data (Gemini long-context guidance).
 generate_lead:
   description: |
-    You are the Lead — the raga's melodic voice, improvising in the Hindustani tradition. A
-    great phrase is not a run of fast notes; it takes a small idea and DEVELOPS it —
+    You are the Lead — the raga's melodic voice in the Hindustani tradition: you compose the gat
+    and improvise around it. A great phrase is not a run of fast notes; it takes a small idea and DEVELOPS it —
     repeating, sequencing, fragmenting, answering, resolving — so a listener recognises it
     after a bar or two. Compose ONE phrase for the single section described at the end. Emit
     notes as swaras with DURATIONS (no start times — the arrangement lays your phrase across
@@ -208,14 +414,13 @@ generate_lead:
     `notes` that REALISE that plan: the seed appears and returns, developed the way you
     described, tracing the contour you chose.
 
-    BUILD FROM THE RAGA, NOT THE SCALE — most of the phrase is the raga's own material:
-      - The phrase OPENINGS, the RESOLUTIONS and every phrase boundary are built from the
-        pakad and chalan (vakra / zig-zag) fragments below — that is where a listener hears
-        which raga this is. Connective passages may move more freely inside the grammar.
-        This, more than any other rule, is what makes it sound like the RAGA rather than a
-        scale; a line that merely paraphrases the pakad end to end is the opposite failure.
-      - OPEN with a RECOGNISABLE pakad/chalan fragment before you develop it, and return to
-        one at the cadence — the signature phrase should be heard often, not buried.
+    BUILD FROM THE RAGA, NOT THE SCALE — a listener should hear WHICH raga this is in how the
+    line moves:
+      - The pakad and chalan (vakra / zig-zag) fragments below are your material: quote them,
+        vary them or only allude to them where the raga should be heard — often where a phrase
+        begins or comes to rest — and let connective passages move freely inside the grammar.
+        A line that walks the scale loses the raga; one that paraphrases the pakad end to end
+        loses the idea.
       - DEVELOP the seed the way this music does: repeat it, FRAGMENT it, answer it, compress
         or stretch it rhythmically (layakari), move it to another octave, or shift where it
         comes to rest (nyas) — these are the raga's own devices and always safe.
@@ -223,51 +428,54 @@ generate_lead:
         supports that move. Marching one contour up through successive degrees is a Western
         device: it can be perfectly legal and still erase the raga, especially in a vakra
         raga whose zig-zag IS its identity. When in doubt, develop rhythmically instead.
-      - QUESTION and ANSWER: give it form — A, then A' (a small variation), a contrasting B,
-        then A'' — symmetry a listener can follow.
-      - Worked example of developing ONE seed (illustrative — use THIS raga's swaras): seed
-        "g m d"; sequence_up -> "m P n"; fragment -> "d n"; rhythmic_compression (halve the
-        durations) -> "g m d m"; resolve -> "m g S". One idea, many forms — never a new tune.
+      - QUESTION and ANSWER: give it form — a statement and its answer, a varied return —
+        shaped to your section's job below rather than to one fixed scheme.
       - DEVELOP ACROSS SECTIONS TOO: restate or vary the motif and your earlier phrases (your
         memory of the piece is below), ANSWER the previous section, and shape the whole arc —
         reserve the highest intensity for the climax.
 
-    NYAS AND SPACE — a gat BREATHES; neither a pause after every note nor every beat filled:
-      - LAND THE SAM: matra 1 of each cycle is the resting point — arrive on a strong note
-        (the vadi, Sa, or a m->S resolution) and let it RING or REST there (a nyas).
-      - Use 1-2 true RESTS per avartan (set "rest": true) for real silence — the space the
-        tabla and the gat share; rest on the raga's resting notes (Sa / Ma / Pa where the
-        raga has them).
-      - FAST RUNS ARE SIXTEENTHS, EARNED: an eighth-note pickup, then a burst of sixteenths
-        (dur 0.25), then a held or resolving note — the speed lands rather than blurs.
+    NYAS AND SPACE — the music BREATHES; neither a pause after every note nor every beat filled:
+      - LAND THE SAM: matra 1 of each cycle is the arrival — land on one of the raga's resting
+        swaras (the raga facts list them; not always Sa) and let it RING or REST there.
+      - Silence is a choice your section's job sets: true RESTS (set "rest": true) where the
+        phrase breathes, settling on the raga's resting notes. A gat head usually runs without
+        silence — its breath is a settle on a resting swara just before its approach.
+      - FAST RUNS LAND: where your section has a fast run, let it arrive on a held or resolving
+        note rather than blur — your section's job says how fast it goes and how it is shaped.
 
     ORNAMENTS AND STROKES — reserve them for where they SING; fast notes speak plainly:
       - grace: a short list of kan swaras flicked just before the main note.
       - meend_swara: a glide INTO a held note (at least a beat long) — the schema explains
         the mechanics; put it on sustained/resting notes and leave fast notes clean. Grace
         and meend swaras must be legal swaras of this raga.
-      - bol (the sitar's mizrab stroke — articulation on top; the rhythm is your durations):
-        mix "da" (strong) and "ra" (softer); "diri" for pairs and "darada" for triplets in
-        fast runs; "chikari" sparingly, to punctuate a phrase-end or answer the tabla. Give
-        the mukhada a short recurring bol signature and restate it on every return; vary
-        other cells by bol-bant (redistribute the bols, keep the melodic DNA).
+      - bol (the sitar's mizrab stroke): mix "da" (strong) and "ra" (softer) with the compound
+        figures — "dir", "rda", "dar", "dara", "dadir", "darada", "daradara" — whose strokes divide
+        the note in their ratios, at whatever length you give it; "chikari" sparingly, to
+        punctuate a phrase-end or answer the tabla. On the gat HEAD the right hand is planned
+        first (phrase_plan.stroke_line — see THE STROKE FRAME) and every note carries the bol
+        its matra asks for; vary other cells by bol-bant (redistribute the bols, keep the
+        melodic DNA).
       - ornament ("murki" delicate / "khatka" sharper): ONLY if the raga facts below list
         them (most ragas do NOT — the grave, meend-driven ragas use andolan/meend instead).
         Place on a HELD note (~half a beat+), favour the raga's komal swaras, a couple per
         phrase at most; code builds the cluster from the raga's own neighbours.
 
-    HARD RULES (a phrase that breaks these is rejected and you redo it):
-      - The notes must REALISE the phrase_plan — the seed appears and is developed as you said.
+    HARD RULES (only these get a phrase rejected — they make it legal and placeable):
       - Use only the raga's allowed swaras below — for the seed, each note, its grace, and its
         meend target. Sargam is S r R g G m M P d D n N (lowercase = komal/flat, M = tivra Ma).
       - Every note has a positive duration, in beats.
-      - Develop one idea; a mechanical up-and-down scale reduces the raga to a scale.
+      - Fill your window and land your seam: rests count toward the window exactly as notes
+        do (a deliberate silence IS part of the phrase); an overrun is truncated, and a phrase
+        that stops short of the window leaves an unplanned gap.
+    CRAFT (reported back, never a rejection): realise your phrase_plan — the seed appears and
+    develops as you said; develop one idea — a long mechanical up-and-down scale reduces the raga
+    to a scale. The craft in your section brief is guidance of the same kind.
 
-    YOUR SECTION'S JOB in the whole composition:
-    {role_brief}
+    From here down to YOUR SECTION'S JOB, everything is the same for every section of this
+    piece; the section you are composing now is described after it.
 
-    THE STROKE FRAME — the gat's bol identity (applies when your section is the head):
-    {bol_frame}
+    THE OUTPUT SHAPE — return a single LeadPhrase as JSON in exactly this shape:
+    {output_schema}
 
     THE RAGA — use ONLY these swaras; the pakad and chalan below are your raw material:
     {raga_block}
@@ -279,12 +487,26 @@ generate_lead:
       your octaves: 0 is home (madhya); -1 the lower (mandra), +1 the upper (taar). Roam
       across them the way a raga does — the arrangement already seats you above the riff.
 
+    THE SONG'S CORE IDEA (when the Composer seeded the piece, YOU wrote it — build on it):
+    {song_seed}
+
+    WHAT THE USER ASKED FOR (verbatim). The composers already turned it into the sections;
+    honour what it asks of the MELODY here — a motif to keep returning, how this section or
+    the piece should land. The raga and the section below take precedence where they differ:
+    {user_request}
+
+    YOUR SECTION'S JOB in the whole composition:
+    {role_brief}
+
+    THE STROKE FRAME — the gat's bol identity (applies when your section is the head):
+    {bol_frame}
+
     THE SECTION:
       kind: {section_kind}   gat role: {form_role}
       creative intent: {section_intent}
       the SEAM into the next section (the composers designed this handoff — shape your
       final notes to serve it): {section_transition}
-      length: compose WITHIN about {window_beats} beats. Do not fill time merely because it
+      length: compose WITHIN about {window_beats} beats{phrase_room}. Do not fill time merely because it
       is there — a held note and a deliberate silence are part of the phrase, not a gap in it.
 
     TALA POSITION — LAND ON THE SAM: {tala_position}
@@ -293,8 +515,9 @@ generate_lead:
     INTO it:
     {mukhada_head}
 
-    WHAT YOU ALREADY PLAYED (the lead's memory of the piece so far, octave in parentheses,
-    ~ marks a meend):
+    WHAT YOU ALREADY PLAYED (the lead's memory of the piece so far — each note is
+    swara(octave)/bol~meend-target:beats, the octave/bol/meend only where present; -:2 is a
+    two-beat rest):
     {previous}
 
     THE STUDIO SESSION — you compose this section WITH the band on a shared canvas. Your move
@@ -308,9 +531,8 @@ generate_lead:
     Based on everything above, compose this ONE section now — the phrase_plan first, then
     the notes that realise it.
   expected_output: |
-    A single LeadPhrase as JSON and nothing else — no prose, no code fences.
-    Use exactly this shape:
-    {output_schema}
+    A single LeadPhrase as JSON and nothing else — no prose, no code fences — in the shape shown
+    under THE OUTPUT SHAPE.
 
 # The WHOLE-GAT task: compose mukhada + manjha + antara as ONE object so they share a motif and a
 # planned register arc (Parikh's mukhada->manjha->antara). Braces live only in {gat_output_schema}.
@@ -318,7 +540,9 @@ generate_gat:
   description: |
     You are the gat composer for a Hindustani-raga x metal fusion. Compose the WHOLE gat as ONE
     coherent composition — the mukhada, manjha, antara and amad TOGETHER — sharing one motif and a
-    deliberate REGISTER ARC (Pandit Arvind Parikh's four-line model, spanning 2.5-3 octaves). A gat
+    deliberate REGISTER ARC (Pandit Arvind Parikh's four-line model: a full circuit can span 2.5-3
+    octaves, but how far each part reaches is this raga's and this piece's call — a raga that
+    lives low keeps its centre of gravity there). A gat
     is not separate tunes; it is one identity revealed across the registers, exactly as a musician
     conceives it.
 
@@ -328,6 +552,20 @@ generate_gat:
     THE MOTIF (your seed — quote/derive the mukhada from it and the raga's pakad): {motif}
     Metal feel: {subgenre_feel}    Tempo: {bpm} bpm    Tala: {tala}    One avartan = {cycle_beats} beats.
 
+    THE SONG'S CORE IDEA (when the Composer seeded the piece, YOU wrote it — build on it. When it
+    holds a hook, that hook IS the mukhada: copy it verbatim and compose the other parts around it.
+    When it holds the gat HEAD'S IDEA, the mukhada is yours to compose FROM it, with your full
+    attention: its first note the sam swara, its core cell recurring, the idea's stroke line as the
+    mukhada's stroke_line — refine it only where the melody truly asks):
+    {song_seed}
+
+    THE SOURCE — which voice seeds the mukhada (the composers' anchor):
+    {riff_source}
+
+    WHAT THE USER ASKED FOR (verbatim) — honour what it asks of the gat (a motif to recognise,
+    the character of the head); the raga and the rules below take precedence where they differ:
+    {user_request}
+
     THE STROKE FRAME — the mukhada's rhythmic identity (bols are strokes, not pitches):
     {bol_frame}
 
@@ -336,11 +574,12 @@ generate_gat:
 
     THE PARTS — compose EXACTLY these and no others: {parts_needed}
       - mukhada: the GAT HEAD — a compact, memorable ~one-avartan hook in the MADHYA (home) octave,
-        built ON THE PAKAD. Its FIRST note sounds ON the sam every avartan: make it Sa or the vadi,
-        struck "da". Land the LAST note on a resting swara, written to lead back into the FIRST (it
-        loops), and make the final ~5 matras a driving APPROACH into the next sam. Follow the
-        stroke frame above — sam struck "da", the dir doublings in place, most notes carrying a
-        bol. This is the identity the other parts develop; pour everything in.
+        shaped by the pakad and chalan. Its FIRST note sounds ON the sam every avartan: make it a
+        resting swara of the raga you choose deliberately (not always Sa), struck "da". Land the
+        LAST note on a resting swara, written to lead back into the FIRST (it loops), and make the
+        final ~5 matras a driving APPROACH into the next sam. Plan its stroke_line FIRST (the
+        stroke frame above), then write notes that play it, every note carrying its bol. This is
+        the identity the other parts develop; pour everything in.
       - manjha: the LOWER-REGISTER BRIDGE (Parikh — the manjha takes the melody DOWN into the
         mandra). SHORT (about one avartan), CALM: ONE spacious idea, longer nyas and meend, NOT a
         busy run. Keep the centre of gravity in the mandra / lower-madhya and do NOT climb into the
@@ -359,12 +598,12 @@ generate_gat:
     Fill each part's `phrase_plan` FIRST, then its `notes`. Return ONE Gat JSON:
     {gat_output_schema}
 
-    HARD RULES (a gat that breaks these is rejected and you redo it):
+    HARD RULES (only these get a gat rejected):
       - Use ONLY the raga's allowed swaras — every part, every note, each grace and meend target.
-      - The parts SHARE the anchor/motif — one composition, not unrelated tunes.
-      - Register arc: mukhada madhya; manjha centred in the mandra (NO taar); antara reaches the
-        taar; amad descends home.
       - Compose ONLY the parts listed in {parts_needed} (omit the others from the JSON).
+    CRAFT (reported back, never a rejection): the parts SHARE the anchor/motif — one composition,
+    not unrelated tunes; the register arc (mukhada madhya, manjha low, antara reaching the taar,
+    amad descending home) is the shape to aim for.
   expected_output: |
     A single Gat JSON object: an `anchor` string, `mukhada` always, and `manjha`/`antara`/`amad`
     only when listed in parts_needed — each a phrase_plan + notes using ONLY the raga's legal swaras.
@@ -382,9 +621,9 @@ generate_riff:
     times — the arrangement lays your cycle on the grid and REPEATS it across the
     section's {bars} bars, so write a tight figure that loops.
 
-    METHOD — fill `reasoning` FIRST: name your GROUND (the one low pitch you chug on and
-    keep returning to), which pakad fragment supplies the movement, where the cycle
-    breathes (the rests), and how you land the accents on the sam and the clapped matras.
+    METHOD — fill `reasoning` FIRST: name your HOME root and the ONE rhythmic cell you state
+    and restate, which pakad fragment supplies the movement, where the cycle breathes, and how
+    you land the accents on the sam and the clapped matras.
 
     THE SECTION:
       kind: {section_kind}
@@ -394,8 +633,8 @@ generate_riff:
       cycle's ending serve it): {section_transition}
       it repeats for {bars} bars (tala cycles).
 
-    THE TEXTURE MODE — {riff_mode}: how this section's guitar behaves (a deterministic
-    verifier enforces these budgets and sends a miss back to you with the exact failure):
+    THE TEXTURE MODE — {riff_mode}: how this section's guitar behaves (a guide, not a quota —
+    nothing is rejected for texture; your ear for the groove decides):
       {mode_brief}
 
     THE RAGA — use ONLY these swaras (the riff must stay legal): {allowed}
@@ -414,6 +653,17 @@ generate_riff:
       techniques you may imply: {techniques}
       tempo: {bpm} bpm
 
+    THE SONG'S CORE IDEA (when the Composer seeded the piece, YOU wrote it — build on it):
+    {song_seed}
+
+    WHO PLAYS IT — playability:
+    {playability}
+
+    WHAT THE USER ASKED FOR (verbatim) — honour what it asks of the RHYTHM GUITAR: its feel,
+    its anchor note, its subdivisions, what a human player must be able to play. The raga,
+    the texture mode and the cycle take precedence where they differ:
+    {user_request}
+
     THE CYCLE — one {tala} cycle is {cycle_beats} beats. Land strong notes on the
     accented beats so the riff locks to the kick: {accents}. Your first note is the
     sam (beat 0) — hit it hardest.
@@ -423,7 +673,7 @@ generate_riff:
     REFINE, you tighten your riff against the finished ensemble. Read the canvas:
     {canvas}
 
-    THE SITAR'S GAT HEAD — when this is a mukhada section, your riff REDUCES it:
+    THE RIFF AND THE SITAR'S GAT HEAD — one idea, and which of you seeds it:
     {mukhada_line}
 
     THE RIFFS YOU ALREADY WROTE (the memory of the piece so far, octave in parentheses,
@@ -437,25 +687,29 @@ generate_riff:
     where you deliberately depart; then a later section can return to the main riff.
 
     SHAPE IT TO ITS GAT ROLE ({form_role}) — the riff's job in the composition:
-      - mukhada: the main low-string HOOK — palm-muted chugs on Sa and the raga's dark low
-        swaras, a small gallop cell, and enough SPACE (rests) for the gat/sitar to speak.
+      - mukhada: the main HOOK under the gat — your own figure, with enough SPACE (rests) for the
+        gat/sitar to speak.
       - manjha: SIMPLER than the mukhada — the gat's low, calm bridge; settle onto ringing
         chordal support (keep the riff's DNA in the chord roots) and leave the space to the
         lead's quiet low line.
       - antara: lift the register and OPEN up — wider power chords, less palm-muting, ringing.
       - breakdown: simplify to heavy, sparse, tala-aligned power-chord hits (a tihai-cell feel).
-      - taan_short / taan_long: thin out and hold back — the melodic taan leads; hold long
-        ringing chords under it (a resonant platform, not a pulse).
+      - taan_short: thin out and hold back — the short taan leads; hold ringing chords under it.
+      - taan_long (THE CLIMAX): keep DRIVING — the band pushes harder as the sitar's taan gets
+        more virtuosic. Simplify the HARMONY (stay on one root; code collapses the climax onto a
+        pedal), never the rhythm: full chug density, accents on the sam and talis.
       - intro / outro / tihai: sparse — set up or settle; a tihai is a figure stated thrice to the sam.
 
-    GROUND AND MOVEMENT (this is what makes a riff instead of a melody) — almost every
-    metal riff ALTERNATES two roles; write both, and know which each note is:
-      - GROUND: repeated palm-muted strokes on ONE low pitch (usually Sa). This is the
-        default texture — after every figure, COME BACK to it. A Lamb of God riff can sit
-        on one note; the groove carries it.
-      - MOVEMENT: a short 2-4 note figure from the pakad (a gallop long–short–short
-        0.5 0.25 0.25, a 3-3-2 grouping 0.75 0.75 0.5, a hammer-on answer) — then back
-        to the ground. Movement is earned, never continuous.
+    HOME AND MOVEMENT (this is what makes a riff instead of a melody) — a riff circles a
+    HOME root and its identity is RHYTHMIC. Many ways work; choose what the section needs:
+      - a PEDAL: palm-muted strokes on your HOME root, figures answering it —
+        a Lamb of God riff can sit on one note; the groove carries it.
+      - a SHUFFLE: two roots a half or whole step apart traded in a driving rhythm — the
+        power chords do the work. This raga's HALF-STEP neighbours, the darkest version:
+      {half_steps}
+      - a CELL: a short 2-4 note figure from the pakad (a gallop long–short–short
+        0.5 0.25 0.25, a 3-3-2 grouping 0.75 0.75 0.5, a hammer-on answer) restated.
+      What does NOT work is running up and down the scale — that is a melody.
       - ATTACK vs RESONANCE: follow a chug run with silence or a ringing chord before the
         next gesture — that alternation IS the heaviness.
       - RESTS: at least one intentional rest per cycle — the gap is where the tabla and
@@ -498,9 +752,12 @@ generate_riff:
         note/chord on the next sam. Write it so the LAST note/chord RESOLVES into the FIRST —
         a catchy riff feels like it LANDS on the downbeat, not like it restarts. Shape the end
         as a turnaround leading back to the root, never a jarring jump.
-      - Your GROUND is Sa (or this riff's root) on the low string; RETURN to it constantly
-        — most metal riffs repeat one pitch far more than they change pitch. A few raga
-        notes for colour, never a scale run.
+      - The raga's resting root is {home_root} — a natural home; how often the riff returns there
+        is your call. A scale run is a melody, not a riff.
+      - Choose roots that carry WEIGHT. In this raga:
+      {power_roots}
+        A root with a full power chord hits hardest; reach for an octave-only root for colour,
+        not as the ground.
       - Match the subdivision: long crushing notes for a slow doom feel, short 8th/16th
         durations for a gallop or tremolo.
       - Durations are in beats: 0.25 = 16th, 0.5 = 8th, 1 = quarter, and they should sum
@@ -509,36 +766,29 @@ generate_riff:
         back up so the guitar never sinks into the bass register); use oct 0 as home and
         +1 for a lifted answering figure.
 
-    VOICING (this is what makes it sound like a metal guitar, not a bass) — STRICT RAGA, every
-    sounding tone stays inside the grammar:
-      - A "chord" is extra raga SWARAS sounded WITH the root, each stacked at the lowest octave
-        ABOVE it — a raga swara stacked up, NOT a fixed interval. For power-chord WEIGHT add the
-        note's OWN swara (root "g" + ["g"] = root+octave); ["P"] adds Pa — a true perfect FIFTH
-        only above the tonic Sa, and whatever raga interval Pa sits at above another root; ["g","n"]
-        is a raga-colour voicing. Every chord swara MUST be an allowed raga swara — the same
-        legality as the root. Chord the strong, accented notes (the sam and the tali) for weight;
-        leave passing notes single for movement.
-      - POWER WEIGHT IS THE DEFAULT: on accents reach for the root's OWN swara (the octave)
-        or P (the fifth) — that is the dark, heavy metal sound. The BRIGHT colours (a second
-        or third over the root — they voice as add9/tenth) make the riff light and happy:
-        ration them to at most ~2 per cycle, and skip them entirely when the mood is dark.
+    VOICING — CODE DOES IT. Write ROOTS and RHYTHM and leave `chord` EMPTY: code voices every
+    bare stroke as a power chord inside the raga — root + fifth + octave, or root + fourth +
+    octave where the raga has no fifth over that root (the inverted power chord, just as heavy).
+    So every stroke already sounds like a metal guitar; you never need to stack it yourself.
+      - Write a `chord` only for a deliberate COLOUR voicing — extra raga swaras sounded with the
+        root (e.g. ["g","n"]), each an allowed swara. The BRIGHT colours (a second or third over
+        the root — they voice as add9/tenth) make the riff light and happy: a rare spice, and
+        none at all when the mood is dark.
+      - A note carrying a slide, bend or hammer-on stays a single note (a chord cannot bend).
 
-    REPAIR (when your previous take failed the deterministic texture verifier):
+    REPAIR (when your previous take failed one of the hard rules below):
     {repair}
 
-    HARD RULES (a riff that breaks these is rejected and you redo it):
-      - Use ONLY the raga's allowed swaras above — for BOTH the roots AND every chord tone.
-        Sargam: S r R g G m M P d D n N. (A rest sounds nothing, so its swara is ignored.)
+    HARD RULES (only these get a riff rejected — they are what makes it playable at all):
+      - Use ONLY the raga's allowed swaras above — for BOTH the roots AND any chord tone you
+        write. Sargam: S r R g G m M P d D n N. (A rest sounds nothing, so its swara is ignored.)
       - Every note needs a positive duration in beats; the durations (rests included) fill one cycle.
-      - GROUND: most of the cycle sits on ONE low pitch, and you never leave it for more than
-        3 notes running — a movement figure is 2-4 notes and then you COME BACK.
-      - palm_mute belongs on strokes of a beat or less. Anything meant to ring is struck OPEN.
+      - palm_mute belongs on strokes of a beat or less — a mute cannot sustain. Anything meant
+        to ring is struck OPEN.
       - Pitch gestures (slide, long_slide, pick_scrape, bend) go on SINGLE notes with an empty
-        chord list, at most one plain slide per cycle — most cycles want none.
-      - ACCENT a chug run: vary `vel` across it (lean on the sam and the tali) so it sounds
-        like a picking hand rather than a drum machine.
-      - Respect the texture mode's budgets above — a cycle that misses them comes back to you
-        with the exact failures listed.
+        chord list.
+    Everything else above is craft, not law. One more piece of craft: ACCENT a chug run (vary
+    `vel`, leaning on the sam and the tali) so it sounds like a picking hand, not a drum machine.
   expected_output: |
     A single RiffPattern as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
@@ -592,6 +842,10 @@ compose_orchestra:
       your octaves: 0 is the strings' home; +1 up, -1 down. Code seats a full string spread
       around it (low strings an octave under), so think in the raga's register, not absolute pitch.
 
+    WHAT THE USER ASKED FOR (verbatim) — honour what it asks of the orchestra and of the
+    piece's build; the raga and the sections below take precedence where they differ:
+    {user_request}
+
     THE SECTIONS TO SCORE (emit one entry per section below, by its index; skip any section
     not listed here — those do not use the orchestra). Each shows the lead and riff you must
     weave around:
@@ -610,58 +864,30 @@ compose_orchestra:
     Use exactly this shape:
     {output_schema}
 
-# Ustad's task: judge legality by CALLING the tool, then EXPLAIN. He never declares
-# the verdict himself — code derives it from the same deterministic check — so his
-# output carries only reasoning + explanation. No literal braces here; the JSON
-# shape arrives via {output_schema}.
-assess_legality:
-  description: |
-    You are Ustad, judging whether this finished composition stays legal in raga
-    {raga}. Legality is NOT a matter of taste or of your ear — it is fixed by the
-    raga's grammar, and the validate_composition tool is the authoritative check.
 
-    METHOD:
-      1. Call the validate_composition tool first — trust it over any hunch. It returns
-         every illegal note as a list (an empty list means the piece is fully legal), so
-         let its result, not your ear, decide what you report.
-      2. Fill `reasoning`: state what the tool returned (how many violations, in which
-         voices) — your read of its result.
-      3. Write `explanation`: a short, clear account for a musician. If the tool found
-         violations, name the offending swara(s), the voice (layer) each sits in, and
-         what raga {raga} admits in its place (the tool's reason spells out the allowed
-         swaras). If it found none, confirm the piece is clean and keeps the raga.
-
-    THE RAGA — the single source of truth for what is legal here:
-    {raga_facts}
-
-    THE COMPOSITION UNDER REVIEW (the voices present; call the tool for the details):
-    {composition_summary}
-
-    GROUND YOUR ACCOUNT:
-      - Call validate_composition and make your explanation match what it returns.
-      - Report what the tool found and leave the ruling to it — the verdict is derived
-        from the check, so describe the violations rather than declaring "legal"/"illegal".
-      - Return only the fields asked for.
-  expected_output: |
-    A single UstadNarration as JSON and nothing else — no prose, no code fences.
-    Use exactly this shape:
-    {output_schema}
-
-# Rasik's task: judge TASTE on a fixed rubric, grounded in encoded raga facts and a
-# code-computed pakad hint. Unlike Ustad, the LLM owns the verdict here (taste is not
-# checkable) — so the discipline is in the rubric and the required per-criterion
-# justification, not in code overriding the result. No literal braces; the JSON shape
-# arrives via {output_schema}.
+# Rasik's task: the raga CONSULTANT — judge the lead's raga authenticity on a fixed rubric,
+# grounded in encoded raga facts and a code-computed pakad hint, then suggest at most three
+# lead edits. The LLM owns this judgment (taste is not checkable); the discipline is in the
+# rubric and the per-criterion justification. No literal braces; the JSON shape arrives via
+# {output_schema}.
 assess_taste:
   description: |
-    You are Rasik. Your one question about the MELODIC LINE of this composition in raga
-    {raga}: does it sound like the raga? — not whether it is legal (Ustad's job) or whether
-    it works as a song (the Producer's job), only the raga authenticity of the melody.
-    Legality is a fact; this is your judgment — but you judge against criteria, not vibes.
+    You are Rasik, the raga consultant. Your one question about the MELODIC LINE of this
+    composition in raga {raga}: does it sound like the raga? — not whether it is legal (code
+    checks that) or whether it works as a song (the Producer's call), only the raga
+    authenticity of the melody. You judge against criteria, not vibes, and then you CONSULT:
+    you name the few edits to the lead that would raise it most.
 
     Judge the lead line below and nothing else. The guitar, bass and orchestra are not shown
-    to you and are not yours to score: their notes are kept legal by code, and how they sit
-    under the melody is the Arranger's job. Score what you can actually hear here.
+    to you and are not yours to score or to change: their notes are kept legal by code.
+
+    THE TEST you are really applying: could a listener name this raga from the line's
+    MOVEMENT and ORNAMENT alone — with no accompaniment, and without being told its notes?
+    A phrase earns nothing for merely using permitted swaras; it earns its score by how the
+    raga's characteristic swaras are approached, held, swayed and resolved, by where the line
+    lives (its register), and by whether its motif develops and returns. Do not demand
+    ornament on every note, and do not ask a metal arrangement to become a classical form —
+    prefer the targeted edit that keeps what already works.
 
     THE RAGA — its encoded character, the single source of truth you judge against:
     {raga_facts}
@@ -673,26 +899,44 @@ assess_taste:
     figure across a whole piece is the scale wearing the raga's notes:
     {motion}
 
+    THE ALAP — when the lead line opens with an intro section, judge it AS an alap, inside the
+    same three scores: would its melody alone reveal the raga, with the drone and the band
+    removed? Does each phrase establish, answer or develop the one before, or are they
+    unrelated? Is the ornament part of a gesture (a swara approached, held, swayed, left the
+    raga's way) or an effect on a passing note? Does it live in the raga's register? Do its
+    long notes and silences have a purpose? Does its last phrase lead into the gat? An alap
+    that only shows the raga's notes slowly earns a low idiom score, and it is a fair target
+    for one of your suggestions (name its section).
+
     GROUNDING — a fact computed for you, so your pakad score is anchored rather than
     guessed (a phrase can be evoked without a literal quote — judge that with your ear):
     {pakad_hint}
 
-    THE LEAD LINE — the melodic voice, in order (octave in parentheses when not 0):
+    THE LEAD LINE — the melodic voice, in order, by section. Octave in parentheses when not 0;
+    (X) before a swara = a kan touch of X; {X} = a left-hand gesture out to X and back on one
+    stroke; <>X = one stroke of a GAMAK swinging with X; ~ = an andolan; >X = a meend into X; [n] = held n beats (notes shorter than a
+    beat show no length):
     {lead_line}
+
+    WHAT THE USER ASKED FOR (verbatim) — context, not a new criterion. Where it asks
+    something of the raga's character (a motif to recognise, a mood), hold the line to it
+    inside pakad, idiom and rasa; the rest of it is not yours to judge:
+    {user_request}
 
     Based on the raga facts, the pakad grounding, and the lead line above, score the
     piece now.
 
     METHOD — fill `reasoning` first: go criterion by criterion (pakad, idiom, rasa) and
     for each cite the evidence for the score you will give — quote the lead phrase, name
-    the chalan movement or the ornament, cite the vadi. Then commit `scores` and write `notes`.
+    the chalan movement or the ornament, cite the vadi. Then commit `scores`, write `notes`,
+    and list your `suggestions`.
 
     THE RUBRIC — score each an integer 1-5, and let these anchors set the boundaries:
       pakad — is the raga's signature phrase present?
               1 the pakad is absent or contradicted; 3 it is evoked or partly quoted;
               5 it is stated clearly and returned to as the line's anchor.
-      idiom — does the line move like the raga (its chalan, its ornaments, the vadi
-              emphasized, expressive rather than scalar)?
+      idiom — does the line move like the raga (its chalan, its ornaments and approaches,
+              its register, the vadi emphasized, expressive rather than scalar)?
               1 a mechanical up/down scale; 3 mostly in-idiom with some scalar filler;
               5 idiomatic throughout — characteristic phrases, ornaments, vadi weighted.
       rasa  — does the music serve the raga's emotional essence (its rasa and samay)?
@@ -710,23 +954,31 @@ assess_taste:
         low score rather than a flattering one.
       - `notes` is a short (2-3 sentence) critique a musician can act on.
       - Return only the fields asked for.
+
+    YOUR SUGGESTIONS — at most THREE, the edits that would raise the raga authenticity most:
+      - each names a `section` (its number in the lead line above), the `change` to the LEAD
+        in that section, and `why` in the raga's terms (the pakad, a nyas, an ornament, the
+        chalan's direction);
+      - concrete and actionable in one pass: "end the phrase on komal dha, held", "open with
+        the pakad r-r-S", "an andolan on komal re where the phrase rests", not "be more
+        authentic";
+      - lead only — never the riff, the drums, the form or another voice;
+      - when the line already sounds like the raga, return an empty list.
   expected_output: |
     A single RasikVerdict as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
     {output_schema}
 
-# The Producer's task: judge COMPOSITION QUALITY — the songwriting/arrangement craft, raga-
-# AGNOSTIC. The third critic dimension (Ustad=legality, Rasik=raga, Producer=song). Like
-# Rasik it is LLM-as-judge disciplined by a fixed rubric + a required per-criterion
-# justification, but grounded in the whole symbolic SCORE (structure, motif, riff, lead,
-# ensemble), not just the lead. (Chunk B adds code-computed metrics as grounding.) No
-# literal braces; the JSON shape arrives via {output_schema}.
+# The Producer's task: judge COMPOSITION QUALITY (songwriting/arrangement craft) and DECIDE —
+# the one judge with authority since the 2026-10-11 redesign. Grounded in the whole symbolic
+# SCORE, the computed metrics and friction counts, and Rasik's consultation; returns accept or
+# ONE revision plan. No literal braces; the JSON shape arrives via {output_schema}.
 assess_composition:
   description: |
-    You are the Producer — the musical director. Your one question: does this finished
-    piece work as a song? — not its legality (Ustad's job) or its raga authenticity
-    (Rasik's); you are raga-agnostic and judge songwriting and arrangement craft: shape,
-    build, hook, balance.
+    You are the Producer — the musical director, and the one judge with the final say. Your
+    question: does this finished piece work as a song? Legality is checked by code, and the
+    raga's authenticity has been judged by Rasik, your raga consultant (below); you judge
+    songwriting and arrangement craft — shape, build, hook, balance — and then you DECIDE.
 
     THE SUBGENRE — the intended feel the piece must hold (for mood_fit):
     {subgenre_facts}
@@ -750,8 +1002,25 @@ assess_composition:
 
     MEASURED FACTS — code computed these numbers for you; you judge what they mean, you do
     not recompute them. (A high motif_share is not automatically bad — too high means the
-    lead never develops the motif, too low means it abandoned it; you decide.)
+    lead never develops the motif, too low means it abandoned it; you decide.) Read the score
+    as it will SOUND: the sitar is a plucked string, so a note fades a few beats after its
+    stroke and a long held note is heard as silence, however melodic it looks on the page.
+    "audible lead per section" measures exactly that — judge the lead's presence from it
+    rather than from note lengths. (A starved lead spotlight is reworked by code before you are
+    consulted again; your job is to score it honestly.)
     {metrics}
+    {friction}
+
+    THE RAGA CONSULTATION — Rasik's scores for the melodic line's raga authenticity and the
+    lead edits Rasik suggests (section numbers match THE STRUCTURE):
+    {consultation}
+
+    WHAT THE USER ASKED FOR (verbatim). Judge whether the piece delivers what it asks of
+    the SONG — its form, how the ideas develop, its climax, its ending — inside the criteria
+    each ask touches (structure, motif, climax, hook, mood_fit, ...). An ask the piece
+    ignores is a weakness in that criterion; cite it. Asks about files or deliverables are
+    not yours:
+    {user_request}
 
     Based on the whole score above, rate the songwriting now.
 
@@ -765,7 +1034,7 @@ assess_composition:
       climax       — 1 every section equally intense; 3 a mild peak; 5 an earned peak and a real resolution.
       motif        — 1 stated once or never; 3 repeated but not developed; 5 introduced, varied and resolved.
       hook         — 1 forgettable, unloopable riff that never returns; 3 serviceable; 5 a memorable, loopable riff with a strong downbeat that RECURS as the song's hook.
-      balance      — 1 every voice at full throughout; 3 mostly balanced; 5 real space, the lead given room.
+      balance      — 1 every voice at full throughout, or the lead silent where it should lead; 3 mostly balanced; 5 real space, and the lead given room AND heard filling it (high audible lead in its spotlight sections).
       independence — 1 the lead just doubles the riff; 3 some overlap; 5 each voice its own line. (A bass locking to the riff root is normal metal craft — do not dock it for that.)
       mood_fit     — 1 breaks the subgenre mood; 3 mostly holds it; 5 holds the mood start to finish.
       repetition   — 1 nothing recurs OR every section identical; 3 some return; 5 the hook (a recurring riff slot) and the motif reinforced across sections without monotony.
@@ -780,159 +1049,29 @@ assess_composition:
         curve and ornament rate, motif in motif_share, hook and structure in the riff form —
         riff_recurrence (does the main riff RETURN?) and riff_variety — repetition in
         riff_recurrence, motif_recurrence and section_variety, independence in the lead/riff
-        and bass/riff and drums/tabla overlaps, balance in the register overlaps and
-        everyone-playing fraction). When your score departs from a number, say why.
-      - Judge the song, not the raga — a raga choice is Rasik's lane, so score what the
-        music earns and leave the raga to Rasik.
+        and bass/riff and drums/tabla overlaps, balance in the register overlaps, the
+        everyone-playing fraction and the audible lead per section). When your score departs
+        from a number, say why.
+      - Score the song, not the raga — the raga's authenticity is Rasik's score above.
       - `notes` is a short (2-3 sentence) critique a musician can act on.
+
+    YOUR DECISION — `decision` is "accept" or "revise":
+      - ACCEPT when the piece works and no single change would clearly make it better. A
+        revision re-composes the named sections of one voice (naming the mukhada re-writes the
+        head everywhere it returns); spend it only on a real improvement. Asking for the same
+        edit twice without the scores rising ends the loop.
+      - REVISE with ONE `plan`: the `voice` whose fix would improve the music most (lead, riff
+        or orchestra), the `sections` to rework (the numbers THE STRUCTURE shows, from 0; empty = everywhere
+        it plays), the `instruction` (what to change, concretely — a generator acts on it), and
+        `preserve` (what must survive: the hook, the main riff's rhythm, the mukhada, a section
+        that already lands). Only the named sections are rewritten.
+      - When the music works and the raga is the weakest link, ADOPT one of Rasik's lead
+        suggestions as the plan (voice "lead", its section, its change).
       - Return only the fields asked for.
   expected_output: |
     A single ProducerVerdict as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
     {output_schema}
 
-# The two AESTHETIC critics SHARE one debate-turn template (their differing bias lives in
-# the agent backstories, not here — exactly as the composers share compose_turn). Ustad
-# does NOT debate: the piece is already legal, so its legality is a settled FACT quoted as
-# evidence, not a chair. Filled per turn from the Flow-owned debate state in
-# crew/conductor.py. No literal braces; the JSON shape arrives via {output_schema}.
-debate_turn:
-  description: |
-    You are {critic}, one of TWO critics in a BOUNDED debate refereed by the Conductor.
-    The piece is already LEGAL (that is settled — not up for debate); now you argue whether
-    it should be ACCEPTED as-is or REVISED for another pass. This is turn {turn_no} of at
-    most {max_turns} — the Conductor rules when the clock runs out, so make your case count.
 
-    THE TWO SIDES (a genuine aesthetic disagreement):
-      - Rasik argues from RAGA SOUL — a legal piece can still fail the raga: the pakad
-        absent, the line merely scalar, the rasa thin. When that is so, it deserves a pass.
-      - The Producer argues from the SONG — does it work as music: the arc, the hook, the
-        motif's development, the balance. A piece that lands as a song can ship, and a
-        revise chasing more raga-idiom can flatten a drive that already works.
 
-    PACING (important): hold your core concern on turn 1 — defend it first and make the
-    other side earn any concession, which you give only for a genuinely decisive point and
-    only later in the debate. Argue your own dimension and stay in your lane (Rasik: the
-    raga, not songwriting; Producer: the song, not the raga).
-
-    METHOD — fill `reasoning` FIRST (your read of the other side and the evidence), then
-    `argument` (your point), `stance`, and `target_layer`.
-
-    THE VERDICTS (Ustad's legality is a FACT, not a debater):
-      Ustad (legality, settled): {ustad_summary}
-      Rasik (raga authenticity): {rasik_summary}
-      Producer (composition quality): {producer_summary}
-      Flagged below the line: {flagged}
-
-    THE COMPOSITION:
-      raga: {raga}
-      voices present: {voices}
-      the lead line: {lead_line}
-
-    THE DEBATE SO FAR:
-    {transcript}
-
-    YOUR TASK THIS TURN:
-      - Make your argument in ONE or two sentences, in character (Rasik: pakad, idiom,
-        rasa; Producer: structure, motif, hook, balance, the song's arc).
-      - Set `stance` to "accept" or "revise".
-      - If your stance is "revise", set `target_layer` to the ONE voice to regenerate
-        (e.g. "lead", "rhythm") — the most impactful fix, not a list.
-  expected_output: |
-    A single DebateTurn as JSON and nothing else — no prose, no code fences.
-    Use exactly this shape:
-    {output_schema}
-
-# The Conductor's ruling — the referee's final call. It MUST rule now (the clock has
-# run out); legality is already enforced by code, so this is an aesthetic judgment.
-# No literal braces; the JSON shape arrives via {output_schema}.
-arbitrate:
-  description: |
-    You are the Conductor — the referee with a clock. Rasik and the Producer have debated
-    whether this composition should be accepted or revised, and now YOU make the final
-    call. Rule now: the debate is over, so commit to a decision this turn.
-
-    Legality is non-negotiable and is already enforced by code, so your call is an
-    aesthetic one: soul versus works-as-music. Is Rasik's case that the raga needs more
-    soul, or the Producer's case that the songwriting needs work, strong enough to justify
-    another pass — or does the piece already land well enough to ship? A revise costs time,
-    so spend it only when it will clearly make the music better; otherwise accept and move on.
-
-    MATCH THE REPAIR TO THE FAULT. Some complaints are about a PART being weak, and those
-    want that part composed again. Others are about how the parts SIT TOGETHER — and
-    regenerating a good voice to fix a relationship throws away work and re-rolls the dice
-    on the same problem. Pick the operation that addresses what the critics actually said.
-
-    METHOD — fill `reasoning` FIRST (weigh the two sides against the evidence), then rule.
-
-    THE VERDICTS:
-      Ustad (legality, settled): {ustad_summary}
-      Rasik (raga authenticity): {rasik_summary}
-      Producer (composition quality): {producer_summary}
-      Flagged below the line: {flagged}
-
-    THE DEBATE:
-    {transcript}
-
-    THE REPAIRS YOU MAY CALL FOR:
-    {operations}
-
-    YOUR RULING:
-      - `directive`: "accept" or "revise".
-      - If "revise": `operation` = one of the repairs above, and `reason` = a SHORT
-        surgical directive the performer of that repair can act on (WHAT to fix, e.g.
-        "state the raga's pakad and lean on the vadi", or "a catchier, more varied riff
-        built on one restated hook") — concrete enough to act on, not a vague "improve it".
-      - If "accept": `reason` = one line on why the piece is good enough to ship.
-  expected_output: |
-    A single ConductorRuling as JSON and nothing else — no prose, no code fences.
-    Use exactly this shape:
-    {output_schema}
-
-# The Arranger's per-section decision. The prompt carries NO raga facts and NO legality
-# rules on purpose: every offered repair is already legal (code built the menu), so adding
-# grammar would invite the model to re-derive a decision it cannot improve. One task = one
-# objective = one output: pick a repair per clash.
-arrange_against_lead:
-  description: |
-    The guitar and the sitar have each been composed well on their own, and in this section
-    they fight in a few places. Decide what to do about each one.
-
-    THE SECTION — kind: {section_kind}; gat role: {form_role}
-
-    WHAT TO AIM FOR:
-      - Under a HELD melody note the guitar holds a FLOOR. The listener is following the
-        sitar there, so the guitar's job is weight and steadiness — simplify rather than
-        argue: drop a colour tone, keep the root, damp the note to a percussive touch.
-      - Under a STABLE note there is more room; a fuller repair can wait if the clash is
-        brief and the guitar is about to move anyway.
-      - Harmony that moves because the TUNE moved is what makes chords feel random. When a
-        root change is flagged as chasing, holding the previous root usually sounds more
-        intentional — the floor stays put while the melody travels over it.
-      - Friction is not a fault. Keep a clash that sounds deliberate: a bite against a fast
-        line, a moment of tension going into a climax. "keep" is a real answer, and a
-        section where you keep one or two clashes usually sounds more alive than one you
-        have sanded smooth.
-
-    THE CLASHES — each is numbered, with the repairs available for it. Choose ONE repair
-    per clash, by its exact id:
-    {findings}
-
-    WHAT EACH REPAIR DOES:
-      - damp: the guitar note loses its chord, shortens to a chug and softens — the clash
-        becomes a percussive touch instead of a sustained grind.
-      - drop_tone:X — the chord keeps its root and loses just the tone that fights.
-      - reseat_riff:X — the guitar's root moves to X, which sits consonantly under the
-        melody there.
-      - hold_root:X — the guitar stays on X instead of changing root mid-phrase.
-      - reseat_lead:X — the melody note moves to X. The melody is the piece here, so this
-        is offered only where the guitar carries the section; prefer it only when the
-        guitar's figure is clearly the identity and the melody note is incidental.
-      - keep: change nothing.
-
-    Give your reasoning first — say what the melody is doing in this section and what the
-    guitar should therefore be doing under it — then one choice per clash.
-  expected_output: |
-    A single ArrangerDecision as JSON and nothing else — no prose, no code fences.
-    Use exactly this shape:
-    {output_schema}

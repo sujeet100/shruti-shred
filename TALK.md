@@ -584,6 +584,26 @@ convincing than a hypothetical.)*
   research it and encode it as checkable geometry; don't ask the model to rediscover it.
   *Line:* "Vilayat Khan's catchiness was an algorithm all along — we just had it backwards."
 
+- **We built the Debator pattern properly — and the evidence said "not yet" (2026-10-12).** The
+  multi-agent-debate literature (Du et al. 2023; Liang et al. 2023; ChatEval) suggests composers
+  that hear and argue with each other should beat one composer. We tested it fairly: SINGLE seed
+  (1 call) vs BEST-OF-4 (6 calls) vs DEBATE (2 independent seeds, one round of argument over the
+  notes AND code's measurements, an order-swapped selector — 6 calls), three prompts, rendered as
+  short auditions, ranked BLIND by Sujit, twice. Result: debate beat best-of-4 3 times in 6 (a coin
+  flip); the single seed scored the most points in BOTH rounds; and to Sujit's ear "all variants
+  sound good enough". Three findings beat the headline: (1) the drafts barely differed (hooks up to
+  83% alike, identical bol patterns) — debate needs DIVERSE starting ideas and the model writes the
+  same hook four times; (2) the LLM judge flipped its choice when the order was swapped in 4 of 6
+  selections — position bias, so code's tie-break chose most "winners"; (3) every debater revised
+  toward the MEASURED numbers (riff-accent match 0% -> 100%) — show an agent a metric and it
+  composes to the metric (Goodhart). Measuring the drafts then exposed the real ceiling: the
+  PROMPTS were steering every seed (31/31 gat form, 23/31 the example's contour, 30/31 hooks
+  opening on four one-beat notes — the "keyboard melody" Sujit heard). Decision (Sujit): keep the
+  single Composer; revisit debate once the gat composition itself is rich enough to vary.
+  *Lesson:* a pattern only helps when its premise holds — measure the premise (here: diverse
+  candidates) before paying for the pattern. Agrees with Smit et al., ICML 2024 ("Should we be
+  going MAD?"). *Line:* "Two composers arguing over the same idea is one composer with a bigger bill."
+
 ## Anticipated Q&A
 
 - **"Isn't the validator doing the real work, not the AI?"** Exactly the point —
@@ -679,3 +699,107 @@ about what the tradition "should" do, and every one was corrected by a real piec
 you encode a domain you do not practise, your rules will be confidently, plausibly, and
 invisibly wrong until a practitioner hears the output. Build for that, and keep the refutation
 as the test.
+
+### The prompt that never reached the band (2026-10-11) — the lossy handoff
+
+Sujit wrote a careful brief for the talk's opening piece: 60 seconds, Bhairav in E, teentaal
+at 128, a tihai landing on the sam, the lead ending on upper Sa over a low-Sa hit, and a rhythm
+part he could play live himself. Then he asked a simple question: *do the agents even see my
+prompt?*
+
+They did not. The Interpreter turned it into a structured brief, and every agent after it saw
+only that brief. Five of his asks survived, because they matched a field: raga, key, tala,
+tempo, subgenre. Everything else had nowhere to go, and one ask came out inverted: "I will play
+rhythm guitar live" landed in `instruments`, which the composers are told to *honour*.
+
+The fix is two channels for one intent. The structured brief stays: it is what code can
+**enforce** (a legal raga, a real tala, a length in avartans). Next to it, the user's words now
+travel **verbatim**, copied by code so nothing paraphrases them, to every agent that makes a
+musical decision, each told what the words mean for its own job and what wins when they
+disagree. And the asks that were really *capabilities*, a length, an ending, a playable riff,
+became code: a form budget the guardrail checks, a final stroke the band lands together, and a
+fretboard model that rejects a riff a human cannot play at 128 bpm.
+
+*The lesson:* **a structured handoff is a compression, and a compression loses whatever the
+schema did not anticipate.** Keep the schema for what you can check, and pass the original
+intent alongside it for what you cannot.
+
+### The decision nobody executed (2026-10-11) — a plan field the pipeline ignored
+
+The composer agents make one big structural call for every piece: the **anchor**. Either the
+sitar's gat is the source and the guitar riff is boiled down from it (`gat_first`), or the riff
+is the source and the sitar's head sings its strong notes (`riff_first`). It sat in the
+contract, the composers reasoned about it, and the trace showed them choosing `riff_first` with
+care. Nothing downstream read it. The pipeline always composed the sitar first and told every
+riff it was a reduction of the head, so half the composers' decisions were silently overruled
+by the order of two lines of code.
+
+The tempting fix was a prompt line: pass the anchor to the riff and say "you are the source".
+That would have been a lie, because the gat it was supposedly seeding already existed. The real
+fix was to let the decision change the *orchestration*: the source voice runs first, code reads
+the riff's accented notes (the swaras on the sam and the claps), the gat is shown them, and a
+verifier checks that the head actually sings at least half of them on the same beats.
+
+*The lesson:* **an agent's decision only counts if something downstream changes because of it.**
+Audit every field your planner emits and ask what reads it; a field nothing reads is a decision
+the model is making for an audience of no one.
+
+### The verifier that would have rejected the best riff (2026-10-11) — rules age
+
+When the bare single call beat our pipeline on riffs, the obvious question was why our
+carefully verified riffs were thin. The answer was in our own guardrail. The winning riff was a
+half-step power-chord shuffle, Sa to komal re, E5 to F5, the darkest move a raga riff has. Our
+verifier required 55% of notes on one ground pitch (it had 48%) and capped pitch changes at 55%
+(it changed root on 82% of strokes). It would have been rejected twice, re-rolled, and replaced
+with something more like what we shipped: 71% single chugs on Sa.
+
+Those thresholds were not careless. They were calibrated in July on real failures, when the model
+wrote busy low melodies and called them riffs. But the model moved on (requests now appear to be
+served by a newer Flash) and the rules did not. We tried to replace the cap with a smarter
+statistic and the data refused: on four real renders, no pitch measure separated a riff from a
+melody. So the rule stopped being a rule. Code now rejects only what is physical (a palm mute
+cannot sustain, a chord cannot bend, the loop must land on the sam) and everything about taste is
+reported to a judge.
+
+*The lesson:* **a guardrail calibrated against a model's weakness becomes a ceiling when the model
+improves.** Keep hard checks for what is actually true about the world, and re-baseline the rest
+against a single unconstrained call every time the model changes.
+
+### Deleting agents (2026-10-11) — the decomposition was the bug
+
+We spent months adding agents: a composer dialogue, a gat composer, a lead, a riff, a studio
+session, three critics, a debate, a conductor, an arranger. Then one bare model call, asked for a
+one-minute song, wrote a better riff than the whole system. Not better raga (it broke the raga 92
+times), but better metal: power chords on every stroke, a half-step shuffle, a climax that grew.
+
+Measuring why took an afternoon and every answer pointed the same way. The riff, the hook and the
+form are one idea, and we had split them across agents that never shared a context. Our verifiers
+were tuned to an older model's failures and now rejected the best riff we had. Our critics debated
+two opinions that were already on the table, then accepted the weaker song. An agent narrated a
+verdict that code had already computed.
+
+So the redesign removed more than it added: one Composer owns the music, code owns only what is
+genuinely true (the raga's notes, the loop, the physics of a guitar), one judge decides, and a
+second judge — the ear — is measured before it is trusted.
+
+*The lesson:* **split agents where the information or the judgment genuinely differs, never where
+the job titles differ.** And keep a single unconstrained call as your control: the day it beats
+your system, your decomposition is the bug.
+
+### The fact we only told the model (2026-10-12) — knowledge that never reached the sound
+
+An outside review of a Darbari render (GPT, reading the MIDI) said the hook "sounds like metal
+using Darbari's notes, not Darbari": the komal Ga and Dha were short and bare, and the climax bent
+every note the same way. Checking it against our own data was humbling. The raga file already
+says how Darbari's Ga is approached (a touch of Re rising, of Ma falling) and warns that "a
+straight g/d turns it into plain Asavari". That fact was correct, sourced and encoded, and it
+went exactly one place: a sentence in the lead prompt, which the model mostly ignored. The bends
+were worse, because they were ours. A code pass gave every climax note the same up-shake,
+including the two swaras the raga defines by their slow sway.
+
+Code now applies the approach from the data on every held Ga and Dha, keeps the climax shake off
+the swaras that sway, and places the tihai's last note on the sam, which is arithmetic, not taste.
+
+*The lesson:* **knowledge in your data is not knowledge in your output until something applies
+it.** If a fact is deterministic, telling a model about it is a hope, not a mechanism. Trace each
+fact to the place where it acts on the output, and when no such place exists, give it one.

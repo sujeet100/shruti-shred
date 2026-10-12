@@ -22,18 +22,56 @@ re-roll pattern, not re-prompted vaguely.
 Scope discipline: these check TIME/structure, which is CHECKABLE — never gat/taan taste (that
 stays with Rasik/Producer). They never judge whether a cell is *good*, only whether it satisfies
 the structural grammar of its role.
+
+HARD vs CRAFT (2026-10-11, DESIGN.md "THE REDESIGN"). The "rigid constraints" lesson above held
+for a weaker model; the same experiment that showed our riff verifier rejecting the best riff
+showed these rules acting as ceilings. Each `check_*` now returns a `CellChecks`: HARD faults
+(the cell does not fill its window or land its seam, breaks the raga's direction/nyas grammar,
+walks a taan up or down the bare scale, asks a held chikari, misses the riff_first quote) drive
+the bounded re-roll; CRAFT notes (pulse, rests and silence shares, phrase counts, register arcs,
+motif discipline, density, ornament density, pakad statement) are REPORTED on the cell's event
+for the judges. `verify_*` returns the HARD list only.
 """
 
 from __future__ import annotations
 
-from collections import Counter
-
+from dataclasses import dataclass
+from math import ceil
 from typing import Final
 
-from crew.contracts import LeadNote, LeadPhrase
-from gats import GAT_FRAMES
-from chalan import ang_matches, longest_scalar_run
-from raga import RAGAS, direction_violations, SWARAS
+from crew.anchor import RiffAccent, render_accents
+from crew.contracts import HeadIdea, LeadNote, LeadPhrase
+from gats import BOL_WORDS, GAT_FRAMES, STROKE_HOLD, bol_onsets, is_compound, stroke_line_attacks
+from chalan import ang_matches, octave_span, scalar_runs
+from raga import REGISTER, RAGAS, SWARAS, direction_violations, nyas_problem, resting_swaras
+
+@dataclass(frozen=True)
+class CellChecks:
+    """A cell's verdict, split the way the riff verifier is (DESIGN.md "THE REDESIGN").
+
+    `hard` = what makes the cell BROKEN — it does not fill its window or land its seam, it breaks
+    the raga's grammar (direction, a sourced nyas), it asks an articulation to do what it cannot
+    (a held chikari), or it misses the riff_first quote it owes. Only these drive a paid re-roll.
+    `craft` = the taste recipe (pulse, rests, phrase counts, register arcs, motif discipline,
+    density...) — calibrated against an older model's failures, so REPORTED on the cell's event
+    for the judges, never re-rolled."""
+    hard: tuple[str, ...] = ()
+    craft: tuple[str, ...] = ()
+
+    def __add__(self, other: CellChecks) -> CellChecks:
+        return CellChecks(self.hard + other.hard, self.craft + other.craft)
+
+
+def hard_only(violations: list[str]) -> CellChecks:
+    """Lift a plain violation list (a check that is HARD by nature) into a `CellChecks`."""
+    return CellChecks(hard=tuple(violations))
+
+
+def _cadence_bucket(swara: str, raga: str, hard: list[str], craft: list[str]) -> list[str]:
+    """Where a "should end on Sa" complaint belongs: HARD when the final note is not one of the
+    raga's sourced resting notes (grammar), CRAFT when it rests legally but not on Sa (taste)."""
+    return hard if swara not in _resting_swaras(raga) else craft
+
 
 # A mukhada should fill about ONE avartan so it loops as a cycle. Too short == a fragment; well
 # over the cycle == a phrase code has to truncate (cutting off its own cadence). Bounds are
@@ -46,6 +84,11 @@ _MIN_NOTES_FLAT: Final = 3
 # full notes — the long note IS the nyas/rest point, the 8ths are the movement between them; the
 # render's quarters-and-halves head read as a metronome): at least this many distinct note
 # values, including one long resting value and one short moving value.
+# RHYTHM — REVERSED TWICE, now the composer's (Sujit, 2026-10-12: "let the LLM decide matra
+# density ... saying 1 note per matra will oversteer it"). The steady-pulse floor below was
+# removed: with the prompt's "ONE note value / one swara per matra is idiomatic", 30 of 31
+# generated heads opened on four one-beat notes and the Darbari gat crawled at one note per
+# second. Only the held nyas (`_MUKHADA_LONG`) remains. The history, for the record:
 # SINGABILITY, and the rule that was BACKWARDS (Sujit, 2026-09-14, with the gats he is
 # learning and Vilayat Khan's notated Bageshree gat). A gat head's memorability comes from
 # rhythmic REGULARITY, not variety: `m m g g R R S S | n D n n S g m —` moves one swara per
@@ -59,8 +102,9 @@ _MIN_NOTES_FLAT: Final = 3
 # generated head that prompted the rule sat at 31%; a real gat sits near 95%; and a head that
 # must also carry the bol frame's dir doublings (two fast notes in specific matras) lands
 # around 36-40%, so a tighter floor would reject heads that are doing everything else right.
-_MUKHADA_PULSE_SHARE: Final = 0.35  # one note value must carry at least this much of the head
 _MUKHADA_LONG: Final = 2.0          # ...and it still RESTS somewhere: one half-note+ nyas
+# A riff_first head must sound the riff's swara on at least this share of its accented beats.
+_QUOTE_SHARE: Final = 0.5
 
 # Intro/alap — the diagnosed failure: random wandering that never resolves to Sa, with no space.
 # Structure research-verified (2026-07-15, the AOCHAR — the short pre-gat alap; sources in
@@ -94,7 +138,17 @@ _INTRO_PLUCK_MAX_OCT: Final = -1    # the between-phrase Sa pluck sits in the ma
 # CLUSTERING Sa instead of composing phrase -> Sa -> silence. So the sentence structure is now
 # checkable: the alap is several SHORT INDEPENDENT phrases (rest-separated), each exploring then
 # landing on Sa, and Sa is a LANDING between phrases — never a sustained/repeated wall.
-_INTRO_MIN_PHRASES: Final = 3       # at least this many rest-separated phrases (musical sentences)
+_INTRO_MIN_PHRASES: Final = 3       # at least this many rest-separated phrases (musical sentences)...
+_INTRO_MIN_PHRASES_SHORT: Final = 2  # ...but a SHORT window holds two: asking three of a ~10-beat
+_INTRO_ROOMY_WINDOW: Final = 16.0    # alap is what crammed a taan into it (2026-10-11 render)
+# The alap's RHYTHM (2026-10-11 render, Sujit: "messed up in spacing and rhythm"): durations of
+# 0.4 and 0.12 beats knocked every later note off the grid the arpeggio keeps, compound strokes split
+# notes into 32nds, and quick steps made most of the line. Quick steps stay legal — the brief asks
+# for rhythmic contrast — but as a minority, on the grid, one stroke per note.
+_INTRO_GRID: Final = 0.25            # every alap duration is a whole number of sixteenths
+_INTRO_QUICK: Final = 0.5            # a sounding note shorter than this is a QUICK step...
+_INTRO_QUICK_SHARE_MAX: Final = 0.35 # ...and quick steps are at most this share of the notes
+_INTRO_COMPOUND_BOLS: Final = frozenset(w for w in BOL_WORDS if is_compound(w))  # gat figures
 _INTRO_MAX_SA_RUN: Final = 3.0      # no mid-alap run of consecutive Sa longer than this (the held close is exempt)
 # A CHIKARI IS A STROKE. The chikari strings are struck to fill an empty matra — played in
 # time like any other note, then gone (Sujit, 2026-09-14). Written long it stops being
@@ -114,11 +168,20 @@ _INTRO_MOTIF_MAX: Final = 5         # ...and at most this many (a kernel, not a 
 _INTRO_ANCHOR_LEN: Final = 2        # each phrase carries at least this opening fragment of the motif
 _INTRO_OPEN_SPAN: Final = 7         # semitones: the FIRST phrase stays a narrow fragment around home
 _INTRO_PEAK_MIN_POS: Final = 0.5    # the intro's highest note arrives past this fraction (badhat)
-# A meend is an ORNAMENT — and the render anchors it on its TARGET, so a meend note is HEARD
-# at the target, not the written swara. The 2026-07-16 render put a meend on ~100% of alap
-# notes (all toward Sa): the whole exposition audibly collapsed onto one repeated note. The
-# audible-line checks catch that collapse; this cap names the cause in the feedback.
-_INTRO_MEEND_MAX_SHARE: Final = 0.5
+# ORNAMENT DENSITY — ornaments speak by CONTRAST against plain notes. A meend is an ornament,
+# and the render anchors it on its TARGET, so a meend note is HEARD at the target, not the
+# written swara: the 2026-07-16 render put a meend on ~100% of alap notes (all toward Sa) and
+# the exposition collapsed onto one repeated note; the 2026-10-11 alap again glided on nearly
+# every note and flicked a murki on every one. Measured over the MELODY notes of any lead cell
+# (chikari and the Sa pluck cannot carry either). CRAFT, never hard: how much to ornament is
+# the player's taste, and the audible-line checks already catch the collapse it causes.
+#   * meend <= 40%: a glide marks an arrival or a nyas approach — one or two in a 4-6 note
+#     phrase is the idiom; past ~2 in 5 the glide is the default articulation, not an event;
+#   * murki/khatka <= 25%: a flick is an ACCENT on an important note (light-classical when it
+#     is everywhere) — at most about one note in four, so the flicked notes still stand out.
+_MEEND_MAX_SHARE: Final = 0.4
+_FLICK_MAX_SHARE: Final = 0.25
+_ORNAMENT_MIN_NOTES: Final = 5      # below this many melody notes a share is noise, not a habit
 
 
 def _real_meend(note: LeadNote) -> bool:
@@ -128,6 +191,29 @@ def _real_meend(note: LeadNote) -> bool:
         return False
     target_oct = note.meend_oct if note.meend_oct is not None else note.oct
     return (note.meend_swara, target_oct) != (note.swara, note.oct)
+
+
+def _ornament_density_notes(notes: list[LeadNote], cell: str) -> list[str]:
+    """CRAFT notes when a cell ornaments so many notes that ornament stops being an event
+    (empty == the ornaments still stand out against plain notes). Pure."""
+    melody = _melodic(notes)
+    if len(melody) < _ORNAMENT_MIN_NOTES:
+        return []
+    notes_out: list[str] = []
+    meends = sum(_real_meend(n) for n in melody)
+    if meends > _MEEND_MAX_SHARE * len(melody):
+        notes_out.append(
+            f"{meends} of {len(melody)} notes in the {cell} carry a meend — ornaments speak by "
+            f"CONTRAST, and a meend note is HEARD at its target, so over-meending collapses the "
+            f"line onto the targets. Keep meend to at most {_MEEND_MAX_SHARE:.0%} of the notes "
+            f"(a glide INTO an arrival or a nyas) and let the rest sound their own swara plainly")
+    flicks = sum(n.ornament is not None for n in melody)
+    if flicks > _FLICK_MAX_SHARE * len(melody):
+        notes_out.append(
+            f"{flicks} of {len(melody)} notes in the {cell} carry a murki/khatka — ornaments "
+            f"speak by CONTRAST: a flick on every note is a texture, not an accent. Keep them to "
+            f"at most {_FLICK_MAX_SHARE:.0%} of the notes, on the ones the phrase leans on")
+    return notes_out
 
 # Manjha / taan-fill seam — "fluid" made checkable: the cell's last note sits within this many
 # scale-degrees of the mukhada's first swara, so the head re-enters as a step, not a leap.
@@ -141,6 +227,7 @@ _SEAM_MAX_STEPS: Final = 2
 # stroke): the goal is an identity, not a transcription exam.
 _BOL_MIN_COVERAGE: Final = 0.5     # at least this share of sounding notes carry a bol
 _FRAME_MIN_DOUBLES: Final = 2      # (razakhani) at least this many dir double-attack matras
+_LINE_MIN_MATCH: Final = 0.75      # below this share of matched matras, the notes left the planned stroke line
 
 # Amad (Parikh's FOURTH line): the composed descent that "brings you down to the point where
 # the composition started". Checkable: net descent, no re-peak (a descent may eddy, never
@@ -188,10 +275,50 @@ _TAAN_LANDING_MAX: Final = 1.0      # ...but may land on one longer resolving no
 
 
 def _resting_swaras(raga: str) -> set[str]:
-    """The swaras a mukhada may cadence onto — Sa (always a nyas) plus the raga's vadi/samvadi.
+    """The swaras a cell may cadence onto — the raga's researched NYAS set (`raga.NYAS`).
     Landing here is how the head resolves to the sam and loops cleanly."""
-    r = RAGAS[raga]
-    return {"S", r["vadi"], r["samvadi"]}
+    return resting_swaras(raga)
+
+
+# NYAS ENDINGS (2026-10-11). A phrase that comes to REST — its last melody note followed by a
+# real silence — must rest on one of the raga's nyas swaras, honouring the direction-only rests
+# (Bhairav's re and Bageshree's ga rest only coming down). What is NOT checked, deliberately:
+# the note on the sam (a Bageshree bandish Sujit is learning lands its sam on Re, not a nyas)
+# and a long hold mid-phrase (Parrikar: elongation is not resting — Darbari's andolit ga).
+_NYAS_REST_BEATS: Final = 1.0       # a silence this long ends a phrase; shorter is a breath inside it
+_NYAS_MAX_REPORTED: Final = 3
+
+
+def _resting_phrase_endings(notes: list[LeadNote]) -> list[tuple[LeadNote, LeadNote | None]]:
+    """(ending note, the melody note before it) for every phrase followed by a real silence.
+    Punctuation (chikari, the mandra-Sa pluck) never ends a phrase; the cell's final note is
+    not followed by silence here, so the cell's own cadence rules own it."""
+    out: list[tuple[LeadNote, LeadNote | None]] = []
+    melody: list[LeadNote] = []
+    for n in notes:
+        if n.rest:
+            if n.dur >= _NYAS_REST_BEATS and melody:
+                out.append((melody[-1], melody[-2] if len(melody) > 1 else None))
+            continue
+        if n.bol != "chikari" and not _is_sa_pluck(n):
+            melody.append(n)
+    return out
+
+
+def nyas_violations(notes: list[LeadNote], raga: str) -> list[str]:
+    """Phrase endings that rest somewhere this raga does not rest. Pure."""
+    found: list[str] = []
+    for end, before in _resting_phrase_endings(notes):
+        from_below = (None if before is None or _landing_pitch(before) == _landing_pitch(end)
+                      else _landing_pitch(before) < _landing_pitch(end))
+        problem = nyas_problem(raga, _landing_swara(end), from_below)
+        if problem:
+            found.append(problem)
+    if not found:
+        return []
+    shown = "; ".join(list(dict.fromkeys(found))[:_NYAS_MAX_REPORTED])
+    return [f"{len(found)} phrase(s) come to rest on the wrong swara before a silence — {shown}. "
+            f"End each phrase that pauses on a nyas of the raga"]
 
 
 def _sounding(notes: list[LeadNote]) -> list[LeadNote]:
@@ -280,7 +407,7 @@ def reentry_swara(mukhada: LeadPhrase, from_beat: float) -> str | None:
     return _first_swara(mukhada)
 
 
-def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[str]:
+def check_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> CellChecks:
     """Return the mukhada head's TIME-legality violations (empty == a clean hook). Pure.
 
     Four checks the pitch guardrail can't make, each targeting a diagnosed failure of the first
@@ -291,15 +418,17 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
         head resolves to the sam and the loop seam lands rather than restarts;
       * NOT RHYTHMICALLY FLAT — the durations vary (the diagnosed failure was a gat of even quarter
         notes; a hook needs a rhythmic shape).
-    A non-empty result drives a bounded RE-ROLL of the head in `generate_lead` — an early, local
-    repair, distinct from the late global critique loop.
+    HARD (re-rolled): the fill, the resting cadence, the loop seam (a head ending on its opening
+    note blurs the sam code loops it onto), the sourced nyas. CRAFT (reported): the pulse share
+    and the long-note rest — taste tuned on an older model (see `CellChecks`).
     """
     notes = cell.notes
     sounding = _sounding(notes)
     if not sounding:
-        return ["the mukhada has no sounding notes — it must state a melodic head"]
+        return CellChecks(hard=("the mukhada has no sounding notes — it must state a melodic head",))
 
-    viol: list[str] = []
+    hard: list[str] = []
+    craft: list[str] = []
     # THE SAM NOTE IS NOT A SHORT LIST. This used to require Sa, the vadi or the samvadi, and
     # Sujit's own repertoire refutes it: Vilayat Khan's Yaman gat lands its sam on PA (neither
     # Sa nor Yaman's vadi G nor its samvadi N), a Bageshree bandish he is learning lands on
@@ -310,29 +439,21 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
     resting = _resting_swaras(raga)
     total = sum(n.dur for n in notes)
     if total < _FILL_MIN * cycle_beats:
-        viol.append(f"the mukhada fills only {total:g} of {cycle_beats:g} beats — a fragment, not a "
+        hard.append(f"the mukhada fills only {total:g} of {cycle_beats:g} beats — a fragment, not a "
                     f"one-avartan head; fill about one full cycle so it loops on the sam")
     elif total > _FILL_MAX * cycle_beats:
-        viol.append(f"the mukhada runs {total:g} beats, well over the {cycle_beats:g}-beat avartan — "
+        hard.append(f"the mukhada runs {total:g} beats, well over the {cycle_beats:g}-beat avartan — "
                     f"keep the head to about one cycle or it gets truncated mid-phrase")
 
     last = sounding[-1]
     landing = _landing_swara(last)   # a chikari sounds taar Sa (a resting note)
     if landing not in resting:
-        viol.append(f"the mukhada ends on {last.swara}, not a resting swara "
+        hard.append(f"the mukhada ends on {last.swara}, not a resting swara "
                     f"({' '.join(sorted(resting))}) — cadence to the sam so the head lands and loops")
 
     durations = [round(n.dur, 4) for n in sounding]
-    pulse, count = Counter(durations).most_common(1)[0]
-    if len(sounding) >= _MIN_NOTES_FLAT and count < _MUKHADA_PULSE_SHARE * len(sounding):
-        viol.append(f"the mukhada has no steady PULSE — its commonest note value covers only "
-                    f"{count / len(sounding):.0%} of the head (need >= "
-                    f"{_MUKHADA_PULSE_SHARE:.0%}). A gat is SUNG: it moves at one pulse, with "
-                    f"paired strokes (two notes in a matra, 'dara') as its subdivision and a "
-                    f"held nyas to rest on. Clap the rhythm on one pitch — if it is not "
-                    f"recognisable that way, the head has no identity yet")
     if not any(d >= _MUKHADA_LONG for d in durations):
-        viol.append(f"the mukhada has no long note (>= {_MUKHADA_LONG:g} beats) — the head "
+        craft.append(f"the mukhada has no long note (>= {_MUKHADA_LONG:g} beats) — the head "
                     f"RESTS somewhere (a nyas on a half/full note) before it moves again")
     # The loop is judged on the MELODIC cadence: a chikari is a stroke struck after the phrase
     # has landed, so it neither hides nor supplies the return.
@@ -340,31 +461,85 @@ def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[s
     if melodic and len(melodic) > 1 and (
             (_landing_swara(melodic[-1]), _landing_oct(melodic[-1]))
             == (_landing_swara(melodic[0]), _landing_oct(melodic[0]))):
-        viol.append(f"the head ends on the same note it opens with "
+        hard.append(f"the head ends on the same note it opens with "
                     f"({_landing_swara(melodic[-1])}), "
                     f"so the two merge across the loop and the SAM DISAPPEARS — the returning "
                     f"cycle must be audible. Cadence to a different resting swara and let the "
                     f"opening note re-enter (…m g R S | m m g g…)")
 
-    return viol
+    hard += nyas_violations(cell.notes, raga)
+    craft += _ornament_density_notes(cell.notes, "mukhada")
+    return CellChecks(tuple(hard), tuple(craft))
 
 
-def _double_attack_matras(notes: list[LeadNote]) -> set[int]:
-    """The 1-indexed matras (1 matra == 1 beat) carrying a DOUBLE attack — a 'dir': either two
-    or more sounding notes starting within the matra, or one note there whose bol is itself a
-    compound stroke (diri/darada — `apply_strokes` splits those into multiple attacks)."""
-    starts: dict[int, int] = {}
+def verify_mukhada(cell: LeadPhrase, *, cycle_beats: float, raga: str) -> list[str]:
+    """The mukhada's HARD faults only — what drives a re-roll. `check_mukhada` adds the
+    reported craft notes."""
+    return list(check_mukhada(cell, cycle_beats=cycle_beats, raga=raga).hard)
+
+
+def _sounding_swara_at(notes: list[LeadNote], beat: float) -> str | None:
+    """The swara the head SOUNDS at `beat` of its avartan (its landing swara), None in a rest."""
+    t = 0.0
+    for note in notes:
+        if t <= beat < t + note.dur:
+            return None if note.rest else _landing_swara(note)
+        t += note.dur
+    return None
+
+
+def riff_quote_share(cell: LeadPhrase, accents: list[RiffAccent]) -> float:
+    """The share of the riff's accented roots the head SOUNDS on their beats (1.0 with no accents)
+    — the measure behind `verify_riff_quote`, reported for any anchor. Pure."""
+    if not accents:
+        return 1.0
+    return sum(_sounding_swara_at(cell.notes, a.beat) == a.swara for a in accents) / len(accents)
+
+
+def verify_riff_quote(cell: LeadPhrase, accents: list[RiffAccent]) -> list[str]:
+    """Return the violation when a `riff_first` mukhada fails to QUOTE the riff (empty == it
+    does). Pure.
+
+    The head must sound the riff's swara on at least half of the riff's accented beats (the
+    sam and talis where the riff plays). Half, not all: the sitar sings a melody over the
+    riff's skeleton, and a head forced onto every accent would be the riff transcribed, not
+    sung. An accent the head rests through counts as a miss — the listener hears no quote."""
+    if not accents:
+        return []
+    quoted = sum(_sounding_swara_at(cell.notes, a.beat) == a.swara for a in accents)
+    needed = ceil(len(accents) * _QUOTE_SHARE)
+    if quoted >= needed:
+        return []
+    return [f"the piece is riff_first, but the mukhada quotes only {quoted} of the riff's "
+            f"{len(accents)} accented roots ({render_accents(accents)}) — sound those swaras on "
+            f"those beats (at least {needed}, the sam above all) so the head is heard as the "
+            f"riff sung"]
+
+
+def stroke_onsets(notes: list[LeadNote]) -> list[float]:
+    """Every pluck's start, in matras from the cell's start: a note is one pluck, a compound bol
+    as many as its stroke figure (`gats.bol_onsets` — the same timing the renderer plays)."""
+    onsets: list[float] = []
     t = 0.0
     for n in notes:
         if not n.rest:
-            matra = int(t + 1e-6) + 1
-            attacks = 2 if n.bol in ("diri", "darada") else 1
-            starts[matra] = starts.get(matra, 0) + attacks
+            figure = bol_onsets(n.bol, n.dur) if n.bol in BOL_WORDS else [(0.0, n.dur, "da")]
+            onsets.extend(t + offset for offset, _, _ in figure)
         t += n.dur
+    return onsets
+
+
+def _double_attack_matras(notes: list[LeadNote]) -> set[int]:
+    """The 1-indexed matras (1 matra == 1 beat) carrying a DOUBLE attack — a 'dir': two or more
+    plucks starting within the matra, whether two fast notes or one note's compound bol."""
+    starts: dict[int, int] = {}
+    for onset in stroke_onsets(notes):
+        matra = int(onset + 1e-6) + 1
+        starts[matra] = starts.get(matra, 0) + 1
     return {m for m, count in starts.items() if count >= 2}
 
 
-def verify_bol_frame(cell: LeadPhrase, *, cycle_beats: float, frame: str) -> list[str]:
+def check_bol_frame(cell: LeadPhrase, *, cycle_beats: float, frame: str) -> CellChecks:
     """Return the mukhada head's STROKE-FRAME violations (empty == it has a bol identity). Pure.
 
     The 2026-07-20 gat research finding: the stroke pattern is what makes a gat a gat (Parikh:
@@ -380,11 +555,12 @@ def verify_bol_frame(cell: LeadPhrase, *, cycle_beats: float, frame: str) -> lis
     """
     sounding = _sounding(cell.notes)
     if not sounding:
-        return []                       # verify_mukhada owns the degenerate-cell complaint
+        return CellChecks()             # check_mukhada owns the degenerate-cell complaint
 
-    viol: list[str] = []
+    hard: list[str] = []
+    craft: list[str] = []
     if sounding[0].bol != "da":
-        viol.append("the head's first note is not struck 'da' — it sounds ON every sam, and "
+        craft.append("the head's first note is not struck 'da' — it sounds ON every sam, and "
                     "the gat frame lands its arrival stroke there strong; set bol \"da\" on it")
 
     doubles = _double_attack_matras(cell.notes)
@@ -394,22 +570,103 @@ def verify_bol_frame(cell: LeadPhrase, *, cycle_beats: float, frame: str) -> lis
                     if m > GAT_FRAMES[frame]["mukhda_start"] - 1]      # the dir's in the mukhda span
         missing = [m for m in approach if m not in doubles]
         if missing:
-            viol.append(f"the {GAT_FRAMES[frame]['display']} approach needs a dir DOUBLE stroke "
+            craft.append(f"the {GAT_FRAMES[frame]['display']} approach needs a dir DOUBLE stroke "
                         f"on matra(s) {' '.join(map(str, missing))} (the dir-da-dir-da-ra surge "
-                        f"into the next sam) — put two fast notes, or one note with bol "
-                        f"\"diri\", starting in each of those matras")
+                        f"into the next sam) — put a note with bol \"dir\" (or two fast notes) "
+                        f"in each of those matras")
     elif len(doubles) < _FRAME_MIN_DOUBLES:
-        viol.append(f"the head has {len(doubles)} dir doubling(s) — a "
+        craft.append(f"the head has {len(doubles)} dir doubling(s) — a "
                     f"{GAT_FRAMES[frame]['display']} gat drives on double strokes: at least "
-                    f"{_FRAME_MIN_DOUBLES} matras with two fast notes (or a \"diri\" bol)")
+                    f"{_FRAME_MIN_DOUBLES} matras with a \"dir\" (or two fast notes)")
 
     with_bol = sum(1 for n in sounding if n.bol is not None)
     if with_bol < _BOL_MIN_COVERAGE * len(sounding):
-        viol.append(f"only {with_bol} of {len(sounding)} notes carry a mizrab bol — the stroke "
+        craft.append(f"only {with_bol} of {len(sounding)} notes carry a mizrab bol — the stroke "
                     f"pattern is the gat's identity: give most notes their da/ra (dir doublings "
                     f"where the frame asks), so the head has a rhythm signature, not just pitches")
 
-    return viol
+    return CellChecks(tuple(hard), tuple(craft))
+
+
+def _attacks_per_matra(notes: list[LeadNote], matras: int) -> list[int]:
+    """How many plucks the notes start in each matra of the avartan (1 matra == 1 beat). Pure."""
+    counts = [0] * matras
+    for onset in stroke_onsets(notes):
+        matra = int(onset + 1e-6)
+        if 0 <= matra < matras:
+            counts[matra] += 1
+    return counts
+
+
+def stroke_line_match(cell: LeadPhrase, *, cycle_beats: float) -> tuple[list[int], int] | None:
+    """Where the notes leave the head's planned stroke line: (the 1-indexed matras whose pluck count
+    differs from the line's, the matra count). None when there is no line to compare — absent,
+    holding a token that is no stroke, or not one token per matra. Pure."""
+    line = cell.phrase_plan.stroke_line
+    matras = round(cycle_beats)
+    if not line or len(line) != matras:
+        return None
+    planned = [stroke_line_attacks(t) for t in line]
+    if None in planned:
+        return None
+    played = _attacks_per_matra(cell.notes, matras)
+    return [i + 1 for i, (p, a) in enumerate(zip(planned, played)) if p != a], matras
+
+
+def check_stroke_line(cell: LeadPhrase, *, cycle_beats: float) -> CellChecks:
+    """The head's RIGHT HAND, measured: did it plan a stroke line, and do its notes play it? CRAFT
+    only — the plan is the composer's own and the judges read how far the notes kept to it. Pure.
+
+    The 2026-10-12 trace finding: bols were decoration sprinkled on notes (93% carried one, almost
+    all a bare da/ra), so no head had a stroke PATTERN. The line is planned first, one token per
+    matra (`PhrasePlan.stroke_line`); here each matra's planned pluck count meets the plucks the
+    notes start there (`stroke_onsets` — the renderer's own timing)."""
+    line = cell.phrase_plan.stroke_line
+    matras = round(cycle_beats)
+    if not line:
+        return CellChecks(craft=(f"no stroke_line planned — write the right hand first: one bol per "
+                                 f"matra ({matras} tokens, \"{STROKE_HOLD}\" for a matra with no new "
+                                 f"stroke), then notes that play it",))
+    unknown = sorted({t for t in line if stroke_line_attacks(t) is None})
+    if unknown:
+        return CellChecks(craft=(f"the stroke_line holds {' '.join(unknown)}, which are no strokes — "
+                                 f"use the bol words, chikari or \"{STROKE_HOLD}\"",))
+    if len(line) != matras:
+        return CellChecks(craft=(f"the stroke_line has {len(line)} tokens for a {matras}-matra "
+                                 f"avartan — one token per matra",))
+    off, _ = stroke_line_match(cell, cycle_beats=cycle_beats) or ([], matras)
+    if len(off) > (1 - _LINE_MIN_MATCH) * matras:
+        return CellChecks(craft=(f"the notes play {matras - len(off)} of {matras} matras of your "
+                                 f"stroke line (they differ at matra(s) {' '.join(map(str, off))}) "
+                                 f"— give each note the bol its matra asks for, or revise the line",))
+    return CellChecks()
+
+
+def check_head_idea(cell: LeadPhrase, idea: HeadIdea | None) -> CellChecks:
+    """Did the composed head keep the Composer's IDEA (`HeadIdea`)? CRAFT only — "develop it, never
+    replace it" is the brief, and the judges read how far the head strayed: its first note (which
+    sounds on every sam) is the idea's sam swara, its core cell sounds in order (small gaps allowed,
+    any octave), and it plans the idea's stroke line. No idea, nothing to compare. Pure."""
+    sounding = _sounding(cell.notes)
+    if idea is None or not sounding:
+        return CellChecks()
+    craft: list[str] = []
+    if _landing_swara(sounding[0]) != idea.sam_swara:
+        craft.append(f"the head opens on {_landing_swara(sounding[0])}, but your idea put "
+                     f"{idea.sam_swara} on the sam — open the head on it")
+    if not _quote_present([_landing_swara(n) for n in sounding], idea.cell, _QUOTE_MAX_GAP):
+        craft.append(f"the idea's core cell ({' '.join(idea.cell)}) never sounds in the head — "
+                     f"let it recur")
+    if idea.stroke_line and cell.phrase_plan.stroke_line != idea.stroke_line:
+        craft.append("the head's stroke_line differs from your idea's — keep the idea's right hand "
+                     "unless the melody truly asks otherwise")
+    return CellChecks(craft=tuple(craft))
+
+
+def verify_bol_frame(cell: LeadPhrase, *, cycle_beats: float, frame: str) -> list[str]:
+    """The bol frame's HARD faults only — what drives a re-roll. `check_bol_frame` adds the
+    reported craft notes."""
+    return list(check_bol_frame(cell, cycle_beats=cycle_beats, frame=frame).hard)
 
 
 def _overrun_violation(notes: list[LeadNote], window_beats: float, cell_name: str,
@@ -423,8 +680,37 @@ def _overrun_violation(notes: list[LeadNote], window_beats: float, cell_name: st
             f"overrun gets TRUNCATED, cutting off your own ending; {tail}")
 
 
-def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
-                 mukhada: LeadPhrase | None = None) -> list[str]:
+def intro_min_phrases(window_beats: float) -> int:
+    """How many rest-separated phrases an alap window of this length must hold — the ask the
+    prompt states and the floor this verifier enforces, so the two always agree. Pure."""
+    return _INTRO_MIN_PHRASES if window_beats >= _INTRO_ROOMY_WINDOW else _INTRO_MIN_PHRASES_SHORT
+
+
+def _intro_rhythm_violations(notes: list[LeadNote]) -> list[str]:
+    """The alap keeps time with the arpeggio under it: durations on the sixteenth grid, single
+    strokes, and quick steps as contrast rather than the texture. Pure."""
+    viol: list[str] = []
+    off = [n.dur for n in notes if abs(n.dur / _INTRO_GRID - round(n.dur / _INTRO_GRID)) > 1e-6]
+    if off:
+        viol.append(f"{len(off)} duration(s) fall off the beat grid (e.g. {off[0]:g}) — write every "
+                    f"note and rest as a multiple of {_INTRO_GRID:g} (0.25, 0.5, 1, 1.5, 2 ...) so "
+                    f"the alap stays in time with the arpeggio under it")
+    melodic = [n for n in _sounding(notes) if n.bol != "chikari"]
+    doubled = [n for n in melodic if n.bol in _INTRO_COMPOUND_BOLS]
+    if doubled:
+        viol.append(f"{len(doubled)} note(s) carry a compound bol (dir/dar/dara...) — those are the "
+                    f"gat's stroke figures; an alap uses single strokes (da / ra)")
+    if melodic:
+        quick = sum(n.dur < _INTRO_QUICK for n in melodic) / len(melodic)
+        if quick > _INTRO_QUICK_SHARE_MAX:
+            viol.append(f"{quick:.0%} of the alap's notes are quick steps (under half a beat) — an "
+                        f"alap is slow: keep quick steps under {_INTRO_QUICK_SHARE_MAX:.0%} for "
+                        f"contrast and let most notes speak for a beat or more")
+    return viol
+
+
+def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
+                 mukhada: LeadPhrase | None = None) -> CellChecks:
     """Return the intro/alap's structural violations (empty == a grounded alap). Pure.
 
     The shape is a MINIATURE ALAP VISTAR (Sujit's ear, 2026-07-16, revising the earlier
@@ -454,60 +740,63 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
     notes = cell.notes
     sounding = _sounding(notes)
     if not sounding:
-        return ["the intro has no sounding notes — an alap must unfold the raga, sparsely"]
+        return CellChecks(hard=("the intro has no sounding notes — an alap must unfold the raga, sparsely",))
 
-    viol: list[str] = []
+    hard: list[str] = []
+    craft: list[str] = []
     total = sum(n.dur for n in notes)
     if total > _CELL_FILL_MAX * window_beats:
-        viol.append(f"the alap runs {total:g} beats but its window is only {window_beats:g} — "
+        hard.append(f"the alap runs {total:g} beats but its window is only {window_beats:g} — "
                     f"it would spill into the silence code reserves before the gat; end the "
                     f"held Sa within the window and let the quiet do the rest")
 
     first = sounding[0]
     if _landing_oct(first) >= 1 or _scale_steps_between(_landing_swara(first), "S", raga) > _INTRO_OPEN_MAX_STEPS:
-        viol.append(f"the alap opens on {_landing_swara(first)} (oct {_landing_oct(first):+d}) — "
+        craft.append(f"the alap opens on {_landing_swara(first)} (oct {_landing_oct(first):+d}) — "
                     f"begin AROUND madhya Sa (Sa itself or a step or two from it); the exposition "
                     f"starts at home, then dips into the mandra")
     if not any(_landing_oct(n) < 0 for n in _melodic(sounding)):
-        viol.append("the alap's melodic line never touches the mandra (lower) octave — dip "
+        craft.append("the alap's melodic line never touches the mandra (lower) octave — dip "
                     "below home in the early phrases before the line rises (the low Sa pluck "
                     "alone is punctuation, not the dip)")
 
     last = sounding[-1]
     if _landing_swara(last) != "S":
-        viol.append(f"the alap ends on {last.swara}, not Sa — it must RESOLVE: come home to a "
+        _cadence_bucket(_landing_swara(last), raga, hard, craft).append(f"the alap ends on {last.swara}, not Sa — it must RESOLVE: come home to a "
                     f"held Sa as the final note")
     elif last.dur < _INTRO_HELD_SA:
-        viol.append(f"the alap's final Sa lasts only {last.dur:g} beats — HOLD it (>= "
+        craft.append(f"the alap's final Sa lasts only {last.dur:g} beats — HOLD it (>= "
                     f"{_INTRO_HELD_SA:g} beats) so the resolution is felt before the gat enters")
 
     total = sum(n.dur for n in sounding)
     sa_dur = sum(n.dur for n in sounding if _landing_swara(n) == "S")
     if sa_dur < _INTRO_SA_SHARE * total:
-        viol.append(f"Sa carries only {sa_dur / total:.0%} of the alap's sounding time — keep "
+        craft.append(f"Sa carries only {sa_dur / total:.0%} of the alap's sounding time — keep "
                     f"home ringing (>= {_INTRO_SA_SHARE:.0%} by duration): pluck the mandra Sa "
                     f"between phrases and hold the closing Sa")
     returns = _sa_returns(sounding)
     if returns < _INTRO_MIN_SA_RETURNS:
-        viol.append(f"Sa is sounded only {returns} separate time(s) — touch home at least "
+        craft.append(f"Sa is sounded only {returns} separate time(s) — touch home at least "
                     f"{_INTRO_MIN_SA_RETURNS} times: the low pluck between phrases, and the "
                     f"held Sa at the close")
 
     rests = [n for n in notes if n.rest and n.dur >= _INTRO_MIN_REST_BEATS]
     if len(rests) < _INTRO_MIN_RESTS:
-        viol.append(f"the alap has {len(rests)} true rest(s) of {_INTRO_MIN_REST_BEATS:g}+ beats — "
+        craft.append(f"the alap has {len(rests)} true rest(s) of {_INTRO_MIN_REST_BEATS:g}+ beats — "
                     f"use at least {_INTRO_MIN_RESTS}; an alap breathes in real silence, not in "
                     f"wall-to-wall notes")
 
-    viol += _intro_breath_violations(notes)
+    craft += _intro_breath_violations(notes)
+    craft += _intro_rhythm_violations(notes)
 
     # PHRASE GRAMMAR — the alap is short independent sentences separated by real silence, each
     # holding its TENSION (no mid-intro homecoming), with the mandra-Sa pluck anchoring the gaps
     # and Sa never sustained as a wall. A pluck-only group is punctuation, not a phrase.
     phrases = _intro_phrases(notes)
-    if len(phrases) < _INTRO_MIN_PHRASES:
-        viol.append(f"the alap is only {len(phrases)} phrase(s) — compose at least "
-                    f"{_INTRO_MIN_PHRASES} short, INDEPENDENT phrases separated by real silence; "
+    min_phrases = intro_min_phrases(window_beats)
+    if len(phrases) < min_phrases:
+        craft.append(f"the alap is only {len(phrases)} phrase(s) — compose at least "
+                    f"{min_phrases} short, INDEPENDENT phrases separated by real silence; "
                     f"do not write one continuous line")
     for i, ph in enumerate(phrases[:-1]):           # every phrase but the final settle
         core = _melodic(ph)
@@ -515,27 +804,27 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
             continue                                # a degenerate phrase; the pluck rules cover it
         last = core[-1]
         if _landing_swara(last) == "S" and _landing_oct(last) > _INTRO_PLUCK_MAX_OCT:
-            viol.append(f"phrase {i + 1} resolves onto Sa — hold the TENSION: no phrase before "
+            craft.append(f"phrase {i + 1} resolves onto Sa — hold the TENSION: no phrase before "
                         f"the last comes home; touch home between phrases as a LOW plucked "
                         f"mandra Sa (oct {_INTRO_PLUCK_MAX_OCT}) instead, and save the real "
                         f"resolution for the closing held Sa")
         if all(_landing_swara(n) == "S" for n in core):
-            viol.append(f"phrase {i + 1} is only Sa — a phrase must EXPLORE the motif through "
+            craft.append(f"phrase {i + 1} is only Sa — a phrase must EXPLORE the motif through "
                         f"the raga's swaras; bare Sa is a drone stroke, not a sentence")
     unanchored = _unanchored_boundaries(notes)
     if unanchored:
-        viol.append(f"{unanchored} gap(s) between phrases have no mandra-Sa pluck — between "
+        craft.append(f"{unanchored} gap(s) between phrases have no mandra-Sa pluck — between "
                     f"every pair of phrases, sound Sa LOW (oct {_INTRO_PLUCK_MAX_OCT}, like a "
                     f"low open string) so home keeps ringing under the held tension")
     held = [n for n in notes if n.bol == "chikari" and n.dur > _CHIKARI_MAX_DUR]
     if held:
-        viol.append(f"{len(held)} chikari stroke(s) written longer than {_CHIKARI_MAX_DUR:g} "
+        hard.append(f"{len(held)} chikari stroke(s) written longer than {_CHIKARI_MAX_DUR:g} "
                     f"beat — a chikari is a STRUCK string filling an empty matra, played in "
                     f"time and then gone; held, it becomes a second drone over the tanpura. "
                     f"Write chikari short (0.25-0.5) and place it where the melody rests")
     run = _longest_mid_sa_run(notes)
     if run > _INTRO_MAX_SA_RUN:
-        viol.append(f"the alap dwells on Sa for {run:g} continuous beats — Sa is a drone TOUCH "
+        craft.append(f"the alap dwells on Sa for {run:g} continuous beats — Sa is a drone TOUCH "
                     f"between phrases, not a note to repeat or sustain; explore the motif "
                     f"between the Sa strokes")
 
@@ -548,23 +837,26 @@ def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
     if not any(_quote_present(intro_swaras, phrase, _QUOTE_MAX_GAP)
                for phrase in RAGAS[raga]["pakad"]):
         pakad = " | ".join(" ".join(p) for p in RAGAS[raga]["pakad"])
-        viol.append(f"the alap never states the raga's PAKAD ({pakad}) — build the phrases from the "
+        craft.append(f"the alap never states the raga's PAKAD ({pakad}) — build the phrases from the "
                     f"raga's signature phrase(s), quoting one then varying it, so the raga is clear; "
                     f"don't wander through in-scale notes at random")
 
-    # MEEND DISCIPLINE — the render anchors a meend on its TARGET, so an over-meended line is
-    # HEARD as its targets (the audible-line checks above read exactly that). This check names
-    # the cause so the re-roll fixes the disease, not each symptom.
-    meends = sum(1 for n in sounding if _real_meend(n))
-    if meends > _INTRO_MEEND_MAX_SHARE * len(sounding):
-        viol.append(f"{meends} of {len(sounding)} notes carry a meend — a meend note is HEARD "
-                    f"at its TARGET, so over-meending collapses the line onto the targets; use "
-                    f"meend on at most half the notes (an ornament gliding INTO a note, not the "
-                    f"default articulation), and let most notes sound their own written swara")
+    # ORNAMENT DISCIPLINE — the render anchors a meend on its TARGET, so an over-meended line is
+    # HEARD as its targets (the audible-line checks above read exactly that). This names the
+    # cause, so the judges see the disease, not only each symptom.
+    craft.extend(_ornament_density_notes(notes, "alap"))
 
-    viol.extend(_motif_violations(cell, phrases, mukhada))
+    craft.extend(_motif_violations(cell, phrases, mukhada, reach_down=lives_low(raga)))
 
-    return viol
+    hard += nyas_violations(cell.notes, raga)
+    return CellChecks(tuple(hard), tuple(craft))
+
+
+def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
+                 mukhada: LeadPhrase | None = None) -> list[str]:
+    """The intro's HARD faults only — what drives a re-roll. `check_intro` adds the
+    reported craft notes."""
+    return list(check_intro(cell, window_beats=window_beats, raga=raga, mukhada=mukhada).hard)
 
 
 def _intro_breath_violations(notes: list[LeadNote]) -> list[str]:
@@ -638,13 +930,35 @@ def _motion_violations(sounding: list[LeadNote], raga: str, cell: str) -> list[s
     # ascending `m P D n S'` is generically modal, while `m D n S'` up and `S' n D P m` down
     # is the raga.
     viol += [f"{v} (in the {cell})" for v in dict.fromkeys(direction_violations(seq, raga))]
-    run = longest_scalar_run(seq, raga)
-    if run > _TAAN_SCALAR_MAX:
-        viol.append(f"the {cell} walks {run} notes in one unbroken stepwise direction — that is "
-                    f"the SCALE, not the raga. One straight dash is idiomatic (a sapat); past "
-                    f"{_TAAN_SCALAR_MAX} notes turn back, skip, or repeat a swara. Build the fast "
-                    f"passages out of the raga's own movements, not out of its note list")
+    scalar = _scalar_run_violation(seq, raga, cell)
+    if scalar:
+        viol.append(scalar)
     return viol
+
+
+def _scalar_run_violation(seq: list[tuple[str, int]], raga: str, cell: str) -> str | None:
+    """The stepwise-run cap, phrased as the REPAIR (None == the line turns often enough). Pure.
+
+    HARD, deliberately (restored 2026-10-12). Phase 1b demoted it to craft, and the first live
+    run showed the cost: every Producer verdict then targeted the taan's scalar runs, and each
+    revise regenerated the WHOLE lead at full price and came back scalar again. As a hard fault
+    it drives the cheap local re-roll of the one cell instead — and the message names the
+    raga's own fragments, so the re-roll has something concrete to build from.
+
+    ONE dash up to an octave passes (2026-10-12): the message always called a sapat idiomatic,
+    but the cap rejected it — two of five live taan takes failed on a single 7-8 note dash. A
+    second long run, or one longer than an octave, is the scale marching, and fails."""
+    long_runs = [r for r in scalar_runs(seq, raga) if r > _TAAN_SCALAR_MAX]
+    if not long_runs or (len(long_runs) == 1 and long_runs[0] <= octave_span(raga)):
+        return None                    # one dash up to an octave is a sapat — the idiom allows it
+    run = max(long_runs)
+    fragments = " | ".join(" ".join(f) for f in RAGAS[raga]["chalan"])
+    return (f"the {cell} walks {run} notes in one unbroken stepwise direction"
+            f"{f' ({len(long_runs)} such runs)' if len(long_runs) > 1 else ''} — that is the "
+            f"SCALE, not the raga. Rebuild it from the raga's vakra/chalan fragments "
+            f"({fragments}): take a 3-4 note fragment, sequence it, and turn back, skip, or "
+            f"repeat a swara within every {_TAAN_SCALAR_MAX} notes. One straight dash (a sapat) "
+            f"is idiomatic; marching consecutive scale steps is not")
 
 
 def _is_sa_pluck(note: LeadNote) -> bool:
@@ -662,8 +976,15 @@ def _melodic(notes: list[LeadNote]) -> list[LeadNote]:
     return [n for n in notes if not n.rest and n.bol != "chikari" and not _is_sa_pluck(n)]
 
 
+def lives_low(raga: str) -> bool:
+    """A raga developed in the mandra and not the taar (`raga.REGISTER`, sourced) — its alap's
+    widest reach goes DOWN (Darbari: mandra Dha and Pa), not up into the taar."""
+    saptak = REGISTER.get(raga, {}).get("saptak", [])
+    return "mandra" in saptak and "taar" not in saptak
+
+
 def _motif_violations(cell: LeadPhrase, phrases: list[list[LeadNote]],
-                      mukhada: LeadPhrase | None) -> list[str]:
+                      mukhada: LeadPhrase | None, *, reach_down: bool = False) -> list[str]:
     """The intro's ONE-MOTIF + BADHAT violations — the aochar develops a single recurring idea
     and reveals it progressively (see the `_INTRO_MOTIF_*` block for the diagnosed failure):
       * A REAL MOTIF IS DECLARED — `phrase_plan.seed` names the 2-5 swara kernel;
@@ -674,7 +995,8 @@ def _motif_violations(cell: LeadPhrase, phrases: list[list[LeadNote]],
       * REVEALED COMPLETELY — the full motif is stated somewhere before the held Sa;
       * NARROW OPENING — phrase 1 stays a fragment around home (<= `_INTRO_OPEN_SPAN`
         semitones), so there is range left to unfold;
-      * LATE WIDEST REACH — the intro's highest melody note arrives past the midpoint.
+      * LATE WIDEST REACH — the intro's highest melody note arrives past the midpoint; for a
+        raga that lives low (`reach_down`), its LOWEST.
     """
     viol: list[str] = []
     seed = cell.phrase_plan.seed
@@ -712,13 +1034,14 @@ def _motif_violations(cell: LeadPhrase, phrases: list[list[LeadNote]],
     melodic = [n for ph in phrases for n in _melodic(ph)]
     if melodic:
         pitches = [_landing_pitch(n) for n in melodic]
-        peak = pitches.index(max(pitches))
+        peak = pitches.index(min(pitches) if reach_down else max(pitches))
         elapsed = sum(n.dur for n in melodic[:peak])
         total = sum(n.dur for n in melodic)
         if elapsed < _INTRO_PEAK_MIN_POS * total:
-            viol.append("the intro's highest note arrives too early — badhat: reveal the raga "
-                        "gradually and let the widest reach land past the midpoint, in the "
-                        "later phrases")
+            where = "lowest (this raga reaches DOWN)" if reach_down else "highest"
+            viol.append(f"the intro's {where} note arrives too early — badhat: reveal the raga "
+                        f"gradually and let the widest reach land past the midpoint, in the "
+                        f"later phrases")
     return viol
 
 
@@ -798,8 +1121,8 @@ def _sa_returns(sounding: list[LeadNote]) -> int:
     return returns
 
 
-def verify_manjha(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
-                  raga: str) -> list[str]:
+def check_manjha(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
+                  raga: str) -> CellChecks:
     """Return the manjha's structural violations (empty == a true return-cell). Pure.
 
     A manjha is COMPLEMENTARY to the mukhada — head x3-4, then the manjha carries the line to
@@ -816,37 +1139,38 @@ def verify_manjha(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     notes = cell.notes
     sounding = _sounding(notes)
     if not sounding:
-        return ["the manjha has no sounding notes — it must develop the mukhada's material"]
+        return CellChecks(hard=("the manjha has no sounding notes — it must develop the mukhada's material",))
 
-    viol: list[str] = []
+    hard: list[str] = []
+    craft: list[str] = []
     # The manjha is the raga's LOW, unhurried stretch — the one place with room to state the
     # raga's central swara plainly. The 2026-09-14 render's manjha contained no Ma AT ALL, in a
     # raga whose vadi is Ma: a section spent entirely away from the note the raga gravitates to.
     ang = _ang_violation(sounding, raga, "manjha",
                          also_accept=[_landing_swara(n) for n in _sounding(mukhada.notes)])
     if ang:
-        viol.append(ang)
+        craft.append(ang)
     vadi = RAGAS[raga]["vadi"]
     if vadi not in {_landing_swara(n) for n in sounding}:
-        viol.append(f"the manjha never sounds {vadi}, this raga's VADI — the bridge is the "
+        craft.append(f"the manjha never sounds {vadi}, this raga's VADI — the bridge is the "
                     f"calmest stretch in the piece and the natural place to let the raga's "
                     f"central swara ring; a manjha that avoids it develops the scale, not the raga")
     total = sum(n.dur for n in notes)
     if total < _CELL_FILL_MIN * window_beats:
-        viol.append(f"the manjha fills only {total:g} of its {window_beats:g}-beat window — carry "
+        hard.append(f"the manjha fills only {total:g} of its {window_beats:g}-beat window — carry "
                     f"the line all the way to the closing sam, where the mukhada re-enters")
     else:
         over = _overrun_violation(notes, window_beats, "manjha",
                                   "land the final note ON the closing sam")
         if over:
-            viol.append(over)
+            hard.append(over)
 
     seam = _seam_violation(sounding[-1], mukhada, raga, "manjha")
     if seam:
-        viol.append(seam)
+        hard.append(seam)
 
     if _rhythmically_flat(sounding):
-        viol.append("the manjha is rhythmically flat — every note is the same length; develop the "
+        craft.append("the manjha is rhythmically flat — every note is the same length; develop the "
                     "head's rhythm, don't pace out even notes")
 
     # LOWER-REGISTER BRIDGE (Pandit Arvind Parikh; Masitkhani-gat descriptions, 2026-07-15): the
@@ -854,13 +1178,22 @@ def verify_manjha(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     # not the manjha, owns the taar. So it must DIP into the lower octave and must NOT climb into the
     # taar. This is what makes it a bridge that CONTRASTS the mukhada (by register) before the ascent.
     if not any(_landing_oct(n) < 0 for n in sounding):
-        viol.append("the manjha never dips into the mandra (lower) octave — it must take the melody "
+        craft.append("the manjha never dips into the mandra (lower) octave — it must take the melody "
                     "DOWN below home; the manjha is the low bridge before the antara climbs")
     if any(_landing_oct(n) >= 1 for n in sounding):
-        viol.append("the manjha reaches the taar (upper) octave — keep it in the mandra / lower-madhya "
+        craft.append("the manjha reaches the taar (upper) octave — keep it in the mandra / lower-madhya "
                     "register; the ANTARA owns the upper octave, the manjha stays low")
 
-    return viol
+    hard += nyas_violations(cell.notes, raga)
+    craft += _ornament_density_notes(cell.notes, "manjha")
+    return CellChecks(tuple(hard), tuple(craft))
+
+
+def verify_manjha(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
+                  raga: str) -> list[str]:
+    """The manjha's HARD faults only — what drives a re-roll. `check_manjha` adds the
+    reported craft notes."""
+    return list(check_manjha(cell, mukhada=mukhada, window_beats=window_beats, raga=raga).hard)
 
 
 def _quote_present(swaras: list[str], quote: list[str], max_gap: int) -> bool:
@@ -907,8 +1240,8 @@ def _arc_violations(sounding: list[LeadNote], cell_name: str) -> list[str]:
     return viol
 
 
-def verify_antara(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
-                  raga: str, with_amad: bool = False) -> list[str]:
+def check_antara(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
+                  raga: str, with_amad: bool = False) -> CellChecks:
     """Return the antara's structural violations (empty == a true second movement). Pure.
 
     The diagnosed failure: "lift into the upper octave" produced random high notes — the LLM
@@ -933,46 +1266,56 @@ def verify_antara(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     notes = cell.notes
     sounding = _sounding(notes)
     if not sounding:
-        return ["the antara has no sounding notes — it must develop the gat in the upper register"]
+        return CellChecks(hard=("the antara has no sounding notes — it must develop the gat in the upper register",))
 
-    viol: list[str] = []
+    hard: list[str] = []
+    craft: list[str] = []
     total = sum(n.dur for n in notes)
     if total < _CELL_FILL_MIN * window_beats:
-        viol.append(f"the antara fills only {total:g} of its {window_beats:g}-beat window — carry "
+        hard.append(f"the antara fills only {total:g} of its {window_beats:g}-beat window — carry "
                     f"the arc all the way to the closing sam")
     else:
         over = _overrun_violation(notes, window_beats, "antara",
                                   "land the resolving Sa ON the closing sam")
         if over:
-            viol.append(over)
+            hard.append(over)
     head_swaras = [_landing_swara(n) for n in _sounding(mukhada.notes)][:_ANTARA_QUOTE_LEN]
     half = sounding[:max(1, len(sounding) // 2)]
     if head_swaras and not _quote_present([_landing_swara(n) for n in half],
                                           head_swaras, _QUOTE_MAX_GAP):
-        viol.append(f"the antara never quotes the mukhada's opening ({' '.join(head_swaras)}) — "
+        craft.append(f"the antara never quotes the mukhada's opening ({' '.join(head_swaras)}) — "
                     f"OPEN by restating it (an octave up is idiomatic); the antara is the second "
                     f"half of the SAME gat, not a new tune")
 
-    viol.extend(_arc_violations(sounding, "antara"))
+    craft.extend(_arc_violations(sounding, "antara"))
 
     last = sounding[-1]
     if not with_amad and (_landing_swara(last) != "S" or _landing_oct(last) >= 1):
-        viol.append(f"the antara ends on {_landing_swara(last)} (oct {_landing_oct(last):+d}) — "
+        _cadence_bucket(_landing_swara(last), raga, hard, craft).append(f"the antara ends on {_landing_swara(last)} (oct {_landing_oct(last):+d}) — "
                     f"descend and come to rest on madhya Sa, handing off into the returning mukhada")
 
     # RHYTHMIC VARIETY (Sujit, 2026-07-16: the antara's harmonized guitar line was "single long
     # notes, no variation" — 26 two-beat notes): the second theme is still a THEME, so it mixes
     # note values (8ths and quarters against the held notes), same floor the taan is held to.
     if len({round(n.dur, 4) for n in sounding}) < _TAAN_MIN_DURATIONS:
-        viol.append(f"the antara uses fewer than {_TAAN_MIN_DURATIONS} distinct note values — a "
+        craft.append(f"the antara uses fewer than {_TAAN_MIN_DURATIONS} distinct note values — a "
                     f"wall of even long notes reads as a drone, not a theme; mix 8ths and "
                     f"quarters against the held notes")
 
-    return viol
+    hard += nyas_violations(cell.notes, raga)
+    craft += _ornament_density_notes(cell.notes, "antara")
+    return CellChecks(tuple(hard), tuple(craft))
 
 
-def verify_amad(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
-                raga: str, antara_last: str | None = None) -> list[str]:
+def verify_antara(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
+                  raga: str, with_amad: bool = False) -> list[str]:
+    """The antara's HARD faults only — what drives a re-roll. `check_antara` adds the
+    reported craft notes."""
+    return list(check_antara(cell, mukhada=mukhada, window_beats=window_beats, raga=raga, with_amad=with_amad).hard)
+
+
+def check_amad(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
+                raga: str, antara_last: str | None = None) -> CellChecks:
     """Return the amad's structural violations (empty == a true composed return). Pure.
 
     The amad is Parikh's FOURTH line — the composed descent that "brings you down to the
@@ -992,48 +1335,58 @@ def verify_amad(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     notes = cell.notes
     sounding = _sounding(notes)
     if not sounding:
-        return ["the amad has no sounding notes — it must compose the descent back to the head"]
+        return CellChecks(hard=("the amad has no sounding notes — it must compose the descent back to the head",))
 
-    viol: list[str] = []
+    hard: list[str] = []
+    craft: list[str] = []
     total = sum(n.dur for n in notes)
     if total < _CELL_FILL_MIN * window_beats:
-        viol.append(f"the amad fills only {total:g} of its {window_beats:g}-beat window — carry "
+        hard.append(f"the amad fills only {total:g} of its {window_beats:g}-beat window — carry "
                     f"the descent all the way to the closing sam, where the mukhada re-enters")
     else:
         over = _overrun_violation(notes, window_beats, "amad",
                                   "land the re-entry note ON the closing sam")
         if over:
-            viol.append(over)
+            hard.append(over)
 
     first, last = sounding[0], sounding[-1]
     if antara_last is not None:
         steps = _scale_steps_between(_landing_swara(first), antara_last, raga)
         if steps > _SEAM_MAX_STEPS:
-            viol.append(f"the amad opens on {_landing_swara(first)}, a leap from the antara's "
+            hard.append(f"the amad opens on {_landing_swara(first)}, a leap from the antara's "
                         f"landing {antara_last} — the amad is the antara's own second line: "
                         f"open on or within a step or two of {antara_last} and descend from there")
     first_pitch = _landing_pitch(first)
     if _landing_pitch(last) >= first_pitch:
-        viol.append("the amad does not DESCEND — it must end lower than it begins; the amad's "
+        craft.append("the amad does not DESCEND — it must end lower than it begins; the amad's "
                     "whole job is bringing the melody down to where the composition started")
     if max(map(_landing_pitch, sounding)) > first_pitch + _AMAD_RISE_MAX:
-        viol.append("the amad climbs above its opening — the peak belongs to the antara; the "
+        craft.append("the amad climbs above its opening — the peak belongs to the antara; the "
                     "amad may eddy a step but its direction is DOWN, all the way home")
     if _landing_oct(last) > 0:
-        viol.append(f"the amad ends in the taar (oct {_landing_oct(last):+d}) — come to rest at "
+        craft.append(f"the amad ends in the taar (oct {_landing_oct(last):+d}) — come to rest at "
                     f"or below the madhya, where the returning mukhada picks up")
     seam = _seam_violation(last, mukhada, raga, "amad")
     if seam:
-        viol.append(seam)
+        hard.append(seam)
 
     if _rhythmically_flat(sounding):
-        viol.append("the amad is rhythmically flat — every note is the same length; a composed "
+        craft.append("the amad is rhythmically flat — every note is the same length; a composed "
                     "descent still phrases (mix note values on the way down)")
 
-    return viol
+    hard += nyas_violations(cell.notes, raga)
+    craft += _ornament_density_notes(cell.notes, "amad")
+    return CellChecks(tuple(hard), tuple(craft))
 
 
-def verify_outro(cell: LeadPhrase, *, mukhada: LeadPhrase | None, raga: str) -> list[str]:
+def verify_amad(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
+                raga: str, antara_last: str | None = None) -> list[str]:
+    """The amad's HARD faults only — what drives a re-roll. `check_amad` adds the
+    reported craft notes."""
+    return list(check_amad(cell, mukhada=mukhada, window_beats=window_beats, raga=raga, antara_last=antara_last).hard)
+
+
+def check_outro(cell: LeadPhrase, *, mukhada: LeadPhrase | None, raga: str) -> CellChecks:
     """Return the outro's violations (empty == an ending that RESOLVES the raga). Pure.
 
     The outro was the last unverified part of the gat, and it showed: the 2026-09-14 render
@@ -1047,24 +1400,33 @@ def verify_outro(cell: LeadPhrase, *, mukhada: LeadPhrase | None, raga: str) -> 
     """
     sounding = _sounding(cell.notes)
     if not sounding:
-        return ["the outro has no sounding notes — it is the piece's resolution"]
-    viol: list[str] = []
+        return CellChecks(hard=("the outro has no sounding notes — it is the piece's resolution",))
+    hard: list[str] = []
+    craft: list[str] = []
     head = [_landing_swara(n) for n in _sounding(mukhada.notes)] if mukhada else None
     ang = _ang_violation(sounding, raga, "outro", also_accept=head)
     if ang:
-        viol.append(ang)
+        craft.append(ang)
     last = sounding[-1]
     if _landing_swara(last) != "S":
-        viol.append(f"the outro ends on {_landing_swara(last)}, not Sa — the piece comes HOME: "
+        _cadence_bucket(_landing_swara(last), raga, hard, craft).append(f"the outro ends on {_landing_swara(last)}, not Sa — the piece comes HOME: "
                     f"the last note is Sa, held long enough to feel final")
     elif last.dur < _INTRO_HELD_SA:
-        viol.append(f"the outro's final Sa lasts only {last.dur:g} beats — hold it (>= "
+        craft.append(f"the outro's final Sa lasts only {last.dur:g} beats — hold it (>= "
                     f"{_INTRO_HELD_SA:g}) so the ending lands instead of stopping")
-    return viol
+    hard += nyas_violations(cell.notes, raga)
+    craft += _ornament_density_notes(cell.notes, "outro")
+    return CellChecks(tuple(hard), tuple(craft))
 
 
-def verify_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
-                raga: str) -> list[str]:
+def verify_outro(cell: LeadPhrase, *, mukhada: LeadPhrase | None, raga: str) -> list[str]:
+    """The outro's HARD faults only — what drives a re-roll. `check_outro` adds the
+    reported craft notes."""
+    return list(check_outro(cell, mukhada=mukhada, raga=raga).hard)
+
+
+def check_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
+                raga: str) -> CellChecks:
     """Return the developed taan's (taan_long/solo) structural violations. Pure.
 
     A taan is the composition's PEAK, not "the scale, quickly". The checkable core of a
@@ -1082,51 +1444,61 @@ def verify_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
     notes = cell.notes
     sounding = _sounding(notes)
     if not sounding:
-        return ["the taan has no sounding notes — it is the composition's developed peak"]
+        return CellChecks(hard=("the taan has no sounding notes — it is the composition's developed peak",))
 
-    viol: list[str] = []
-    viol += _motion_violations(sounding, raga, "taan")
+    hard: list[str] = []
+    craft: list[str] = []
+    hard += _motion_violations(sounding, raga, "taan")     # direction + scalar run: both HARD
 
     total = sum(n.dur for n in notes)
     if total < _CELL_FILL_MIN * window_beats:
-        viol.append(f"the taan fills only {total:g} of its {window_beats:g}-beat window — the "
+        hard.append(f"the taan fills only {total:g} of its {window_beats:g}-beat window — the "
                     f"journey must run all the way to the closing sam")
     else:
         over = _overrun_violation(notes, window_beats, "taan",
                                   "the landing must arrive ON the closing sam")
         if over:
-            viol.append(over)
+            hard.append(over)
 
     quote = motif[:_TAAN_QUOTE_LEN]
     if quote and not _quote_present([_landing_swara(n) for n in sounding], quote, _QUOTE_MAX_GAP):
-        viol.append(f"the taan never grows from the piece's motif ({' '.join(quote)}) — restate "
+        craft.append(f"the taan never grows from the piece's motif ({' '.join(quote)}) — restate "
                     f"or clearly derive from it; the taan develops the composition's ONE idea, "
                     f"it does not introduce a new tune at speed")
 
-    viol.extend(_arc_violations(sounding, "taan"))
+    craft.extend(_arc_violations(sounding, "taan"))
 
     resting = _resting_swaras(raga)
     last = sounding[-1]
     if _landing_swara(last) not in resting:
-        viol.append(f"the taan ends on {_landing_swara(last)}, not a resting swara "
+        hard.append(f"the taan ends on {_landing_swara(last)}, not a resting swara "
                     f"({' '.join(sorted(resting))}) — the final phrase must resolve to the sam "
                     f"so the landing feels inevitable, not abrupt")
 
     if not _has_burst(sounding):
-        viol.append(f"the taan has no true sixteenth-note burst (>= {_TAAN_BURST_LEN} consecutive "
+        craft.append(f"the taan has no true sixteenth-note burst (>= {_TAAN_BURST_LEN} consecutive "
                     f"notes of <= {_TAAN_BURST_NOTE:g} beats) — it must actually run, in bursts")
     elif not _late_burst(sounding):
-        viol.append("the taan's final approach WALKS to the landing on long notes — end with a "
+        craft.append("the taan's final approach WALKS to the landing on long notes — end with a "
                     "dense run (a last burst of 16ths/8ths) that resolves straight onto the "
                     "closing sam; the tension of the run is what makes the landing feel earned")
     if not any(n.rest for n in notes) and not any(n.dur >= _TAAN_SPACE_BEATS for n in sounding):
-        viol.append("the taan never breathes — contrast the bursts with space: a true rest or a "
+        craft.append("the taan never breathes — contrast the bursts with space: a true rest or a "
                     "held note of a beat or more")
     if len({round(n.dur, 4) for n in sounding}) < _TAAN_MIN_DURATIONS:
-        viol.append(f"the taan uses fewer than {_TAAN_MIN_DURATIONS} distinct durations — mix "
+        craft.append(f"the taan uses fewer than {_TAAN_MIN_DURATIONS} distinct durations — mix "
                     f"subdivisions (eighths, sixteenths, held notes), not one even wall of notes")
 
-    return viol
+    hard += nyas_violations(cell.notes, raga)
+    craft += _ornament_density_notes(cell.notes, "taan")
+    return CellChecks(tuple(hard), tuple(craft))
+
+
+def verify_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
+                raga: str) -> list[str]:
+    """The taan's HARD faults only — what drives a re-roll. `check_taan` adds the
+    reported craft notes."""
+    return list(check_taan(cell, motif=motif, window_beats=window_beats, raga=raga).hard)
 
 
 def _has_burst(sounding: list[LeadNote]) -> bool:
@@ -1153,8 +1525,8 @@ def _late_burst(sounding: list[LeadNote]) -> bool:
     return False
 
 
-def verify_fill(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
-                raga: str) -> list[str]:
+def check_fill(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
+                raga: str) -> CellChecks:
     """Return a mukhada taan-FILL's structural violations (empty == a clean splice). Pure.
 
     The fill is the classic gat move, and since the 2026-07-20 gat research it follows the
@@ -1174,24 +1546,34 @@ def verify_fill(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
     notes = cell.notes
     sounding = _sounding(notes)
     if not sounding:
-        return ["the taan fill has no sounding notes — it must be a fast sixteenth-note run"]
+        return CellChecks(hard=("the taan fill has no sounding notes — it must be a fast sixteenth-note run",))
 
-    viol: list[str] = []
+    hard: list[str] = []
+    craft: list[str] = []
     slow = [n for n in sounding[:-1] if n.dur > _TAAN_NOTE_MAX]
     if slow or sounding[-1].dur > _TAAN_LANDING_MAX:
-        viol.append(f"a short taan moves in SIXTEENTHS — every note <= {_TAAN_NOTE_MAX:g} beats "
+        craft.append(f"a short taan moves in SIXTEENTHS — every note <= {_TAAN_NOTE_MAX:g} beats "
                     f"(only the final landing note may be longer, up to {_TAAN_LANDING_MAX:g})")
 
     total = sum(n.dur for n in notes)
     if not (_TAAN_FILL_MIN * window_beats <= total <= _CELL_FILL_MAX * window_beats):
-        viol.append(f"the fill lasts {total:g} beats but must fill its {window_beats:g}-beat cut "
+        hard.append(f"the fill lasts {total:g} beats but must fill its {window_beats:g}-beat cut "
                     f"almost exactly — it is spliced into the mukhada, so there is no slack")
 
-    viol += _motion_violations(sounding, raga, "taan fill")
+    hard += _motion_violations(sounding, raga, "taan fill")
 
     seam = _seam_violation_to(sounding[-1], reentry_swara(mukhada, window_beats), raga,
                               "taan fill", "the head's re-entering approach")
     if seam:
-        viol.append(seam)
+        hard.append(seam)
 
-    return viol
+    return CellChecks(tuple(hard), tuple(craft))
+
+
+def verify_fill(cell: LeadPhrase, *, mukhada: LeadPhrase, window_beats: float,
+                raga: str) -> list[str]:
+    """The fill's HARD faults only — what drives a re-roll. `check_fill` adds the
+    reported craft notes."""
+    return list(check_fill(cell, mukhada=mukhada, window_beats=window_beats, raga=raga).hard)
+
+

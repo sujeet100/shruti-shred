@@ -34,13 +34,30 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Final, Protocol
+from typing import Any, Final, NamedTuple, Protocol
 
 import yaml
 from crewai import Agent, Crew, Process, Task
 from pydantic import ValidationError
 
-from crew.config import AGENT_RETRY_LIMIT, GENERATOR_MAX_ITER, GENERATOR_RETRIES, generator_llm, load_env
+from crew.anchor import (
+    HOOK_EVENT_KEY,
+    hook_from_events,
+    is_song_hook,
+    render_gat_source,
+    render_song_seed,
+    riff_accents,
+    riff_seed_for_lead,
+)
+from crew.config import (
+    AGENT_RETRY_LIMIT,
+    GENERATOR_MAX_ITER,
+    GENERATOR_RETRIES,
+    composer_llm,
+    generator_llm,
+    load_env,
+    structured_output,
+)
 from crew.contracts import (
     Arrangement,
     CanvasMove,
@@ -54,22 +71,30 @@ from crew.contracts import (
     Note,
     PhrasePlan,
     RiffNote,
+    RiffPattern,
     Section,
     SectionCanvas,
     SectionKind,
     motif_illegal_in_raga,
 )
+from crew.expression import express_section
 from crew.gat_verifier import (
+    CellChecks,
+    check_amad,
+    check_antara,
+    check_bol_frame,
+    check_fill,
+    check_head_idea,
+    check_intro,
+    check_manjha,
+    check_mukhada,
+    check_outro,
+    check_stroke_line,
+    check_taan,
+    hard_only,
+    intro_min_phrases,
     reentry_swara,
-    verify_amad,
-    verify_antara,
-    verify_bol_frame,
-    verify_fill,
-    verify_intro,
-    verify_manjha,
-    verify_mukhada,
-    verify_outro,
-    verify_taan,
+    verify_riff_quote,
 )
 from crew.generators import (
     VOICES,
@@ -80,11 +105,29 @@ from crew.generators import (
     section_spans,
 )
 from crew.live import beat, flags
-from gats import GAT_FRAMES, frame_for_bpm
+from crew.realized import KeptLead, lead_realized_event
+from crew.tihai_landing import land_tihais
+from crew.user_request import render_request
+from gats import (
+    BOL_WORDS,
+    GAT_CRAFT,
+    GAT_FRAMES,
+    INWARD_STROKES,
+    bol_onsets,
+    frame_for_bpm,
+    gat_craft_for,
+    is_compound,
+)
+from gestures import GAMAK_PAIRS
 from raga import (
+    KHADA_RAGAS,
     RAGAS,
     direction_violations,
     directional_varjya,
+    render_character,
+    render_kan,
+    render_nyas,
+    render_register,
     scale_step_up,
     validate_composition,
 )
@@ -106,21 +149,31 @@ _CELL_REPAIR_TRIES: Final = 1              # extra re-rolls of a weak verified c
 # an LLM told to "leave a long gap" reliably fills it.
 _INTRO_GAP_FRACTION: Final = 0.35          # up to this fraction of the intro window...
                                            # ...capped at one tala cycle (see _intro_gen_span)
+# ...and at about this many SECONDS. A third of a 2-avartan intro at 64 bpm was 5.6 beats of
+# reserved quiet, which with the 4-beat ring of the last note made 6+ s with no new note
+# (GPT, 2026-10-12). Code's pause is a breath before the gat, not a section of its own.
+_INTRO_GAP_S: Final = 2.5
+# The alap may run INTO code's reserved pause (code shrinks its own reservation rather than
+# rejecting the music) but always leaves at least this much breath before the gat.
+_INTRO_MIN_GAP_BEATS: Final = 1.0
 
-# The intro's clean-guitar arpeggio establishes the pulse; the alap then LOCKS to it (Sujit,
-# 2026-07-19, avartan-locked): a lead-in of whole avartan(s) plays the arpeggio ALONE before the
-# sitar enters, and every alap phrase begins on a sam (`_place_intro_phrases`) so it rides the
-# arpeggio's cycle instead of drifting against it. Both apply only when the intro carries the
-# clean arpeggio — without a pulse there is nothing to lock to (the old flush-left placement).
+# The intro's clean-guitar arpeggio establishes the pulse: a lead-in of arpeggio ALONE plays
+# before the sitar enters (Sujit, 2026-07-19). The alap used to LOCK each phrase onto a vibhag
+# downbeat; that snap was removed 2026-10-12 (Sujit: "remove it and see — the alap still needs
+# to follow the pulse, more like jod"), so the alap is now placed in time, as written.
 _CLEAN_ROLE: Final = "clean"               # the harmony/arpeggio layer the alap locks onto
-_INTRO_LEAD_IN_BARS: Final = 1             # avartan(s) of arpeggio ALONE before the alap enters
+_INTRO_LEAD_IN_BARS: Final = 1             # avartan(s) of arpeggio ALONE before the alap enters...
+_INTRO_FULL_LEAD_IN_MIN_BARS: Final = 3    # ...but only in an intro this long; a 2-avartan intro gets
+                                           # one VIBHAG (the 2026-10-11 short-form render gave a whole
+                                           # avartan of a 2-avartan intro to the arpeggio and left the
+                                           # alap 10.4 beats — it crammed a taan into the space)
 _PHRASE_BREAK_MIN_BEATS: Final = 1.0       # a rest this long ends a phrase; shorter rests stay within
 
 # The manjha is a SHORT lower-register bridge (Pandit Arvind Parikh; Masitkhani-gat descriptions):
 # at most one avartan, and we reserve a small breath before the mukhada re-enters — so it lands
 # SUB-CYCLE (~12 matras in a 16-matra teentaal), matching the sources and Sujit's ear (8-11 matras).
 # The old manjha filled its whole multi-bar section — a long developmental episode the tradition
-# does NOT have. Register (dip to the mandra, no taar) is enforced by verify_manjha.
+# does NOT have. Register (dip to the mandra, no taar) is reported by check_manjha (craft).
 _MANJHA_MAX_CYCLES: Final = 1.0            # never longer than one avartan (a manjha is a short line)
 _MANJHA_GAP_FRACTION: Final = 0.25         # reserve this much as a breath before the head returns
 
@@ -149,6 +202,26 @@ _FILL_BARS_PER_SECTION: Final = 3          # at most this many cut statements pe
 _TIHAI_MIN_CYCLES: Final = 2.0             # a taan shorter than this keeps its own ending
 _TIHAI_MIN_PHRASE_NOTES: Final = 2         # a one-note "phrase" repeated is a pulse, not a tihai
 
+# The PLUCK LIMIT (2026-10-11, the opening song's sag). A plucked sitar string is gone within a
+# few seconds, so a hold written past a few beats is SILENCE on the record. Measured on
+# `out/fusion_20261011_194039.json`: the taan_long's cell ran 14.5 beats of taan and then closed
+# on ONE Sa written 16 beats (its fill rule — cover ~70% of the 32-beat window — paid the model to
+# pad), so the climax's last avartan was band-only, and the code-built tihai could not fire (the
+# taan was 30.5 beats, under its 2-cycle floor, and a 16-beat note leaves no closing phrase to
+# state). Under a driving band the sitar's own answer is JHALA: the held swara re-struck on every
+# beat with chikari strokes between ("da ra ra") — the instrument's traditional climax, and legal
+# by construction (the swara itself, plus chikari = the taar-Sa drone string).
+_PLUCK_SUSTAIN_MAX: Final = 4.0            # beats a plucked lead note can carry before it is inaudible
+_JHALA_RING: Final = 2.0                   # the landing rings this long before the jhala begins
+_JHALA_STRIKE: Final = 0.5                 # per beat: the held swara, struck "da"...
+_JHALA_CHIKARI: Final = 0.25               # ...then two chikari strokes ("ra ra")
+# GENERALISED (2026-10-12, the first live run's ~30 s of silent sitar): the limit held only in
+# the taan_long, so a section mislabelled `intro` turned a 1-note 1-beat cell into ONE 48-beat
+# note through the alap's ring-out, and the score called that melody. Now EVERY placed lead
+# note honours it (`pluck_limited`): a metered hold rings then JHALAs, an alap hold simply
+# decays, and the one exemption is the lead line's very last note — the piece's final ring.
+_ALAP_RING_MAX: Final = _PLUCK_SUSTAIN_MAX  # the alap's closing Sa rings this long, not to the edge
+
 # The AMAD (2026-07-20 gat research; Parikh's FOURTH line): the composed descent that returns
 # the melody "to the point where the composition started". It rides the antara section's
 # FINAL avartan — the antara proper climbs and peaks in the bars before it — so the return to
@@ -163,29 +236,32 @@ _OUT_DIR: Final[Path] = _ROOT / "out"
 # interpolation never has to parse these literal braces (same trick as composers).
 _OUTPUT_SCHEMA: Final = """{
   "phrase_plan": {
-    "seed": ["g", "m", "d"],
-    "contour": "arch",
-    "transformations": ["repeat", "sequence_up", "rhythmic_compression", "resolve"],
-    "climax_and_sam": "peaks in the taar octave, then resolves down to land on the sam"
+    "seed": ["<the few raga swaras this phrase grows from>"],
+    "contour": "<one of the contours below>",
+    "transformations": ["<in the order they happen, from the list below>"],
+    "climax_and_sam": "<where the line peaks, and how it lands on the sam>",
+    "stroke_line": ["<gat HEAD only: one stroke token per matra — see below>"]
   },
   "notes": [
-    {"swara": "d", "oct": -1, "dur": 2.0, "vel": 80, "bol": "da"},
-    {"swara": "n", "oct": -1, "dur": 0.5},
-    {"swara": "S", "oct": 0, "dur": 0.5},
-    {"swara": "g", "oct": 0, "dur": 0.5, "grace": ["S"]},
-    {"swara": "m", "oct": 0, "dur": 4.0, "meend_swara": "S", "meend_oct": 1},
-    {"rest": true, "swara": "S", "dur": 1.0},
-    {"swara": "g", "oct": 0, "dur": 1.5, "ornament": "murki"},
-    {"swara": "S", "oct": 1, "dur": 0.5, "bol": "chikari"}
+    {"swara": "<raga swara>", "oct": <octave>, "dur": <beats>},
+    {"swara": "<raga swara>", "oct": <octave>, "dur": <beats>, "bol": "<stroke word, optional>"},
+    {"rest": true, "swara": "S", "dur": <beats>}
   ]
 }
-Decide "phrase_plan" FIRST, then write "notes" that REALIZE it. Most notes are PLAIN —
-just swara, oct, dur (and optionally vel), like the second and third example notes: add
-grace / meend / bol / ornament only where a rule asks for that specific gesture, and emit
-"rest" only on an actual silence. "contour" is one of
+(Format only — every musical choice above is yours: a filled-in example was copied into most
+phrases, its contour and its transformations alike.)
+Decide "phrase_plan" FIRST, then write "notes" that REALIZE it. Most notes need only
+swara, oct and dur (and optionally vel): add grace / meend / ornament only where the gesture
+sings, and emit "rest" only on an actual silence. "bol" is different — on a sitar every note
+is struck by the right hand, so on a GAT HEAD every sounding note carries the bol its
+stroke_line asks for; in other sections a bol is optional. "contour" is one of
 ascending / descending / arch / wave / landing / explosion. "transformations" (in the
-order they happen) are drawn from repeat, sequence_up, sequence_down, invert, fragment,
-accelerate, answer, resolve, octave_shift, rhythmic_compression. For a TAAN/SOLO section
+order they happen) are drawn from repeat, answer, fragment, rhythmic_compression,
+accelerate, octave_shift, resolve — and sequence_up / sequence_down only where the raga's
+chalan itself moves that way. For a GAT HEAD (the mukhada) the plan has ONE more required
+field: "stroke_line", the right hand planned before the notes — exactly one token per matra
+of the avartan: a bol word, "chikari", or "-" for a matra with no new stroke (a note ringing
+on, or a silence); write the notes so each matra sounds the strokes its token asks for. For a TAAN/SOLO section
 the plan has THREE more required fields (omit them elsewhere): "taan_style" (the ONE
 dominant style — pick from the section guidance), "register_plan" (the arc in one line:
 where you start, where the single peak lands, the descent), and "rhythm_plan" (the
@@ -194,13 +270,19 @@ the sam"). For an INTRO/alap section the plan has ONE more required field (omit 
 (the progressive reveal in one line: the motif fragment phrase 1 states, what each later
 phrase adds, where the widest reach lands). In the notes: "oct" is
 your octave (0 = home; -1 mandra/lower, +1 taar/upper); "vel", "grace", "meend_swara",
-"meend_oct" and "bol" are optional. "meend_swara" is a swara to glide to — and the note is
+"meend_oct", "gamak_with" and "bol" are optional. "gamak_with" makes the note a GAMAK: write
+the ADJACENT raga swara it swings with (one step up or down the raga's ladder) on a note of
+a beat or more, and the left hand swings forcefully between the two while the right hand
+re-strikes about every quarter second — a gamak is a phrase-level choice (a cell, an opening,
+a climax), not decoration on every note. "meend_swara" is a swara to glide to — and the note is
 HEARD AT THE TARGET (the written swara is only the brief start of the pull), so a meend is an
 OCCASIONAL ornament gliding INTO a note you want heard, never the default articulation: most
 notes carry NO meend and sound their own written swara. Add "meend_oct" (same frame as a
 note's "oct") ONLY to glide ACROSS octaves — omit it to glide within the note's own
-octave. "bol" is the sitar mizrab STROKE (articulation, NOT a rhythm): "da" strong, "ra" softer,
-"diri" a fast double-stroke (a pair), "darada" a triple-stroke (a triplet), "chikari" a STRUCK
+octave. "bol" is the sitar mizrab STROKE word: "da" strong, "ra" softer, a compound
+("dir", "rda", "dara", "dar", "dadir", "darada", "daradara") a stroke figure whose strokes divide the
+note's length in the figure's ratios — any length, so many figures can share a matra — and
+"chikari" a STRUCK
 drone string (its swara is ignored — the chikari strings sound their own pitch). A chikari is
 played IN TIME like any other note and is SHORT (0.25-0.5): it fills an empty matra where the
 melody rests, punctuating a phrase. Held long it stops being a stroke and becomes a second
@@ -275,7 +357,7 @@ def _placed_note(ln: LeadNote, *, register: int, start: float, dur: float,
                 dur=round(dur, 4), vel=ln.vel, grace=ln.grace,
                 meend_swara=ln.meend_swara if keep_meend else None,
                 meend_oct=_place_meend_oct(ln, register) if keep_meend else None,
-                andolan=andolan)
+                andolan=andolan, gamak_with=ln.gamak_with)
 
 
 def _place_meend_oct(ln: LeadNote, register: int) -> int | None:
@@ -337,50 +419,73 @@ def _one_cycle_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
                        start=span.start, end=span.start + cycle_beats)
 
 
-def _ring_out_intro(line: list[Note], span: SectionSpan) -> list[Note]:
-    """Let the intro's final note RING through the code-reserved gap, fading like a struck
+def _ring_out_intro(line: list[Note], span: SectionSpan, *,
+                    closes_lead: bool = False) -> list[Note]:
+    """Let the intro's final note RING into the code-reserved gap, fading like a struck
     string dying away (Sujit: "resolve the intro to Sa — a long one, like a chord with
     sustain, dropping volume"). The verified alap ends on a held Sa inside its shortened
-    window; code extends that note's SUSTAIN to the section edge and flags the renderer's
-    `fade` — articulation, not composition: no pitch, no order, no new note. Any pitch-wheel
-    gesture is stripped (a glide across a long dying tone would read as a swoop). Pure."""
+    window; code sets that note's SUSTAIN to `_ALAP_RING_MAX` beats from its attack (clipped
+    at the section edge) and flags the renderer's `fade` — articulation, not composition: no
+    pitch, no order, no new note. Any pitch-wheel gesture is stripped (a glide across a long
+    dying tone would read as a swoop).
+
+    The ring is BOUNDED because a plucked string is gone within a few beats: stretched to the
+    edge, the ring-out turned a stray 1-beat cell into a 48-beat "note" that was silence on
+    the record (2026-10-11). Only when this intro `closes_lead` — nothing follows it in the
+    lead line — may it ring to the edge, since the last ring of a piece is allowed to die
+    away on its own. Pure."""
     if not line:
         return line
     last = line[-1]
+    ring_end = span.end if closes_lead else min(span.end, last.start + _ALAP_RING_MAX)
     return line[:-1] + [last.model_copy(update={
-        "dur": round(span.end - last.start, 4), "fade": True,
+        "dur": round(ring_end - last.start, 4), "fade": True,
         "meend_swara": None, "meend_oct": None, "andolan": None})]
 
 
-def _intro_lead_in_beats(section: Section, cycle_beats: float) -> float:
-    """The arpeggio-alone lead-in at the FRONT of the intro, in beats: `_INTRO_LEAD_IN_BARS`
-    whole avartan(s) when the intro carries the clean arpeggio (there is a pulse to establish
-    before the sitar enters), else zero — with no arpeggio nothing would sound, so keep the old
-    flush-left placement."""
-    return cycle_beats * _INTRO_LEAD_IN_BARS if _CLEAN_ROLE in section.layers else 0.0
+def _intro_lead_in_beats(section: Section, cycle_beats: float, first_vibhag: float) -> float:
+    """The arpeggio-alone lead-in at the FRONT of the intro, in beats, SCALED to the intro so
+    the alap keeps most of it: `_INTRO_LEAD_IN_BARS` whole avartan(s) once the intro has
+    `_INTRO_FULL_LEAD_IN_MIN_BARS`, one vibhag (the tala's own bar — enough to set the pulse)
+    in a 2-avartan intro, and none in a 1-avartan intro. Zero too when the intro has no clean
+    arpeggio — with no arpeggio nothing would sound, so keep the old flush-left placement."""
+    if _CLEAN_ROLE not in section.layers or section.bars <= 1:
+        return 0.0
+    if section.bars < _INTRO_FULL_LEAD_IN_MIN_BARS:
+        return first_vibhag
+    return cycle_beats * _INTRO_LEAD_IN_BARS
 
 
-def _intro_gen_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
+def first_vibhag_beats(arr: Arrangement) -> float:
+    """The length of the tala's first vibhag in beats (teentaal: 4); a whole cycle when the
+    tala declares no vibhag divisions. Pure."""
+    starts = vibhag_starts(arr)
+    return starts[1] - starts[0] if len(starts) > 1 else arr.beats_per_bar
+
+
+def _intro_gen_span(span: SectionSpan, cycle_beats: float, first_vibhag: float,
+                    bpm: float = 60.0) -> SectionSpan:
     """The intro's SHORTENED generation window. CODE reserves two silences around the alap so
     the LLM composes only the sounding phrases:
       * a LEAD-IN of `_INTRO_LEAD_IN_BARS` avartan(s) at the FRONT — the clean-guitar arpeggio
         establishes the pulse ALONE before the sitar enters (only when the intro carries that
         arpeggio; see `_intro_lead_in_beats`);
-      * a TRAILING gap (up to one cycle, at most `_INTRO_GAP_FRACTION` of the REMAINING window)
-        the alap's final Sa rings and fades across (`_ring_out_intro`) before the mukhada's entry.
-    The LLM composes into what is left; `_place_intro_phrases` then snaps each phrase onto a sam.
-    An alap SHORTER than the window is fine (more silence, never less)."""
-    start = span.start + _intro_lead_in_beats(span.section, cycle_beats)
-    gap = min(cycle_beats, (span.end - start) * _INTRO_GAP_FRACTION)
+      * a TRAILING gap (about `_INTRO_GAP_S`, at most one cycle or `_INTRO_GAP_FRACTION` of the
+        REMAINING window) the alap's final Sa rings and fades across (`_ring_out_intro`) before
+        the mukhada's entry.
+    The LLM composes into what is left; placement lays the alap in time from the window's start
+    (`_intro_place_end`). An alap SHORTER than the window is fine (more silence, never less)."""
+    start = span.start + _intro_lead_in_beats(span.section, cycle_beats, first_vibhag)
+    breath = round(_INTRO_GAP_S * bpm / 60.0 * 4) / 4
+    gap = max(_INTRO_MIN_GAP_BEATS, min(cycle_beats, (span.end - start) * _INTRO_GAP_FRACTION,
+                                        breath))
     return SectionSpan(index=span.index, section=span.section,
                        start=start, end=span.end - gap)
 
 
-def _next_sam(t: float, *, origin: float, cycle_beats: float) -> float:
-    """The first sam (avartan downbeat) at or after `t`, on the grid anchored at `origin` — the
-    intro's start, where the clean arpeggio restarts its figure each bar. Pure."""
-    steps = max(0, math.ceil((t - origin - 1e-9) / cycle_beats))
-    return origin + steps * cycle_beats
+def _intro_place_end(span: SectionSpan) -> float:
+    """Where the alap must END: code's reserved pause is its own to shrink, down to a breath."""
+    return span.end - _INTRO_MIN_GAP_BEATS
 
 
 def vibhag_starts(arr: Arrangement) -> tuple[float, ...]:
@@ -393,85 +498,13 @@ def vibhag_starts(arr: Arrangement) -> tuple[float, ...]:
                         if a.kind in ("sam", "tali", "khali")))
 
 
-def _next_vibhag(t: float, *, origin: float, cycle_beats: float,
-                 vibhag_beats: tuple[float, ...]) -> float:
-    """The first vibhag downbeat at or after `t`.
-
-    The SAM would be too coarse to phrase against: in teentaal it comes only every 16
-    beats, so locking each phrase to it allows one entry per avartan and leaves the alap
-    threadbare (Sujit, 2026-09-14). The vibhag is the measure a player actually counts.
-    Falls back to the sam when a tala declares no vibhags. Pure."""
-    if not vibhag_beats:
-        return _next_sam(t, origin=origin, cycle_beats=cycle_beats)
-    elapsed = max(0.0, t - origin)
-    cycle = int(elapsed // cycle_beats)
-    for index in (cycle, cycle + 1):
-        for offset in vibhag_beats:
-            candidate = origin + index * cycle_beats + offset
-            if candidate >= t - 1e-9:
-                return round(candidate, 4)
-    return _next_sam(t, origin=origin, cycle_beats=cycle_beats)
-
-
-def _split_phrases(notes: list[LeadNote]) -> list[list[LeadNote]]:
-    """Split an alap into PHRASES at its breathing rests: a rest of at least
-    `_PHRASE_BREAK_MIN_BEATS` ends a phrase (the true silence the alap leaves between ideas),
-    while a shorter rest stays inside its phrase as a micro-gap. The long rests are dropped —
-    `_place_intro_phrases` replaces them with the snap-to-sam gap. Non-empty phrases, in order."""
-    phrases: list[list[LeadNote]] = []
-    current: list[LeadNote] = []
-    for n in notes:
-        if n.rest and n.dur >= _PHRASE_BREAK_MIN_BEATS:
-            if current:
-                phrases.append(current)
-                current = []
-        else:
-            current.append(n)
-    if current:
-        phrases.append(current)
-    return phrases
-
-
-def _is_mandra_pluck(phrase: list[LeadNote]) -> bool:
-    """A between-phrases mandra-Sa PLUCK (the alap-vistar drone anchor `verify_intro` expects
-    in every gap): a phrase whose every sounding note is a LOW (mandra) Sa. In the avartan-locked
-    intro the clean arpeggio holds Sa between phrases, so the pluck's anchoring role is already
-    covered — placement drops it, letting the MELODIC phrases land cleanly on the sams. The
-    closing madhya Sa (oct 0, held) is not a pluck, so the resolution always survives."""
-    sounding = [n for n in phrase if not n.rest]
-    return bool(sounding) and all(n.swara == "S" and n.oct < 0 for n in sounding)
-
-
-def _place_intro_phrases(notes: list[LeadNote], *, gen_span: SectionSpan,
-                         section_span: SectionSpan, register: int, cycle_beats: float,
-                         vibhag_beats: tuple[float, ...] = (),
-                         andolan_swaras: frozenset[str] = frozenset()) -> list[Note]:
-    """Place the alap so each PHRASE begins on a sam (Sujit's avartan-locked intro): the first
-    phrase enters at `gen_span.start` and every later phrase is nudged forward to the next sam,
-    so the line locks to the cycle instead of drifting against it. A phrase entering on the
-    downbeat and then leaving silence of any length is what builds anticipation; one entering
-    wherever the previous phrase happened to end is what sounds unmoored. Notes flow freely WITHIN a phrase (the alap keeps its
-    free rhythm); only phrase STARTS snap. The between-phrases mandra-Sa plucks are dropped (the
-    arpeggio anchors Sa now — `_is_mandra_pluck`). Phrases fill the sams up to the section edge;
-    the final resolving Sa is ring-extended across the tail by the caller (`_ring_out_intro`) —
-    the trailing silence the LLM leaves is a compose-window reserve, not a placement barrier. Pure."""
-    placed: list[Note] = []
-    cursor = gen_span.start
-    for phrase in _split_phrases(notes):
-        if _is_mandra_pluck(phrase):                    # the arpeggio holds Sa between phrases now
-            continue
-        start = _next_vibhag(cursor, origin=section_span.start, cycle_beats=cycle_beats,
-                             vibhag_beats=vibhag_beats)
-        if start >= section_span.end - 1e-9:            # no measure left before the edge — stop
-            break
-        seg = place_phrase(phrase, start=start, end=section_span.end, register=register,
-                           andolan_swaras=andolan_swaras)
-        if not seg:                                     # fully truncated — try the next measure
-            cursor = start + 1e-6
-            continue
-        placed.extend(seg)
-        cursor = seg[-1].start + seg[-1].dur
-    return placed
+def _place_intro(notes: list[LeadNote], span: SectionSpan, arr: Arrangement, *, register: int,
+                 andolan_swaras: frozenset[str] = frozenset()) -> list[Note]:
+    """Lay the alap in time from its window's start (after any arpeggio lead-in) to
+    `_intro_place_end` — its own rests and durations kept, no snapping. Pure."""
+    gen_span = _intro_gen_span(span, arr.beats_per_bar, first_vibhag_beats(arr), arr.bpm)
+    return place_phrase(notes, start=gen_span.start, end=_intro_place_end(span),
+                        register=register, andolan_swaras=andolan_swaras)
 
 
 def _manjha_gen_span(span: SectionSpan, cycle_beats: float) -> SectionSpan:
@@ -530,7 +563,7 @@ def _place_lead_section(notes: list[LeadNote], *, span: SectionSpan, register: i
                         cycle_beats: float,
                         andolan_swaras: frozenset[str] = frozenset(),
                         bar_fills: dict[int, list[LeadNote]] | None = None,
-                        fill_cut: float | None = None) -> list[Note]:
+                        fill_cut: float | None = None, loop: bool = False) -> list[Note]:
     """Place a section's notes on its window. A MUKHADA loops its one-avartan cell across every
     bar (each bar re-lands on the sam — the repeating hook); every other role lays its phrase
     once across the whole window. Truncation at each cycle edge means even an over-long cell
@@ -546,7 +579,7 @@ def _place_lead_section(notes: list[LeadNote], *, span: SectionSpan, register: i
         m = _manjha_gen_span(span, cycle_beats)     # (the same window it was generated + verified against)
         return place_phrase(notes, start=m.start, end=m.end, register=register,
                             andolan_swaras=andolan_swaras)
-    if not is_mukhada(span.section):
+    if not (loop or is_mukhada(span.section)):      # `loop`: a song-form hook loops like a mukhada
         return place_phrase(notes, start=span.start, end=span.end, register=register,
                             andolan_swaras=andolan_swaras)
     approach = _approach_notes(notes, fill_cut) if fill_cut is not None else []
@@ -577,8 +610,8 @@ def _place_lead_section(notes: list[LeadNote], *, span: SectionSpan, register: i
 
 _BOL_DA_VEL: Final = 1.12        # da — the strong stroke, accented
 _BOL_RA_VEL: Final = 0.82        # ra — the softer return
-_STROKE_STRONG: Final = 1.05     # a `da` within a compound (diri/darada) — a touch strong
-_STROKE_SOFT: Final = 0.80       # a `ra` within a compound — softer
+_STROKE_STRONG: Final = 1.05     # an inward stroke (da/di) within a compound — a touch strong
+_STROKE_SOFT: Final = 0.80       # an outward return (ra/r) within a compound — softer
 _CHIKARI_VEL: Final = 1.10       # chikari — a bright accent
 _CHIKARI_OCT: Final = 1          # ...on the taar-Sa drone strings (at least the upper octave)
 
@@ -587,10 +620,10 @@ _CHIKARI_OCT: Final = 1          # ...on the taar-Sa drone strings (at least the
 # the cluster eats — exactly how the sources separate them (murki delicate, khatka sharper). See
 # DESIGN.md "Murki/khatka".
 _ORNAMENT_MIN_BEATS: Final = 0.5  # a note shorter than this can't carry a wrap-around ornament cleanly
-_MURKI_VEL: Final = 0.82          # delicate — the cluster is softer than the note
-_KHATKA_VEL: Final = 1.10         # sharper — the cluster is accented
-_MURKI_FRONT: Final = 0.30        # the crushed cluster occupies this fraction of the note...
-_KHATKA_FRONT: Final = 0.40       # ...a touch more for the heavier khatka
+# Murki and khatka share their notes; FORCE tells them apart (ITC: "R R S S could be a murki or a
+# khatka or the start of a zamzama, depending on the force of delivery"). Both are played on ONE
+# stroke — a pull-off and a hammer-on — so the cluster rides the note as unstruck kan touches.
+_KHATKA_VEL: Final = 1.10         # the khatka's single stroke is struck harder
 
 
 def _scaled_vel(vel: int, scale: float) -> int:
@@ -600,13 +633,13 @@ def _scaled_vel(vel: int, scale: float) -> int:
 def apply_strokes(notes: list[LeadNote]) -> list[LeadNote]:
     """Realise each note's mizrab `bol` as sitar articulation — PURE, before placement.
 
-    `da` is a strong stroke, `ra` a softer return, `diri` a fast da+ra DOUBLE-stroke (the note
-    split in two — a PAIR), `darada` a da+ra+da TRIPLE-stroke (split in three — a TRIPLET), each of
-    which also re-articulates (countering the sitar's decay), and `chikari` a bright high-Sa
-    drone-string accent (its melodic swara is IGNORED — the chikari strings sound taar Sa). A note
-    with no bol passes through. Each note's total duration is preserved (the split pieces sum to the
-    original), so placement and timing are untouched, and the bol is consumed (cleared) here — the
-    render `Note` never needs a bol field."""
+    `da` is a strong stroke and `ra` a softer return. A COMPOUND word (dir, dara, dar, dadir,
+    darada, daradara — `gats.BOL_WORDS`) is a stroke pattern given as ratios: the note becomes one
+    separate pluck per stroke on its swara, dividing the note's length in those ratios
+    (`gats.bol_onsets`), inward strokes strong and returns softer. `chikari` is a bright high-Sa drone-string accent (its melodic swara
+    is IGNORED — the chikari strings sound taar Sa). A note with no bol passes through. Each note's
+    total duration is preserved, so placement and timing are untouched, and the bol is consumed
+    (cleared) here — the render `Note` never needs a bol field."""
     out: list[LeadNote] = []
     for n in notes:
         if n.rest:                                      # a silent beat carries no stroke — leave it as space
@@ -615,8 +648,8 @@ def apply_strokes(notes: list[LeadNote]) -> list[LeadNote]:
             out.append(n.model_copy(update={"vel": _scaled_vel(n.vel, _BOL_DA_VEL), "bol": None}))
         elif n.bol == "ra":
             out.append(n.model_copy(update={"vel": _scaled_vel(n.vel, _BOL_RA_VEL), "bol": None}))
-        elif n.bol in ("diri", "darada"):              # a compound = 2 (diri) or 3 (darada) strokes
-            out.extend(_split_strokes(n, 2 if n.bol == "diri" else 3))
+        elif n.bol is not None and n.bol != "chikari" and is_compound(n.bol):
+            out.extend(_bol_strokes(n))                 # a compound word: one pluck per stroke
         elif n.bol == "chikari":                       # the bright high-Sa drone-string accent
             out.append(n.model_copy(update={"swara": "S", "oct": max(n.oct, _CHIKARI_OCT),
                                             "vel": _scaled_vel(n.vel, _CHIKARI_VEL), "grace": None,
@@ -626,15 +659,18 @@ def apply_strokes(notes: list[LeadNote]) -> list[LeadNote]:
     return out
 
 
-def _split_strokes(n: LeadNote, count: int) -> list[LeadNote]:
-    """Split one note into `count` equal fast strokes (diri = 2 da-ra, darada = 3 da-ra-da),
-    accenting on the da's (odd strokes) and softening the ra's. Grace stays on the FIRST stroke,
-    meend is dropped (a compound is too fast to glide), and the pieces sum to the original dur."""
-    piece = round(n.dur / count, 4)
+def _bol_strokes(n: LeadNote) -> list[LeadNote]:
+    """One note carrying a compound bol, as its strokes — each a separate pluck on the note's swara
+    at its share of the note (`gats.bol_onsets`), inward strokes strong and returns softer. Grace stays on
+    the FIRST stroke, meend is dropped (a stroke figure is too fast to glide), and the pieces sum to
+    the original duration."""
+    assert n.bol is not None
     out: list[LeadNote] = []
-    for i in range(count):
-        dur = round(n.dur - piece * (count - 1), 4) if i == count - 1 else piece  # last takes the remainder
-        scale = _STROKE_STRONG if i % 2 == 0 else _STROKE_SOFT                     # da, ra, da, ...
+    strokes = bol_onsets(n.bol, n.dur)
+    for i, (_, length, stroke) in enumerate(strokes):
+        scale = _STROKE_STRONG if stroke in INWARD_STROKES else _STROKE_SOFT
+        last = i == len(strokes) - 1                  # the last piece takes the rounding remainder
+        dur = round(n.dur - sum(x.dur for x in out), 4) if last else round(length, 4)
         out.append(n.model_copy(update={
             "dur": dur, "vel": _scaled_vel(n.vel, scale),
             "grace": n.grace if i == 0 else None,
@@ -684,25 +720,19 @@ def apply_ornaments(notes: list[LeadNote], raga: str) -> list[LeadNote]:
 
 
 def _realize_ornament(n: LeadNote, raga: str) -> list[LeadNote]:
-    """Expand ONE murki/khatka into its neighbour-cluster: the note's UPPER and LOWER raga-scale
-    neighbours crushed fast, then the main note sustaining the remainder (so the structural note
-    stays prominent). Both ornaments share this shape; a khatka is louder and eats a little more of
-    the note than a murki — the sourced WEIGHT distinction, not a different note pattern. Neighbours
-    come from the raga's own ladder (`scale_step_up` ±1), so the cluster is LEGAL BY CONSTRUCTION.
-    A note too short to wrap passes through plain (the ornament can't speak on a fast note)."""
+    """Realise ONE murki/khatka as the sitar plays it: a single stroke on the note's UPPER raga
+    neighbour, a pull-off to its LOWER neighbour, a hammer-on onto the note — i.e. the two
+    neighbours become the note's unstruck kan (the renderer steps the wheel; one pluck, one
+    attack). A khatka is the same cluster struck harder — the sourced force distinction. The
+    neighbours come from the raga's own ladder (`scale_step_up` ±1), so it is LEGAL BY
+    CONSTRUCTION. A note too short to carry it passes through plain."""
     if n.dur < _ORNAMENT_MIN_BEATS:
         return [n.model_copy(update={"ornament": None})]
-    is_khatka = n.ornament == "khatka"
-    up_sw, up_do = scale_step_up(n.swara, raga, 1)
-    dn_sw, dn_do = scale_step_up(n.swara, raga, -1)          # -1 step = the lower neighbour
-    front = round(n.dur * (_KHATKA_FRONT if is_khatka else _MURKI_FRONT), 4)
-    piece = round(front / 2, 4)
-    vel = _scaled_vel(n.vel, _KHATKA_VEL if is_khatka else _MURKI_VEL)
-    cluster = [LeadNote(swara=up_sw, oct=n.oct + up_do, dur=piece, vel=vel),
-               LeadNote(swara=dn_sw, oct=n.oct + dn_do, dur=piece, vel=vel)]
-    main = n.model_copy(update={"dur": round(n.dur - piece * 2, 4),
-                                "ornament": None, "grace": None})  # ornament replaces the kan
-    return cluster + [main]
+    up_sw, _ = scale_step_up(n.swara, raga, 1)
+    dn_sw, _ = scale_step_up(n.swara, raga, -1)              # -1 step = the lower neighbour
+    vel = _scaled_vel(n.vel, _KHATKA_VEL) if n.ornament == "khatka" else n.vel
+    return [n.model_copy(update={"grace": [up_sw, dn_sw], "vel": vel,
+                                 "ornament": None})]         # the ornament replaces any kan
 
 
 # --------------------------------------------------------------------------- #
@@ -736,13 +766,14 @@ _VOICING_BY_KIND: Final[dict[SectionKind, Voicing]] = {
 
 
 def _voicing_for(section) -> Voicing:
-    """The section's voicing — by KIND, with one form_role override: a MUKHADA always voices
-    UNISON (sitar + guitar doubling), whatever section kind carries it. The head is the gat's
-    identity and returns verbatim; its first statements ride melody-kind sections (unison) but
-    the post-climax return often rides a riff-kind one, which voiced SOLO SITAR — the hook came
-    back audibly thinner than it first appeared (Sujit's 2026-07-16 render)."""
+    """The section's voicing — by KIND, with one form_role override: a MUKHADA is ALWAYS the
+    sitar alone, whatever section kind carries it. It used to voice UNISON, because a post-climax
+    return riding a riff-kind section came back thinner (2026-07-16); but a distorted guitar
+    doubling the head note for note turned the gat into a guitar line — "our sitar mukhada sounds
+    like electric guitar or keyboard" (Sujit, 2026-10-12). The head's weight now comes from its
+    strokes (the bol figures) and the band under it, never from a second voice on top."""
     if is_mukhada(section):
-        return Voicing.UNISON
+        return Voicing.SITAR
     return _VOICING_BY_KIND.get(section.kind, Voicing.SITAR)
 
 
@@ -885,6 +916,16 @@ def render_direction_rule(rules: dict[str, str]) -> str:
     return "; ".join(parts)
 
 
+def render_gamak(raga: str) -> str:
+    """The gamak line of the raga facts: none in a khada raga; otherwise the pairs a master's
+    gat was heard to swing, where measured."""
+    if raga in KHADA_RAGAS:
+        return "NONE: this raga is sung khada (direct, unwavering) — never write gamak_with"
+    pairs = GAMAK_PAIRS.get(raga)
+    heard = f"; a master's gat in this raga swings {', '.join(pairs)}" if pairs else ""
+    return f"write a gamak cell with \"gamak_with\" (an adjacent swara){heard}"
+
+
 def _render_raga_facts(raga: str) -> str:
     """The raga's facts the lead composes from — the single source of truth."""
     r = RAGAS[raga]
@@ -894,7 +935,11 @@ def _render_raga_facts(raga: str) -> str:
         f"  vadi {r['vadi']}, samvadi {r['samvadi']}",
         f"  pakad: {' | '.join(' '.join(p) for p in r['pakad'])}",
         f"  chalan: {' | '.join(' '.join(p) for p in r['chalan'])}",
+        f"  nyas — where a phrase may PAUSE before a silence: {render_nyas(raga)}",
     ]
+    register = render_register(raga)
+    if register:
+        lines.append(f"  register — where the raga LIVES: {register}")
     direction = directional_varjya(raga)
     if direction:
         lines.append(f"  direction rule — {render_direction_rule(direction)}")
@@ -904,10 +949,13 @@ def _render_raga_facts(raga: str) -> str:
     if r.get("ornaments"):
         lines.append(f"  ornaments — light decorations idiomatic to THIS raga (flag a note's "
                      f"\"ornament\"; favour the komal notes): {', '.join(r['ornaments'])}")
-    if r.get("kan"):
-        kan = "; ".join(f"{sw}: kan {v['aroha']} ascending, {v['avaroha']} descending"
-                        for sw, v in r["kan"].items())
-        lines.append(f"  kan conventions: {kan}")
+    kan = render_kan(raga)
+    if kan:
+        lines.append(f"  kan conventions (code plays these where you leave a note bare): {kan}")
+    lines.append(f"  gamak — {render_gamak(raga)}")
+    character = render_character(raga)
+    if character:
+        lines.append(f"  character — how this raga treats its swaras: {character}")
     return "\n".join(lines)
 
 
@@ -928,16 +976,18 @@ class LeadMemo:
 
 def _local_token(note: LeadNote) -> str:
     """One realized note as the model wrote it — swara with its LOCAL octave, its mizrab bol
-    (`/da`) and a `~` for a meend — the frame (and the bol IDENTITY) the next phrase builds on,
-    so a returning mukhada can restate the SAME bol pattern. A rest shows as `-` (the silence/nyas)."""
+    (`/da`), a meend with its TARGET (`~R`, `~R(+1)` across octaves), and its length in beats after
+    a colon — the frame (and the bol IDENTITY) the next phrase builds on, so a returning mukhada can
+    restate the same pattern. The length matters as much as the swara: without it the memory kept
+    the head's pitches and strokes but lost its rhythm (GPT review, 2026-10-12). A rest is `-:2`."""
     if note.rest:
-        return "-"
+        return f"-:{note.dur:g}"
     tok = note.swara if note.oct == 0 else f"{note.swara}({note.oct:+d})"
     if note.bol:
         tok += f"/{note.bol}"
     if note.meend_swara is not None:
-        tok += "~"
-    return tok
+        tok += f"~{note.meend_swara}" + (f"({note.meend_oct:+d})" if note.meend_oct else "")
+    return f"{tok}:{note.dur:g}"
 
 
 def _render_previous(memory: list[LeadMemo]) -> str:
@@ -983,14 +1033,40 @@ def _render_tala_position(span: SectionSpan, cycle_beats: float) -> str:
     one; the cycle downbeats inside the phrase are at local beats 0, C, 2C, ... This is the tala
     timing the lead used to lack — it was told to 'resolve on the sam' with no idea where the sam
     actually was (GPT's catch), so a taan could never reliably land."""
-    bars = span.section.bars
     window = span.length
-    sams = ", ".join(f"{i * cycle_beats:g}" for i in range(bars))
-    return (f"one cycle = {cycle_beats:g} beats; your phrase spans {bars} cycle(s) "
-            f"({window:g} beats). The sam (cycle downbeat) falls at beat(s) {sams} within your "
-            f"phrase, and the phrase ENDS on the closing sam (beat {window:g}). Shape your "
-            f"durations so a RESOLVING note lands on a sam — above all the final resolution, "
-            f"which must arrive on the closing sam.")
+    sams = ", ".join(f"{x:g}" for x in _sams_within(span, cycle_beats)) or "none"
+    head = (f"one cycle = {cycle_beats:g} beats; your phrase spans {window:g} beats. The sam "
+            f"(cycle downbeat) falls at beat(s) {sams} within your phrase")
+    if _on_cycle(span.end, cycle_beats):
+        return (f"{head}, and the phrase ENDS on the closing sam (beat {window:g}). Shape your "
+                f"durations so a RESOLVING note lands on a sam — above all the final resolution, "
+                f"which must arrive on the closing sam.")
+    # A shortened window (the intro's): it stops short of the next sam, and code holds the rest.
+    return (f"{head}. Your window ends at beat {window:g}, before the next sam — code holds the "
+            f"silence after your final note, so end on the held resolution and let it ring.")
+
+
+def _render_phrase_room(span: SectionSpan) -> str:
+    """How many alap phrases this window holds — the floor `check_intro` reports (craft)."""
+    n = intro_min_phrases(span.length)
+    return f" — room for {n}-{n + 1} short phrases with real silence between them"
+
+
+def _on_cycle(t: float, cycle_beats: float) -> bool:
+    return abs(t / cycle_beats - round(t / cycle_beats)) < 1e-6
+
+
+def _sams_within(span: SectionSpan, cycle_beats: float) -> list[float]:
+    """The sams inside a window, as beats from ITS start. Sections sit on cycle boundaries from
+    the piece's start, so a sam is any absolute multiple of the cycle — which a window that
+    starts late (the intro's, after its lead-in) does not begin on. Pure."""
+    first = math.ceil(span.start / cycle_beats - 1e-9) * cycle_beats
+    out: list[float] = []
+    t = first
+    while t < span.end - 1e-6:
+        out.append(round(t - span.start, 4))
+        t += cycle_beats
+    return out
 
 
 def _render_repair(feedback: list[str] | None) -> str:
@@ -1039,28 +1115,103 @@ def _render_canvas_for_lead(canvas: SectionCanvas | None, move: CanvasMove) -> s
     return "\n".join(lines)
 
 
-def _render_bol_frame(frame: str) -> str:
-    """The gat's STROKE FRAME (src/gats.py), rendered for the mukhada's prompt — the sourced
-    bol identity the head composes under and `verify_bol_frame` holds it to. Pure."""
+def render_bol_words() -> str:
+    """The bol words as the prompt teaches them, straight from `gats.BOL_WORDS` — each compound
+    as its stroke RATIOS, so the prompt can never drift from the data the renderer plays, and no
+    length is prescribed: the note's own dur sets each figure's size. Pure."""
+    lines = ["  bol words — write ONE on a note; its strokes are plucked on that note's swara and "
+             "DIVIDE the note's length in these ratios (the note's dur sets the figure's size — a "
+             "dir over one matra is two 1/2-matra strokes, over half a matra two 1/4s):",
+             "    da / ra — one stroke (da strong, inward; ra the softer return)"]
+    for word, strokes in BOL_WORDS.items():
+        if is_compound(word):
+            names = ":".join(st for st, _ in strokes)
+            ratio = ":".join(str(w) for _, w in strokes)
+            lines.append(f"    {word} — {names} = {ratio}")
+    lines.append("    Many bols can share one matra: a drut gat mixes figures of every size — "
+                 "1/4, 1/2, 2/3, 1 matra, triplets, quadruplets. A compound on ONE note repeats "
+                 "that swara (a dir's normal use); a figure that MOVES (a dara, a da-ra run) is "
+                 "written as separate notes, one per stroke — in the stroke_line it is still ONE "
+                 "token for its matra.")
+    lines.append("    NOTE VALUES are yours: quarter, half and whole matras, longer holds — how many "
+                 "notes and strokes a matra holds is your call.")
+    return "\n".join(lines)
+
+
+def render_seed_strokes(bpm: float | None) -> str:
+    """The stroke frame for the Composer's SEED call, which may pick its own tempo: the one
+    frame a fixed bpm selects, else BOTH frames' grids with the laya rule that picks between them
+    — the shared vocabulary and craft printed ONCE (printing two whole frames doubled the gat's
+    weight in a prompt that also offers the song form). Pure."""
+    if bpm is not None:
+        return _render_bol_frame(frame_for_bpm(bpm))
+    lines = ["  (if you choose the gat form: below 90 bpm the Masitkhani frame, otherwise the Razakhani)"]
+    lines += [_render_frame_grid(f) for f in GAT_FRAMES]
+    lines += [render_bol_words(), _render_gat_craft_all()]
+    return "\n".join(lines)
+
+
+def _render_gat_craft(frame: str) -> str:
+    """How a gat head MOVES (`gats.GAT_CRAFT`): the verified rules as rules, the single-notation
+    observations as what published gats usually do. Pure."""
+    lines = ["  how a gat head moves (the melody riding the strokes):"]
+    for craft in gat_craft_for(frame):
+        lead = "" if craft["confidence"] == "VERIFIED" else "published gats usually: "
+        lines.append(f"    - {lead}{craft['rule']}")
+    return "\n".join(lines)
+
+
+def _render_gat_craft_all() -> str:
+    """The craft rules once, each frame-limited rule naming its frame. Pure."""
+    lines = ["  how a gat head moves (the melody riding the strokes):"]
+    for craft in GAT_CRAFT:
+        frames = craft.get("frames")
+        where = f" ({', '.join(GAT_FRAMES[x]['display'] for x in frames)})" if frames else ""
+        lead = "" if craft["confidence"] == "VERIFIED" else "published gats usually: "
+        lines.append(f"    - {lead}{craft['rule']}{where}")
+    return "\n".join(lines)
+
+
+def _render_frame_grid(frame: str) -> str:
+    """One frame's own lines — its grid or bol set and what it asks of the head. Pure."""
     f = GAT_FRAMES[frame]
     lines = [f"  {f['display']} — the stroke pattern IS the gat's identity (bols are strokes,"
-             f" not pitches; a melody note may carry several):"]
+             f" not pitches):"]
     if f["bols"] is not None:
-        lines.append(f"  the avartan's bol grid, matra by matra (matra 1 = the sam): "
-                     f"{' '.join(f['bols'])}")
-        lines.append('  "dir" = TWO attacks in that matra — two fast notes, or one note with '
-                     'bol "diri".')
+        lines.append(f"  its bol skeleton (the strokes that frame the avartan, matra 1 = the sam; "
+                     f"your notes may divide or hold through any matra): {' '.join(f['bols'])}")
         lines.append(f"  the mukhda proper is matras {f['mukhda_start']}-{f['matras']} "
-                     f"(dir da dir da ra) — the approach SURGING into the next sam; those dir "
-                     f"doublings are required.")
+                     f"(dir da dir da ra) — the approach SURGING into the next sam; put a dir "
+                     f"on each of its dir matras.")
+        lines.append("  this grid IS your stroke_line (Parikh: a gat that leaves it is not a "
+                     f"{f['display'].split(' (')[0]} gat) — so every head shares the right hand, and "
+                     "what makes THIS head its own is the LEFT hand riding it: which strokes repeat "
+                     "a swara and which move, where a meend carries a stroke across swaras, where a "
+                     "kan touches the arrival.")
     else:
         lines.append(f"  Parikh's bol set (flexible in placement): {f['bol_phrase']}")
-        lines.append('  "dir"/"dara" = double/triple attacks — pairs of fast notes, or one '
-                     'note with bol "diri"/"darada"; drive the head on at least TWO such '
-                     'doublings.')
-    lines.append('  REQUIRED: strike your FIRST note "da" (it sounds ON every sam), and give '
-                 'most notes an explicit bol (da strong / ra softer) so the head carries a '
-                 'rhythm signature, not just pitches.')
+        lines.append("  compose your OWN stroke_line from this vocabulary (the pattern is fixed "
+                     "only loosely — Parikh: 'slight variations permitted according to the melodic "
+                     "mould of the gat'): it is the head's rhythmic HOOK. Let one stroke figure "
+                     "recur so the ear can hold it, set dir / dar / dara / rda figures where the "
+                     "line drives forward and a \"-\" where a note rings on — no two heads need "
+                     "share a line.")
+        if f.get("drut_figures"):
+            lines.append(f"  sourced drut stroke phrases (vocabulary, not a template): "
+                         f"{' | '.join(f['drut_figures'])}")
+    return "\n".join(lines)
+
+
+def _render_bol_frame(frame: str) -> str:
+    """The gat's STROKE FRAME (src/gats.py), rendered for the mukhada's prompt — the sourced
+    bol identity the head composes under and `check_bol_frame` reports on. Pure."""
+    lines = [_render_frame_grid(frame)]
+    lines.append(render_bol_words())
+    lines.append(_render_gat_craft(frame))
+    lines.append('  Plan the stroke_line FIRST — one token per matra, the first a "da" (it sounds '
+                 'ON every sam) — then give every note the bol its matra asks for, so the head '
+                 'carries a rhythm signature, not just pitches; a gat played as plain notes sounds '
+                 'like a keyboard melody.')
     return "\n".join(lines)
 
 
@@ -1083,6 +1234,8 @@ class _LeadContext:
             "subgenre_feel": SUBGENRES[arr.subgenre]["feel"],
             "bpm": arr.bpm,
             "tala": TALAS[arr.tala]["display"],
+            "user_request": render_request(arr.request),
+            "song_seed": render_song_seed(arr),
             "output_schema": _OUTPUT_SCHEMA,
         }
 
@@ -1100,6 +1253,7 @@ class _LeadContext:
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "section_transition": section.transition or "(none given)",
             "window_beats": f"{span.length:g}",
+            "phrase_room": _render_phrase_room(span) if is_intro(section) else "",
             "tala_position": _render_tala_position(span, self._cycle_beats),
             "previous": _render_previous(memory),
             "mukhada_head": _render_mukhada_head(memory, tease=is_intro(section)),
@@ -1196,6 +1350,18 @@ def _lead_guardrail(raga: str):
     return guard
 
 
+# The cells that set the piece's IDENTITY think before they write (Sujit, 2026-10-12): the alap
+# that establishes the raga and the gat head everything returns to. At `low`, 3.8 Flash does no
+# thinking at all, and the 2026-10-12 Darbari alap came back minimally compliant — ~11 notes,
+# no pakad, no development — against a brief with fifteen rules. Two calls per run, not 26.
+_IDENTITY_ROLES: Final = frozenset({"intro", "mukhada"})
+
+
+def _lead_llm(form_role: str | None):
+    """The conception tier (medium thinking) for an identity cell, the generator tier else."""
+    return composer_llm() if form_role in _IDENTITY_ROLES else generator_llm()
+
+
 class _LeadCrew:
     """Runs ONE section's lead generation as an isolated single-agent crew.
 
@@ -1204,16 +1370,16 @@ class _LeadCrew:
     so there is no hand-rolled JSON parsing beyond the defensive fallback.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, agent_key: str = "lead") -> None:
         config_dir = Path(__file__).parent / "config"
-        self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())["lead"]
+        self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())[agent_key]
         self._task_config = yaml.safe_load((config_dir / "tasks.yaml").read_text())["generate_lead"]
 
     def run(self, raga: str, inputs: dict[str, Any]) -> LeadPhrase:
-        agent = Agent(config=self._agent_config, llm=generator_llm(),
+        agent = Agent(config=self._agent_config, llm=_lead_llm(inputs.get("form_role")),
                       allow_delegation=False, max_iter=GENERATOR_MAX_ITER,
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
-        task = Task(config=self._task_config, agent=agent, output_pydantic=LeadPhrase,
+        task = Task(config=self._task_config, agent=agent, **structured_output(LeadPhrase),
                     guardrail=_lead_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
         phrase = _phrase_from_output(crew.kickoff(inputs=inputs))
@@ -1235,8 +1401,8 @@ class LeadFn(Protocol):
 class _LLMLead:
     """The real (LLM-backed) `gen_fn` — holds the crew and the precomputed context."""
 
-    def __init__(self, arr: Arrangement) -> None:
-        self._crew = _LeadCrew()
+    def __init__(self, arr: Arrangement, agent_key: str = "lead") -> None:
+        self._crew = _LeadCrew(agent_key)
         self._context = _LeadContext(arr)
 
     def __call__(self, span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], *,
@@ -1272,9 +1438,10 @@ class GatFn(Protocol):
 
 class _GatContext:
     """Assembles the whole-gat prompt inputs — the piece-level facts plus which parts to compose.
-    Pure; no per-section span (the gat is composed as a unit, not a section)."""
+    Pure; no per-section span (the gat is composed as a unit, not a section). `riff` is the
+    band's main riff when the piece is `riff_first` (composed before the gat, for it to quote)."""
 
-    def __init__(self, arr: Arrangement) -> None:
+    def __init__(self, arr: Arrangement, riff: RiffPattern | None = None) -> None:
         from subgenres import SUBGENRES
         from talas import TALAS
         self._static: dict[str, Any] = {
@@ -1285,6 +1452,9 @@ class _GatContext:
             "tala": TALAS[arr.tala]["display"],
             "cycle_beats": f"{arr.beats_per_bar:g}",
             "bol_frame": _render_bol_frame(frame_for_bpm(arr.bpm)),
+            "user_request": render_request(arr.request),
+            "song_seed": render_song_seed(arr),
+            "riff_source": render_gat_source(arr, riff),
             "gat_output_schema": _GAT_OUTPUT_SCHEMA,
         }
 
@@ -1333,16 +1503,17 @@ class _GatCrew:
     `_LeadCrew` — config read once, `output_pydantic=Gat` for the shape, the raga-bound guardrail
     for legality."""
 
-    def __init__(self) -> None:
+    def __init__(self, agent_key: str = "lead") -> None:
         config_dir = Path(__file__).parent / "config"
-        self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())["lead"]
+        self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())[agent_key]
         self._task_config = yaml.safe_load((config_dir / "tasks.yaml").read_text())["generate_gat"]
 
     def run(self, raga: str, inputs: dict[str, Any]) -> Gat:
-        agent = Agent(config=self._agent_config, llm=generator_llm(),
+        # the gat is CONCEIVED here (head, bridge and answer in one call) — the conception tier
+        agent = Agent(config=self._agent_config, llm=composer_llm(),
                       allow_delegation=False, max_iter=GENERATOR_MAX_ITER,
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
-        task = Task(config=self._task_config, agent=agent, output_pydantic=Gat,
+        task = Task(config=self._task_config, agent=agent, **structured_output(Gat),
                     guardrail=_gat_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
         gat = _gat_from_output(crew.kickoff(inputs=inputs))
@@ -1354,9 +1525,10 @@ class _GatCrew:
 class _LLMGat:
     """The real (LLM-backed) `gat_fn` — holds the crew and the precomputed context."""
 
-    def __init__(self, arr: Arrangement) -> None:
-        self._crew = _GatCrew()
-        self._context = _GatContext(arr)
+    def __init__(self, arr: Arrangement, riff: RiffPattern | None = None,
+                 agent_key: str = "lead") -> None:
+        self._crew = _GatCrew(agent_key)
+        self._context = _GatContext(arr, riff)
 
     def __call__(self, arr: Arrangement, *, needs_manjha: bool, needs_antara: bool,
                  needs_amad: bool) -> Gat:
@@ -1378,6 +1550,8 @@ def _render_plan(plan: PhrasePlan) -> str:
         line = f"{plan.taan_style} taan · {line}"
     if plan.badhat_plan:
         line = f"{line} · badhat: {plan.badhat_plan}"
+    if plan.stroke_line:
+        line = f"{line} · strokes: {' '.join(plan.stroke_line)}"
     return line
 
 
@@ -1413,8 +1587,32 @@ def _gat_repair_event(role: str, tries: int, violations: list[str]) -> DebateEve
         data={"gat_verify": True, "cell": role, "tries": tries, "violations": violations})
 
 
-# A verifier bound to its cell's context (cycle/window/head), applied to a candidate phrase.
-type CellVerifier = Callable[[LeadPhrase], list[str]]
+# A verifier bound to its cell's context (cycle/window/head), applied to a candidate phrase:
+# HARD faults drive the re-roll, CRAFT notes are reported (`gat_verifier.CellChecks`).
+type CellVerifier = Callable[[LeadPhrase], CellChecks]
+
+
+class VerifiedCell(NamedTuple):
+    """A verified cell: the chosen take, how many takes it cost, the HARD faults it still has
+    (best-of-N when none came back clean) and its CRAFT notes (reported, never re-rolled)."""
+    cell: LeadPhrase
+    tries: int
+    violations: list[str]
+    craft: list[str]
+
+
+def _note_craft(event: DebateEvent, craft: list[str]) -> None:
+    """Attach a cell's craft notes to its event — the advisory half of the verifier, for the
+    judges and the trace."""
+    if craft:
+        event.data["craft_notes"] = list(craft)
+
+
+def _craft_event(role: str, craft: list[str]) -> DebateEvent:
+    """A jointly-composed gat part's craft notes, reported where the part was accepted."""
+    return DebateEvent(type=EventType.INFO, agent="Lead", role=_ROLE_GENERATOR,
+                       text=f"gat craft notes: {role} — {len(craft)} reported, not enforced",
+                       data={"cell": role, "craft_notes": list(craft)})
 
 
 # A verified cell can still come back SHORT: the repair loop is bounded and keeps the
@@ -1447,18 +1645,47 @@ def _restated_to_window(notes: list[LeadNote], window_beats: float) -> list[Lead
     return out
 
 
+# Best-of-N by SEVERITY (2026-10-12): when no take comes back clean, the fewest hard faults
+# used to win — and a near-empty cell trips the FEWEST checks, so the first live run kept a
+# 1-note cell for its main melody section. An underfilled take is now always worse than a
+# fuller one, whatever either one's fault count; among takes on the same side of that line,
+# fewer faults still wins. Only ranks takes that already failed — it never rejects one.
+_UNDERFILL_COVER: Final = 0.4              # audible beats below this share of the window...
+_UNDERFILL_MIN_NOTES: Final = 3            # ...or fewer sounding notes than this = near-empty
+
+
+def is_underfilled(cell: LeadPhrase, window_beats: float) -> bool:
+    """Whether a cell is NEAR-EMPTY for its generation window: fewer than `_UNDERFILL_MIN_NOTES`
+    sounding notes, or audible for under `_UNDERFILL_COVER` of the window. A note counts only up
+    to the pluck limit — a 16-beat hold is a few beats of sitar and then padding, so it cannot
+    buy a cell its coverage. Pure."""
+    sounding = [n for n in cell.notes if not n.rest]
+    audible = sum(min(n.dur, _PLUCK_SUSTAIN_MAX) for n in sounding)
+    return len(sounding) < _UNDERFILL_MIN_NOTES or audible < _UNDERFILL_COVER * window_beats
+
+
+def take_severity(cell: LeadPhrase, window_beats: float, violations: list[str]) -> tuple[bool, int]:
+    """How bad a failed take is, as a sortable key (lower is better): underfilled first, then
+    the number of hard faults — so an emptier take can never win on a lower fault count. Pure."""
+    return (is_underfilled(cell, window_beats), len(violations))
+
+
 def _generate_verified_cell(gen_span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], *,
-                            gen_fn: LeadFn, verify: CellVerifier) -> tuple[LeadPhrase, int, list[str]]:
+                            gen_fn: LeadFn, verify: CellVerifier) -> VerifiedCell:
     """Generate a VERIFIED gat cell (mukhada / intro / manjha / taan fill), RE-ROLLING a weak
-    one up to `_CELL_REPAIR_TRIES` times. The re-roll is FED the exact violations (a targeted
-    re-roll, not a blind one) so the LLM re-composes the cell to fix precisely what failed — code
-    never edits the notes. Bounded, keeping the best-of-N (fewest violations) if none come back
-    clean. Returns (cell, tries_used, remaining_violations). Pure control flow: the verifiers are
+    one up to `_CELL_REPAIR_TRIES` times. Only HARD faults re-roll (the cell is broken, illegal or
+    misses its seam); CRAFT notes are carried back, never re-rolled. The re-roll is FED the exact
+    hard faults (a targeted re-roll, not a blind one) so the LLM re-composes the cell to fix
+    precisely what failed — code never edits the notes. Bounded, keeping the best-of-N (least
+    severe — `take_severity`: a fuller take beats a near-empty one, then fewest hard faults) if
+    none come back clean. Returns a `VerifiedCell`. Pure control flow: the verifiers are
     deterministic and `gen_fn` is injected, so this repair loop tests with no LLM (the live
     `beat`s are ambient no-ops without a sink)."""
     cell_name = gen_span.section.form_role or gen_span.section.kind.value
     best_cell: LeadPhrase | None = None
     best_viol: list[str] | None = None
+    best_severity: tuple[bool, int] | None = None
+    best_craft: list[str] = []
     feedback: list[str] | None = None                        # None on attempt 1; the prior violations after
     for attempt in range(_CELL_REPAIR_TRIES + 1):
         if feedback is None:
@@ -1477,14 +1704,18 @@ def _generate_verified_cell(gen_span: SectionSpan, arr: Arrangement, memory: lis
                      data={"cell": cell_name, "crash": str(exc)})
                 break
             raise
-        viol = verify(cell)
+        checks = verify(cell)
+        viol, craft = list(checks.hard), list(checks.craft)
         if not viol:
-            return cell, attempt + 1, []
+            return VerifiedCell(cell, attempt + 1, [], craft)
         feedback = viol                                      # the re-roll sees EXACTLY what failed
-        if best_viol is None or len(viol) < len(best_viol):
-            best_cell, best_viol = cell, viol
+        severity = take_severity(cell, gen_span.length, viol)
+        # on a TIE the later take wins: it answered the feedback (2026-10-12: the re-roll fixed
+        # "must resolve to Sa" but ran long, tied on one fault, and the unresolved take shipped)
+        if best_severity is None or severity <= best_severity:
+            best_cell, best_viol, best_craft, best_severity = cell, viol, craft, severity
     assert best_cell is not None and best_viol is not None    # the loop runs at least once
-    return best_cell, _CELL_REPAIR_TRIES + 1, best_viol
+    return VerifiedCell(best_cell, _CELL_REPAIR_TRIES + 1, best_viol, best_craft)
 
 
 def _verify_or_repair_part(part: LeadPhrase, role: str, gen_span: SectionSpan, arr: Arrangement,
@@ -1494,14 +1725,17 @@ def _verify_or_repair_part(part: LeadPhrase, role: str, gen_span: SectionSpan, a
     it IN ISOLATION — regenerate ONLY this part (the already-accepted parts stay fixed and are in
     `memory`), via the per-section `gen_fn` bounded re-roll. The joint call gives coherence; this
     keeps a single weak part from forcing a whole-gat rewrite (Sujit's steer, 2026-07-16)."""
-    part_viol = verify(part)
-    if not part_viol:
-        return part                                  # the jointly-composed part is clean — keep it
+    part_checks = verify(part)
+    part_viol = list(part_checks.hard)
+    if not part_viol:                                # the jointly-composed part is sound — keep it
+        if part_checks.craft:
+            events.append(_craft_event(role, list(part_checks.craft)))
+        return part
     beat("Lead", f"the gat's {role} failed its check — repairing in isolation; flagged: "
                  f"{flags(part_viol)}", data={"violations": part_viol, "cell": role})
     try:
-        repaired, tries, viol = _generate_verified_cell(gen_span, arr, memory, gen_fn=gen_fn,
-                                                        verify=verify)
+        repaired, tries, viol, craft = _generate_verified_cell(gen_span, arr, memory,
+                                                               gen_fn=gen_fn, verify=verify)
     except Exception as exc:  # noqa: BLE001 — LIVE SAFETY: the repair has a fallback, USE it
         # (2026-07-20 live failure): the repair call died hard (a structured-output crash) and
         # took the whole compose with it — for a part that already EXISTS, legal if imperfect.
@@ -1511,6 +1745,8 @@ def _verify_or_repair_part(part: LeadPhrase, role: str, gen_span: SectionSpan, a
         events.append(_gat_repair_event(f"{role} (repair crashed — original kept)", 1, part_viol))
         return part
     events.append(_gat_repair_event(f"{role} (gat, in isolation)", tries + 1, viol))
+    if craft:
+        events.append(_craft_event(role, craft))
     return repaired
 
 
@@ -1538,15 +1774,23 @@ def _amad_gen_span(antara_span: SectionSpan, cycle_beats: float, reentry: str) -
                        start=antara_span.end - cycle_beats, end=antara_span.end)
 
 
+def _head_strokes(cell: LeadPhrase, *, cycle_beats: float, frame: str) -> CellChecks:
+    """The gat head's right hand, as one check wherever a head is judged: the sourced stroke frame
+    (`check_bol_frame`) plus the head's own planned stroke line (`check_stroke_line`). Pure."""
+    return (check_bol_frame(cell, cycle_beats=cycle_beats, frame=frame)
+            + check_stroke_line(cell, cycle_beats=cycle_beats))
+
+
 def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
-                 events: list[DebateEvent]) -> Gat | None:
+                 events: list[DebateEvent], riff_source: RiffPattern | None = None) -> Gat | None:
     """Compose the gat as ONE object — mukhada + (manjha) + (antara) + (amad) in a single
     `gat_fn` call so they share a motif and a register arc — then verify each part and repair a
     failing one in isolation. The amad (Parikh's fourth line) exists when the antara section has
     a spare avartan for it; the antara is then verified over the REMAINING window with the
     homecoming requirement handed to the amad. Returns None when the arrangement has no mukhada
-    (nothing to compose jointly). Pure control flow: `gat_fn` and `gen_fn` are injected, so this
-    is fully tested with no LLM."""
+    (nothing to compose jointly). In a `riff_first` piece `riff_source` is the main riff the
+    head must QUOTE, and the quote is verified with the head's other rules. Pure control flow:
+    `gat_fn` and `gen_fn` are injected, so this is fully tested with no LLM."""
     spans = list(section_spans(arr))
     mspan = next((s for s in spans if is_mukhada(s.section)), None)
     if mspan is None:
@@ -1556,6 +1800,8 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
     cycle, raga = arr.beats_per_bar, arr.raga
     frame = frame_for_bpm(arr.bpm)
     needs_amad = antara_span is not None and antara_span.section.bars >= 2
+    accents = (riff_accents(riff_source, arr)
+               if riff_source is not None and arr.anchor == "riff_first" else [])
 
     beat("Lead", "composing the whole gat (mukhada + manjha + antara + amad) in one call…")
     gat = gat_fn(arr, needs_manjha=manjha_span is not None, needs_antara=antara_span is not None,
@@ -1570,8 +1816,10 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
     memory: list[LeadMemo] = []
     mukhada = _verify_or_repair_part(
         gat.mukhada, _MUKHADA, _one_cycle_span(mspan, cycle), arr, memory,
-        verify=lambda c: (verify_mukhada(c, cycle_beats=cycle, raga=raga)
-                          + verify_bol_frame(c, cycle_beats=cycle, frame=frame)),
+        verify=lambda c: (check_mukhada(c, cycle_beats=cycle, raga=raga)
+                          + _head_strokes(c, cycle_beats=cycle, frame=frame)
+                          + check_head_idea(c, arr.seed_head)
+                          + hard_only(verify_riff_quote(c, accents))),
         gen_fn=gen_fn, events=events)
     memory.append(LeadMemo(mspan.section.kind.value, mukhada, _MUKHADA))
 
@@ -1581,7 +1829,7 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
         window = gen_span.length
         manjha = _verify_or_repair_part(
             gat.manjha or mukhada, _MANJHA, gen_span, arr, memory,
-            verify=lambda c: verify_manjha(c, mukhada=mukhada, window_beats=window, raga=raga),
+            verify=lambda c: check_manjha(c, mukhada=mukhada, window_beats=window, raga=raga),
             gen_fn=gen_fn, events=events)
         memory.append(LeadMemo(manjha_span.section.kind.value, manjha, _MANJHA))
 
@@ -1596,8 +1844,8 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
                            if needs_amad else antara_span)
         antara = _verify_or_repair_part(
             gat.antara or mukhada, _ANTARA, antara_gen_span, arr, memory,
-            verify=lambda c: verify_antara(c, mukhada=mukhada, window_beats=antara_window,
-                                           raga=raga, with_amad=needs_amad),
+            verify=lambda c: check_antara(c, mukhada=mukhada, window_beats=antara_window,
+                                          raga=raga, with_amad=needs_amad),
             gen_fn=gen_fn, events=events)
         if needs_amad:
             memory.append(LeadMemo(antara_span.section.kind.value, antara, _ANTARA))
@@ -1607,8 +1855,8 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
             amad = _verify_or_repair_part(
                 gat.amad or mukhada, _AMAD, _amad_gen_span(antara_span, cycle, reentry), arr,
                 memory,
-                verify=lambda c: verify_amad(c, mukhada=mukhada, window_beats=cycle, raga=raga,
-                                             antara_last=antara_last),
+                verify=lambda c: check_amad(c, mukhada=mukhada, window_beats=cycle, raga=raga,
+                                            antara_last=antara_last),
                 gen_fn=gen_fn, events=events)
 
     return Gat(anchor=gat.anchor, mukhada=mukhada, manjha=manjha, antara=antara, amad=amad)
@@ -1668,10 +1916,13 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
     fill_notes = [apply_strokes(apply_ornaments(strip_noop_meends(f.notes), arr.raga))
                   for f in fills or []]
     fill_cursor = 0
+    register = arr.registers[_LEAD_ROLE]
+    last_index = max(phrases, default=None)          # the section whose last note closes the lead
     for span in section_spans(arr):
         phrase = phrases.get(span.index)
         if phrase is None:
             continue
+        closes_lead = span.index == last_index
         bar_fills: dict[int, list[LeadNote]] = {}
         fill_cut: float | None = None
         if fill_notes and _fill_bars(span.section):
@@ -1682,24 +1933,19 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
                 bar_fills[bar] = fill_notes[fill_cursor % len(fill_notes)]
                 fill_cursor += 1
         processed = apply_strokes(apply_ornaments(strip_noop_meends(phrase.notes), arr.raga))
-        if is_intro(span.section) and _CLEAN_ROLE in span.section.layers:
-            # The alap LOCKS to the clean arpeggio: a lead-in avartan of arpeggio alone, then
-            # each phrase enters on a sam (`_place_intro_phrases`) instead of drifting flush-left.
-            gen_span = _intro_gen_span(span, arr.beats_per_bar)
-            line = _place_intro_phrases(processed, gen_span=gen_span, section_span=span,
-                                        register=arr.registers[_LEAD_ROLE],
-                                        cycle_beats=arr.beats_per_bar,
-                                        andolan_swaras=andolan_swaras)
-            line = _ring_out_intro(line, span)        # the final Sa rings into the reserved gap
-        elif is_intro(span.section):
-            line = _place_lead_section(processed, span=span, register=arr.registers[_LEAD_ROLE],
-                                       cycle_beats=arr.beats_per_bar, andolan_swaras=andolan_swaras)
-            line = _ring_out_intro(line, span)        # the final Sa rings into the reserved gap
+        if is_intro(span.section):
+            line = _place_intro(processed, span, arr, register=register,
+                                andolan_swaras=andolan_swaras)
+            # the final Sa rings into the reserved gap (bounded unless it closes the lead)
+            line = _ring_out_intro(line, span, closes_lead=closes_lead)
         else:
-            line = _place_lead_section(processed, span=span, register=arr.registers[_LEAD_ROLE],
+            line = _place_lead_section(processed, span=span, register=register,
                                        cycle_beats=arr.beats_per_bar,
                                        andolan_swaras=andolan_swaras, bar_fills=bar_fills,
-                                       fill_cut=fill_cut)
+                                       fill_cut=fill_cut, loop=is_song_hook(span.section, arr))
+        # the pluck limit, on whatever placement produced: no hold outlives the string
+        line = pluck_limited(line, register=register, metered=not is_unmetered(span.section),
+                             closes_lead=closes_lead)
         if span.section.kind is SectionKind.TAAN or span.section.form_role == "taan_long":
             # the taan/solo peak trades sitar<->guitar, then joins — whatever KIND carries it
             # (a taan_long voiced as a plain SOLO would otherwise be guitar-only, no trade)
@@ -1707,8 +1953,14 @@ def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
                 line, span, arr.beats_per_bar, arr.raga)
         else:
             sitar_line, guitar_line = _voice_line(line, _voicing_for(span.section), arr.raga)
+        # the code-set gestures (andolan direction, slow alap meend, climax gamak) — and the
+        # lead guitar plays the line plain, so it never sways in unison with the sitar
+        sitar_line, guitar_line = express_section(sitar_line, guitar_line, span.section, arr)
         sitar_notes.extend(sitar_line)
         guitar_notes.extend(guitar_line)
+    # a tihai's landing crosses into the next section, so it is placed on the whole line
+    sitar_notes = land_tihais(sitar_notes, arr)
+    guitar_notes = land_tihais(guitar_notes, arr)
     layers: list[Layer] = []
     if sitar_notes:
         layers.append(_lead_layer("sitar", sitar_notes))
@@ -1734,14 +1986,21 @@ def _fill_slot_count(arr: Arrangement) -> int:
     return sum(len(_fill_bars(s)) for s in arr.sections if _LEAD_ROLE in s.layers)
 
 
-def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
-                  gat_fn: GatFn | None = None) -> tuple[list[Layer], list[DebateEvent]]:
+def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = None,
+                  riff_source: RiffPattern | None = None,
+                  keep: KeptLead | None = None) -> tuple[list[Layer], list[DebateEvent]]:
     """Fill the lead across the arrangement's lead-active sections, VOICED.
+
+    `keep` (a REVISE): the sections it holds are REPLAYED, not regenerated — their phrases go
+    into the memory and the layers exactly as before, the kept head stays the head (with its
+    fills), and the joint gat call is skipped — so the model is called only for the sections the
+    plan names. The pass always ends with a `lead_realized_event`, the material a later revise keeps.
 
     For each section that lists `lead`: get a phrase (threading the realized prior sections as
     memory), then assemble every phrase into a sitar line and/or a lead-guitar line via
     `lead_layers_from`. Returns up to TWO layers and an empty list when no section uses the lead.
-    `gen_fn` (and `gat_fn`) are injected so this loop is tested with no LLM.
+    `gen_fn` (and `gat_fn`) are injected so this loop is tested with no LLM. `riff_source` is the
+    main riff of a `riff_first` piece, which the joint gat's mukhada must quote (`crew.anchor`).
 
     WHOLE-GAT COMPOSITION (Sujit + GPT, 2026-07-16): when a `gat_fn` is given, the mukhada, manjha
     and antara are composed TOGETHER as ONE coherent object (a single call — a shared motif and a
@@ -1774,78 +2033,91 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
     register = arr.registers[_LEAD_ROLE]
     raga = arr.raga
     frame = frame_for_bpm(arr.bpm)                  # the gat's stroke frame (laya-picked)
-    gat = _compose_gat(arr, gat_fn=gat_fn, gen_fn=gen_fn, events=events) if gat_fn else None
+    gat = (_compose_gat(arr, gat_fn=gat_fn, gen_fn=gen_fn, events=events, riff_source=riff_source)
+           if gat_fn and keep is None else None)
+    kept_head = _kept_head(arr, keep)               # a revise's head, when the plan leaves it alone
     # The head as a memo, for cells generated BEFORE the mukhada span is reached (the intro
     # precedes the head in the timeline but the gat is composed first): injected into the
     # intro's memory so the `{mukhada_head}` block can show the head it must tease — the same
     # pattern `_generate_fills` uses to show the head to a fill.
     head_memo: LeadMemo | None = None
-    if gat is not None:
-        mukhada_kind = next(s.section.kind.value for s in section_spans(arr)
-                            if is_mukhada(s.section))
-        head_memo = LeadMemo(mukhada_kind, gat.mukhada, _MUKHADA)
+    head_phrase = gat.mukhada if gat is not None else kept_head
+    if head_phrase is not None:
+        mukhada_kind = next((s.section.kind.value for s in section_spans(arr)
+                             if is_mukhada(s.section) or is_song_hook(s.section, arr)), "mukhada")
+        head_memo = LeadMemo(mukhada_kind, head_phrase, _MUKHADA)
     for span in section_spans(arr):
         section = span.section
         if _LEAD_ROLE not in section.layers:
             continue
-        if is_mukhada(section) and mukhada_cell is not None:
+        if keep is not None and span.index in keep.phrases:   # a revise leaves this section alone
+            phrase = keep.phrases[span.index]
+            if (is_mukhada(section) or is_song_hook(section, arr)) and mukhada_cell is None:
+                mukhada_cell, fill_cells = phrase, list(keep.fills)
+            phrases[span.index] = phrase
+            memory.append(LeadMemo(section.kind.value, phrase, section.form_role))
+            continue
+        # THE HOOK: the gat's mukhada, or — in the SONG form — the seed hook over the main riff.
+        hook = is_mukhada(section) or is_song_hook(section, arr)
+        if hook and mukhada_cell is not None:
             phrase = mukhada_cell                   # the hook RETURNS — reuse, don't regenerate
             events.append(_lead_reprise_event(span))
-        elif is_mukhada(section):                   # the FIRST mukhada — from the joint gat, or per-section
+        elif hook:                                  # the FIRST statement — joint gat, the seed, or per-section
             if gat is not None:
-                phrase, tries, viol = gat.mukhada, 1, []   # composed with the manjha/antara, already repaired
+                phrase, tries, viol, craft = gat.mukhada, 1, [], []   # composed with the manjha/antara, already repaired
+            elif arr.seed_hook is not None and keep is None:   # a revise that names the head rewrites it
+                phrase, tries, viol = arr.seed_hook, 1, []
+                # the Composer's head answers to the same stroke frame — reported, not enforced
+                craft = (list(_head_strokes(phrase, cycle_beats=cycle_beats, frame=frame).craft)
+                         if is_mukhada(section) else [])  # the Composer's seed, already verified
             else:
                 gen_span = _one_cycle_span(span, cycle_beats)
-                phrase, tries, viol = _generate_verified_cell(
+                phrase, tries, viol, craft = _generate_verified_cell(
                     gen_span, arr, memory, gen_fn=gen_fn,
-                    verify=lambda c: (verify_mukhada(c, cycle_beats=cycle_beats, raga=raga)
-                                      + verify_bol_frame(c, cycle_beats=cycle_beats, frame=frame)))
+                    verify=lambda c: (check_mukhada(c, cycle_beats=cycle_beats, raga=raga)
+                                      + _head_strokes(c, cycle_beats=cycle_beats, frame=frame)))
             mukhada_cell = phrase                   # cache the head for its returns
             line = _place_lead_section(phrase.notes, span=span, register=register,
-                                       cycle_beats=cycle_beats)
+                                       cycle_beats=cycle_beats, loop=True)
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
             # The head rides the event stream (see `mukhada_cell_from_events`) so the RIFF
             # generator — which runs after the lead — can reduce it, with no signature churn.
-            events[-1].data["mukhada_cell"] = phrase.model_dump(exclude_none=True)
+            events[-1].data[HOOK_EVENT_KEY] = phrase.model_dump(exclude_none=True)
+            _note_craft(events[-1], craft)
             if tries > 1:                           # the verifier re-rolled a weak hook — show it
                 events.append(_gat_repair_event(_MUKHADA, tries, viol))
             fill_cells = _generate_fills(span, arr, memory, mukhada_cell,
                                          gen_fn=gen_fn, events=events)
         elif is_intro(section):                     # the alap — verified, with a code-reserved pause
-            gen_span = _intro_gen_span(span, cycle_beats)
-            window = gen_span.length                # the SHORTENED window — overrun eats the silence
-            head = gat.mukhada if gat is not None else None
+            gen_span = _intro_gen_span(span, cycle_beats, first_vibhag_beats(arr), arr.bpm)
+            window = _intro_place_end(span) - gen_span.start   # it may eat code's pause, not the breath
+            head = head_phrase
             intro_memory = memory + [head_memo] if head_memo is not None else memory
-            phrase, tries, viol = _generate_verified_cell(
+            phrase, tries, viol, craft = _generate_verified_cell(
                 gen_span, arr, intro_memory, gen_fn=gen_fn,
-                verify=lambda c: verify_intro(c, window_beats=window, raga=raga, mukhada=head))
-            # EVERY alap phrase starts on a sam (Sujit, 2026-09-14: "phrases should start on
-            # the first beat of a measure and then the blank can be any length — that creates
-            # tension and anticipation instead of starting on any beat"). This was already the
-            # placement, but only when the clean guitar happened to be in the section, as
-            # though the arpeggio were what made the cycle audible. It is not: the jod strokes
-            # mark the cycle now, and a phrase that enters off the downbeat sounds unmoored
-            # whoever else is playing — measured on the two 2026-07-20 intros WITHOUT a clean
-            # layer, which are the two whose phrases drift.
-            line = _place_intro_phrases(phrase.notes, gen_span=gen_span, section_span=span,
-                                        register=register, cycle_beats=cycle_beats,
-                                        vibhag_beats=vibhag_starts(arr))
+                verify=lambda c: check_intro(c, window_beats=window, raga=raga, mukhada=head))
+            # In time from the window's start, the LLM's own rests and durations kept — a jod-like
+            # pulse (Sujit, 2026-10-12: the vibhag snap comes off; "the alap still needs to follow
+            # the pulse, more like jod than free flowing").
+            line = _place_intro(phrase.notes, span, arr, register=register)
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
+            _note_craft(events[-1], craft)
             if tries > 1:
                 events.append(_gat_repair_event(_INTRO, tries, viol))
         elif is_manjha(section) and mukhada_cell is not None:  # the SHORT low bridge back to the head
             if gat is not None and gat.manjha is not None:
-                phrase, tries, viol = gat.manjha, 1, []       # composed as part of the gat, already repaired
+                phrase, tries, viol, craft = gat.manjha, 1, [], []   # composed as part of the gat, already repaired
             else:
                 head = mukhada_cell
                 gen_span = _manjha_gen_span(span, cycle_beats)  # short, sub-cycle window (code reserves the rest)
                 window = gen_span.length
-                phrase, tries, viol = _generate_verified_cell(
+                phrase, tries, viol, craft = _generate_verified_cell(
                     gen_span, arr, memory, gen_fn=gen_fn,
-                    verify=lambda c: verify_manjha(c, mukhada=head, window_beats=window, raga=raga))
+                    verify=lambda c: check_manjha(c, mukhada=head, window_beats=window, raga=raga))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
+            _note_craft(events[-1], craft)
             if tries > 1:
                 events.append(_gat_repair_event(_MANJHA, tries, viol))
         elif is_antara(section) and mukhada_cell is not None:  # the second movement — the verified arc
@@ -1854,23 +2126,29 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
                 # final avartan carries the composed descent back into the head
                 phrase = (gat.antara if gat.amad is None else
                           _with_amad(gat.antara, gat.amad, span.length - cycle_beats))
-                tries, viol = 1, []
+                tries, viol, craft = 1, [], []
             else:
                 head = mukhada_cell
-                phrase, tries, viol = _generate_verified_cell(
+                phrase, tries, viol, craft = _generate_verified_cell(
                     span, arr, memory, gen_fn=gen_fn,
-                    verify=lambda c: verify_antara(c, mukhada=head, window_beats=span.length,
-                                                   raga=raga))
+                    verify=lambda c: check_antara(c, mukhada=head, window_beats=span.length,
+                                                  raga=raga))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
+            _note_craft(events[-1], craft)
             if tries > 1:
                 events.append(_gat_repair_event(_ANTARA, tries, viol))
         elif is_taan_long(section):                 # the developed peak — motif-grown, arced, burst+space
-            phrase, tries, viol = _generate_verified_cell(
+            phrase, tries, viol, craft = _generate_verified_cell(
                 span, arr, memory, gen_fn=gen_fn,
-                verify=lambda c: verify_taan(c, motif=arr.motif, window_beats=span.length,
-                                             raga=raga))
+                verify=lambda c: check_taan(c, motif=arr.motif, window_beats=span.length,
+                                            raga=raga))
+            # A hold past the pluck limit is SILENCE on a sitar — it becomes jhala on its own
+            # swara first, so the climax drives into the sam (see the _PLUCK_* block). It runs
+            # HERE, before placement, because the tihai below needs the jhala in the cell;
+            # `pluck_limited` then holds the same limit on every other section's placed line.
+            phrase = phrase.model_copy(update={"notes": animate_long_holds(phrase.notes)})
             # A short taan is RESTATED to cover its window before anything else touches it —
             # the tihai must land on the section's final sam, so it is spliced onto the
             # full-length line, never onto a cell that stops halfway.
@@ -1885,16 +2163,18 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
+            _note_craft(events[-1], craft)
             if tries > 1:
                 events.append(_gat_repair_event(_TAAN_LONG, tries, viol))
         elif is_outro(section):                     # the close — it must RESOLVE the raga
-            head = gat.mukhada if gat is not None else None
-            phrase, tries, viol = _generate_verified_cell(
+            head = head_phrase
+            phrase, tries, viol, craft = _generate_verified_cell(
                 span, arr, memory, gen_fn=gen_fn,
-                verify=lambda c: verify_outro(c, mukhada=head, raga=raga))
+                verify=lambda c: check_outro(c, mukhada=head, raga=raga))
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
+            _note_craft(events[-1], craft)
             if tries > 1:
                 events.append(_gat_repair_event(_OUTRO, tries, viol))
         else:
@@ -1910,7 +2190,33 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn,
     if not layers:
         events.append(DebateEvent(type=EventType.INFO, agent="Lead", role=_ROLE_GENERATOR,
                                   text="no lead-active sections in this arrangement"))
+    events.append(lead_realized_event(phrases, fill_cells))
     return layers, events
+
+
+def _kept_head(arr: Arrangement, keep: KeptLead | None) -> LeadPhrase | None:
+    """The head a revise keeps — the phrase of the first hook section it holds — else None."""
+    if keep is None:
+        return None
+    return next((keep.phrases[s.index] for s in section_spans(arr)
+                 if (is_mukhada(s.section) or is_song_hook(s.section, arr))
+                 and s.index in keep.phrases), None)
+
+
+def lead_revise_targets(arr: Arrangement, targets: list[int]) -> list[int]:
+    """The sections a lead revise re-composes: the plan's, widened to EVERY hook section when it
+    names one — the head is one cell that returns verbatim, so it changes everywhere or nowhere."""
+    hooks = [s.index for s in section_spans(arr)
+             if _LEAD_ROLE in s.section.layers and (is_mukhada(s.section) or is_song_hook(s.section, arr))]
+    return sorted(set(targets) | set(hooks)) if set(targets) & set(hooks) else list(targets)
+
+
+def revise_lead(arr: Arrangement, keep: KeptLead, *,
+                agent_key: str = "lead") -> tuple[list[Layer], list[DebateEvent]]:
+    """The TARGETED lead revise: re-compose only the sections `keep` does not hold, by the same
+    persona that wrote them (`composer` on the single-Composer path), the rest replayed."""
+    return generate_lead(arr, gen_fn=_LLMLead(arr, agent_key), riff_source=riff_seed_for_lead(arr),
+                         keep=keep)
 
 
 def _retrograde_fill(fill: LeadPhrase) -> LeadPhrase:
@@ -1949,6 +2255,97 @@ def _fill_variants(base: LeadPhrase, count: int, raga: str) -> list[LeadPhrase]:
     landing that resolves into the head — so the variants stay verified by construction."""
     variants = [base, _retrograde_fill(base), _step_up_fill(base, raga)]
     return (variants * (count // len(variants) + 1))[:count]
+
+
+def _jhala(note: LeadNote, beats: float) -> list[LeadNote]:
+    """`beats` of jhala on the swara `note` SOUNDS (a meend's target): per beat the swara struck
+    "da", then two chikari strokes; a fractional remainder extends the last stroke so the total
+    is exact. Pure."""
+    swara = note.meend_swara or note.swara
+    octave = note.oct if note.meend_swara is None or note.meend_oct is None else note.meend_oct
+    strokes: list[LeadNote] = []
+    whole = int(beats + 1e-6)
+    for _ in range(whole):
+        strokes.append(LeadNote(swara=swara, oct=octave, dur=_JHALA_STRIKE, vel=note.vel, bol="da"))
+        strokes += [LeadNote(swara="S", oct=1, dur=_JHALA_CHIKARI, vel=note.vel, bol="chikari")
+                    for _ in range(2)]
+    remainder = round(beats - whole, 4)
+    if remainder > 1e-6:
+        if strokes:
+            strokes[-1] = strokes[-1].model_copy(update={"dur": round(strokes[-1].dur + remainder, 4)})
+        else:
+            strokes.append(note.model_copy(update={"dur": remainder}))
+    return strokes
+
+
+def animate_long_holds(notes: list[LeadNote]) -> list[LeadNote]:
+    """The pluck limit, kept: every sounding note held past `_PLUCK_SUSTAIN_MAX` beats rings for
+    `_JHALA_RING` beats, then the rest of its length becomes JHALA on the same swara — so a padded
+    hold drives into the sam instead of decaying into silence. Total duration, every other note
+    and every rest are untouched. Pure."""
+    out: list[LeadNote] = []
+    for n in notes:
+        if n.rest or n.bol == "chikari" or n.dur <= _PLUCK_SUSTAIN_MAX + 1e-6:
+            out.append(n)
+            continue
+        out.append(n.model_copy(update={"dur": _JHALA_RING}))
+        out += _jhala(n, round(n.dur - _JHALA_RING, 4))
+    return out
+
+
+def is_unmetered(section) -> bool:
+    """Whether the lead plays this section as an ALAP — free time over the drone with no pulse
+    to drive (the gat's intro, or any section of the `alaap` kind)."""
+    return is_intro(section) or section.kind is SectionKind.ALAAP
+
+
+def pluck_limited(line: list[Note], *, register: int, metered: bool,
+                  closes_lead: bool = False) -> list[Note]:
+    """The pluck limit on a section's PLACED line: no sounding note longer than
+    `_PLUCK_SUSTAIN_MAX` beats survives, because a plucked sitar string is silent long before
+    then and a longer note is a hole in the record that the score calls melody. Placement
+    itself only ever CLIPS notes (`place_phrase`, the mukhada/hook loop, the intro's phrase
+    snapping, a restated taan), so a long note here is either the model's own padded hold or
+    the alap's ring-out; this one pass covers both, whichever path placed the line.
+
+    What a too-long note becomes depends on the section:
+      * `metered` (the band keeps time — mukhada, antara, hook, melody, solo, taan, outro): it
+        rings `_JHALA_RING` beats and the rest becomes JHALA on the swara it rests on
+        (`_ring_then_jhala`), exactly as `animate_long_holds` treats the climax. Total time is
+        kept, so the line still reaches the sam it was written to reach — now audibly.
+      * unmetered (the alap): it is cut to the limit. Jhala is a metered climax device and
+        would wreck the alap's free time; the honest reading of a held alap note is a pluck
+        that decays, and shortening it only stops the score claiming sound that is not there
+        (start times never move, so the phrase grid is untouched).
+    `closes_lead` exempts the line's LAST note — the final ring of the whole lead may die
+    away on its own. Pure."""
+    out: list[Note] = []
+    for index, note in enumerate(line):
+        exempt = closes_lead and index == len(line) - 1
+        if exempt or note.dur <= _PLUCK_SUSTAIN_MAX + 1e-6:
+            out.append(note)
+        elif metered:
+            out += _ring_then_jhala(note, register)
+        else:
+            out.append(note.model_copy(update={"dur": _PLUCK_SUSTAIN_MAX}))
+    return out
+
+
+def _ring_then_jhala(note: Note, register: int) -> list[Note]:
+    """A placed hold past the pluck limit kept SOUNDING: the note itself (its meend and andolan
+    intact) rings `_JHALA_RING` beats, then the remainder is jhala on the swara it RESTS on — a
+    meend's target, since that is the pitch the hold sustains. The restrikes are built from a
+    plain resting note, so none of them carries a glide (a jhala stroke is struck, not pulled),
+    and they pass through the same stroke + placement path as any composed line, so they land
+    in the same register at the same velocities as the climax taan's jhala. Pure."""
+    glides = note.meend_swara is not None
+    resting_oct = note.meend_oct if glides and note.meend_oct is not None else note.oct
+    resting = LeadNote(swara=note.meend_swara if glides else note.swara,
+                       oct=resting_oct - register, dur=note.dur, vel=note.vel)
+    strokes = apply_strokes(_jhala(resting, round(note.dur - _JHALA_RING, 4)))
+    ring = note.model_copy(update={"dur": _JHALA_RING})
+    return [ring, *place_phrase(strokes, start=note.start + _JHALA_RING,
+                                end=note.start + note.dur, register=register)]
 
 
 def make_tihai(notes: list[LeadNote], window_beats: float) -> list[LeadNote] | None:
@@ -2039,20 +2436,63 @@ def _generate_fills(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo],
     head_memory = memory + [LeadMemo(span.section.kind.value, mukhada_cell, _MUKHADA)]
     reentry = reentry_swara(mukhada_cell, cut) or "S"
     fill_span = _fill_gen_span(span, cut, reentry)
-    base, tries, viol = _generate_verified_cell(
+    base, tries, viol, craft = _generate_verified_cell(
         fill_span, arr, head_memory, gen_fn=gen_fn,
-        verify=lambda c: verify_fill(c, mukhada=mukhada_cell, window_beats=cut, raga=arr.raga))
+        verify=lambda c: check_fill(c, mukhada=mukhada_cell, window_beats=cut, raga=arr.raga))
     if tries > 1:
         events.append(_gat_repair_event("taan fill", tries, viol))
     fills = _fill_variants(base, count, arr.raga)
     events.append(_fill_event(fills, cut))
+    _note_craft(events[-1], craft)
     return fills
 
 
-def compose_lead(arr: Arrangement) -> tuple[list[Layer], list[DebateEvent]]:
+def compose_lead(arr: Arrangement,
+                 riff: RiffPattern | None = None) -> tuple[list[Layer], list[DebateEvent]]:
     """Run the real (LLM-backed) lead generation for a chart — the gat composed as ONE object
-    (`_LLMGat`), everything else per-section (`_LLMLead`)."""
-    return generate_lead(arr, gen_fn=_LLMLead(arr), gat_fn=_LLMGat(arr))
+    (`_LLMGat`), everything else per-section (`_LLMLead`). `riff` (optional) is the main riff
+    of a `riff_first` piece, composed first: the gat is shown it and its head must quote it. With
+    no `riff` given, the chart's own seed is used (`riff_seed_for_lead`) — so a REVISE of the gat
+    still quotes the riff instead of being handed nothing."""
+    riff = riff or riff_seed_for_lead(arr)
+    return generate_lead(arr, gen_fn=_LLMLead(arr), gat_fn=_LLMGat(arr, riff), riff_source=riff)
+
+
+class _SeededGat:
+    """The gat around a FIXED head: the Composer's seed hook IS the mukhada (never regenerated);
+    the joint call — shown the hook — composes only the manjha/antara/amad the chart needs, and
+    makes no call at all when it needs none. Its mukhada is replaced by the seed whatever the
+    model returned, so the head the seed guardrail verified is the head that plays."""
+
+    def __init__(self, arr: Arrangement, agent_key: str) -> None:
+        self._hook = arr.seed_hook
+        self._parts = _LLMGat(arr, riff_seed_for_lead(arr), agent_key)
+
+    def __call__(self, arr: Arrangement, *, needs_manjha: bool, needs_antara: bool,
+                 needs_amad: bool) -> Gat:
+        assert self._hook is not None, "a seeded gat needs the chart's seed_hook"
+        if not (needs_manjha or needs_antara or needs_amad):
+            return Gat(anchor="the seed hook", mukhada=self._hook)
+        gat = self._parts(arr, needs_manjha=needs_manjha, needs_antara=needs_antara,
+                          needs_amad=needs_amad)
+        return gat.model_copy(update={"mukhada": self._hook})
+
+
+def compose_seeded_lead(arr: Arrangement, *,
+                        agent_key: str = "composer") -> tuple[list[Layer], list[DebateEvent]]:
+    """The DEVELOP half of the single Composer for the lead: a seed hook is the mukhada (a gat
+    whose head is already set — a revise) or the recurring hook over the main riff (song form,
+    `is_song_hook`); a gat seed's head IDEA goes to the whole-gat call, which composes the head FROM
+    it beside the manjha and antara. Everything is composed by the same `composer` persona, shown
+    the whole seed (`{song_seed}`)."""
+    if arr.seed_hook is not None:
+        gat_fn = _SeededGat(arr, agent_key)
+    elif arr.seed_head is not None:
+        gat_fn = _LLMGat(arr, riff_seed_for_lead(arr), agent_key)
+    else:
+        gat_fn = None
+    return generate_lead(arr, gen_fn=_LLMLead(arr, agent_key), gat_fn=gat_fn,
+                         riff_source=riff_seed_for_lead(arr))
 
 
 def mukhada_cell_from_events(events: list[DebateEvent]) -> LeadPhrase | None:
@@ -2062,11 +2502,18 @@ def mukhada_cell_from_events(events: list[DebateEvent]) -> LeadPhrase | None:
     reduce the head rhythmically (Sujit: the riff-only section should almost play the
     mukhada) — the events already travel to every caller, so the head rides them instead
     of changing `compose_lead`'s signature. None when no mukhada was generated."""
-    for event in events:
-        cell = event.data.get("mukhada_cell")
-        if cell:
-            return LeadPhrase.model_validate(cell)
-    return None
+    return hook_from_events(events)
+
+
+def phrase_schema() -> str:
+    """The LeadPhrase JSON shape, as the lead prompt shows it — reused by the Composer's seed."""
+    return _OUTPUT_SCHEMA
+
+
+def phrase_grammar_error(phrase: LeadPhrase, raga: str) -> str | None:
+    """The phrase's raga-grammar fault (legal swaras, entered from the legal direction), or None.
+    Public: the Composer's seed guardrail holds the hook to the same grammar as every lead cell."""
+    return _phrase_grammar_error(phrase, raga)
 
 
 # A canvas-aware per-section lead call, for the cooperative studio loop: (span, memory,

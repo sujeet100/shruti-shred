@@ -23,13 +23,17 @@ from crew.contracts import (  # noqa: E402
     Layer,
     Note,
     RasikScores,
+    RasikSuggestion,
     RasikVerdict,
 )
 from crew.rasik import (  # noqa: E402
     _lead_swaras,
+    _note_token,
     _render_pakad_hint,
     assess,
+    judge_inputs,
     pakad_presence,
+    register_profile,
 )
 from raga import RAGAS  # noqa: E402
 
@@ -128,6 +132,61 @@ def test_scores_are_bounded_1_to_5():
         assert False, "expected a validation error for a score above 5"
     except Exception:
         pass
+
+
+
+def test_suggestions_ride_the_event_and_are_capped_at_three():
+    # the consultant's edits reach the Producer (and the UI) on the CRITIQUE event; a long
+    # wish-list is trimmed to the three that matter most
+    many = [RasikSuggestion(section=i, change=f"edit {i}", why="pakad") for i in range(5)]
+
+    def judge(comp):
+        return RasikVerdict(scores=RasikScores(pakad=2, idiom=3, rasa=3), suggestions=many)
+
+    verdict, events = assess(_comp(list(_PAKAD)), judge_fn=judge)
+    assert [x.section for x in verdict.suggestions] == [0, 1, 2]
+    assert len(events[0].data["suggestions"]) == 3
+
+
+def test_with_the_chart_the_lead_is_shown_by_section():
+    # a suggestion must name a section, so the lead line is grouped by the chart's sections
+    from crew.contracts import ArrangementDraft, CompositionBrief, Section, SectionKind, build_arrangement
+    draft = ArrangementDraft(raga=_RAGA, subgenre="doom", tala="teentaal", bpm=90, motif=["S", "R"],
+                             sections=[Section(kind=SectionKind.ALAAP, bars=1, layers=["lead"],
+                                               foreground="lead", form_role="intro")])
+    arr = build_arrangement(draft, CompositionBrief(mood="dark"))
+    line = judge_inputs(_comp(list(_PAKAD)), arr=arr)["lead_line"]
+    assert line.startswith("  section 0 (intro):")
+
+def test_the_lead_line_shows_holds_and_ornaments():
+    # a bare swara list hid whether Darbari's komal Ga was held and swayed or merely passed
+    from crew.contracts import Note
+    held = Note(swara="g", start=0, dur=1.5, grace=["m"], andolan=True)
+    passing = Note(swara="g", start=0, dur=0.5)
+    glide = Note(swara="R", oct=-1, start=0, dur=1, meend_swara="S")
+    assert _note_token(held) == "(m)g~[1.5]"
+    assert _note_token(passing) == "g"
+    assert _note_token(glide) == "R(-1)>S[1]"
+
+
+def test_register_profile_weighs_time_not_note_count():
+    from crew.contracts import Note
+    notes = [Note(swara="d", oct=-1, start=0, dur=3), Note(swara="S", start=3, dur=0.5),
+             Note(swara="P", start=3.5, dur=0.5)]
+    p = register_profile(notes, home=0)
+    assert p["mandra"] == 0.75 and p["madhya"] == 0.25 and p["taar"] == 0.0
+    assert p["poorvanga"] == 0.125                       # only the half-beat Sa is S..m
+
+
+def test_rasik_sees_the_register_fact_and_where_the_line_sits():
+    from crew.contracts import Composition, Layer, Note
+    lead = Layer(role="lead", instrument="sitar", program=104, channel=2,
+                 notes=[Note(swara="g", start=0, dur=2), Note(swara="R", start=2, dur=2)])
+    comp = Composition(raga="darbari", sa=62, bpm=64, layers=[lead],
+                       tala={"name": "keherwa", "beats_per_bar": 8.0})
+    inputs = judge_inputs(comp)
+    assert "MANDRA" in inputs["raga_facts"] and "kan (how a swara" in inputs["raga_facts"]
+    assert "0% in the mandra" in inputs["motion"]
 
 
 if __name__ == "__main__":

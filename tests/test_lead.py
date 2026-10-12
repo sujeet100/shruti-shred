@@ -36,34 +36,36 @@ from crew.contracts import (  # noqa: E402
     SectionKind,
     build_arrangement,
 )
-from crew.generators import VOICES, section_spans  # noqa: E402
-from crew.generators import SectionSpan  # noqa: E402
+from crew.generators import VOICES, section_spans, total_beats  # noqa: E402
+from crew.gat_verifier import CellChecks  # noqa: E402
 from crew.lead import (  # noqa: E402
+    _ALAP_RING_MAX,
+    _PLUCK_SUSTAIN_MAX,
     LeadMemo,
     Voicing,
     _intro_gen_span,
     _LeadContext,
     _lead_guardrail,
     _doubled_hook,
-    _next_sam,
+    _generate_verified_cell,
     _restated_to_window,
-    _next_vibhag,
-    _place_intro_phrases,
     _role_briefs,
     _render_canvas_for_lead,
     _render_previous,
-    _split_phrases,
     _voice_line,
     apply_ornaments,
     apply_strokes,
     approach_cut,
     generate_lead,
     is_mukhada,
+    is_underfilled,
     lead_layers_from,
     make_tihai,
     place_phrase,
+    pluck_limited,
     splice_tihai,
     studio_lead_fn,
+    take_severity,
 )
 
 
@@ -262,8 +264,8 @@ def test_render_previous_shows_the_prior_phrases_and_marks_meend():
                                           notes=[LeadNote(swara="g", oct=1, dur=1.0),
                                                  LeadNote(swara="m", dur=1.0, meend_swara="P")]))]
     text = _render_previous(memory)
-    assert "alaap: S m" in text
-    assert "g(+1)" in text and "m~" in text            # local octave + meend mark
+    assert "alaap: S:" in text
+    assert "g(+1):1" in text and "m~P:1" in text       # local octave, meend TARGET, and the beats
 
 
 def test_render_previous_is_explicit_when_empty():
@@ -489,19 +491,120 @@ def test_da_accents_and_ra_softens():
     assert da.bol is None and ra.bol is None            # the bol is consumed
 
 
-def test_diri_splits_into_a_double_stroke():
-    out = apply_strokes([LeadNote(swara="m", dur=1.0, vel=90, bol="diri")])
-    assert len(out) == 2
-    assert out[0].dur + out[1].dur == 1.0               # total duration preserved
-    assert out[0].vel > out[1].vel                       # da stronger than the ra
+def _durs(bol: str, dur: float) -> list[float]:
+    return [n.dur for n in apply_strokes([LeadNote(swara="m", dur=dur, vel=90, bol=bol)])]
+
+
+def test_the_gat_head_prompt_teaches_how_the_melody_rides_the_strokes():
+    from crew.lead import _render_bol_frame
+    drut, vilambit = _render_bol_frame("razakhani"), _render_bol_frame("masitkhani")
+    for block in (drut, vilambit):
+        assert "dadir — da:di:r = 2:1:1" in block and "Many bols can share one matra" in block
+        assert "write the note with dur" not in block                 # no length is prescribed
+        assert "arrival swara is often restated" in block and "breathe before the mukhda" in block
+        assert "m m m" not in block and "n-S dir" not in block        # principles, not figures to copy
+        assert "NOTE VALUES are yours" in block and "matra by matra" not in block   # density is free
+    assert "MOVING and SETTLING" in vilambit and "MOVING and SETTLING" not in drut  # a masitkhani rule
+    assert "a dir is the SAME swara struck twice" in drut                         # verified (Sujit + notation)
+
+
+def test_the_stroke_research_reaches_the_prompt():
+    from crew.lead import _render_bol_frame
+    drut, vilambit = _render_bol_frame("razakhani"), _render_bol_frame("masitkhani")
+    for block in (drut, vilambit):
+        assert "dara usually MOVES" in block and "dir doubles the ARRIVAL" in block
+        assert "A compound on ONE note repeats that swara" in block
+    assert "da dir dara" in drut and "da dir dara" not in vilambit       # drut figures, drut frame
+
+
+def test_the_seed_sees_both_frames_but_the_vocabulary_once():
+    from crew.lead import render_seed_strokes
+    block = render_seed_strokes(None)
+    assert "Masitkhani" in block and "Razakhani" in block
+    assert block.count("bol words") == 1 and block.count("how a gat head moves") == 1
+
+
+def test_the_head_plans_its_right_hand_before_its_notes():
+    from crew.lead import _render_bol_frame, phrase_schema
+    schema = phrase_schema()
+    assert '"stroke_line"' in schema and "one token per matra" in schema
+    # the 2026-10-12 contradiction: the schema told the head bols were optional decoration
+    assert "add grace / meend / bol / ornament only where a rule asks" not in schema
+    assert "every sounding note carries the bol its" in schema
+    assert '"rda"' in schema
+    drut, vilambit = _render_bol_frame("razakhani"), _render_bol_frame("masitkhani")
+    assert "at least TWO dir matras" not in drut                     # a floor read as the target
+    assert "compose your OWN stroke_line" in drut
+    assert "this grid IS your stroke_line" in vilambit and "LEFT hand" in vilambit
+    for block in (drut, vilambit):
+        assert "Plan the stroke_line FIRST" in block
+
+
+def test_the_plan_offers_raga_devices_before_sequences_and_no_inversion():
+    from crew.lead import phrase_schema
+    schema = phrase_schema()
+    assert "invert" not in schema
+    assert "sequence_up / sequence_down only where the raga's" in schema
+
+
+def test_the_lead_prompt_drops_the_copied_example_and_the_rest_quota():
+    import yaml
+    from pathlib import Path
+    config = Path(__file__).resolve().parent.parent / "crew" / "config"
+    lead = yaml.safe_load((config / "tasks.yaml").read_text())["generate_lead"]["description"]
+    assert "Worked example of developing ONE seed" not in lead
+    assert "Use 1-2 true RESTS per avartan" not in lead
+    assert "(the vadi, Sa, or a m->S resolution)" not in lead
+    mukhada = yaml.safe_load((config / "lead_roles.yaml").read_text())["roles"]["mukhada"]
+    assert "a couple of matras of anacrusis" not in mukhada        # the frame owns the approach
+    assert "PLAN THE RIGHT HAND FIRST" in mukhada
+
+
+def test_the_lead_prompt_states_objectives_not_recipes():
+    import yaml
+    from pathlib import Path
+    tasks = yaml.safe_load((Path(__file__).resolve().parent.parent / "crew" / "config"
+                            / "tasks.yaml").read_text())
+    lead, gat, seed = (tasks[k]["description"] for k in ("generate_lead", "generate_gat", "compose_seed"))
+    assert "OPEN with a RECOGNISABLE pakad/chalan fragment" not in lead
+    assert "an eighth-note pickup, then a burst of sixteenths" not in lead
+    assert "rests count toward the window exactly as notes" in lead     # fill vs silence reconciled
+    assert "spanning 2.5-3 octaves)" not in gat and "lives low" in gat
+    assert "riff_first means" in seed                                   # the one fixed relationship
+
+
+def test_a_head_check_measures_its_stroke_line():
+    from crew.lead import _head_strokes, _render_plan
+    head = LeadPhrase(phrase_plan=PhrasePlan(seed=["S"], contour="arch", transformations=["repeat"],
+                                             climax_and_sam="x"),
+                      notes=[LeadNote(swara="S", dur=16.0, bol="da")])
+    assert any("no stroke_line planned" in v
+               for v in _head_strokes(head, cycle_beats=16.0, frame="razakhani").craft)
+    planned = head.phrase_plan.model_copy(update={"stroke_line": ["da"] + ["-"] * 15})
+    assert "strokes: da - -" in _render_plan(planned)
+
+
+def test_dir_is_two_half_matra_strokes():
+    out = apply_strokes([LeadNote(swara="m", dur=1.0, vel=90, bol="dir")])
+    assert [n.dur for n in out] == [0.5, 0.5]
+    assert out[0].vel > out[1].vel                       # di (inward) stronger than the r
     assert all(n.swara == "m" for n in out)
 
 
-def test_darada_splits_into_a_triplet():
-    out = apply_strokes([LeadNote(swara="m", dur=1.5, vel=90, bol="darada")])
-    assert len(out) == 3                                 # da-ra-da = three strokes
-    assert round(sum(n.dur for n in out), 4) == 1.5      # total preserved
-    assert out[0].vel > out[1].vel and out[2].vel > out[1].vel   # accents on the da's
+def test_each_bol_word_keeps_its_own_rhythm():
+    # Parikh / Swarmatra: a bol keeps its value inside a compound — never squeezed to fit
+    assert _durs("dar", 1.5) == [1.0, 0.5]               # da(1) + r(1/2)
+    assert _durs("dadir", 2.0) == [1.0, 0.5, 0.5]        # da(1) + di(1/2) + r(1/2)
+    assert _durs("dara", 1.0) == [0.5, 0.5]              # two strokes, not a triplet
+    assert _durs("daradara", 1.0) == [0.25] * 4
+    assert round(sum(_durs("darada", 1.0)), 4) == 1.0 and len(_durs("darada", 1.0)) == 3
+
+
+def test_a_figure_scales_to_whatever_length_its_note_has():
+    # Sujit, 2026-10-12: a drut gat puts many bols inside one matra — the ratios hold at any size
+    assert _durs("dadir", 1.0) == [0.5, 0.25, 0.25]      # dadir INSIDE one matra
+    assert _durs("dir", 0.5) == [0.25, 0.25]             # a dir in half a matra: two quarters
+    assert _durs("dar", 3.0) == [2.0, 1.0]               # dar stretched: still 2:1
 
 
 def test_chikari_sounds_taar_sa_without_ornament():
@@ -518,7 +621,7 @@ def test_no_bol_passes_through_unchanged():
 
 
 def test_strokes_preserve_total_duration_for_placement():
-    notes = [LeadNote(swara="S", dur=1.0, bol="diri"), LeadNote(swara="g", dur=2.0, bol="darada")]
+    notes = [LeadNote(swara="S", dur=1.0, bol="dir"), LeadNote(swara="g", dur=2.0, bol="dadir")]
     assert round(sum(n.dur for n in apply_strokes(notes)), 4) == 3.0
 
 
@@ -642,9 +745,11 @@ def test_leadnote_coerces_junk_meend_swara_to_none():
 
 def test_leadnote_decorations_absorb_junk_and_alias_dir():
     # the same absorb-don't-raise rule for every OPTIONAL decoration: junk bols/ornaments/
-    # graces degrade to plain notes; "dir" (the grid's name for the pair) maps to "diri"
-    assert LeadNote(swara="S", dur=1.0, bol="dir").bol == "diri"
-    assert LeadNote(swara="S", dur=1.0, bol="dara").bol == "darada"
+    # graces degrade to plain notes; the old note-level "diri" reads as "dir", and "dara" is
+    # its own two-stroke word (it used to be mis-mapped to the three-stroke "darada")
+    assert LeadNote(swara="S", dur=1.0, bol="diri").bol == "dir"
+    assert LeadNote(swara="S", dur=1.0, bol="Da-Dir").bol == "dadir"
+    assert LeadNote(swara="S", dur=1.0, bol="dara").bol == "dara"
     assert LeadNote(swara="S", dur=1.0, bol="pluck").bol is None
     assert LeadNote(swara="S", dur=1.0, ornament="trill").ornament is None
     assert LeadNote(swara="S", dur=1.0, grace=["S", "Z", "?"]).grace == ["S"]
@@ -875,7 +980,7 @@ def test_render_previous_marks_a_rest_as_a_dash():
     memory = [LeadMemo("mukhada", LeadPhrase(phrase_plan=_plan("S"),
                                              notes=[LeadNote(swara="S", dur=1.0),
                                                     LeadNote(swara="S", dur=1.0, rest=True)]))]
-    assert "S -" in _render_previous(memory)
+    assert "S:1 -:1" in _render_previous(memory)        # a rest keeps its length
 
 
 # --- andolan: code flags the raga's oscillating komal swaras on HELD notes ------
@@ -925,19 +1030,19 @@ def test_lead_layers_from_applies_the_ragas_andolan_swaras():
 
 # --- murki/khatka: an LLM-CHOSEN ornament, realised legally from raga neighbours -
 
-def test_apply_ornaments_realises_a_murki_as_a_neighbour_cluster():
-    # a murki on komal g in Bhairavi: upper (m) + lower (r) neighbour crushed, then the note
+def test_apply_ornaments_realises_a_murki_as_unstruck_kan_on_one_stroke():
+    # a murki on komal g in Bhairavi: one pluck on the upper neighbour (m), pull-off to the lower
+    # (r), hammer onto g — the cluster rides the note as kan, so it is ONE note, ONE attack
     out = apply_ornaments([LeadNote(swara="g", dur=2.0, ornament="murki")], "bhairavi")
-    assert [n.swara for n in out] == ["m", "r", "g"]        # neighbours (legal), then the main note
-    assert round(sum(n.dur for n in out), 4) == 2.0         # total duration preserved
-    assert out[-1].ornament is None                          # the ornament is consumed
+    assert len(out) == 1 and out[0].swara == "g" and out[0].dur == 2.0
+    assert out[0].grace == ["m", "r"] and out[0].ornament is None
 
 
-def test_khatka_is_heavier_and_eats_more_of_the_note_than_a_murki():
+def test_khatka_is_the_same_cluster_struck_harder():
     murki = apply_ornaments([LeadNote(swara="g", dur=2.0, vel=90, ornament="murki")], "bhairavi")
     khatka = apply_ornaments([LeadNote(swara="g", dur=2.0, vel=90, ornament="khatka")], "bhairavi")
-    assert murki[0].vel < 90 < khatka[0].vel                 # murki softer, khatka accented
-    assert khatka[-1].dur < murki[-1].dur                    # khatka's cluster eats more of the note
+    assert murki[0].grace == khatka[0].grace                 # same notes — force tells them apart
+    assert murki[0].vel == 90 < khatka[0].vel
 
 
 def test_apply_ornaments_strips_the_flag_on_a_raga_that_does_not_use_them():
@@ -961,8 +1066,8 @@ def test_lead_layers_from_realises_ornaments_end_to_end():
     phrase = LeadPhrase(phrase_plan=_plan("g"),
                         notes=[LeadNote(swara="g", oct=0, dur=2.0, ornament="murki")])
     layers = lead_layers_from({0: phrase}, arr)
-    swaras = [n.swara for n in sorted(layers[0].notes, key=lambda n: n.start)]
-    assert swaras == ["m", "r", "g"]                    # the cluster then the main note, all placed
+    [note] = layers[0].notes
+    assert note.swara == "g" and note.grace == ["m", "r"]   # one placed note carrying the cluster
 
 
 def test_leadnote_accepts_and_normalises_an_ornament():
@@ -1008,12 +1113,12 @@ def _good_intro() -> LeadPhrase:
 
 
 def test_intro_is_generated_into_a_shortened_window():
-    # the trailing pause is CODE's: the alap is asked for LESS than its section window
-    # (2 teentaal bars = 32 beats; the gap is min(cycle 16, 32 * 0.35) = 11.2)
+    # the trailing pause is CODE's: the alap is asked for LESS than its section window — about
+    # 2.5 s of breath (it was up to a third of the intro: 11.2 of 32 beats, GPT 2026-10-12)
     arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
     fn, calls = _fake([_good_intro()])
     generate_lead(arr, gen_fn=fn)
-    assert calls[0].length == 32 - 11.2
+    assert calls[0].length == 32 - round(2.5 * arr.bpm / 60 * 4) / 4
 
 
 def test_intro_final_sa_rings_through_the_reserved_gap():
@@ -1030,13 +1135,19 @@ def test_intro_final_sa_rings_through_the_reserved_gap():
     assert all(n.start + n.dur <= 16.0 for n in notes[:-1])      # the rest end in the window
 
 
+def _overlong_intro() -> LeadPhrase:
+    """A HARD-faulty alap: 48 beats of notes in a 2-avartan (32-beat) intro — it would spill into
+    the silence code reserves before the gat. (Taste faults no longer re-roll; this one does.)"""
+    return _phrase(*(["g", "m", "d", "n"] * 6), dur=2.0)
+
+
 def test_live_beats_stream_from_inside_the_lead_stage():
     # per-call progress (Sujit's live note): a sink installed around generate_lead hears a
     # RUNNING beat for the cell AND for its re-roll — the UI shows work as it happens, not
     # one flood when the flow node completes. Without a sink, beats are free no-ops.
     from crew.contracts import EventType
     from crew.live import live_sink
-    bad = _phrase("g", "m", "d", "n", dur=2.0)
+    bad = _overlong_intro()
     arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
     seen: list = []
     fn, _ = _fake([bad, _good_intro()])
@@ -1045,20 +1156,32 @@ def test_live_beats_stream_from_inside_the_lead_stage():
     running = [e for e in seen if e.type == EventType.RUNNING]
     assert any("composing the intro" in e.text for e in running)
     reroll = next(e for e in running if "re-rolling the intro" in e.text)
-    assert "flagged:" in reroll.text and "Sa" in reroll.text      # the ticker SAYS WHY
+    assert "flagged:" in reroll.text and "window" in reroll.text  # the ticker SAYS WHY
     assert reroll.data["violations"]                              # ...and carries the full list
 
 
 def test_intro_is_verified_and_rerolled_with_feedback():
-    # a wandering alap (never resolves to Sa) is bounced; the re-roll sees WHY
-    bad = _phrase("g", "m", "d", "n", dur=2.0)               # no Sa anywhere, no rests
+    # an alap that overruns its window is bounced (a HARD fault); the re-roll sees WHY
+    bad = _overlong_intro()
     arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
     fn, calls = _fake([bad, _good_intro()])
     _, events = generate_lead(arr, gen_fn=fn)
     assert len(calls) == 2
-    assert fn.seen_feedback[1] and any("Sa" in v for v in fn.seen_feedback[1])
+    assert fn.seen_feedback[1] and any("window" in v for v in fn.seen_feedback[1])
     rr = next(e for e in events if e.data.get("gat_verify"))
     assert rr.data["cell"] == "intro"
+
+
+def test_a_taste_only_weak_alap_is_reported_not_rerolled():
+    # never resolves to Sa (ends on a legal Malkauns rest), no rests, no mandra dip — all CRAFT
+    # now: one take, no paid re-roll, and the notes ride the intro's event for the judges
+    wandering = _phrase("g", "m", "d", "m", dur=2.0)
+    arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
+    fn, calls = _fake([wandering])
+    _, events = generate_lead(arr, gen_fn=fn)
+    assert len(calls) == 1 and fn.seen_feedback == [None]
+    intro = next(e for e in events if e.data.get("craft_notes"))
+    assert any("mandra" in v for v in intro.data["craft_notes"])
 
 
 # --- the intro alap LOCKS to the clean arpeggio (Sujit 2026-07-19, avartan-locked) ------
@@ -1113,72 +1236,30 @@ def test_an_isolated_long_note_inside_a_run_is_not_doubled():
     assert _doubled_hook(run + lone + more) == []
 
 
-def test_a_phrase_enters_on_a_MEASURE_not_only_the_sam():
-    """The sam is too coarse to phrase against: in teentaal it comes every 16 beats, so
-    locking each phrase to it allows one entry per avartan and leaves the alap threadbare
-    (Sujit, 2026-09-14). The vibhag is the tala's own bar — teentaal's 4+4+4+4 is four 4/4
-    measures — and that is the grid a phrase enters on."""
-    grid = (0.0, 4.0, 8.0, 12.0)
-    snap = lambda t: _next_vibhag(t, origin=0.0, cycle_beats=16.0, vibhag_beats=grid)  # noqa: E731
-    assert snap(0.0) == 0.0            # already on a downbeat
-    assert snap(1.3) == 4.0            # mid-measure entries move to the next bar...
-    assert snap(5.5) == 8.0
-    assert snap(13.0) == 16.0          # ...and roll into the next avartan
-    assert snap(16.2) == 20.0
-
-
-def test_a_tala_with_no_declared_vibhags_falls_back_to_the_sam():
-    assert _next_vibhag(1.0, origin=0.0, cycle_beats=16.0, vibhag_beats=()) == 16.0
-
-
-def test_next_sam_snaps_forward_to_the_avartan_grid():
-    assert _next_sam(0.0, origin=0.0, cycle_beats=16.0) == 0.0     # already on a sam
-    assert _next_sam(0.01, origin=0.0, cycle_beats=16.0) == 16.0   # just past -> next sam
-    assert _next_sam(16.0, origin=0.0, cycle_beats=16.0) == 16.0   # exactly on a sam
-    assert _next_sam(20.0, origin=0.0, cycle_beats=16.0) == 32.0
-    assert _next_sam(5.0, origin=4.0, cycle_beats=16.0) == 20.0    # grid anchored at origin 4
-
-
-def test_split_phrases_breaks_on_long_rests_only():
-    # a >= 1-beat rest ends a phrase (a real breath); a shorter rest stays inside as a micro-gap
-    notes = [LeadNote(swara="S", dur=2.0), LeadNote(swara="g", dur=0.5, rest=True),
-             LeadNote(swara="m", dur=2.0), LeadNote(swara="S", dur=1.0, rest=True),
-             LeadNote(swara="d", dur=2.0), LeadNote(swara="S", dur=3.0)]
-    phrases = _split_phrases(notes)
-    assert len(phrases) == 2                                       # only the 1.0 rest splits
-    assert [n.swara for n in phrases[0]] == ["S", "g", "m"]        # the 0.5 rest is kept inside
-    assert [n.swara for n in phrases[1]] == ["d", "S"]
-
-
-def test_place_intro_phrases_starts_each_phrase_on_a_sam():
-    sec = Section(kind=SectionKind.ALAAP, bars=5, layers=["lead", "clean", "drone"],
-                  foreground="lead", form_role="intro")
-    section_span = SectionSpan(index=0, section=sec, start=0.0, end=80.0)
-    gen_span = SectionSpan(index=0, section=sec, start=16.0, end=64.0)   # lead-in 1 avartan
-    notes = [LeadNote(swara="S", dur=2.0), LeadNote(swara="g", dur=2.0),
-             LeadNote(swara="S", dur=1.5, rest=True),
-             LeadNote(swara="m", dur=2.0), LeadNote(swara="d", dur=2.0),
-             LeadNote(swara="S", dur=1.5, rest=True),
-             LeadNote(swara="S", dur=3.0)]
-    placed = _place_intro_phrases(notes, gen_span=gen_span, section_span=section_span,
-                                  register=0, cycle_beats=16.0)
-    starts = [n.start for n in placed]
-    # phrase A at the lead-in sam (16), B nudged to the next sam past A's end (32), C to 48
-    assert starts == [16.0, 18.0, 32.0, 34.0, 48.0]
-    assert placed[0].start == 16.0                                # no note in the lead-in bar
-
-
-def test_intro_alap_locks_to_the_clean_arpeggio_cycle():
-    # with the clean arpeggio present: bar 0 is arpeggio ALONE (no lead), and every alap phrase
-    # begins on a sam (a multiple of the 16-beat cycle), then the final Sa rings to the edge
+def test_intro_alap_is_placed_in_time_as_written_after_the_lead_in():
+    # the vibhag snap is gone (Sujit, 2026-10-12): bar 0 is still arpeggio ALONE, then the alap
+    # plays its own durations and rests back to back — a jod-like pulse, not phrase-snapping
     arr = _intro_arr(clean=True, bars=4)
     layers = lead_layers_from({0: _good_intro()}, arr)
     notes = sorted(layers[0].notes, key=lambda n: n.start)
     assert notes[0].start == 16.0                                 # lead-in: nothing sounds in bar 0
-    on_sam = {n.start for n in notes if n.start % 16.0 == 0.0}
-    assert {16.0, 32.0, 48.0} <= on_sam                           # a phrase begins on each sam
+    cursor, expected = 16.0, []
+    for n in _good_intro().notes:
+        if not n.rest:
+            expected.append(cursor)
+        cursor += n.dur
+    assert [n.start for n in notes] == expected[:len(notes)]       # exactly as written, in time
     assert notes[-1].swara == "S" and notes[-1].fade is True      # resolves, rings out
     assert notes[-1].start + notes[-1].dur == 64.0                # to the section edge
+
+
+def test_the_pause_before_the_gat_is_a_breath_not_a_section():
+    from crew.lead import _INTRO_MIN_GAP_BEATS, _intro_place_end
+    span = list(section_spans(_intro_arr(clean=False, bars=2)))[0]
+    window = _intro_gen_span(span, 16.0, 4.0, bpm=64)
+    assert span.end - window.end == 2.75                          # ~2.5 s at 64 bpm, not 5.6 beats
+    assert _intro_place_end(span) == span.end - _INTRO_MIN_GAP_BEATS   # the alap may eat code's
+                                                                  # pause, never the last breath
 
 
 def test_intro_without_the_clean_arpeggio_stays_flush_left():
@@ -1192,8 +1273,27 @@ def test_intro_without_the_clean_arpeggio_stays_flush_left():
 def test_intro_gen_span_reserves_a_lead_in_only_with_the_clean_arpeggio():
     span_clean = list(section_spans(_intro_arr(clean=True, bars=4)))[0]
     span_plain = list(section_spans(_intro_arr(clean=False, bars=4)))[0]
-    assert _intro_gen_span(span_clean, 16.0).start == 16.0        # one avartan of lead-in
-    assert _intro_gen_span(span_plain, 16.0).start == 0.0         # none without the arpeggio
+    assert _intro_gen_span(span_clean, 16.0, 4.0).start == 16.0   # one avartan of lead-in
+    assert _intro_gen_span(span_plain, 16.0, 4.0).start == 0.0    # none without the arpeggio
+
+
+def test_a_two_avartan_intro_keeps_most_of_its_window_for_the_alap():
+    # the 2026-10-11 short-form render: a whole avartan of lead-in left the alap 10.4 of 32
+    # beats and it crammed a taan into the space. One vibhag of lead-in sets the pulse instead.
+    span = list(section_spans(_intro_arr(clean=True, bars=2)))[0]
+    window = _intro_gen_span(span, 16.0, 4.0)
+    assert window.start == 4.0
+    assert window.length > 17.0
+
+
+def test_the_tala_note_describes_the_window_it_is_given():
+    from crew.lead import _render_tala_position
+    span = list(section_spans(_intro_arr(clean=True, bars=2)))[0]
+    note = _render_tala_position(_intro_gen_span(span, 16.0, 4.0), 16.0)
+    assert "beat(s) 12 within" in note             # the next sam, measured from the window start
+    assert "before the next sam" in note           # a shortened window does not end on one
+    whole = _render_tala_position(span, 16.0)
+    assert "beat(s) 0, 16 within" in whole and "ENDS on the closing sam" in whole
 
 
 # --- the mukhada taan FILLS: distinct cells, spliced into the middle statements --
@@ -1278,13 +1378,12 @@ def test_whole_gat_composes_the_parts_together_and_uses_them():
 
 
 def test_whole_gat_repairs_a_failing_part_in_isolation():
-    # the joint gat's manjha never dips to the mandra -> it is regenerated IN ISOLATION via gen_fn,
-    # while the good mukhada is kept (nobody rewrites a whole gat for one weak part)
+    # the joint gat's manjha stops far short of the sam (a HARD fault: the head would re-enter
+    # after a dead gap) -> it is regenerated IN ISOLATION via gen_fn, while the good mukhada is
+    # kept (nobody rewrites a whole gat for one weak part)
     arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"), (SectionKind.ALAAP, 1, "manjha"))
-    bad_manjha = LeadPhrase(phrase_plan=_plan("m"),         # all madhya -> fails "dip into the mandra"
-                            notes=[LeadNote(swara="m", dur=2.0), LeadNote(swara="g", dur=2.0),
-                                   LeadNote(swara="m", dur=2.0), LeadNote(swara="g", dur=1.5),
-                                   LeadNote(swara="m", dur=2.0), LeadNote(swara="S", dur=2.0)])
+    bad_manjha = LeadPhrase(phrase_plan=_plan("m"),         # 3 beats of a ~12-beat window
+                            notes=[LeadNote(swara="m", dur=1.5), LeadNote(swara="S", dur=1.5)])
     gfn, _ = _fake_gat(Gat(mukhada=_good_head(), manjha=bad_manjha))
     fn, calls = _fake([_good_manjha()])                     # gen_fn regenerates ONLY the manjha
     layers, events = generate_lead(arr, gen_fn=fn, gat_fn=gfn)
@@ -1326,10 +1425,10 @@ def test_intro_sees_the_head_it_must_tease():
     assert any(m.form_role == "mukhada" for m in fn.seen_memory[0])   # the intro SAW the head
 
 
-def test_intro_motif_is_rerolled_when_not_drawn_from_the_head():
+def test_intro_motif_not_drawn_from_the_head_is_reported_not_rerolled():
     # the head never sounds "n S" as a phrase (its n sits four notes from its closing S), so
-    # _good_intro's motif (n S) teases the WRONG tune — bounced, and the re-roll (told exactly
-    # why) derives its motif from the head instead
+    # _good_intro's motif (n S) teases the WRONG tune — motif discipline is CRAFT now: one take,
+    # and the note rides the intro's event for the judges
     arr = _gat_arr((SectionKind.ALAAP, 2, "intro"), (SectionKind.ALAAP, 1, "mukhada"))
     gfn, _ = _fake_gat(Gat(mukhada=_good_head()))
     teasing = LeadPhrase(
@@ -1342,10 +1441,10 @@ def test_intro_motif_is_rerolled_when_not_drawn_from_the_head():
                LeadNote(swara="g", dur=1.0), LeadNote(swara="m", dur=1.0),
                LeadNote(swara="g", dur=0.5), LeadNote(swara="S", dur=2.5)])
     fn, calls = _fake([_good_intro(), teasing])
-    generate_lead(arr, gen_fn=fn, gat_fn=gfn)
-    assert len(calls) == 2
-    assert fn.seen_feedback[1] and any("not drawn from the mukhada head" in v
-                                       for v in fn.seen_feedback[1])
+    _, events = generate_lead(arr, gen_fn=fn, gat_fn=gfn)
+    assert len(calls) == 1
+    notes = [v for e in events for v in e.data.get("craft_notes", [])]
+    assert any("not drawn from the mukhada head" in v for v in notes)
 
 
 # --- the antara: verified arc (quote -> climb -> late peak -> descend to Sa) -----
@@ -1364,17 +1463,18 @@ def _good_antara() -> LeadPhrase:
 
 
 def test_antara_is_verified_and_rerolled_with_the_arc_feedback():
-    # a "new tune in the taar" antara is bounced; the re-roll is told to quote the head
+    # an antara that overruns its window (it would be TRUNCATED, cutting off its own landing)
+    # is bounced; the re-roll is told exactly that. Not quoting the head is now CRAFT.
     bad = LeadPhrase(phrase_plan=_plan("d"),
-                     notes=[LeadNote(swara="d", dur=2.0), LeadNote(swara="n", dur=1.5),
-                            LeadNote(swara="g", dur=2.0, oct=1), LeadNote(swara="n", dur=2.0),
-                            LeadNote(swara="d", dur=1.0), LeadNote(swara="S", dur=3.0)])
+                     notes=[LeadNote(swara="d", dur=4.0), LeadNote(swara="n", dur=4.0),
+                            LeadNote(swara="g", dur=4.0, oct=1), LeadNote(swara="n", dur=4.0),
+                            LeadNote(swara="d", dur=4.0), LeadNote(swara="S", dur=4.0)])
     arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"),
                    (SectionKind.ALAAP, 1, "antara"))
     fn, calls = _fake([_good_head(), bad, _good_antara()])
     _, events = generate_lead(arr, gen_fn=fn)
     assert len(calls) == 3                                   # head + antara + one re-roll
-    assert fn.seen_feedback[2] and any("quote" in v for v in fn.seen_feedback[2])
+    assert fn.seen_feedback[2] and any("TRUNCATED" in v for v in fn.seen_feedback[2])
     rr = next(e for e in events if e.data.get("gat_verify"))
     assert rr.data["cell"] == "antara"
 
@@ -1404,7 +1504,7 @@ def test_taan_long_is_verified_and_rerolled_with_feedback():
     fn, calls = _fake([bad, good])
     _, events = generate_lead(arr, gen_fn=fn)
     assert len(calls) == 2
-    assert fn.seen_feedback[1] and any("burst" in v for v in fn.seen_feedback[1])
+    assert fn.seen_feedback[1] and any("fills only" in v for v in fn.seen_feedback[1])
     rr = next(e for e in events if e.data.get("gat_verify"))
     assert rr.data["cell"] == "taan_long"
 
@@ -1422,16 +1522,14 @@ def test_mukhada_cell_rides_the_event_stream():
     assert mukhada_cell_from_events([]) is None
 
 
-def test_mukhada_voices_unison_whatever_its_kind():
-    # the head doubles sitar+guitar even on a kind that voices solo sitar — the verbatim
-    # return must carry the same presence as the first statement (Sujit, 2026-07-16)
-    arr = _gat_arr((SectionKind.ALAAP, 1, "mukhada"))
-    fn, _ = _fake([_good_head()])
-    layers, _ = generate_lead(arr, gen_fn=fn)
-    assert len(layers) == 2                                      # sitar + lead guitar
-    sitar, guitar = layers
-    assert [(n.swara, n.start) for n in sitar.notes] == \
-           [(n.swara, n.start) for n in guitar.notes]            # a true unison double
+def test_the_mukhada_is_the_sitar_alone_whatever_its_kind():
+    # a distorted guitar doubling the head turned the gat into a guitar line (Sujit,
+    # 2026-10-12) — the head is the sitar's, on a melody-kind section as on any other
+    for kind in (SectionKind.MELODY, SectionKind.ALAAP):
+        arr = _gat_arr((kind, 1, "mukhada"))
+        fn, _ = _fake([_good_head()])
+        layers, _ = generate_lead(arr, gen_fn=fn)
+        assert [layer.instrument for layer in layers] == ["sitar"]
 
 
 def test_manjha_memory_labels_the_head():
@@ -1530,9 +1628,10 @@ def test_taan_long_gets_a_code_built_tihai():
     layers, events = generate_lead(arr, gen_fn=fn)
     assert any(e.data.get("tihai") for e in events)          # the cadence beat is on the timeline
     sitar = next(x for x in layers if x.instrument == VOICES["sitar"].instrument)
-    final_bar_landings = [n for n in sitar.notes
-                          if n.start >= 16.0 and n.swara == "S" and n.dur >= 3.0]
-    assert len(final_bar_landings) == 3                      # the close lands THREE times
+    final_bar_sas = [n for n in sitar.notes if n.start >= 16.0 and n.swara == "S"
+                     and (n.dur >= 3.0 or n.start == total_beats(arr))]
+    assert len(final_bar_sas) == 3                           # the close lands THREE times
+    assert final_bar_sas[-1].start == total_beats(arr)       # ... the third ON the sam
 
 
 # --- the amad: Parikh's fourth line, riding the antara's final avartan -----------
@@ -1573,6 +1672,151 @@ def test_whole_gat_skips_the_amad_when_the_antara_has_no_room():
     fn, _ = _fake([])
     generate_lead(arr, gen_fn=fn, gat_fn=gfn)
     assert gcalls[0]["needs_amad"] is False
+
+
+
+# --- the PLUCK LIMIT: a padded climax hold becomes jhala (2026-10-11 opener's sag) -------------
+
+def test_a_hold_past_the_pluck_limit_becomes_jhala_on_its_own_swara():
+    from crew.lead import animate_long_holds
+    notes = [LeadNote(swara="m", dur=1.0), LeadNote(swara="S", dur=16.0)]
+    out = animate_long_holds(notes)
+    assert abs(sum(n.dur for n in out) - 17.0) < 1e-9             # total length kept exactly
+    assert out[0] == notes[0] and out[1].swara == "S" and out[1].dur == 2.0   # the landing rings
+    jhala = out[2:]
+    assert all(n.dur <= 0.5 + 1e-9 for n in jhala)                # re-struck, never held
+    assert {n.bol for n in jhala} == {"da", "chikari"}
+    assert all(n.swara == "S" for n in jhala)                      # the held swara + taar-Sa chikari
+    short = [LeadNote(swara="S", dur=4.0), LeadNote(swara="S", dur=2.0, rest=True)]
+    assert animate_long_holds(short) == short                       # within the limit: untouched
+
+
+def test_the_climax_taan_never_ends_in_a_silent_hold():
+    # the opener's shape: a verified taan_long that pads its window with one long closing Sa —
+    # placed, the climax now drives to its end instead of decaying into a band-only avartan
+    run = [LeadNote(swara=sw, dur=0.25) for sw in ("d", "n", "S", "g", "m", "g", "S", "n") * 3]
+    cell = LeadPhrase(phrase_plan=_plan("d"),
+                      notes=[*run, LeadNote(swara="m", dur=1.0), LeadNote(swara="g", dur=1.0),
+                             LeadNote(swara="S", dur=24.0)])
+    arr = _gat_arr((SectionKind.TAAN, 2, "taan_long"))
+    fn, _ = _fake([cell])
+    layers, _ = generate_lead(arr, gen_fn=fn)
+    notes = [n for layer in layers for n in layer.notes]
+    assert notes and max(n.dur for n in notes) <= 4.0 + 1e-9
+    assert max(n.start + n.dur for n in notes) > 28.0              # the line reaches the end
+
+
+# --- the pluck limit on EVERY placed lead note (2026-10-12, the silent-sitar run) -------
+
+def _sitar_notes_in(layers, start: float, end: float) -> list[Note]:
+    sitar = next(layer for layer in layers if layer.instrument == VOICES["sitar"].instrument)
+    return sorted((n for n in sitar.notes if start <= n.start < end), key=lambda n: n.start)
+
+
+def test_a_one_beat_cell_in_a_long_mislabelled_intro_never_outlives_the_pluck():
+    # the first live run: a 3-bar section labelled `intro` that was NOT the last got a 1-note
+    # 1-beat cell, and the ring-out stretched it into ONE 48-beat note — 30 s of silence
+    arr = _gat_arr((SectionKind.RIFF, 3, "intro"), (SectionKind.RIFF, 1, None))
+    cell = LeadPhrase(phrase_plan=_plan(), notes=[LeadNote(swara="g", dur=1.0)])
+    layers = lead_layers_from({0: cell, 1: _phrase("S", "m", "g", "S", dur=4.0)}, arr)
+    intro = _sitar_notes_in(layers, 0.0, 48.0)
+    assert intro and max(n.dur for n in intro) <= _PLUCK_SUSTAIN_MAX + 1e-9
+    assert intro[-1].fade is True and intro[-1].dur == _ALAP_RING_MAX   # a bounded ring, fading
+
+
+def test_a_padded_metered_hold_rings_then_jhalas_to_its_written_end():
+    # a 45-beat hold inside a metered section that is not the last: no note past the limit,
+    # yet the line still reaches the section edge — it keeps sounding instead of decaying
+    arr = _gat_arr((SectionKind.RIFF, 3, None), (SectionKind.RIFF, 1, None))
+    cell = LeadPhrase(phrase_plan=_plan(), notes=[LeadNote(swara="S", dur=1.0),
+                                                  LeadNote(swara="g", dur=2.0),
+                                                  LeadNote(swara="m", dur=45.0)])
+    layers = lead_layers_from({0: cell, 1: _phrase("S", "m", "g", "S", dur=4.0)}, arr)
+    first = _sitar_notes_in(layers, 0.0, 48.0)
+    assert max(n.dur for n in first) <= _PLUCK_SUSTAIN_MAX + 1e-9
+    assert max(n.start + n.dur for n in first) == 48.0
+
+
+def test_the_lead_lines_final_note_may_ring():
+    # the one exemption: the very last note of the whole lead line dies away on its own
+    arr = _gat_arr((SectionKind.RIFF, 2, None))
+    cell = LeadPhrase(phrase_plan=_plan(), notes=[LeadNote(swara="g", dur=2.0),
+                                                  LeadNote(swara="S", dur=30.0)])
+    notes = _sitar_notes_in(lead_layers_from({0: cell}, arr), 0.0, 32.0)
+    assert notes[-1].swara == "S" and notes[-1].dur == 30.0
+
+
+def test_pluck_limited_keeps_time_and_never_glides_a_restrike():
+    # metered: ring + jhala on the swara the hold RESTS on; total time kept, starts contiguous
+    hold = Note(swara="m", oct=0, start=4.0, dur=10.0, vel=90, meend_swara="g")
+    out = pluck_limited([hold], register=0, metered=True)
+    assert out[0].start == 4.0 and out[0].dur == 2.0 and out[0].meend_swara == "g"   # the ring
+    assert all(n.meend_swara is None for n in out[1:])               # restrikes are struck
+    assert {n.swara for n in out[1:] if n.oct == 0} == {"g"}          # ...on the resting swara
+    assert abs(sum(n.dur for n in out) - 10.0) < 1e-9
+    assert all(abs(a.start + a.dur - b.start) < 1e-9 for a, b in zip(out, out[1:]))
+    assert max(n.dur for n in out) <= _PLUCK_SUSTAIN_MAX
+    # unmetered (the alap): the hold decays — cut to the limit, nothing moved, nothing added
+    alap = [Note(swara="S", start=0.0, dur=10.0), Note(swara="g", start=10.0, dur=2.0)]
+    cut = pluck_limited(alap, register=0, metered=False)
+    assert [(n.start, n.dur) for n in cut] == [(0.0, _PLUCK_SUSTAIN_MAX), (10.0, 2.0)]
+    # the line's closing note is exempt
+    assert pluck_limited(alap[:1], register=0, metered=False, closes_lead=True) == alap[:1]
+
+
+# --- best-of-N by SEVERITY: a near-empty take never wins on fault count ----------------
+
+def test_a_near_empty_cell_is_underfilled_whatever_its_hold():
+    full = _phrase("S", "g", "m", "d", "n", "S", "m", "g", dur=2.0)
+    assert not is_underfilled(full, 16.0)
+    assert is_underfilled(_phrase("S", dur=16.0), 16.0)                   # one note, padded
+    assert is_underfilled(_phrase("S", "g", "m", dur=1.0), 16.0)          # 3 beats of 16
+    assert take_severity(full, 16.0, ["a", "b"]) < take_severity(_phrase("S", dur=1.0), 16.0, ["a"])
+
+
+def test_best_of_n_keeps_the_fuller_take_over_an_emptier_one_with_fewer_faults():
+    # neither take is clean; the near-empty one trips ONE check, the full one TWO — the full
+    # one must play, whichever order they arrive in
+    arr = _gat_arr((SectionKind.RIFF, 1, None))
+    span = section_spans(arr)[0]
+    empty = _phrase("g", dur=1.0)
+    full = _phrase("S", "g", "m", "d", "n", "S", "m", "g", dur=2.0)
+
+    def verify(cell: LeadPhrase) -> CellChecks:
+        return CellChecks(hard=("a",) if cell is empty else ("a", "b"))
+
+    for takes in ([empty, full], [full, empty]):
+        fn, _ = _fake(takes)
+        chosen = _generate_verified_cell(span, arr, [], gen_fn=fn, verify=verify)
+        assert chosen.cell is full and chosen.violations == ["a", "b"]
+
+
+def test_on_a_tie_the_take_that_answered_the_feedback_wins():
+    # 2026-10-12: take 1 failed "must resolve to Sa", the re-roll fixed it but ran long — one
+    # fault each, and the unresolved take shipped because the first take won ties
+    arr = _gat_arr((SectionKind.RIFF, 1, None))
+    span = section_spans(arr)[0]
+    first = _phrase("S", "g", "m", "d", "n", "S", "m", "g", dur=2.0)
+    second = _phrase("S", "g", "m", "d", "n", "S", "m", "S", dur=2.0)
+
+    def verify(cell: LeadPhrase) -> CellChecks:
+        return CellChecks(hard=("unresolved",) if cell is first else ("long",))
+
+    fn, _ = _fake([first, second])
+    assert _generate_verified_cell(span, arr, [], gen_fn=fn, verify=verify).cell is second
+
+
+def test_the_identity_cells_think_before_they_write():
+    # the alap and the gat head run at the conception tier (medium thinking) — Sujit, 2026-10-12
+    from crew.lead import _IDENTITY_ROLES
+    assert _IDENTITY_ROLES == {"intro", "mukhada"}
+
+
+def test_the_lead_is_told_where_the_raga_lives():
+    # the 2026-10-12 Darbari lead spent 6% of its time below home Sa: nobody had told it
+    from crew.lead import _render_raga_facts
+    assert "register — where the raga LIVES" in _render_raga_facts("darbari")
+    assert "register" not in _render_raga_facts("yaman")      # no verified entry, no claim
 
 
 if __name__ == "__main__":

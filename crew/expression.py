@@ -1,0 +1,212 @@
+"""
+EXPRESSION — the gestures code stamps on a placed lead line, from raga facts and section role.
+
+The LLM writes swaras, durations, kan and meend; it cannot hear, so it never asks for a sway or
+a gamak. Those are facts about the raga (which swaras oscillate, and toward which neighbour)
+and about the section (the alap glides slowly, the climax shakes), so code applies them after
+placement and the renderer draws them:
+
+  * ANDOLAN direction + depth — every andolit note gets `andolan_st`: a share of the gap to the
+    neighbour it swings toward (`raga.ANDOLAN_TOWARD`), negative below, positive above. The old
+    gesture dipped 30 cents below every note; Bageshree's ga and Todi's re swing UP.
+  * SLOW MEEND — in the alap and the outro, a meend is the long, deliberate glide that holds
+    its source and rests on the swaras it passes (the raga signposts, Sujit's Bageshree Ma->Ga).
+  * KAN — where the raga encodes how a swara is APPROACHED (`raga["kan"]`: Darbari's g takes a
+    Re touch rising and a Ma touch falling, its d a Pa / Ni touch), a held sitar note of that
+    swara gets the touch for the direction the line arrives from. The data was only ever told
+    to the LLM, which rarely wrote it; a GPT review of the 2026-10-12 Darbari render found the
+    hook's g and d bare — "a straight g/d turns it into plain Asavari". A kan the LLM wrote wins.
+  * GAMAK CELLS — a note the composer marked `gamak_with` a neighbour becomes a run of strokes
+    (~250 ms apart, the measured pace), each swinging out to that neighbour and back at the
+    measured speed (`gestures.gamak_stroke_path`). An illegal or non-adjacent partner, a khada
+    raga, or a note shorter than one stroke plays plain.
+  * GESTURE — where `src/gestures.py` holds a MEASURED figure for a swara (Darbari's komal Ga:
+    a loop up to Ma, or a dip to Re when the line arrives from Ma — Sujit's guruji's recording),
+    a note long enough to carry it gets the whole path instead of a kan: the gesture IS the
+    approach, and the note holds steady after it. Gat sections only: the figures were measured
+    in a fast gat, and the alap/outro keep the sourced slow andolan and kan instead.
+  * GAMAK — in the climax taan, notes long enough to carry it swing forcefully up to the next
+    raga swara and back, with audible stops (ITC). Never in a khada raga (Marwa), and never on
+    an ANDOLIT swara: the swara the raga defines by its slow sway must not inherit the same
+    up-shake as Sa or Pa (that review measured 30 of the climax's 46 notes bent alike).
+  * the LEAD GUITAR plays the line PLAIN: no sway, no gamak, quick glides only. A distorted
+    guitar crawling through the same microtones in unison with the sitar was a likely cause of
+    the out-of-tune andolan.
+
+No source measures these gestures, so the shares below are inference for the ear to tune.
+Pure — Note in, Note out.
+"""
+
+from __future__ import annotations
+
+from typing import Final
+
+from crew.contracts import Arrangement, Note, Section, SectionKind
+from gestures import (
+    SETTLE_MS,
+    gamak_interval,
+    gamak_stroke_beats,
+    gamak_stroke_path,
+    gesture_for,
+    gesture_path,
+)
+from raga import KHADA_RAGAS, RAGAS, SWARAS, andolan_neighbour_st, ascent_step
+
+ANDOLAN_REACH: Final = 0.5       # the swing reaches this share of the way to its neighbour
+# 220 ms let nearly every note of a slow taan swing (a 64-bpm sixteenth is 234 ms), so the
+# gamak read as one shake on everything; 350 ms keeps it to the notes that carry weight.
+GAMAK_MIN_MS: Final = 350        # shorter notes articulate cleanly — no room for a swing
+KAN_MIN_MS: Final = 250          # a 60 ms touch needs a note long enough to land after it
+_APPROACH_GAP_BEATS: Final = 1.0  # a note after a longer silence is a fresh attack, not approached
+_GAMAK_VEL: Final = 1.08         # a gamak is played with force
+_GAMAK_RESTRIKE_VEL: Final = 0.85  # strokes after the first in a gamak cell sit back a little
+GAMAK_GESTURE: Final = "gamak"
+_SLOW_MEEND_ROLES: Final = frozenset({"intro", "outro"})
+_SLOW_MEEND_KINDS: Final = frozenset({SectionKind.ALAAP, SectionKind.OUTRO})
+_GAMAK_ROLES: Final = frozenset({"taan_long"})
+
+
+def express_section(sitar: list[Note], guitar: list[Note], section: Section,
+                    arr: Arrangement) -> tuple[list[Note], list[Note]]:
+    """Stamp the section's gestures on the sitar line and play the guitar line plain."""
+    slow = section.form_role in _SLOW_MEEND_ROLES or section.kind in _SLOW_MEEND_KINDS
+    line = [_with_andolan_depth(n, arr.raga) for n in sitar]
+    if not slow:                     # the alap's ornament is slow — gamak belongs to the gat
+        line = with_gamak_cells(line, arr.raga, arr.bpm)
+    else:
+        line = [n.model_copy(update={"gamak_with": None}) if n.gamak_with else n for n in line]
+    composed_gamak = any(n.gesture == GAMAK_GESTURE for n in line)
+    if not slow:                     # guruji's gestures were measured in a GAT, not an alap
+        line = with_gestures(line, arr.raga, arr.bpm)
+    line = with_kan(line, arr.raga, arr.bpm)
+    if slow:
+        line = [_slow_meend(n) for n in line]
+    if section.form_role in _GAMAK_ROLES and arr.raga not in KHADA_RAGAS and not composed_gamak:
+        andolit = frozenset(RAGAS[arr.raga].get("andolan", []))
+        line = [_with_gamak(n, arr.raga, arr.bpm, andolit) for n in line]
+    return line, [_plain(n) for n in guitar]
+
+
+def with_gamak_cells(line: list[Note], raga: str, bpm: int) -> list[Note]:
+    """Expand every note the composer marked `gamak_with` into its strokes. Pure."""
+    out: list[Note] = []
+    for n in line:
+        out.extend(_gamak_strokes(n, raga, bpm) if n.gamak_with else [n])
+    return out
+
+
+def _gamak_strokes(n: Note, raga: str, bpm: int) -> list[Note]:
+    interval = None if raga in KHADA_RAGAS else gamak_interval(raga, n.swara, n.gamak_with)
+    stroke = gamak_stroke_beats(bpm)
+    count = int(round(n.dur / stroke))
+    if interval is None or count < 1 or n.chord or n.meend_swara is not None:
+        return [n.model_copy(update={"gamak_with": None})]
+    each = n.dur / count
+    path = gamak_stroke_path(each * 60000.0 / bpm, interval)
+    return [n.model_copy(update={
+        "start": round(n.start + k * each, 4), "dur": round(each, 4),
+        "vel": n.vel if k == 0 else max(1, round(n.vel * _GAMAK_RESTRIKE_VEL)),
+        "grace": n.grace if k == 0 else None, "andolan": None, "andolan_st": None,
+        "gesture": GAMAK_GESTURE, "pitch_path": path})
+        for k in range(count)]
+
+
+def with_gestures(line: list[Note], raga: str, bpm: int) -> list[Note]:
+    """Play each note the raga holds a measured gesture for with that gesture, chosen by the
+    swara the line arrives from (`gestures.gesture_for`). A note too short to carry the path
+    and settle, a glide, a chord, or a note with a kan of its own is left alone. Pure."""
+    out: list[Note] = []
+    prev: Note | None = None
+    for n in line:
+        out.append(_gestured(n, _approach(prev, n), raga, bpm))
+        prev = n
+    return out
+
+
+def _approach(prev: Note | None, n: Note) -> str | None:
+    """The swara the line arrives from: the previous note's resting swara when it sounded just
+    before and within a tritone of this one; None after a silence or a leap."""
+    if prev is None or n.start - (prev.start + prev.dur) > _APPROACH_GAP_BEATS:
+        return None
+    if abs(_resting_pitch(prev) - (SWARAS[n.swara] + 12 * n.oct)) > 6:
+        return None
+    return _resting_swara(prev)
+
+
+def _gestured(n: Note, approach: str | None, raga: str, bpm: int) -> Note:
+    gesture = gesture_for(raga, n.swara, approach)
+    if (gesture is None or n.gesture is not None or n.grace or n.chord or n.meend_swara is not None
+            or n.technique is not None
+            or n.dur * 60000.0 / bpm < gesture.length_ms + SETTLE_MS):
+        return n
+    # the gesture REPLACES the sway: after the loop, guruji's Ga holds steady (52.0 s); a sway
+    # bolted on after it read as two unrelated movements (GPT, 2026-10-12)
+    return n.model_copy(update={"gesture": gesture.name, "andolan": None, "andolan_st": None,
+                                "pitch_path": gesture_path(gesture, n.swara)})
+
+
+def with_kan(line: list[Note], raga: str, bpm: int) -> list[Note]:
+    """Give each held note of a kan-bearing swara the raga's approach touch for the direction
+    the line arrives from (from below -> the aroha kan, from above -> the avaroha kan). A note
+    with no previous pitch, a repeat of the same pitch, a glide, a chord, or a kan of its own
+    is left alone. Pure."""
+    rules = RAGAS[raga].get("kan", {})
+    if not rules:
+        return line
+    out: list[Note] = []
+    prev: int | None = None
+    for n in line:
+        out.append(_kan_for(n, prev, rules.get(n.swara), bpm))
+        prev = _resting_pitch(n)
+    return out
+
+
+def _resting_pitch(n: Note) -> int:
+    sw = _resting_swara(n)
+    octave = n.meend_oct if n.meend_swara is not None and n.meend_oct is not None else n.oct
+    return SWARAS[sw] + 12 * octave
+
+
+def _kan_for(n: Note, prev: int | None, rule: dict[str, str] | None, bpm: int) -> Note:
+    if (rule is None or prev is None or n.grace or n.chord or n.meend_swara is not None
+            or n.gesture is not None or n.dur * 60000.0 / bpm < KAN_MIN_MS):
+        return n
+    here = SWARAS[n.swara] + 12 * n.oct
+    if here == prev:
+        return n
+    touch = rule.get("aroha" if prev < here else "avaroha")
+    return n.model_copy(update={"grace": [touch]}) if touch else n
+
+
+def _resting_swara(n: Note) -> str:
+    return n.meend_swara if n.meend_swara is not None else n.swara
+
+
+def _with_andolan_depth(n: Note, raga: str) -> Note:
+    if not n.andolan:
+        return n
+    depth = ANDOLAN_REACH * andolan_neighbour_st(raga, _resting_swara(n))
+    return n.model_copy(update={"andolan_st": round(depth, 3)})
+
+
+def _slow_meend(n: Note) -> Note:
+    return n.model_copy(update={"meend_style": "slow"}) if n.meend_swara is not None else n
+
+
+def _with_gamak(n: Note, raga: str, bpm: int, andolit: frozenset[str]) -> Note:
+    """A gamak on a note long enough to swing, not of an andolit swara, and not already
+    carrying a gesture of its own."""
+    if (n.andolan or n.swara in andolit or n.meend_swara is not None or n.grace
+            or n.gesture is not None or n.technique is not None
+            or n.dur * 60000.0 / bpm < GAMAK_MIN_MS):
+        return n
+    up, octave = ascent_step(n.swara, raga)
+    st = SWARAS[up] + 12 * octave - SWARAS[n.swara]
+    return n.model_copy(update={"gamak_st": st, "vel": min(127, round(n.vel * _GAMAK_VEL))})
+
+
+def _plain(n: Note) -> Note:
+    if not (n.andolan or n.andolan_st or n.gamak_st or n.meend_style or n.pitch_path):
+        return n
+    return n.model_copy(update={"andolan": None, "andolan_st": None, "gamak_st": None,
+                                "meend_style": None, "gesture": None, "pitch_path": None})

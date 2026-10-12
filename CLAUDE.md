@@ -35,27 +35,35 @@ agents compose, critique, and revise live; the result renders to audio.
   generation seeds (idiomatic, not just in-scale) and as Rasik critique criteria.
 - Per **tala**, capture: matras, vibhag grouping, sam/tali/khali positions, theka (bols).
 
-## Architecture
+## Architecture (REDESIGNED 2026-10-11 — the right decomposition, measured; see DESIGN.md "THE REDESIGN")
 
-- **Generators:** RagaGrammar, MetalRiff, Tala.
-- **Critics — three ORTHOGONAL dimensions, one each** (the three questions about a piece of
-  music): **Ustad** = *is it legal?* (uses the deterministic `validate_composition` as a tool —
-  the hard guardrail); **Rasik** = *does it sound like the raga?* (raga authenticity — pakad,
-  idiom, rasa); **Producer** = *does it work as a song?* (composition quality — structure,
-  dynamics, climax, motif, hook, balance, independence, mood_fit; raga-agnostic).
-- **Conductor (arbiter):** Ustad's legality drives a pure triage (illegal ⇒ forced revise, no
-  debate). On a legal-but-flagged piece it runs a **bounded** debate between the two AESTHETIC
-  critics — **Rasik (soul) ↔ Producer (works-as-music)** — Ustad EXITS the debate (its legality
-  job ended at triage; a legal piece gives it no aesthetic stake), and makes the final call
-  (accept, or the revise directive). **Always terminates** — debate needs a referee and a clock.
-  This disagreement→debate→verdict is the money moment.
-- **Orchestration:** CrewAI **Flow** — propose → critique → (debate + arbitrate on conflict)
-  → revise, capped by `max_rounds`. Every debate/revise loop is bounded with a guaranteed
-  terminator; never rely on agents converging on their own (live-safety).
+- **Split agents where the INFORMATION or the JUDGMENT differs, never where job titles differ.**
+  The riff, the hook, the groove and the form are ONE idea — conceived together. Code owns only
+  REAL constraints (legality + direction, length, the loop filling its cycle, playability when
+  asked); every taste/craft rule is a MEASUREMENT reported to a judge, never a rejection.
+- **Composer (one owner, behind `RMA_COMPOSER`):** a SEED call co-writes the chart (form — `gat` or
+  `song`, the gat is optional), the main riff and the hook; DEVELOP calls (the existing lead/riff
+  loops) write each section with the seed in view and never replace it. Flag off = the legacy
+  Pandit⇄Riffsmith composers + per-voice generators.
+- **Critics:** **Ustad = CODE** (`validate_composition`; no LLM); **Rasik = raga consultant**
+  (pakad/idiom/rasa scores + ≤3 lead-only suggestions); **Producer = the ONE judge with
+  authority** — reads the score, metrics, coexistence friction and Rasik's notes, then accepts or
+  returns ONE `RevisionPlan` (voice, sections, instruction, PRESERVE list). No debate, no
+  Conductor, no Arranger (grinds between riff and sitar are KEPT — Sujit's ear).
+- **Triage + revise (`crew/triage.py`, `crew/revision.py`, pure):** an ILLEGAL piece is a forced
+  revise of the offending voice; otherwise the Producer's plan stands. The revise is edit-based:
+  the instruction + preserve list thread into the targeted sections' intent, and only those
+  sections are spliced back. Seeds ride the Arrangement so a revise keeps each voice's partner.
+- **Listening pass (advisory, `RMA_LISTEN`):** after the render, a Pro audio judge listens blind
+  to the score; code measures per-section loudness and cross-checks its timestamps. Reports only —
+  it gates nothing until calibrated against Sujit's blind ranking (≥70% pairwise agreement).
+- **Orchestration:** CrewAI **Flow** — interpret → compose → generate → assemble → critique →
+  decide → (regenerate)* → render (→ listen). Bounded by `MAX_ROUNDS`; the router returns "done"
+  at the cap — never rely on agents converging on their own (live-safety).
 - **Deterministic core (no LLM):** `src/raga.py` (grammar + validator), `src/talas.py`,
   `src/subgenres.py`, `src/render.py` (swara → MIDI → WAV).
 - **Two contracts:** (1) composition JSON (generators emit / renderer consumes),
-  (2) the debate event stream the UI renders.
+  (2) the event stream the UI renders (`DebateEvent`; the DEBATE type is retired but kept).
 
 ## Conventions
 
@@ -70,8 +78,15 @@ agents compose, critique, and revise live; the result renders to audio.
 ## Models
 
 - **Crew: Gemini (decided).** Flash for generators, Pro for critics/Conductor. GPT-5 = fallback only.
-- Gemini has **no "reasoning effort" knob** — steer with **temperature** instead: generators
-  ~0.8–0.9 (variety), critics/Conductor ~0.2 (consistency). See the CrewAI section below.
+- **Model: `gemini/gemini-3.8-flash`, PINNED (2026-10-11)** — Google's recommended Flash, same price
+  as 3.6. `gemini-3.5-flash` had dropped off Google's model page and was silently answered by 3.6
+  (confirmed via the response's `model_version`). Never use the `gemini-flash-latest` alias (Google
+  hot-swaps it). Pro = `gemini-3.1-pro-preview` (the only current Pro), promoted via `RMA_PRO_MODEL`.
+- **NO TEMPERATURE (2026-10-11):** every agent runs at the model's default sampling — Google
+  recommends keeping Gemini 3.x at its default and warns lower values degrade reasoning. The one
+  knob we send is the **thinking level** (`thinking_config`; CrewAI drops `reasoning_effort` for
+  Gemini). On any model change: smoke-test the thinking cap in a trace and re-run the single-call
+  baseline (a rule tuned on an older model becomes a ceiling).
 - Key via `.env` as **`GEMINI_API_KEY`** (what LiteLLM reads for the `gemini/` provider). Sujit
   provides it at Phase 2; Phase 1 data needs no key.
 - Everything is model-agnostic via CrewAI/LiteLLM (model = one config value).
@@ -141,22 +156,22 @@ so our 3.13 pin is correct). Sources: docs.crewai.com; Anthropic "Building Effec
 **Agents / Tasks / Tools:**
 - Tools import from **`crewai.tools`** (NOT `crewai_tools`, the separate toolkit). Subclass `BaseTool`
   with a Pydantic `args_schema` for the deterministic validator tool; deterministic tools = no cache, return dict/Pydantic.
-- **Use `validate_composition` two ways (do both):** (1) as a Task **`guardrail`** — runs *after* the
-  agent's output, returns `(ok, value_or_error)`, feeds errors back for a bounded retry
-  (`guardrail_max_retries`, default 3); the mandatory hard stop the agent can't skip. (2) as a **Tool**
-  Ustad calls mid-reasoning so it can *explain* the violation. (`TaskGuardrail` is now `LLMGuardrail`.)
+- **Use `validate_composition` as code:** (1) as a Task **`guardrail`** — runs *after* the agent's
+  output, returns `(ok, value_or_error)`, feeds errors back for a bounded retry; the hard stop the
+  agent can't skip. (2) as the whole of Ustad's verdict (since 2026-10-11 Ustad makes no LLM call —
+  narrating a code verdict with an LLM added cost and no information). (`TaskGuardrail` is now `LLMGuardrail`.)
 - **Structured output** via Task `output_pydantic=Model` is good but **not guaranteed** — always back
   it with a guardrail. Agents return DATA, never prose.
 - Agent hygiene: tight role/goal/backstory, explicit `llm=` per tier, `tools=[...]`,
   **`allow_delegation=False`** (scripted Flow, not delegation), modest `max_iter` for live safety.
   Prompts live as external markdown/yaml config, never inline strings.
 
-**Model IDs (VERIFIED 2026-07-11):** `from crewai import LLM; LLM(model="gemini/...", temperature=..., reasoning_effort=...)`.
-`gemini/gemini-3.5-flash` is confirmed working on CrewAI 1.15.2 with `reasoning_effort="low"`. **Requires the
+**Model IDs (VERIFIED 2026-07-11; model updated 2026-10-11):** built by `crew.config.build_llm` (no temperature;
+thinking via `thinking_config`). The default is `gemini/gemini-3.8-flash` (see Models above). **Requires the
 `crewai[google-genai]` extra** (native Google provider) — `uv add "crewai[google-genai]"`, else you get
-`ImportError: Google Gen AI native provider not available`. **Starting simple:** Flash 3.5 at low effort for the
-WHOLE crew (critics included); promote critics/Conductor to a Pro tier later via `RMA_PRO_MODEL`. All model IDs,
-effort, and temperatures are env-overridable in `crew/config.py`.
+`ImportError: Google Gen AI native provider not available`. **Starting simple:** Flash at low thinking for the
+WHOLE crew (critics included); promote the critics to a Pro tier later via `RMA_PRO_MODEL`. Model IDs and thinking
+levels are env-overridable in `crew/config.py`.
 
 **Agentic design (the talk's patterns, as engineering rules):**
 - **Validate at every boundary; one bounded retry, not a loop.** If a step routinely needs 2+ retries,
@@ -384,7 +399,7 @@ and build order.
 - **Observability** (`crew/tracing.py` + `crew/trace_portal.py`): every LLM run is traced by
   default (one trace = one run id, Langfuse-style); browse by id in the local portal.
   `crew/evals.py` is the interpreter eval harness. See the "Observability" section.
-- Gemini billing is **LIVE** (`gemini/gemini-3.5-flash`, low effort) — see "Cost discipline".
+- Gemini billing is **LIVE** (`gemini/gemini-3.8-flash`, low thinking) — see "Cost discipline".
 - **Phase 2's agentic pipeline is COMPLETE end-to-end** (`compose_flow(query)` → WAV).
 - **IN PROGRESS (2026-07-12) — audio production + review-informed polish** (Sujit: "do all
   together", tested chunks; full roadmap + design in DESIGN.md "Audio production & riff voicing"
@@ -550,7 +565,7 @@ and build order.
   CrewAI 1.15.2's native Gemini provider SILENTLY DROPS `reasoning_effort` (only OpenAI/Azure
   forward it) — thinking ran at the model default (medium, uncapped; 4k–18.5k thinking tokens
   per lead call → 40–137s + 504s). `build_llm` now passes `thinking_config` (thinking_level:
-  low; Interpreter runs `minimal`) — verify any knob in a trace (`reasoning_tokens`), never
+  low everywhere; `minimal` is REJECTED by 3.8 Flash) — verify any knob in a trace (`reasoning_tokens`), never
   trust it was accepted. generate_lead rebuilt: per-role briefs (`crew/config/lead_roles.yaml`,
   ONE injected per call as `{role_brief}`), static-first ordering (implicit-cache-friendly
   prefix), data + "compose now" at the END, anti-over-fill schema example (~50% smaller prompt).
@@ -735,6 +750,117 @@ and build order.
   (S S D m), **source: Sujit's guruji, oral tradition**. NOT wired yet: a chikari still renders
   as ONE taar Sa; the multi-string stroke needs a LeadNote contract change + per-string weights
   + stroke sweep, and belongs with the jor/jhala work. Suite 764 green.
+- **USER REQUEST + LENGTH + ENDING + PLAYABLE RIFF — ✅ BUILT (2026-10-11;** DESIGN.md "THE
+  USER'S REQUEST, A LENGTH, AN ENDING, A PLAYABLE RIFF"**):** the user's words now travel VERBATIM
+  (`brief.request` → `arr.request`, `crew/user_request.py`) to every agent that makes a musical
+  decision (not Ustad/Arranger); a stated length becomes a code-computed avartan budget the
+  composer guardrail enforces, with a SHORT FORM under 120 s (intro ≥1, one taan_long);
+  `ending: hard_stop` lands one stroke on the final sam (lead taar Sa over a low-Sa power
+  chord + bass + kick/crash, then silence — `crew/ending.py`); `playable_rhythm` switches on
+  fretboard budgets (`src/fretboard.py` + `crew/riff_playability.py`: reach, 4-fret shapes, no
+  rapid jumps, eighth-note pulse, open-low-E anchor) inside the riff's bounded re-roll.
+  842 pure tests green; live-untested.
+- **NYAS + ORNAMENTS — ✅ BUILT (2026-10-11;** DESIGN.md "NYAS + ORNAMENTS"**):** per-raga
+  `NYAS` data (core/permitted/direction/avoid, ≥2 sources, flags; Jog = modern) checked on lead
+  PHRASE ENDINGS before silence (never the sam note); kan rendered UNSTRUCK (one pluck, wheel
+  steps — sparsh/krintan), murki/khatka the same on one stroke; slow alap meend resting on the
+  swaras it passes; andolan v3 (per-swara direction — Bageshree g and Todi r swing UP — depth
+  0.5 of the gap, holds at each turn, an unbent sympathetic layer, lead guitar plain); gamak on
+  the climax taan. Code-set in `crew/expression.py`. Sound check: `uv run python -m
+  crew.ornament_demo`. 866 pure tests green; live-untested.
+- **THE ANCHOR DECIDES THE ORDER — ✅ BUILT (2026-10-11;** DESIGN.md "THE ANCHOR DECIDES THE
+  ORDER"**):** `arr.anchor` was decorative — generation was hard-wired gat-first and every
+  mukhada riff was told it reduces the head. Now `band.compose_creative_voices` (shared by the
+  Flow and `compose_band`) composes in anchor order: `riff_first` writes the riff first, its
+  mukhada riff rides the events (`mukhada_riff_from_events`), the gat sees it as
+  `{riff_source}` (`crew/anchor.py`), and `verify_riff_quote` requires the head to sound the
+  riff's swara on ≥half its sam/tali beats. 890 pure tests green; live-untested. **Next:** carry
+  both seeds through the REVISE path (`_regenerate` currently drops them).
+- **★ THE REDESIGN (decided 2026-10-11;** DESIGN.md "THE REDESIGN"**):** Sujit: build the RIGHT
+  agentic decomposition, not one shaped for teaching — the redesign itself is the talk. Evidence:
+  one bare model call (A) beat the full pipeline (C) on riffs and climax, and `verify_riff` would
+  have rejected A's riff. Target: ONE Composer owns the music (seed → develop; the gat form is
+  OPTIONAL), code owns only real constraints, Rasik becomes a lead-only consultant, the Producer is
+  the one judge with authority (edit plan + preserve list); the Ustad LLM, both debates, the
+  Conductor and the LLM Arranger go. Steps 0-5 in DESIGN.md. **Step 1 BUILT** — the voicing pass
+  (`crew/riff_voicing.py`: every bare stroke → power chord inside the raga, fourth where the fifth
+  is forbidden) at the shared `riff.voiced_and_verified` boundary, and `verify_riff` split into
+  HARD (physics + loop) vs advisory `texture_notes`/`texture_measures` (the ground/change-rate
+  budgets are gone — no pitch statistic separates a riff from a melody). 903 pure tests green.
+- **THE REDESIGN — BUILT, phases 1-3 + listening (2026-10-11;** DESIGN.md "THE REDESIGN — BUILD
+  RECORD"**):** (1) gat OPTIONAL (`form: gat | song`); gat/intro verifiers split HARD vs CRAFT (craft
+  reported on events, never re-rolled); the climax taan's long Sa hold → jhala (ending sag fixed);
+  the climax riff plays a PEDAL at full density (no rhythmic thinning). (2) Ustad = code, Rasik =
+  consultant, Producer = the one judge (`RevisionPlan`), `triage.py`/`revision.py`; Conductor,
+  debate, Arranger DELETED; grinds kept. (3) the single-owner Composer behind `RMA_COMPOSER`; seeds
+  ride the Arrangement (revise seed-loss fixed on both paths). (+) the advisory listening pass
+  (`RMA_LISTEN`, Pro, blind, cross-checked by loudness). Model pinned `gemini-3.8-flash`; no
+  temperature anywhere. 934 pure tests green. **ALL LIVE-UNTESTED** — the live batch (smoke 3.8,
+  re-baseline, interpreter eval, Composer run, listening calibration) awaits Sujit's go.
+- **GPT DARBARI REVIEW — code half ✅ BUILT (2026-10-12):** GPT read `fusion_20261012_112714.mid`;
+  verified against the saved JSON (it misread the tala as teentaal — it is keherwa — and called the
+  tihai a "refrain"). Built: (1) **kan from data** (`expression.with_kan`) — `raga["kan"]` was only
+  ever TOLD to the LLM; held sitar notes of a kan swara now get the touch for the arriving direction
+  (an LLM kan wins); (2) **gamak spares andolit swaras** and `GAMAK_MIN_MS` 220→350 (30→8 bent
+  notes on that piece); (3) **`crew/tihai_landing.py`** — the third statement's final note strikes
+  the NEXT sam (gaps widen equally; a returning mukhada's head wins the sam; the next section's lead
+  yields) — both the LLM tihai and `make_tihai` landed BEFORE the sam; new `tihai` lead brief;
+  (4) **real ring-out** — `ring_out` did nothing, so every voice stopped on the last beat at full
+  level (the listening pass's "abrupt cut"); now sustained notes ring `RING_TAIL_S` past the end
+  with `Note.fade_tail` (decay to silence, no CC11 snap-back). Free replay:
+  `out/fusion_20261012_112714_gptfix.wav`. 1033 pure tests. **Still open:** a mukhada craft measure
+  (does the head HOLD an andolit swara), Darbari's mandra/poorvanga emphasis as raga data (needs
+  ≥2 approved sources — GPT cited darbar.org, not on our list), Rasik's "identify the raga from the
+  melody alone" rubric line.
+- **MEASURED GESTURES + REGISTER — ✅ BUILT (2026-10-12):** Sujit's guruji's recorded Darbari gat
+  (pYIN, Sa = D, 120 bpm) showed komal Ga is TWO gestures chosen by approach: from Sa/Pa/a rest it
+  LOOPS UP to Ma (~40 ms rise, 100-245 ms on Ma, ~100 ms back, one stroke); arriving FROM Ma it DIPS
+  to Re. `src/gestures.py` (pure data, sourced) -> `expression.with_gestures` stamps
+  `Note.gesture` + `Note.pitch_path` (ms, semitones) -> `render.path_wheel` draws it (a long hold
+  sways after). The gesture replaces the kan. Dha NOT encoded (thin evidence). Replay:
+  `out/fusion_20261012_112714_gestures.wav`. Also `REGISTER` table (`render_register`, Darbari:
+  Parrikar + Tanarang + ITC/Mitra) in the lead/composer/Rasik facts; Rasik's lead line now shows
+  kan `(X)`, gesture `{X}`, andolan `~`, meend `>X`, holds `[n]` + a register time-profile, and its
+  task asks "could a listener name the raga from movement and ornament alone". 1050 pure tests.
+  **DENSITY CONTRAST (built same day):** guruji's right hand is steady (~2 strokes/beat); the
+  LEFT hand bursts (23% of beats have 3+ swara changes, 1-3 beats long) then rests (53% still).
+  `crew/density.py` (pure) counts swara changes per beat (kan, gestures, meends count; a sway
+  doesn't) and reports each section's bursts/breaths vs that reference to Rasik AND the Producer
+  — a measurement, never a rule. Lead briefs (mukhada/antara/melody/taan_long): a short burst,
+  often several swaras on ONE stroke via `grace`, then a note that rings. On the 2026-10-12
+  render the hook and intro had NO burst at all; the taan already breathed. 1056 pure tests.
+  **RAGA RESEARCH ENCODED (same day):** only two-source facts. `REGISTER`: Darbari only (P + T +
+  ITC/Mitra). Kan: + Jog (g takes S descending), Bhimpalasi (n takes S rising, g takes m falling);
+  kan entries may name ONE direction. `CHARACTER` (`render_character`): sourced treatment rules
+  for 12 ragas in OUR notation (Parrikar's M = our m!), told to lead/composer/Rasik, never
+  enforced. Kirwani: one source only, no entry. Bageshree's sourced vakra rise "R g m" and the
+  cluster "m P D (m)g" contradict our direction rule (R, P descent-only) — **Sujit decided: keep
+  the rule STRICT**, the phrases stay out. Bhairavi's "all twelve swaras" left out.
+  **GAMAK CELLS (same day):** guruji's gamaks are swings between ADJACENT swaras across strokes
+  (opening S | m->g; P<->m, d<->n, mandra P<->d; visits ~85 ms, moves ~25 ms, strokes ~250 ms).
+  `LeadNote.gamak_with` (the composer picks WHERE and WHICH neighbour) -> `expression.
+  with_gamak_cells` splits the note into strokes on the grid nearest 250 ms, each a measured
+  swing (`gestures.gamak_stroke_path`), drawn by `path_wheel`. Partner must be adjacent and
+  direction-legal (`gestures.gamak_interval`), else plain; khada ragas never (Marwa). Open to
+  EVERY raga (Sujit: "common in Yaman too"); Darbari's pairs told as idiom (`GAMAK_PAIRS`).
+  A composed gamak replaces the old per-note climax shake. Sound check:
+  `uv run python -m crew.gamak_demo`. 1067 pure tests. **Open:** Dha gestures.
+  **ALAP (same day, GPT's alap review + the run's trace):** the sour Ga was the TARAF — the
+  unbent sympathetic copy started at the attack while the string bent to Ma; it now starts
+  when the string settles (all three render sites). Guruji's gestures are GAT-only (measured
+  in a fast gat); the alap/outro keep the sourced slow andolan + kan; gamak cells too are
+  gat-only; a gestured note HOLDS (no sway after). The bland alap, from the trace: the
+  re-roll that fixed "must resolve to Sa" ran 2 beats long, TIED on one fault, and the
+  unresolved first take shipped — ties now go to the later take, and the alap may run into
+  code's own reserved pause (down to `_INTRO_MIN_GAP_BEATS`); the pause itself is ~2.5 s
+  (`_INTRO_GAP_S`), not a third of the intro. Sujit's decisions: the alap + gat head run at
+  MEDIUM thinking (`lead._IDENTITY_ROLES` -> `composer_llm`); an alap gets >= `INTRO_MIN_S`
+  (18 s) or is left OUT, in either form, the composer splitting the rest of the time
+  (`form_budget.min_intro_bars`); the VIBHAG SNAP IS REMOVED (alap placed in time as written,
+  "like a jod"). Brief rewritten around phrase JOBS (establish / reveal / develop / lead in)
+  with a register-aware arc (a mandra raga reaches DOWN — `gat_verifier.lives_low`), slow
+  ornament only. Rasik judges an alap AS an alap. Replay: `out/fusion_20261012_112714_alapfix.wav`.
+  1069 pure tests. **Pending:** guruji's slow Ga recording (3 renderings, unaccompanied).
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.
