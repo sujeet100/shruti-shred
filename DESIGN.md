@@ -1778,7 +1778,7 @@ NoteOn (3) at the same tick, so butt-joined repeats of a pitch are safe and GPT'
    offender); chug-run velocity variance, so six identical chugs stop reading as programmed.
 2. **Double-track humanisation**: `_DOUBLE_DT = 0.02` beats plus a constant detune makes the
    right guitar a delayed copy. Vary onset, velocity and gate per note.
-3. **Anchor plumbing**: `arr.anchor` exists on the Arrangement but `inputs_for` never passes
+3. **Anchor plumbing** (BUILT 2026-10-11 — see "THE ANCHOR DECIDES THE ORDER" below): `arr.anchor` exists on the Arrangement but `inputs_for` never passes
    it, so the prompt tells EVERY riff it "REDUCES" the gat head — a `riff_first` piece is
    still composed gat-first. Pass `{anchor}` with operationally different instructions.
 4. **`arrange_riff_against_lead`** — GPT's best structural idea, and the one worth an agent.
@@ -2488,3 +2488,436 @@ sam — i.e. the tabla responding to the soloist the way the kit already respond
 That is a real piece of work, not a constant to change, and it is the open item on this thread.
 
 Suite 795 green.
+
+## THE USER'S REQUEST, A LENGTH, AN ENDING, A PLAYABLE RIFF (2026-10-11)
+
+**Trigger.** Sujit's brief for the talk's opener (60 s, Bhairav in E, teentaal @128, tihai on
+the sam, lead on upper Sa over a low-Sa hit + hard stop, a rhythm part he plays live) exposed
+that only the Interpreter ever saw the user's words. Five asks survived as brief fields; the
+rest were dropped, and "I will play rhythm guitar live" was inverted into `instruments`.
+
+**1. The request reaches every musical agent** (`crew/user_request.py`). `CompositionBrief.request`
+and `Arrangement.request` carry the query VERBATIM, copied by code. One renderer quotes it; each
+of nine task templates frames it for its own job and states precedence (raga + chart win):
+composers (write it into form/intents/transitions; deliverables are out of scope), lead, gat,
+riff, orchestra, Rasik (context only), Producer (an ignored ask is a weakness in the criterion it
+touches), debate turn and the Conductor's ruling. NOT Ustad (narrates a code verdict) or the
+Arranger (picks from a code-built menu) — the request cannot change either answer; a test pins
+it. `Arbitrate` now receives the Arrangement (where the request lives). Tests: `test_user_request.py`.
+
+**2. Length → a form budget** (`crew/form_budget.py`). `RawIntent/CompositionBrief.duration_s`
+(seconds; junk outside 10–1200 s dropped). Code computes the avartan budget
+(`duration × bpm / (60 × matras)`; 60 s @128 teentaal = 8), renders it as `{form_budget}` in the
+composer prompt, and the composer guardrail (now a per-brief closure, `turn_guardrail`) enforces
+it ±1 avartan. Under `SHORT_FORM_MAX_S` = 120 s (raised from 90 the same day, so a 90 s opener keeps a short intro) the SHORT FORM relaxes only the minimums that need
+length: intro ≥1 avartan (full form keeps Sujit's 3), a manjha's returning mukhada ≥1, one
+`taan_long`. The mukhada must still be stated and return. Downstream fix: the intro's
+clean-guitar lead-in is skipped when the intro is no longer than it (a 1-avartan intro otherwise
+had a zero-length alap window). Tests: `test_form_budget.py`.
+
+**3. The ending** (`crew/ending.py`). `ArrangementDraft/Arrangement.ending`: `ring_out` (default,
+old behaviour) | `hard_stop` — the composers choose; code places it as the LAST pass of
+`band_layers`. On the sam right after the last section (exactly where the taan's code-built tihai
+lands): every lead layer sounding in the final avartan plays taar Sa (lead register + 1), both
+rhythm takes strike low Sa as a power chord (Sa + octave, + Pa only where the raga has it), the
+bass strikes its low Sa, the kit hits kick + crash; anything straddling the sam is cut, nothing
+sounds after the 1-beat stroke. Legal by construction. The composers are told a tihai needs a
+`taan_long` of ≥2 bars (`_TIHAI_MIN_CYCLES`). Tests: `test_ending.py`.
+
+**4. A playable rhythm part** (`src/fretboard.py` + `crew/riff_playability.py`). `playable_rhythm`
+is an Interpreter field (true only on an explicit ask; the `instruments` definition now means
+instruments wanted IN the piece). The fretboard model is core knowledge: E standard, one finger
+per fret, comfortable shape = fretted notes inside a 4-fret box, position = lowest fretted fret,
+open strings free, `easiest_path` = least hand movement (Viterbi). The riff budgets ride the
+existing bounded re-roll as `verified_riff(..., extra_check=)`: reach (nothing under E2), stretch,
+no 5+-fret shift in under a beat (loop seam included), sixteenths <30% and in bursts ≤4, and —
+when the riff's low Sa IS the open low string — that open E is the ground (≥35%, the modal
+pitch). Pitches are computed exactly as rendered: `render.chord_voicing` was extracted from the
+renderer so both share one seating rule. A playable chart lifts a low-key riff's register onto
+the guitar (in D, D3 not D2). Prompt: `{playability}` in generate_riff. Tests: `test_playability.py`.
+
+**Known limits.** The Arranger's reseat repairs run after the playability check and could move a
+note (they prefer holding the previous root or Sa, so rarely a jump). Ignored by request: the
+backing track without the rhythm part, tablature, and the stated purpose. Interpreter eval case
+added for the opener (not run — live). **Everything here is LIVE-UNTESTED.** 842 pure tests green.
+
+**5. The alap window, fixed after the first short-form render** (`fusion_20261011_195034`, Sujit:
+"the alaap is messed up in spacing and rhythm"). The intro's reservations were written for 3+
+avartans and the short form made a 2-avartan intro legal: a whole avartan of arpeggio lead-in +
+the 35% ring-out left the alap 10.4 of 32 beats. The trace shows the ask ("3-6 short phrases
+separated by real silence") could not fit, so the model crammed a taan — sixteenths, diri 32nds,
+off-grid 0.4/0.12 durations, no rests. Fixes: the lead-in now SCALES (`_intro_lead_in_beats`: a
+full avartan at ≥3 avartans, one VIBHAG at 2, none at 1 — `first_vibhag_beats`), so a 2-avartan
+intro's alap gets 18.2 beats; the phrase floor scales with the window (`intro_min_phrases`: 3 at
+≥16 beats, else 2) and the prompt states it (`{phrase_room}` on the length line; the brief no
+longer says "3-6"); `verify_intro` adds rhythm rules (`_intro_rhythm_violations`): durations on
+the sixteenth grid, no diri/darada in an alap, quick steps (<½ beat) ≤35% — contrast stays legal,
+a taan-in-disguise does not; and the tala note now describes the window it is given (sams
+measured from the window start; a shortened window "ends before the next sam") instead of
+claiming a sam at beat 16 inside a 10.4-beat phrase. 849 pure tests green; live-untested.
+
+## NYAS + ORNAMENTS — research → built (2026-10-11)
+
+Sujit: "some melody lines rest awkwardly — shouldn't the melody land on nyas?", "the andolan
+sounds out of tune", "research more ornaments". Three research passes (nyas per raga; andolan;
+sitar ornaments — ITC SRA alankar pages via Wayback, Parrikar, Tanarang, Deepak Raja, IIT/ISMIR
+papers). **No source measures any ornament's timing or depth** — every ms/cents value below is
+inference for the ear, collected in the sound check.
+
+**1. Nyas** (`src/raga.py` `NYAS`, `nyas_problem`, `render_nyas`; `crew/gat_verifier.py`
+`nyas_violations`). Per raga: `core` (the sources agree), `permitted` (any strong source —
+the ENFORCED set, kept loose after September's three too-tight rules), `descent_only`
+(Bhairav r, Bageshree g, Puriya Dhanashree r), `ascent_only` (Puriya Dhanashree N), `avoid`
+(Yaman D, Marwa S, Bageshree P), notes + sources (≥2 each; thin coverage FLAGGED: Kirwani,
+Charukeshi's secondary rests, Darbari's g/d excluded by absence). Jog = MODERN recension
+(Sujit): all swaras permitted, core S G P m. The check reads PHRASE ENDINGS only — the last
+melody note before a ≥1-beat silence, punctuation excluded, direction from the arriving note —
+in all seven verified lead cells. NOT the sam note (a Bageshree bandish lands on Re) and NOT long
+mid-phrase holds (Parrikar: deergha bahutva ≠ nyasa bahutva). `resting_swaras` now reads NYAS
+(the old Sa+vadi+samvadi rejected Yaman cadencing on Pa). The nyas line is in the lead, Rasik and
+composer raga facts; the alap brief pauses its tension-holding phrases on the OTHER nyas swaras.
+
+**2. Unstruck kan** (`src/render.py` `kan_pitch`, `_kan_wheel`). A kan is a left-hand touch —
+sparsh rising, krintan falling (ITC: a metallic timbre "never reproduced by the human voice").
+It used to be struck as crushed notes (two attacks). Now: ONE pluck on the beat at the kan's
+pitch, the wheel STEPS (no glide) to the swara after `KAN_STEP_MS` 60 (≤40% of the note), then
+any meend/andolan starts from there. Kan seats in the octave NEAREST the note (a kan of Ni on
+Sa was ten semitones above). Murki/khatka = the same neighbour cluster as unstruck kan on one
+stroke; khatka struck harder (ITC: the difference is "the force of delivery"). NOT unlocked for
+Yaman/Puriya Dhanashree — ITC alone sources it (two-source rule).
+
+**3. Slow meend + andolan v3.** `Note.meend_style` "slow" (code-set in intro/outro): holds the
+source 30%, moves through the raga swaras sung in that direction (`meend_via`: aroha up, avaroha
+down) resting on each, settles on the target — the signposts (Malkauns g→S, Jog g→S, Bhairavi
+n-d-P resting on d) and Sujit's Bageshree Ma→Ga reverse bend. Andolan: per-swara DIRECTION
+(`raga.ANDOLAN_TOWARD`: Bhairav r/d and Darbari g/d below; **Bageshree g above** — Parrikar
+"(m)g" + Sujit's guruji; **Todi r above** — ITC + Parrikar "r<->g"), depth `ANDOLAN_REACH` 0.5 of
+the gap to that neighbour (`Note.andolan_st`, stamped by `crew/expression.py`); the wave now
+HOLDS at each turn ("multiple meend in succession, punctuated by delicate holds" — Kumar et al.)
+instead of a sin² dip, and its far turning point is AIMED — each wave reaches 92-100% of the target (`ANDOLAN_DEPTH_SPREAD`), only the timing varies freely (Sujit: "between 2 notes or randomly at any cents?"; the July 65-100% depth jitter let it wander ~33-50 cents); an UNBENT sympathetic copy (`TARAF_VEL_SHARE` 0.35, same routed bank)
+rings under every sway — a MIDI bend moves the sample's baked-in resonance, a real sitar's
+taraf stays put (Chiruthapudi, ISMIR 2022); the lead guitar plays the line PLAIN (no sway or
+gamak in unison). The 1 s real-time gate stays (research-confirmed). NOTE: none of the three
+2026-10-11 Bhairav renders swayed at all — at 128 bpm every flagged hold was under 1 s — so the
+"out of tune" sound Sujit heard was most likely the meend chains, not andolan.
+
+**4. Gamak** (`Note.gamak_st`, `render.gamak_wheel`). ITC: "a fast meend over 2-3 notes, repeated,
+played with force", distinct from andolan by speed and audible endpoints. Code-set on the
+`taan_long` climax (`crew/expression.py`): notes ≥220 ms with no other gesture swing up to the
+next ENTERABLE raga swara (`ascent_step`, so Bageshree's Pa is skipped) and back, 6 Hz, ≤3
+cycles, struck ×1.08. Never in a khada raga (`KHADA_RAGAS`: Marwa — Parrikar, an exclusion).
+
+**Sound check (no LLM):** `uv run python -m crew.ornament_demo` →
+`out/ornaments_bhairav_<ts>.wav` (re/dha andolan at 30/50/70 cents, unstruck-kan pakad, gamak
+run) + `out/ornaments_bageshree_<ts>.wav` (slow vs quick Ma→Ga, (m)g swaying up, D→m resting
+on Pa), cue sheet printed. 866 pure tests green; live-untested.
+
+**Deferred:** ghaseet (fast stepped fret slide); khatka beyond Bhairavi (needs a 2nd source);
+CC74 treble roll-off on upward bends; Vilayat Khan's non-12 mukhada entries (5/9/14); gat
+examples (`src/gats.py`) — waiting on Sujit's drut notations.
+
+## THE ANCHOR DECIDES THE ORDER — riff_first is real (2026-10-11)
+
+The riff-rendering queue's step 3, and it turned out bigger than "pass `{anchor}` to the
+prompt". The composers declare `anchor: gat_first | riff_first`, and only the Arranger's
+right-of-way rule ever read it. Generation was hard-wired gat-first in BOTH composition
+roots (the Flow's parallel path and `compose_band`): the lead ran, then the riff was told it
+"REDUCES" the cached head. A prompt-only fix would have told a `riff_first` riff it was the
+source of a gat that already existed, which is the same dishonesty as the old palm-mute
+sentence. So the ORDER now follows the anchor.
+
+**Built.**
+* `crew/band.py::compose_creative_voices` — ONE function sequencing the two LLM voices,
+  used by both roots (the duplicated sequencing is gone). `gat_first`: lead, then the riff
+  reduces the head (unchanged). `riff_first`: riff first, then the gat is handed the
+  mukhada section's riff. Same calls, same cost. The generators are injectable (the order is
+  tested with fakes); `announce`/`emit` callbacks keep the Flow's live RUNNING beats.
+* `crew/anchor.py` (pure) — `riff_accents` reads the riff's ACCENTED ROOTS: the swara it
+  sounds on each sam and tali (khali excluded, rests excluded, a short pattern's last note
+  extended to the edge as `_sequence_cycle` does). `render_gat_source` is the gat's new
+  `{riff_source}` block: in `gat_first` it tells the gat its sam/tali swaras will become the
+  guitar's roots (useful there too); in `riff_first` it shows the riff and asks the head to
+  QUOTE those roots and sing between them.
+* The seam mirrors the existing one: `generate_riff` publishes the mukhada section's riff on
+  its event (`mukhada_riff`, also when the mukhada REPLAYS a slot written earlier) and
+  `riff.mukhada_riff_from_events` reads it, exactly as `lead.mukhada_cell_from_events` does.
+* `gat_verifier.verify_riff_quote` — code decides the checkable: the head must SOUND the
+  riff's swara (landing swara, so a meend counts at its target) on at least HALF of the
+  accented beats. Half, not all, because the sitar sings a melody over the riff's skeleton —
+  a head pinned to every accent is the riff transcribed. Runs with the mukhada's other
+  verifiers inside the joint gat's bounded repair, only when `riff_first`.
+* The riff prompt's header is neutral ("one idea, and which of you seeds it"), and a
+  `riff_first` mukhada riff is told it is the source: make the sam/tali roots deliberate,
+  singable raga swaras, because the head will quote them.
+
+Tests: `tests/test_anchor.py` (19). Suite 890 green. Live-untested.
+
+**Known limits.**
+* The REVISE path still drops both seeds: `_regenerate` calls `compose_riff(revised)` and
+  `compose_lead(revised)` with no seed, so a Conductor-ordered riff on a `gat_first` piece
+  loses its reduction brief, and a regenerated riff on a `riff_first` piece leaves the gat
+  quoting a riff that no longer exists. Fixing it means carrying the seeds in `ComposeState`
+  (and the Stages bundle); queued as the next small step.
+* The studio path (opt-in, `RMA_STUDIO`) has its own canvas order; it now gets the
+  anchor-aware riff text but does not reorder on the anchor.
+* The per-section mukhada fallback (no `gat_fn`) is not shown the riff, so it is not checked
+  for the quote either — it would be asked for something it was never told.
+
+
+## ★ THE REDESIGN — the right decomposition, measured (decided 2026-10-11)
+
+**Direction (Sujit):** "focus on doing right agentic decomposition over trying to build for
+teaching — even this will be a teaching." The architecture is now optimised for the music,
+judged by ear; the journey (measure, find the wrong split, fix it) is the talk.
+
+**The evidence.** The A/B/C experiment (talk/HANDOVER.md §2): A = one bare Gemini call writing
+sitar + guitar + bass + drums together; B = the same call + our raga grammar; C = the full
+pipeline. Sujit's ear: A has the best riffs. Measured: A chords 100% of 212 strokes, C 15% of
+157; in the last two cycles A's guitar gets BUSIER (28 → 52/40 strokes) while C's halves
+(28 → 14/14) under a taan; our own `verify_riff` would REJECT A's riff twice. B (grammar added
+to one call) became legal but never breathed. Two GPT reviews (of the MIDI and of tasks.yaml)
+reached the same conclusion: creative ownership is fragmented across agents that must
+co-conceive one idea, while verification is centralised. Model drift sharpens it: requests to
+3.5 Flash appear to be routed to 3.6 Flash (unverified — traces record only the requested
+model), so rules tuned in July against a weaker model's failures have become ceilings.
+
+**The principle.** Split agents where the INFORMATION or the JUDGMENT genuinely differs, never
+where job titles differ. Code owns only real constraints (legality + direction, length, the loop
+filling its cycle, playability when asked); taste rules become measurements a judge reads.
+
+**Target shape.**
+* **Interpreter** — unchanged (brief + verbatim request).
+* **ONE Composer owns the music** — a SEED call co-writes the core idea (main riff, hook /
+  mukhada, groove feel, form plan with an energy arc); DEVELOP calls write each section with the
+  whole draft in view (same owner). Chooses the FORM: the gat is now OPTIONAL (Sujit) — a gat
+  form or a song form (intro, riff, development, breakdown, reprise), esp. under 2 minutes.
+  Replaces Pandit⇄Riffsmith, the separate gat/lead/riff generators and the studio session.
+* **Code** — validator (hard), voicing, playability, bass/drums/drone/tabla, ornaments, render;
+  every texture/craft rule reported as a measurement.
+* **Rasik → raga consultant** — phrase-level edit suggestions to the LEAD only.
+* **Producer → the one judge with authority** — metrics + Rasik's notes → accept, or an EDIT PLAN
+  to the Composer (which sections, what to change, what to PRESERVE). Bounded rounds, cap in code.
+* **Removed** — the Ustad LLM (its verdict is code; the UI renders the validator report), the
+  Rasik↔Producer debate, the Conductor, the LLM Arranger (clash detection → a metric). The
+  Orchestra stays as an optional decorating specialist.
+
+**Steps** (one at a time, each reviewed):
+0. Baseline + calibration — A/B/C (+ Bageshree) as the listening baseline, Sujit's blind ranking
+   as ground truth; run the current Producer on A/B/C (3 small LLM calls — ASK) to see whether it
+   ranks like Sujit. Also: capture the ANSWERING model version in tracing; re-run the single-call
+   control on any model change.
+1. Riff code that survives any architecture (free) — BUILT, below.
+2. Composer SEED behind a flag; render only the seed loop and compare its riff to A's (ASK).
+3. Composer DEVELOP + the existing code pipeline; one full render, blind vs A and C (ASK).
+4. Producer with authority + Rasik consultant + edit-based revise with a preserve list.
+5. Delete what lost.
+
+### Step 1 — the riff rules stop rejecting good metal (BUILT 2026-10-11)
+
+* **Voicing pass** (`crew/riff_voicing.py`, pure) — the talk session's approved spec
+  (HANDOVER §3). Every bare stroke (no chord, or only its own octave) becomes root + dyad +
+  octave: the FIFTH where legal, else the FOURTH (the inverted power chord — equally consonant
+  under distortion), else the octave alone. Skips direction-restricted tones (Bageshree's Sa →
+  Sa-Ma, never the descent-only Pa) and an ANDOLAN swara on a stroke > 1 beat; keeps the model's
+  colour chords; leaves gesture/legato notes and rests single (a chord disarms the wheel).
+  Palm-muted chugs become muted power chords (the renderer already sounds chord tones on the
+  chug channel). Applied at the ONE generation boundary both roots share
+  (`riff.voiced_and_verified`): voiced BEFORE verification so the hard checks and the
+  playability budget see the real chords (HANDOVER §3 item 5), and again after the texture
+  guarantees so the PADS gap-chugs are voiced too.
+* **Hard vs advisory** (`crew/riff_texture.py`) — `verify_riff` now rejects only the physical:
+  something sounds, the cycle fills to the sam, no sustained palm mute, no gesture on a chord.
+  The mode recipe (chug/ring shares, silence, sam weight, colour and gesture rations, hook
+  restatement, rhythmic variety, PADS/STABS budgets) is `texture_notes` — reported on the riff's
+  PROPOSE event, never re-rolled. `verified_riff` re-rolls only on hard faults (+ playability).
+* **Pitch economy has no pass line.** The ground-share floor (0.55), the change-rate caps
+  (0.55 / 0.45) and the off-ground run cap are GONE. A replacement threshold was tried and
+  rejected on evidence: the July "melody" riff's top-two-root share (0.43-0.74) overlaps A's
+  (0.50-1.00), and distinct-roots-per-cycle is 4 for both A and C. No pitch statistic separates
+  a riff from a melody, so `texture_measures` reports pitch_change / ground_share /
+  top_two_share / distinct_pitches as plain numbers for a judge.
+* **Prompt honesty** — the DRIVE brief is a palette (pedal, half-step SHUFFLE, gallop cell,
+  off-beat pushes, a ring, a rest) with no quotas; generate_riff's HARD RULES are now only
+  legality, durations, mute-cannot-sustain and gestures-on-single-notes; VOICING says code does
+  it ("write ROOTS and RHYTHM, leave chord empty unless you want colour").
+* Kept for now (articulation guarantees, not rejections): `open_the_rings`, `_chug_the_ground`
+  (now nearly inert — it only marks UNCHORDED notes), `_chug_fill_pads`. Revisit with the Composer.
+* Free A/B: `out/voiced_194039_20261011_222355.wav` — song C's saved composition re-rendered with
+  the voicing pass: chords 15% → 83% of strokes (the rest carry a slide/bend), all legal
+  (S→P+S 200, r→d+r 36, P→S+P 8, d→r+d 3). Compare with `out/fusion_20261011_194039.wav`.
+* Tests: `tests/test_riff_voicing.py` (10); test_riff_texture rewritten to the hard/advisory
+  contract (46 → 48: a shuffle passes, the melody is reported not rejected, texture never
+  re-rolls); test_riff +1 (the event carries notes + measures). Suite 903 green.
+
+### Step 1b — half-step shapes, and the grind fallback A/B (2026-10-11)
+
+**What A's "slides" are** (Sujit: "the riffs in A had more slides … more natural"). A's MIDI has
+no pitch bend at all: they are power-chord shapes moving ONE FRET, each a fresh pick attack —
+120 of A's ~211 chord-to-chord moves are ±1 semitone (C: 27; C's commonest move is no move).
+A's recurring figure `S S r S d P r S` is E5→F5→E5 then C5→B5 — Bhairav's own komal
+resolutions (r falls to S, d falls to P) played as power chords.
+
+**Built:** `raga.half_step_pairs(raga)` (pure, derived from the allowed swaras — Bhairav S–r,
+G–m, P–d, N–S; Jog g–G, G–m; Malkauns none) rendered as `{half_steps}` in generate_riff's
+SHUFFLE line via `riff.render_half_steps` (one-fret moves as fresh attacks, never a bend; a raga
+with none is told so). Tests: test_knowledge +1, test_riff +1. Suite 905 green.
+
+**The grind fallback — A/B rendered, NOT yet decided.** Measured: 83 of A's 212 strokes (39%)
+grind (ic 1/6/11, root or chord tone) against a settled (≥0.5 beat) sitar note — today's
+`damp_note` fallback (harmonize guard + the Arranger's last resort) would mute all 83. Rendered
+free (no LLM), everything identical but the rhythm guitar's grind treatment:
+`out/grind_{keep,damp,resolve}_A_20261011_223522.wav`. The proposed `resolve` rule: a grind on a
+stroke < 1 beat is PASSING (kept — 58); a held one moves its root ≤2 semitones to a legal swara
+consonant with the sitar, preferring the riff's next root, re-voiced (8); else a rest (17 —
+mostly 30–44 s, A's slow section: listen there for hollowness). Prototype:
+`talk/audio/grind_ab.py` (`uv run python talk/audio/grind_ab.py`). Port the winner into `harmonize_riff_to_lead` + the
+Arranger's fallback/reseat ranking after Sujit's pick.
+
+**Across ragas (2026-10-11, three more single-call songs — Todi, Yaman, Malkauns, ~31k tokens
+each).** The response metadata CONFIRMS the routing: `model_version: gemini-3.6-flash` for
+`gemini-3.5-flash` requests (`talk/audio/pure_songs.py` now saves it in the usage JSON). Grinding
+strokes per take (ic 1/6/11 against a settled sitar note): Bhairav 83/212 (39%, half-steps S–r,
+d–P, N–S); Yaman 43/225 (19%, mostly the sitar's tivra Ma over the guitar's Sa — a tritone);
+Bageshree 14/198 (7%); Todi 4/196 (2%, despite 94 out-of-raga notes); Malkauns 0/218. So the
+fallback matters mostly for Bhairav and Yaman; Yaman's tritone is the hard test for "keep".
+Sujit's first verdict: KEEP sounds best on Bhairav — re-listen pending, because the first A/B
+set mis-treated the right take (a measurement artefact, below).
+
+**A measurement artefact, caught.** `grind_ab.py` first treated BOTH guitar takes. The right take
+is `double_track`'s humanised copy (onset ±, length ±10%), so a stroke that ended exactly where a
+sitar note began overlapped it by a sliver and counted as a phantom grind (Todi: 4 on the left,
+54 on the right). The script now does what the product does — treat the riff, then derive the
+right take with `double_track` (verified to reproduce the original right take note-for-note).
+The product guard was never affected: `harmonize_riff_to_lead` runs before the double-track.
+Invalid renders: `grind_*` stamped 223522 / 224141 / 224547 / 224605. Valid: 224721 (Bhairav),
+224739 (Bageshree), 224756 (Yaman), 224813 (Todi).
+
+**Strict Raga vs Fusion Harmony — A/B rendered, decision pending (2026-10-11).** A GPT follow-up
+proposed a harmony POLICY: strict raga everywhere, or "fusion harmony" (melody strict; guitar may
+use conventional out-of-raga fifths). Measured first: in EVERY single-call song the only
+out-of-raga notes are rhythm-guitar CHORD TONES (Bhairav: G over komal dha, F# over Pa, A# over
+Ni; Todi: F# over Pa, D over komal ga) — sitar, bass and every guitar root are 100% legal, so the
+bare model already writes "fusion harmony". Free A/B, identical but for those chord tones
+(`talk/audio/harmony_ab.py`): `out/harmony_{fusion,strict}_{FA,TA}_src_20261011_225752.wav` —
+strict re-voices 46 Bhairav strokes (42 fourths, 4 octave-only) and 47 Todi strokes (fourths);
+validator: fusion 92 / 94 violations, strict 0 / 0. Allowing fusion would AMEND CLAUDE.md's
+non-negotiable strict-raga rule for the guitar, so it is Sujit's call, by ear.
+Also adopted from the review, to build: the riff's HOME root should be raga-derived, not "usually
+Sa" — Marwa's Sa is deliberately weak (our own notes), so a Sa-chug riff misrepresents it.
+
+### Step 1c — strict voicing by FUNCTION + a raga-derived home root (BUILT 2026-10-11)
+
+Sujit chose **STRICT RAGA** over Fusion Harmony (every guitar tone stays in the raga) and adopted
+the GPT review's chord-event algorithm in its strict form (step 6, out-of-raga fifths, dropped):
+* `riff_voicing.StrokeRole` — CHUG (palm-muted, off the accents) takes the fifth else the OCTAVE;
+  MOVE (open, short) fifth → fourth → octave; ACCENT (sam/tali onset) and SUSTAINED (open, ≥1 beat)
+  fifth → fourth → a ONE-DIRECTION tone → octave (Todi's Pa joins Sa only there — "allow Sa–Pa
+  selectively"); TRANSITION (slide/bend/legato) stays single. Andolan swaras are still never
+  held. Bageshree/Malkauns/Chandrakauns Sa chugs now ring the octave (no legal fifth); their Sa–Ma
+  fourth moves to accents and sustained chords. `voiced_and_verified` passes the tala's accent
+  beats. Step 4 (another legal root) is the composer's call — the prompt now gets
+  `{power_roots}` (which roots carry a fifth / a fourth / only an octave). Step 5 (intentional
+  dissonance) stays a model-written colour chord; NOTE the renderer still degrades a tritone or
+  semitone chord tone to octave weight, so an intentional tritone dyad is not yet audible.
+* `riff_voicing.home_root` — Sa when Sa is a CORE nyas (every raga but Marwa); otherwise the core
+  rest with the heaviest legal power chord → Marwa homes on Dha (its core rests are r and D; its Sa
+  is deliberately weak). Wired into the prompt (`{home_root}`, every "usually Sa" removed), the
+  Arranger's reseat ranking (previous root > HOME > nearest), and the playability anchor (the
+  open-low-E ground rule now applies only when the home is Sa).
+* Prompt honesty: the riff JSON example showed a `bend` on a chord (a hard-rule violation) and
+  hand-written chords; it now leaves `chord` empty and keeps gestures single.
+Tests: test_riff_voicing 10 → 15, test_playability +1. Suite 911 green.
+
+## THE REDESIGN — BUILD RECORD (2026-10-11, phases 1-3 + listening; built with subagents)
+
+Sujit: "finish pending items — you can use subagents". Agents worked in the shared tree on
+DISJOINT files (the work is uncommitted, so worktrees would have started from a stale HEAD);
+anything sharing flow.py/contracts.py ran in sequence. No live calls, no commits.
+
+**Phase 1a — the gat is optional.** `SongForm = Literal["gat","song"]`, `form` on ArrangementDraft
++ Arrangement (default "gat"). compose_turn: "CHOOSE THE FORM" (gat, or a song built on one main
+riff; under ~2 min the song form usually lands harder). Guardrails split into `_GAT_CHECKS` /
+`_SONG_CHECKS`: song form must bring a riff_slot back and may not use mukhada/manjha/antara/amad.
+
+**Phase 1b — gat/intro/lead verifiers: HARD vs CRAFT.** Every `verify_*` → `check_*` returning
+`CellChecks(hard, craft)`; `_generate_verified_cell` re-rolls only on hard; craft rides the event
+(`data["craft_notes"]`). HARD: no sound, fill/overrun, the mukhada's resting cadence and loop seam,
+return seams, sourced nyas grammar, direction, held chikari, the riff_first quote. CRAFT: the bol
+frame, pulse share, alap craft (rests, silence, phrase counts, grid, diri, Sa share…), register
+arcs, contours, density, the taan's arc/burst rules. Prompts/role briefs now say "rejected" only
+where code rejects. **Ending sag fixed** (measured on fusion_20261011_194039: 14.5 beats of taan,
+then one Sa written as 16 beats — the fill rule rewarded padding, and the hold disabled the tihai
+and the restatement): `animate_long_holds` turns any climax-taan hold > 4 beats into a 2-beat ring
+then JHALA on the swara (da + chikari ra ra per beat) — the sitar's own climax technique.
+
+**Climax thinning fixed (Sujit: "fix climax thinning").** `riff_family` stripped the long taan's
+riff (every other note) — 28 strokes/cycle → 14 at the peak while the drums peaked (GPT: the
+imbalance at 45 s). Sujit's own f65dbce principle: simplify HARMONICALLY, not rhythmically. New
+`pedal` variant: every attack kept, collapsed onto the cycle's ground + its chord; taan_long plays
+it (last bar of the piece still "double"), mode DRIVE; taan_short (a cadential filler) still thins.
+Free A/B: `out/climax_pedal_194039_20261011_231147.wav` (`talk/audio/climax_ab.py`).
+
+**Phase 2 — critics.** Ustad = code (verdict + deterministic narration). Rasik = consultant:
+scores + ≤3 lead-only `RasikSuggestion`s. Producer = the one judge: `decision` + `RevisionPlan`
+(voice, sections, instruction, preserve), reading score + metrics + `coexistence.render_friction`
+(grind/chase counts as information) + Rasik's consultation. `crew/triage.py`: illegal ⇒ forced plan
+for the worst voice; else the Producer's plan. `crew/revision.py`: thread instruction + PRESERVE
+into the plan's sections, splice only those sections back. DELETED: conductor.py, arranger.py,
+repairs.py, the debate/arbitrate/assess_legality/arrange prompts, harmonize_riff_to_lead/damp_note
+(grinds now play as composed). UI: EventType.DEBATE retired but kept; the final call is a VERDICT
+event with `data={"decision","plan"}`; ui/app.html + ui/README.md still mention the debate and
+the Conductor (the UI session's to update).
+
+**Phase 3 — the Composer (`RMA_COMPOSER`).** `SongSeed` (reasoning, energy_arc, chart, main_riff,
+hook) from ONE `compose_seed` call under a hard-only guardrail (chart rules + budget; riff grammar +
+`verify_riff`; hook grammar + mukhada hard checks + the riff_first quote). Arrangement carries
+`seed_riff`/`seed_hook`/`energy_arc`. Develop reuses the existing loops: the main riff slot IS the
+seed riff (voiced, no call); the gat's mukhada IS the seed hook; in the song form the hook recurs on
+every lead section over the main riff slot; every develop prompt shows `{song_seed}` ("develop it,
+never replace it"). A `composer` persona owns seed + develop. Revise seed-loss fixed on BOTH paths
+(`with_realized_seeds`). Skipped: section-scoped regeneration (the splice keeps it correct at
+full-voice cost); seed playability (checked at develop time).
+
+**Listening pass (advisory, `RMA_LISTEN`).** `crew/loudness.py` (ffmpeg ebur128 per section, the
+arc), `crew/listening.py` (google-genai direct, 16 kHz mono FLAC, Pro `gemini-3.1-pro-preview`,
+audio-first and blind to the score, six fixed aspects with timestamps; `cross_check` against
+loudness + the chart; `compare` both orders for calibration), wired as an optional post-render Flow
+stage that saves `<render>.listening.json` and streams an advisory CRITIQUE. It gates nothing until
+calibrated (≥70% pairwise agreement with Sujit's blind ranking, ≥80% order consistency).
+
+**Also this session:** temperature removed from every agent (model defaults; thinking_level kept);
+model pinned `gemini/gemini-3.8-flash` (3.5 had been silently served by 3.6). Suite: 934 green.
+
+**The live batch (awaits Sujit's go):** (1) smoke 3.8 through crew.connectivity + read
+reasoning_tokens; (2) re-baseline the single-call song on 3.8 (~31k tokens); (3) one interpreter
+eval case at default temperature; (4) one Composer run (`RMA_COMPOSER=1`, the opener request) —
+a full render; (5) listening calibration: listen to 6-8 renders Sujit ranks blind.
+
+
+## THE SEED DEBATE EXPERIMENT — built, run twice, parked (2026-10-12)
+
+**Question:** do two composers who hear and argue with each other produce a better musical identity
+(chart + main riff + hook) than one composer given more attempts? **Harness (kept, dormant, tested,
+NOT in the Flow):** `crew/seed_debate.py` (pure arms: single / best-of-4 / debate, equal 6-call
+budgets for the two contenders, same riff-first/gat-first nudges, an order-swapped selector with a
+code tie-break), `crew/seed_measures.py` (what every party reads: notes + stroke motif, frame and
+head craft, scalar runs, range, riff-accent and shared-attack shares, draft diversity),
+`crew/seed_debate_crew.py` (live calls; the debate turn = `compose_seed` + the `debate_seed`
+addendum; the `seed_judge` persona), `crew/audition.py` (a seed rendered alone, no model call),
+`crew/seed_experiment.py` (blind labels, key and record kept apart).
+**Runs:** `out/seed_ab_20261012_070925` (round 1) and `out/seed_ab_20261012_081645` (round 2, on
+de-steered prompts), each with Sujit's blind `ranking.json`. Points (3/2/1): round 1 single 7 /
+best-of 6 / debate 5; round 2 single 7 / debate 6 / best-of 5. Debate beat best-of-4 in 3 of 6.
+The selector disagreed with itself across orders in 4 of 6 round-1 selections. Drafts were close
+(round 2 hook similarity 0.19-0.75, rhythm and bols up to 1.0; one form, one tala, one tempo per
+prompt). Cost per prompt ~12-14 min at medium thinking (round 1: 230k thought tokens).
+**Decision (Sujit, 2026-10-12):** the single Composer stays the live path. Revisit the debate when
+gat composition yields genuinely varied mukhadas — rerun `crew.seed_experiment` and read
+`draft_diversity` FIRST (the debate's premise), then the blind ranking.
+**What the experiment fixed on the way:** prompt oversteering (format-only examples, pakad
+"allude" not "build on", persona no longer dictating the idea, density left to the model — no
+"one note per matra", no steady-pulse floor), bols as stroke RATIOS (many per matra in drut), the
+mukhada sitar-only, the hook's bols shown to the develop prompts, the stroke motif measured.
+**Still open:** riffs share an opening (Sa + palm-muted Sa chugs) and walk the raga's scale (50-80%
+stepwise) — the riff prompt is still steered ("a home root you keep landing on, chugs ...").
+

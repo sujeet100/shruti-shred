@@ -479,10 +479,10 @@ def test_riff_inputs_carry_the_texture_mode_and_repair_feedback():
     ctx = _RiffContext(arr)
     span = section_spans(arr)[0]
     first = ctx.inputs_for(span, [])
-    assert first["riff_mode"] == "drive" and "CHUG GROUND" in first["mode_brief"]
+    assert first["riff_mode"] == "drive" and "HOME root" in first["mode_brief"]
     assert "nothing to repair" in first["repair"]
-    reroll = ctx.inputs_for(span, [], feedback=["this is a melody, not a riff"])
-    assert "melody" in reroll["repair"] and "FAILED" in reroll["repair"]
+    reroll = ctx.inputs_for(span, [], feedback=["a chug cannot sustain"])
+    assert "cannot sustain" in reroll["repair"] and "FAILED" in reroll["repair"]
 
 
 def test_riff_prompt_placeholders_all_have_inputs():
@@ -513,6 +513,28 @@ def test_studio_riff_fn_builds_a_callable_without_an_llm():
     arr = _arr(("rhythm", "lead", "drone"))
     assert callable(studio_riff_fn(arr))
 
+
+
+def test_a_new_riff_reports_its_texture_without_enforcing_it():
+    # the advisory half of the verifier travels on the proposal event: recipe notes and plain
+    # pitch measures, for the judges and the trace — the take itself was never re-rolled for them
+    arr = _arr(("rhythm", "drone"))
+    melody = _pattern("S", "g", "m", "P", "m", "g", "S", "n", "g", "m", "P", "d", "m", "g", "S", "g",
+                      "S", "g", "m", "P", "m", "g", "S", "n", "g", "m", "P", "d", "m", "g", "S", "g")
+    _, events = generate_riff(arr, gen_fn=lambda span, a, memory: melody)
+    proposal = next(e for e in events if e.type is EventType.PROPOSE)
+    assert proposal.data["texture_notes"]                       # the recipe has things to say
+    assert proposal.data["texture_measures"]["pitch_change"] == 1.0
+
+
+def test_the_riff_is_given_its_ragas_half_step_shapes():
+    # the one-fret power-chord moves come from the raga's own allowed swaras; a raga with
+    # none (Malkauns, the test chart's raga) is told so rather than handed an empty list
+    from crew.riff import render_half_steps
+    assert "S–r" in render_half_steps("bhairav") and "P–d" in render_half_steps("bhairav")
+    arr = _arr(("rhythm", "drone"))
+    inputs = _RiffContext(arr).inputs_for(section_spans(arr)[0], [])
+    assert "NO half-step neighbours" in inputs["half_steps"]
 
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

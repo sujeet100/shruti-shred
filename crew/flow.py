@@ -1,17 +1,21 @@
 """
 The Flow (finishing step 6) — the whole pipeline as ONE visible, bounded CrewAI Flow.
 
-This is the orchestration the talk is really about: interpret -> composers -> generate
--> critics -> Conductor -> (surgical revise)* -> render, wired with CrewAI Flow
-primitives so the propose->critique->revise loop is VISIBLE (and `flow.plot()`-able),
-not autonomous magic. Two properties matter:
+This is the orchestration: interpret -> composers -> generate -> critics (Ustad in code,
+Rasik consulting, the Producer deciding) -> (edit-based revise)* -> render, wired with CrewAI
+Flow primitives so the propose->critique->revise loop is VISIBLE (and `flow.plot()`-able),
+not autonomous magic. Three properties matter:
 
   * THE LOOP HAS A TERMINATOR IN CODE. Flows have no built-in loop cap (a documented
     footgun). Our `@router` reads `state.round` and ALWAYS returns "done" once the cap
-    is hit — the referee and the clock. Never organic consensus.
-  * THE REVISE IS SURGICAL. On a `revise` ruling we regenerate ONLY the flagged voice
-    (lead or rhythm), thread the Conductor's directive through that section's `intent`,
-    then re-derive the deterministic voices and re-assemble. The other voices stand.
+    is hit — the clock. Never organic consensus.
+  * ONE JUDGE DECIDES. Since the 2026-10-11 redesign there is no critic debate and no
+    Conductor: an illegal piece is a forced revise decided by code, otherwise the Producer
+    (who has read Rasik's consultation) accepts or issues ONE `RevisionPlan` (`crew/triage.py`).
+  * THE REVISE IS EDIT-BASED. The plan's voice is regenerated with its instruction and its
+    PRESERVE list threaded into the targeted sections' intent, and only those sections' new
+    notes are spliced in (`crew/revision.py`); everything else stands, then the deterministic
+    voices re-derive and the piece re-assembles.
 
 Layering (pure core / imperative shell, and CLAUDE.md's "flow orchestration in its own
 module"): this module holds ONLY orchestration. The agents/tasks live in their own
@@ -19,7 +23,7 @@ modules; the pipeline steps arrive as an injected `Stages` bundle (the compositi
 root), so the whole Flow — routing, the bounded loop, the surgical-revise wiring — is
 tested with NO LLM and NO audio. `production_stages()` wires the real adapters.
 
-Entry point (a bounded live run: fixed small chart, real generate/critique/conduct/render):
+Entry point (a bounded live run: fixed small chart, real generate/critique/decide/render):
   uv run python -m crew.flow
 """
 
@@ -34,46 +38,35 @@ from typing import Final, Optional
 from crewai.flow.flow import Flow, listen, or_, router, start
 from pydantic import BaseModel, Field
 
-from crew.config import MAX_ROUNDS, load_env
+from crew.anchor import with_realized_seeds
+from crew.config import MAX_ROUNDS, listening_enabled, load_env
 from crew.contracts import (
     Arrangement,
     Composition,
     CompositionBrief,
-    ConductorRuling,
     DebateEvent,
     EventType,
     Layer,
+    ProducerScores,
     ProducerVerdict,
     RasikVerdict,
+    RevisionPlan,
     SectionCanvas,
     UstadVerdict,
-    repair_layer,
-    repair_operation,
+    plan_layer,
 )
 from crew.live import publish, publish_all
+from crew.revision import (
+    is_stalled,
+    revise_arrangement,
+    splice_layer,
+    splice_layers,
+    target_sections,
+)
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 _SOUNDFONT: Final[Path] = _ROOT / "soundfonts" / "GeneralUser-GS.sf2"
 _OUT_DIR: Final[Path] = _ROOT / "out"
-
-
-# --------------------------------------------------------------------------- #
-# Pure helpers: the SURGICAL revise. Thread the Conductor's directive into the #
-# flagged voice's section intents (the existing generator hook) so a re-run    #
-# actually addresses the critique — no generator change needed.                #
-# --------------------------------------------------------------------------- #
-
-def revise_arrangement(arr: Arrangement, ruling: ConductorRuling) -> Arrangement:
-    """A COPY of the chart with the Conductor's directive appended to the intent of
-    every section where the flagged voice plays — so re-running that generator reads
-    the directive as creative intent. Pure; the original chart is untouched."""
-    revised = arr.model_copy(deep=True)
-    note = f" [REVISE — {ruling.reason}]" if ruling.reason else " [REVISE]"
-    layer = repair_layer(ruling)
-    for section in revised.sections:
-        if layer and layer in section.layers:
-            section.intent = (section.intent or "") + note
-    return revised
 
 
 # --------------------------------------------------------------------------- #
@@ -93,13 +86,20 @@ type Assemble = Callable[[Arrangement, list[Layer], Optional[Layer], list[Layer]
 type Critique = Callable[
     [Composition, Arrangement],
     tuple[UstadVerdict, RasikVerdict, ProducerVerdict, list[DebateEvent]]]
-type Arbitrate = Callable[
-    [UstadVerdict, RasikVerdict, ProducerVerdict, Composition],
-    tuple[ConductorRuling, list[DebateEvent]]]
+# The final call: (the plan to carry out, or None to accept) + its VERDICT event.
+type Decide = Callable[
+    [UstadVerdict, RasikVerdict, ProducerVerdict, Composition, Arrangement],
+    tuple[Optional[RevisionPlan], list[DebateEvent]]]
+# (chart, lead, rhythm, orchestra, plan, canvases, history) — `history` is the run's events so
+# far, from which a TARGETED revise reads what each voice realized (`crew.realized`).
 type Regenerate = Callable[
-    [Arrangement, list[Layer], Optional[Layer], list[Layer], ConductorRuling, list[SectionCanvas]],
+    [Arrangement, list[Layer], Optional[Layer], list[Layer], RevisionPlan, list[SectionCanvas],
+     list[DebateEvent]],
     tuple[list[Layer], Optional[Layer], list[Layer], list[DebateEvent], list[SectionCanvas]]]
 type Render = Callable[[Composition], Optional[str]]
+# The ADVISORY listening pass: (wav path, chart) -> its report as events. Post-render only, and
+# never a gate — it is uncalibrated against Sujit's ear (DESIGN.md "THE REDESIGN").
+type Listen = Callable[[str, Arrangement], list[DebateEvent]]
 
 
 @dataclass(frozen=True)
@@ -110,9 +110,10 @@ class Stages:
     generate: Generate
     assemble: Assemble
     critique: Critique
-    arbitrate: Arbitrate
+    decide: Decide
     regenerate: Regenerate
     render: Render
+    listen: Optional[Listen] = None      # the advisory listening pass (None = off)
 
 
 # The real adapters (lazy imports keep crewai off the light path until a stage runs).
@@ -123,8 +124,36 @@ def _interpret(query: str) -> tuple[CompositionBrief, list[DebateEvent]]:
 
 
 def _compose(brief: CompositionBrief) -> tuple[Arrangement, list[DebateEvent]]:
+    """The chart. With `RMA_COMPOSER` the single Composer writes it in ONE seed call together with
+    the main riff and the hook (carried on the chart); otherwise Pandit and Riffsmith negotiate it."""
+    from crew.config import composer_enabled
+    if composer_enabled():
+        from crew.composer import compose_seed
+        return compose_seed(brief)
     from crew.composers import compose
     return compose(brief)
+
+
+def _creative_voices(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[DebateEvent],
+                                                list[SectionCanvas]]:
+    """Lead + riff, by the configured path: the single Composer DEVELOPING its seed
+    (`RMA_COMPOSER` — the studio is not used there: one owner is the point), the cooperative
+    studio (`RMA_STUDIO`), or the parallel voices in anchor order (the default)."""
+    from crew.config import canvas_passes, composer_enabled, studio_enabled
+    announce = lambda agent, text: publish(_running(agent, text))  # noqa: E731
+    if composer_enabled():
+        from crew.composer import compose_seeded_voices
+        lead_layers, rhythm, events = compose_seeded_voices(arr, announce=announce, emit=publish_all)
+        return lead_layers, rhythm, events, []
+    if studio_enabled():
+        from crew.studio_session import compose_studio
+        return compose_studio(arr, passes=canvas_passes())
+    from crew.band import compose_creative_voices
+    # Cross-voice seeding in ANCHOR order (gat_first: the riff reduces the head;
+    # riff_first: the head quotes the riff). A RUNNING beat streams AHEAD of each slow
+    # call, so the UI spotlights the voice WHILE it composes.
+    lead_layers, rhythm, events = compose_creative_voices(arr, announce=announce, emit=publish_all)
+    return lead_layers, rhythm, events, []
 
 
 def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[Layer],
@@ -140,34 +169,13 @@ def _generate(arr: Arrangement) -> tuple[list[Layer], Optional[Layer], list[Laye
     (`uses_orchestra`) — one whole-chart call, scoring AROUND the realized lead + riff.
 
     Returns (lead_layers, rhythm, orchestra_layers, events, canvases), so the rest of the Flow
-    — assembly, critics, Conductor, render — is identical either way. `orchestra_layers` is
+    — assembly, critics, decision, render — is identical either way. The riff and the lead go
+    on exactly as composed: their grinds are KEPT (Sujit, by ear) and only measured. `orchestra_layers` is
     empty off a symphonic/orchestral chart; `canvases` is empty for the parallel path and the
     per-section SectionCanvas list for the studio. Both live in Flow state so a surgical revise
     re-assembles correctly and stays CANVAS-AWARE.
     """
-    from crew.config import canvas_passes, studio_enabled
-    if studio_enabled():
-        from crew.studio_session import compose_studio
-        lead_layers, rhythm, events, canvases = compose_studio(arr, passes=canvas_passes())
-    else:
-        from crew.lead import compose_lead, mukhada_cell_from_events
-        from crew.riff import compose_riff
-        publish(_running("Lead", "composing the gat…"))   # a RUNNING beat streams AHEAD of the slow work,
-        lead_layers, e1 = compose_lead(arr)               # so the UI spotlights Lead WHILE it composes
-        publish_all(e1)
-        publish(_running("Riff", "laying down the riff…"))
-        # Cross-voice seeding: the riff reduces the cached gat head (fished from the lead's
-        # events), so the band hears the mukhada IN the riff.
-        rhythm, e2 = compose_riff(arr, mukhada=mukhada_cell_from_events(e1))
-        publish_all(e2)
-        events, canvases = [*e1, *e2], []
-    # THE ARRANGER — the two lines are made to COEXIST before anything derives from them
-    # (bass, drums and the double-track all inherit the riff) and before the orchestra scores
-    # AROUND them. Evidence-gated: a piece with no clashes makes no call.
-    from crew.arranger import arrange_against_lead
-    rhythm, lead_layers, ea = arrange_against_lead(rhythm, lead_layers, arr)
-    publish_all(ea)
-    events = [*events, *ea]
+    lead_layers, rhythm, events, canvases = _creative_voices(arr)
     orchestra_layers: list[Layer] = []
     from crew.orchestra import compose_orchestra, uses_orchestra
     if uses_orchestra(arr):
@@ -187,73 +195,111 @@ def _assemble(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer
 
 def _critique(comp: Composition,
               arr: Arrangement) -> tuple[UstadVerdict, RasikVerdict, ProducerVerdict, list[DebateEvent]]:
-    """Three critics, three dimensions: Ustad (legality) and Rasik (raga authenticity)
-    judge the Composition; the Producer (composition quality) also reads the Arrangement —
-    the chart is the score a musical director needs."""
+    """Three dimensions, in order: Ustad (legality — code, instant), Rasik (raga authenticity,
+    consulting with lead edits), then the Producer (song craft — the judge with the final say,
+    who reads the chart AND Rasik's consultation)."""
     from crew.producer import critique_composition
     from crew.rasik import critique_taste
     from crew.ustad import critique_legality
-    publish(_running("Ustad", "checking the raga's legality…", role="critic"))
     ustad, e1 = critique_legality(comp)
     publish_all(e1)
-    publish(_running("Rasik", "judging the raga authenticity…", role="critic"))
-    rasik, e2 = critique_taste(comp)
+    publish(_running("Rasik", "consulting on the raga…", role="critic"))
+    rasik, e2 = critique_taste(comp, arr.request, arr)
     publish_all(e2)
     publish(_running("Producer", "judging the song craft…", role="critic"))
-    producer, e3 = critique_composition(comp, arr)
+    producer, e3 = critique_composition(comp, arr, rasik)
     publish_all(e3)
     return ustad, rasik, producer, [*e1, *e2, *e3]
 
 
-def _arbitrate(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict,
-               comp: Composition) -> tuple[ConductorRuling, list[DebateEvent]]:
-    from crew.conductor import conduct
-    publish(_running("Conductor", "weighing the critics…", role="conductor"))
-    return conduct(ustad, rasik, producer, comp)
+def _decide(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict,
+            comp: Composition, arr: Arrangement) -> tuple[Optional[RevisionPlan], list[DebateEvent]]:
+    """The final call — code triage (legality forces a revise) then the Producer's decision.
+    Rasik's consultation already reached the Producer; the composition and chart are part of
+    the stage signature so an injected decider can read them."""
+    from crew.triage import decide
+    return decide(ustad, producer, comp, arr)
 
 
 def _regenerate(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer],
-                orchestra_layers: list[Layer], ruling: ConductorRuling,
-                canvases: list[SectionCanvas]
+                orchestra_layers: list[Layer], plan: RevisionPlan,
+                canvases: list[SectionCanvas], history: list[DebateEvent] | None = None
                 ) -> tuple[list[Layer], Optional[Layer], list[Layer], list[DebateEvent],
                            list[SectionCanvas]]:
-    """Regenerate ONLY the flagged voice, steered by the directive; the others stand and
-    re-derive at reassembly. The orchestra (when flagged) re-scores AROUND the unchanged lead +
-    riff — the directive rides its sections' intent (`revise_arrangement`). Lead/riff: if the
-    studio produced canvases, regenerate CANVAS-AWARE (the collaboration survives the revise),
-    else do the standalone surgical fix. A ruling targeting a non-creative voice regenerates
-    nothing. The orchestra passes through unchanged unless it is the flagged voice."""
-    operation = repair_operation(ruling)
-    if operation == "arrange_riff_against_lead":
-        # A RELATIONSHIP repair: neither voice is bad, they fight. Regenerating either would
-        # discard work and re-roll against the same information that produced the clash, so
-        # the Arranger re-decides the guitar's voicing/articulation against THIS lead instead.
-        from crew.arranger import arrange_against_lead
-        publish(_running("Arranger", "settling the guitar under the gat…"))
-        new_rhythm, new_lead, events = arrange_against_lead(rhythm, lead_layers, arr)
-        return new_lead, new_rhythm, orchestra_layers, events, canvases
-    revised = revise_arrangement(arr, ruling)
-    if operation == "regenerate_orchestra":
+    """Rework ONLY the plan's voice, steered by its instruction + preserve list, and splice the
+    new notes into ONLY the plan's sections; the other voices stand and re-derive at
+    reassembly. The studio path regenerates CANVAS-AWARE (the collaboration survives).
+
+    The lead and the riff revise is TARGETED: the model is called only for the plan's sections
+    (`_revise_lead` / `_revise_riff`), every other section replayed from what the voice realized
+    (read from `history`), by the persona that wrote it — `composer` on the single-Composer path."""
+    revised = revise_arrangement(arr, plan)
+    if plan.voice == "orchestra":
         from crew.orchestra import compose_orchestra
         publish(_running("Orchestra", "reworking the orchestra…"))
         new_orch, events = compose_orchestra(revised, lead_layers=lead_layers, rhythm=rhythm)
-        return lead_layers, rhythm, new_orch, events, canvases
+        return (lead_layers, rhythm, splice_layers(arr, plan, orchestra_layers, new_orch),
+                events, canvases)
     if canvases:
         from crew.studio_session import regenerate_layer
         new_lead, new_rhythm, events, new_canvases = regenerate_layer(revised, canvases,
-                                                                       repair_layer(ruling))
-        return new_lead, new_rhythm, orchestra_layers, events, new_canvases
-    from crew.lead import compose_lead
-    from crew.riff import compose_riff
-    if operation == "regenerate_riff":
-        publish(_running("Riff", "reworking the riff…"))
-        new_rhythm, events = compose_riff(revised)
-        return lead_layers, new_rhythm, orchestra_layers, events, canvases
-    if operation == "regenerate_lead":
-        publish(_running("Lead", "reworking the gat…"))
+                                                                       plan_layer(plan))
+        return (_spliced_lead(arr, plan, lead_layers, new_lead),
+                _spliced_riff(arr, plan, rhythm, new_rhythm), orchestra_layers, events,
+                new_canvases)
+    if plan.voice == "riff":
+        new_rhythm, events = _revise_riff(arr, revised, plan, list(history or []))
+        return lead_layers, splice_layer(arr, plan, rhythm, new_rhythm), orchestra_layers, events, canvases
+    new_lead, events, edited = _revise_lead(arr, revised, plan, list(history or []))
+    return (splice_layers(arr, edited, lead_layers, new_lead), rhythm, orchestra_layers, events,
+            canvases)
+
+
+def _persona(voice: str) -> str:
+    from crew.config import composer_enabled
+    return "composer" if composer_enabled() else voice
+
+
+def _revise_riff(arr: Arrangement, revised: Arrangement, plan: RevisionPlan,
+                 history: list[DebateEvent]) -> tuple[Optional[Layer], list[DebateEvent]]:
+    """The riff revise: only the targeted sections' slots are re-composed when a realized library
+    is on record; with none (a run that never published one), the whole voice, as before."""
+    from crew.realized import realized_riffs
+    from crew.riff import compose_riff, revise_riff
+    library = realized_riffs(history)
+    targets = target_sections(arr, plan)
+    publish(_running("Riff", f"reworking the riff in section(s) {targets}…"))
+    if library is None:
+        return compose_riff(revised)
+    return revise_riff(revised, library, targets, agent_key=_persona("riff"))
+
+
+def _revise_lead(arr: Arrangement, revised: Arrangement, plan: RevisionPlan,
+                 history: list[DebateEvent]) -> tuple[list[Layer], list[DebateEvent], RevisionPlan]:
+    """The lead revise: only the targeted sections (widened to every hook section when the plan
+    names the head) are re-composed. Returns the layers, the events, and the plan as actually
+    carried out — its sections widened — so the splice takes exactly what was re-composed."""
+    from crew.lead import compose_lead, lead_revise_targets, revise_lead
+    from crew.realized import kept_lead, realized_lead
+    targets = lead_revise_targets(arr, target_sections(arr, plan))
+    edited = plan.model_copy(update={"sections": targets})
+    publish(_running("Lead", f"reworking the lead in section(s) {targets}…"))
+    kept = realized_lead(history)
+    if kept is None:
         new_lead, events = compose_lead(revised)
-        return new_lead, rhythm, orchestra_layers, events, canvases
-    return lead_layers, rhythm, orchestra_layers, [], canvases
+        return new_lead, events, edited
+    new_lead, events = revise_lead(revised, kept_lead(kept, targets), agent_key=_persona("lead"))
+    return new_lead, events, edited
+
+
+def _spliced_lead(arr: Arrangement, plan: RevisionPlan, old: list[Layer],
+                  new: list[Layer]) -> list[Layer]:
+    return splice_layers(arr, plan, old, new) if plan.voice == "lead" else new
+
+
+def _spliced_riff(arr: Arrangement, plan: RevisionPlan, old: Optional[Layer],
+                  new: Optional[Layer]) -> Optional[Layer]:
+    return splice_layer(arr, plan, old, new) if plan.voice == "riff" else new
 
 
 def _render(comp: Composition, *, soundfont: Path, out_dir: Path, name: str) -> Optional[str]:
@@ -280,8 +326,9 @@ def production_stages(*, soundfont: Path = _SOUNDFONT, out_dir: Path = _OUT_DIR,
     name = name or _default_render_name()
     return Stages(
         interpret=_interpret, compose=_compose, generate=_generate, assemble=_assemble,
-        critique=_critique, arbitrate=_arbitrate, regenerate=_regenerate,
-        render=lambda comp: _render(comp, soundfont=soundfont, out_dir=out_dir, name=name))
+        critique=_critique, decide=_decide, regenerate=_regenerate,
+        render=lambda comp: _render(comp, soundfont=soundfont, out_dir=out_dir, name=name),
+        listen=_listen if listening_enabled() else None)
 
 
 # --------------------------------------------------------------------------- #
@@ -301,7 +348,10 @@ class ComposeState(BaseModel):
     ustad: Optional[UstadVerdict] = None
     rasik: Optional[RasikVerdict] = None
     producer: Optional[ProducerVerdict] = None
-    ruling: Optional[ConductorRuling] = None
+    decision: str = ""                                # "accept" | "revise" — the last final call
+    plan: Optional[RevisionPlan] = None               # the revision being carried out (None = accept)
+    asked_plan: Optional[RevisionPlan] = None         # the judge's last plan that was carried out...
+    asked_scores: Optional[ProducerScores] = None     # ...and the scores it was asked from (the stop rule)
     events: list[DebateEvent] = Field(default_factory=list)
     wav_path: Optional[str] = None
 
@@ -330,7 +380,7 @@ def _running(agent: str, text: str, role: str = "generator") -> DebateEvent:
 # --------------------------------------------------------------------------- #
 
 class ComposeFlow(Flow[ComposeState]):
-    """propose -> critique -> arbitrate -> (surgical revise -> critique)* -> render.
+    """propose -> critique -> decide -> (edit-based revise -> critique)* -> render.
 
     The `@router` is the guaranteed terminator: it returns "done" on an accept OR once
     `state.round` hits the cap, so the revise loop can never run away. The revise step
@@ -349,11 +399,13 @@ class ComposeFlow(Flow[ComposeState]):
         publish(_running("Interpreter", "reading your request…", role="system"))
         brief, e1 = self._stages.interpret(st.query)
         publish_all(e1)                               # stream each phase as it completes
-        publish(_running("Pandit", "negotiating the chart with Riffsmith…", role="composer"))
+        publish(_compose_beat())
         arr, e2 = self._stages.compose(brief)
         publish_all(e2)
         lead_layers, rhythm, orchestra_layers, e3, canvases = self._stages.generate(arr)   # emits its own RUNNING beats
-        st.arrangement = arr
+        # The chart keeps the REALIZED head + main riff as its seeds (a Composer's seeds are kept
+        # as they are), so a revise hands the riff its head and the gat its riff, never nothing.
+        st.arrangement = with_realized_seeds(arr, e3)
         st.lead_layers = lead_layers
         st.rhythm = rhythm
         st.orchestra_layers = orchestra_layers
@@ -363,8 +415,8 @@ class ComposeFlow(Flow[ComposeState]):
 
     @router("revise")
     def revise_layer(self) -> str:
-        """Surgical revise: regenerate ONLY the flagged voice, re-derive + re-assemble,
-        then re-emit "recritique" to send the new composition back through the critics.
+        """Edit-based revise: rework ONLY the plan's voice in the plan's sections, re-derive +
+        re-assemble, then re-emit "recritique" to send the new composition back to the critics.
 
         This is a @router (not a plain @listen) on purpose: the loop only re-fires
         `critique` when a ROUTER re-emits a label it listens to, so the re-entry label
@@ -372,9 +424,10 @@ class ComposeFlow(Flow[ComposeState]):
         method named `revise` listening to "revise" reads to CrewAI as a self-reference.
         """
         st = self.state
-        assert st.arrangement is not None and st.ruling is not None
+        assert st.arrangement is not None and st.plan is not None
         lead_layers, rhythm, orchestra_layers, events, canvases = self._stages.regenerate(
-            st.arrangement, st.lead_layers, st.rhythm, st.orchestra_layers, st.ruling, st.canvases)
+            st.arrangement, st.lead_layers, st.rhythm, st.orchestra_layers, st.plan, st.canvases,
+            st.events)
         st.lead_layers = lead_layers
         st.rhythm = rhythm
         st.orchestra_layers = orchestra_layers
@@ -386,8 +439,8 @@ class ComposeFlow(Flow[ComposeState]):
 
     @listen(or_(begin, "recritique"))
     def critique(self) -> None:
-        """Three critics judge the current composition: Ustad (legality), Rasik (raga
-        authenticity), Producer (composition quality — reads the chart too)."""
+        """The critics judge the current composition: Ustad (legality, code), Rasik (raga
+        consultation), the Producer (song craft — reads the chart and Rasik, then decides)."""
         st = self.state
         assert st.composition is not None and st.arrangement is not None
         # _critique streams each critic's RUNNING beat + events itself (per-critic spotlighting),
@@ -399,23 +452,30 @@ class ComposeFlow(Flow[ComposeState]):
         st.events.extend(events)
 
     @listen(critique)
-    def arbitrate(self) -> None:
-        """The Conductor triages, runs the Rasik vs Producer debate on a conflict, and
-        rules accept | revise."""
+    def decide(self) -> None:
+        """The final call: an illegal piece is a forced revise (code); otherwise the Producer's
+        accept | ONE revision plan stands."""
         st = self.state
-        assert (st.ustad is not None and st.rasik is not None
-                and st.producer is not None and st.composition is not None)
-        ruling, events = self._stages.arbitrate(st.ustad, st.rasik, st.producer, st.composition)
-        st.ruling = ruling
+        assert (st.ustad is not None and st.rasik is not None and st.producer is not None
+                and st.composition is not None and st.arrangement is not None)
+        plan, events = self._stages.decide(st.ustad, st.rasik, st.producer, st.composition,
+                                           st.arrangement)
+        st.plan = plan
+        st.decision = "revise" if plan is not None else "accept"
         publish_all(events)
         st.events.extend(events)
 
-    @router(arbitrate)
+    @router(decide)
     def route(self) -> str:
         """The terminator: accept, or revise until the round cap — then done, always."""
         st = self.state
-        assert st.ruling is not None
-        if st.ruling.directive == "accept":
+        if st.plan is None:
+            return "done"
+        if self._stalled():
+            stalled = _flow_event("The judge asked for the same edit again and the last one did not "
+                                  "raise its scores — accepting rather than paying for the same answer.")
+            st.events.append(stalled)
+            publish(stalled)
             return "done"
         if st.round >= self._max_rounds:
             capped = _flow_event(f"Revise cap ({self._max_rounds}) reached — accepting the last version.")
@@ -423,11 +483,28 @@ class ComposeFlow(Flow[ComposeState]):
             publish(capped)
             return "done"
         st.round += 1
+        if self._judges_plan():
+            st.asked_plan, st.asked_scores = st.plan, st.producer.scores
         revising = _flow_event(
-            f"Revise round {st.round}: regenerating '{st.ruling.layer}' per the Conductor.")
+            f"Revise round {st.round}: reworking the {st.plan.voice} — {st.plan.instruction}")
         st.events.append(revising)
         publish(revising)
         return "revise"
+
+    def _judges_plan(self) -> bool:
+        """The plan is the Producer's own (not a code-forced revise for an illegal or starved
+        piece — those are physical faults and keep their rounds up to the cap)."""
+        st = self.state
+        return st.producer is not None and st.plan is not None and st.plan == st.producer.plan
+
+    def _stalled(self) -> bool:
+        """The STOP RULE (`revision.is_stalled`): the judge's same edit, asked again, unimproved."""
+        st = self.state
+        if not self._judges_plan() or st.arrangement is None:
+            return False
+        assert st.plan is not None and st.producer is not None
+        return is_stalled(st.arrangement, st.asked_plan, st.asked_scores, st.plan,
+                          st.producer.scores)
 
     @listen("done")
     def finish(self) -> None:
@@ -444,6 +521,49 @@ class ComposeFlow(Flow[ComposeState]):
         publish(_running("System", "rendering the audio…", role="system"))
         st.wav_path = self._stages.render(st.composition)
         _save_arrangement(st.wav_path, st.arrangement)
+        if self._stages.listen and st.wav_path and st.arrangement is not None:
+            publish(_running("Listener", "listening to the render…", role="critic"))
+            heard = self._stages.listen(st.wav_path, st.arrangement)
+            publish_all(heard)
+            st.events.extend(heard)
+
+
+def _compose_beat() -> DebateEvent:
+    """The RUNNING beat before the chart is written — names whoever actually writes it."""
+    from crew.config import composer_enabled
+    if composer_enabled():
+        return _running("Composer", "writing the core idea — riff, hook and form…", role="composer")
+    return _running("Pandit", "negotiating the chart with Riffsmith…", role="composer")
+
+
+def _listen(wav_path: str, arr: Arrangement) -> list[DebateEvent]:
+    """The real listening stage: measure each section's loudness, let the audio judge listen
+    (blind to the score), cross-check what it says against the measurements and the chart, and
+    save the report beside the WAV. ADVISORY and never fatal: a failed listen is a note, not a
+    failed run."""
+    from crew.listening import GeminiAudioJudge, cross_check, listen, render_listening
+    from crew.loudness import measure_sections, render_arc
+    wav = Path(wav_path)
+    try:
+        arc = measure_sections(wav, arr)
+        report = listen(wav, arr, client=GeminiAudioJudge())
+        check = cross_check(report, arr, arc)
+    except Exception as exc:  # noqa: BLE001 — a diagnostic must not fail a finished run
+        return [DebateEvent(type=EventType.INFO, agent="Listener", role="critic",
+                            text=f"listening pass skipped: {exc}")]
+    text = render_listening(report, check) + "\n" + render_arc(arc)
+    _save_beside(wav, ".listening.json", report.model_dump_json(indent=2))
+    return [DebateEvent(type=EventType.CRITIQUE, agent="Listener", role="critic", text=text,
+                        data={"advisory": True, "consistency": check.consistency,
+                              "report": report.model_dump()})]
+
+
+def _save_beside(wav: Path, suffix: str, content: str) -> None:
+    """Write a diagnostic next to a render; never fatal."""
+    try:
+        wav.with_suffix("").with_suffix(suffix).write_text(content)
+    except OSError:
+        pass
 
 
 def _save_arrangement(wav_path: Optional[str], arrangement: Optional[Arrangement]) -> None:
@@ -461,8 +581,8 @@ def _save_arrangement(wav_path: Optional[str], arrangement: Optional[Arrangement
 def compose_flow(query: str, *, stages: Optional[Stages] = None,
                  max_rounds: int = MAX_ROUNDS) -> ComposeState:
     """Run the full pipeline as a Flow and return its final state (composition, the
-    event stream, the ruling, the rendered WAV path). `stages` is injectable — defaults
-    to the real adapters."""
+    event stream, the final decision, the rendered WAV path). `stages` is injectable —
+    defaults to the real adapters."""
     flow = ComposeFlow(stages or production_stages(), max_rounds=max_rounds)
     flow.kickoff(inputs={"query": query})
     return flow.state
@@ -470,7 +590,7 @@ def compose_flow(query: str, *, stages: Optional[Stages] = None,
 
 # --------------------------------------------------------------------------- #
 # Entry point — a BOUNDED live run: a fixed small chart (so interpret/composers  #
-# aren't re-billed — already confirmed), real generate/critique/conduct/render.  #
+# aren't re-billed — already confirmed), real generate/critique/decide/render.   #
 # This exercises the NEW integration end-to-end for a handful of LLM calls.      #
 # --------------------------------------------------------------------------- #
 
@@ -515,9 +635,7 @@ def _run() -> None:
     state = compose_flow("a dark progressive fusion in Darbari", stages=_demo_stages())
     for event in state.events:
         stream.emit(event)
-    ruling = state.ruling
-    print(f"\nfinal ruling: {ruling.directive if ruling else '?'} "
-          f"(after {state.round} revise round(s))")
+    print(f"\nfinal decision: {state.decision or '?'} (after {state.round} revise round(s))")
     print(f"rendered: {state.wav_path or '(render skipped — no fluidsynth/soundfont)'}")
 
 

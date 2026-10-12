@@ -26,7 +26,8 @@ from crew.contracts import RawIntent
 from crew.interpreter import _extract_intent
 from crew.tracing import traced, tracing_enabled
 
-_VALUE_FIELDS = ("raga", "key", "subgenre", "mood", "bpm", "instruments")
+_VALUE_FIELDS = ("raga", "key", "subgenre", "mood", "bpm", "instruments", "duration_s",
+                 "playable_rhythm")
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,11 @@ INTERPRETER_CASES: list[Case] = [
     Case("fast death metal in Bhairavi at 220 bpm",
          {"raga": "bhairavi", "subgenre": "death", "bpm": 220},
          "'fast' is not a tempo number; mood null"),
+    Case("Compose a 60-second Raag Bhairav x heavy-metal piece in E, teentaal at 128 BPM. "
+         "I will play rhythm guitar live over it, so keep the riff playable.",
+         {"raga": "bhairav", "key": "E", "subgenre": "heavy", "bpm": 128, "duration_s": 60,
+          "playable_rhythm": True},
+         "length -> seconds; the guitar the USER plays is playability, not an instrument"),
 ]
 
 

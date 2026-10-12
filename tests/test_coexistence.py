@@ -22,6 +22,7 @@ from crew.coexistence import (  # noqa: E402
     LeadStability,
     coexistence_report,
     render_coexistence,
+    render_friction,
 )
 from crew.contracts import (  # noqa: E402
     ArrangementDraft,
@@ -189,6 +190,16 @@ def test_an_empty_piece_reports_clean_rather_than_crashing():
                        tala={"name": "teentaal", "beats_per_bar": 16.0}, layers=[])
     assert coexistence_report(comp, _arr()).clean
 
+
+
+def test_the_producer_reads_friction_as_counts_not_faults():
+    # since the redesign nothing repairs a grind: the Producer is handed per-section counts,
+    # framed as information (a half-step against a held note is often the metal sound)
+    riff = [Note(swara="R", oct=-1, start=0.0, dur=2.0)]
+    lead = [Note(swara="g", oct=0, start=0.0, dur=2.0)]
+    text = render_friction(coexistence_report(_comp(riff, lead), _arr()))
+    assert "section 0" in text and "1 grind(s) under settled notes" in text
+    assert "do not count it as a fault" in text
 
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

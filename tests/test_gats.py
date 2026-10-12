@@ -17,7 +17,14 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
-from gats import GAT_FRAMES, check_gat_frame_consistency, frame_for_bpm  # noqa: E402
+from gats import (  # noqa: E402
+    BOL_WORDS,
+    GAT_FRAMES,
+    STROKE_HOLD,
+    check_gat_frame_consistency,
+    frame_for_bpm,
+    stroke_line_attacks,
+)
 from subgenres import SUBGENRES  # noqa: E402
 
 
@@ -57,6 +64,27 @@ def test_frame_for_bpm_splits_the_slow_laya_from_the_fast():
             continue
         lo, hi = s["bpm"]
         assert frame_for_bpm(lo) == frame_for_bpm(hi) == "razakhani", name
+
+
+def test_rda_is_the_mirror_of_dir():
+    # Parikh, "Origin of the Sitar": the four basic strokes — dir "inward and outward in quick
+    # succession", rda "the outward and inward in quick succession"
+    assert BOL_WORDS["dir"] == (("di", 1), ("r", 1))
+    assert BOL_WORDS["rda"] == (("r", 1), ("da", 1))
+
+
+def test_razakhani_starts_are_alternatives_with_no_default():
+    # Parikh FAQ q56: "could start from the sam or khali or even 7th matra" — none is the default
+    assert GAT_FRAMES["razakhani"]["mukhda_starts"] == [1, 7, 9]
+
+
+def test_a_stroke_line_token_names_its_plucks():
+    assert stroke_line_attacks(STROKE_HOLD) == 0          # a note ringing on, or a silence
+    assert stroke_line_attacks("chikari") == 1
+    assert stroke_line_attacks("da") == stroke_line_attacks("ra") == 1
+    assert stroke_line_attacks("dir") == stroke_line_attacks("rda") == stroke_line_attacks("dara") == 2
+    assert stroke_line_attacks("dadir") == 3 and stroke_line_attacks("daradara") == 4
+    assert stroke_line_attacks("dha") is None             # a tabla bol is no sitar stroke
 
 
 if __name__ == "__main__":

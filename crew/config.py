@@ -1,5 +1,5 @@
 """
-Crew configuration — model tiers, temperatures, and the debate clock.
+Crew configuration — model tiers, thinking levels, and the round clock.
 
 One place for every knob so the agents stay model-agnostic (CLAUDE.md: "model =
 one config value"). Model IDs are overridable via env so they can be swapped
@@ -15,33 +15,18 @@ from __future__ import annotations
 import os
 
 # --- Pure constants (no env, safe at import) ------------------------------------
-# Temperature: generators explore; critics/Conductor stay steady. Composers sit
-# in between: creative enough to vary, disciplined enough to emit valid structure.
-# (Reasoning is steered separately, via the Gemini thinking level — see build_llm.)
-GENERATOR_TEMPERATURE: float = 0.9
-COMPOSER_TEMPERATURE: float = 0.7
-CRITIC_TEMPERATURE: float = 0.2
-# Faithful extraction wants reproducibility, not variety — run it stone cold.
-EXTRACTOR_TEMPERATURE: float = 0.0
+# NO TEMPERATURE (Sujit, 2026-10-11). Every agent runs at the model's DEFAULT sampling. Google
+# "strongly recommend[s] keeping the temperature parameter at its default value of 1.0" for the
+# Gemini 3 family and warns that lower values can cause looping or degraded reasoning (PROMPTING.md
+# §3). The old ladder (generators 0.9, composers 0.7, critics 0.2, extractor 0.0) was the pre-3
+# canon; the best riff we have measured came from a call with no config at all, and rubric bias is
+# flat across temperatures, so judge consistency comes from the rubric, not the sampler. The one
+# knob we keep is the THINKING LEVEL (see build_llm) — verified in traces to be load-bearing.
 
-# The debate/revise cap — the Conductor's "clock". Research puts the useful range
-# at 2-3 rounds (gains plateau fast); small is also live-safe. Reused as the number
-# of turns in the Ustad<->Rasik arbitration debate — the guaranteed terminator.
+# The revise cap — the Flow's clock. Research puts the useful range at 2-3 rounds (gains
+# plateau fast); small is also live-safe. The router returns "done" once it is reached, so
+# the propose->critique->revise loop always terminates (crew/flow.py).
 MAX_ROUNDS: int = 2
-
-# A Rasik rubric criterion at or below this fixed 1-5 score flags an AESTHETIC
-# conflict for the Conductor (3 = "acceptable"; below it, Rasik is objecting). Only
-# a conflict opens the debate — legal + all-acceptable is accepted by code with no
-# LLM spend, illegal forces a revise by code (legality is non-negotiable).
-RASIK_PASS_SCORE: int = 3
-
-# HYBRID triage: the debate opens when a CRITICAL criterion (pakad/idiom — the raga's
-# soul) is below the pass line, OR the OVERALL mean of the four scores falls below this
-# floor. The mean prong catches broad mediocrity (several middling criteria) while the
-# critical prong protects the soul, so a LONE weak mood/coherence — with everything else
-# strong — does NOT burn a debate on the stage. (Reviewers, 2026-07-12: "don't let a
-# lone mediocre criterion trigger it.")
-RASIK_OVERALL_FLOOR: float = 3.0
 
 # The composer dialogue's clock: how many turn-by-turn exchanges Pandit and
 # Riffsmith get before we stop (they may stop earlier by agreeing). The bounded
@@ -61,6 +46,9 @@ CANVAS_PASSES: int = 3
 # composer's draft is illegal, the guardrail hands back the precise error and the
 # turn is re-run this many times before we give up. Billing is live — keep it low.
 COMPOSER_RETRIES: int = 1
+# The single Composer's SEED bundles three artifacts (chart, main riff, hook), each with its own
+# hard checks, so it gets one more bounded retry than a single composer turn.
+SEED_RETRIES: int = 2
 
 # Generators (Lead/Riff/Groove) emit ONE structured phrase per section. Same
 # discipline as the composers: one bounded retry when the legality guardrail
@@ -92,14 +80,32 @@ CRITIC_MAX_ITER: int = 4
 AGENT_RETRY_LIMIT: int = 0
 
 # Defaults; override via the env vars named below.
-_DEFAULT_FLASH: str = "gemini/gemini-3.5-flash"
+# PINNED to an exact version (2026-10-11): `gemini-3.5-flash` had dropped off Google's model page
+# and was being answered by 3.6 Flash (the response's model_version said so) — silent drift.
+# 3.8 Flash is Google's recommended Flash for new projects, same price as 3.6. Never use the
+# `gemini-flash-latest` alias: Google hot-swaps it on every release.
+_DEFAULT_FLASH: str = "gemini/gemini-3.8-flash"
+_DEFAULT_LISTEN_MODEL: str = "gemini-3.1-pro-preview"   # google-genai id (no provider prefix)
 _DEFAULT_REASONING: str = "low"
+
+# Thinking by TIER (2026-10-12). On 3.8 Flash `low` is NO thinking: probed on a composition
+# prompt it returned no thought count at all (with or without a JSON schema), while `medium` spent
+# 731 thought tokens; the 2026-10-11 run's 41 calls all reported zero. So the calls where the piece
+# is CONCEIVED (the chart / the Composer's seed / the joint gat) and JUDGED (Rasik, the Producer)
+# think at `medium` — a handful per run, Google's level for creative reasoning — while the many
+# per-section generator calls stay at `low`: they reason in the open through the schema
+# (`phrase_plan`, `reasoning`), and `medium` on 26 lead calls would cost minutes on stage.
+_DEFAULT_CONCEPTION_THINKING: str = "medium"
+_DEFAULT_JUDGE_THINKING: str = "medium"
 
 # The Interpreter's thinking level. Faithful extraction is driven by the PROMPT's
 # rules + examples, not by deliberation (prompt-before-effort), so it runs at the
-# floor — Gemini 3.x's `minimal` (Sujit, 2026-07-16). Uncapped, the extractor was
-# observed burning ~650 thinking tokens on a job that needs none.
-EXTRACTOR_THINKING: str = "minimal"
+# model's FLOOR. Uncapped, the extractor was observed burning ~650 thinking tokens on a
+# job that needs none. The floor is MODEL-SPECIFIC: 3.5 Flash took `minimal`; 3.8 Flash
+# REJECTS it (400 INVALID_ARGUMENT, first live run 2026-10-11) and accepts low/medium/high
+# — probed directly: `low` thought ~53 tokens on a one-word reply, and none at all on a
+# composition prompt (2026-10-12). Re-probe on a model change.
+EXTRACTOR_THINKING: str = "low"
 
 # Per-request timeout. A live run hung for 19 minutes on ONE dropped LLM call (2026-07-16 —
 # no default timeout anywhere in the native google-genai stack), freezing the whole flow
@@ -136,9 +142,22 @@ def pro_model() -> str:
 
 
 def reasoning_effort() -> str:
-    """The default thinking level (Gemini `thinking_level`: minimal/low/medium/high);
+    """The default thinking level (Gemini `thinking_level`: low/medium/high on 3.8 Flash —
+    `minimal` is rejected there);
     `RMA_REASONING_EFFORT` overrides (default low)."""
     return os.getenv("RMA_REASONING_EFFORT", _DEFAULT_REASONING)
+
+
+def conception_thinking() -> str:
+    """Thinking for the calls that CONCEIVE the piece (chart, seed, joint gat);
+    `RMA_CONCEPTION_THINKING` overrides (default medium)."""
+    return os.getenv("RMA_CONCEPTION_THINKING", _DEFAULT_CONCEPTION_THINKING)
+
+
+def judge_thinking() -> str:
+    """Thinking for the critics (Rasik, the Producer); `RMA_JUDGE_THINKING` overrides
+    (default medium)."""
+    return os.getenv("RMA_JUDGE_THINKING", _DEFAULT_JUDGE_THINKING)
 
 
 def llm_timeout_s() -> int:
@@ -189,6 +208,28 @@ def studio_enabled() -> bool:
     return _env_flag("RMA_STUDIO")
 
 
+def listening_enabled() -> bool:
+    """Whether the ADVISORY listening pass runs after a render (crew/listening.py); env
+    `RMA_LISTEN`. Default OFF — it is uncalibrated against Sujit's ear, and each listen is a paid
+    Pro call. It reports; it never gates a decision until calibrated."""
+    return _env_flag("RMA_LISTEN")
+
+
+def listen_model() -> str:
+    """The audio judge's model; env `RMA_LISTEN_MODEL`. Pro, not Flash: Flash scored far lower on
+    music perception (MUSE benchmark) — see DESIGN.md "THE REDESIGN"."""
+    return os.getenv("RMA_LISTEN_MODEL", _DEFAULT_LISTEN_MODEL)
+
+
+def composer_enabled() -> bool:
+    """True iff the single COMPOSER owns the music (crew/composer.py: one seed call co-writes the
+    chart, main riff and hook; the generators develop around it); env `RMA_COMPOSER`.
+
+    Opt-in — default OFF until Sujit has heard it. Takes precedence over the studio (whose
+    two-agent canvas is what the single owner replaces)."""
+    return _env_flag("RMA_COMPOSER")
+
+
 def canvas_passes() -> int:
     """Turns per section in the studio session; env `RMA_CANVAS_PASSES` overrides
     CANVAS_PASSES. Clamped to >= 1 (a fast / live-safe run passes a smaller value; 1 is
@@ -203,11 +244,12 @@ def canvas_passes() -> int:
         return CANVAS_PASSES
 
 
-def build_llm(model: str, temperature: float, effort: str | None = None):
-    """Construct a CrewAI LLM (lazy import: no crewai cost until called).
+def build_llm(model: str, effort: str | None = None):
+    """Construct a CrewAI LLM at the model's default sampling (no temperature — see the
+    note at the top of this module). Lazy import: no crewai cost until called.
 
     `effort` overrides the global thinking level for this one agent — e.g. the
-    extractor runs `minimal` while the rest of the crew runs the default.
+    extractor could run a lower level than the rest of the crew.
 
     The thinking cap rides the provider's `thinking_config` passthrough, NOT
     `reasoning_effort`: CrewAI 1.15.2's native Gemini provider silently DROPS
@@ -224,52 +266,50 @@ def build_llm(model: str, temperature: float, effort: str | None = None):
     """
     from crewai import LLM
     level = effort or reasoning_effort()
-    common: dict = {"temperature": temperature,
-                    "client_params": {"http_options": {"timeout": llm_timeout_s() * 1000}}}
+    common: dict = {"client_params": {"http_options": {"timeout": llm_timeout_s() * 1000}}}
     if model.startswith("gemini/"):
         from google.genai import types
-        return LLM(model=model,
-                   thinking_config=types.ThinkingConfig(thinking_level=level,
-                                                        include_thoughts=True),
-                   **common)
+
+        from crew.lean_gemini import LeanGemini      # asks only for informative fields (see module)
+        return LeanGemini(model=model.removeprefix("gemini/"), provider="gemini",
+                          thinking_config=types.ThinkingConfig(thinking_level=level,
+                                                               include_thoughts=True),
+                          **common)
     valid = {"none", "low", "medium", "high"}                 # CrewAI's reasoning_effort Literal
     return LLM(model=model, reasoning_effort=level if level in valid else "low", **common)
 
 
+def structured_output(model: type) -> dict[str, type]:
+    """The Task kwargs for a structured answer, sent ONCE. With `output_pydantic` alone, CrewAI
+    1.15.2 sends the model to Gemini as native structured output (`response_json_schema`) AND
+    pastes the same JSON schema into the prompt as text ("Format your final answer according to
+    the following OpenAPI schema...") — ~10k characters, ~2.9k tokens, at the END of every lead
+    prompt (trace 15fbd6571f72: 45% of each lead call's input). Setting `response_model` to the
+    same model skips the text copy (`build_task_prompt_with_schema`) and changes nothing else:
+    the executor already used this model natively, and `output_pydantic` still drives parsing
+    and the guardrail. Re-check on a CrewAI upgrade. Pure."""
+    return {"output_pydantic": model, "response_model": model}
+
+
 def generator_llm():
-    """Flash-tier, high temperature — generators explore."""
-    return build_llm(flash_model(), GENERATOR_TEMPERATURE)
+    """Flash-tier — the generators."""
+    return build_llm(flash_model())
 
 
 def composer_llm():
-    """Pandit/Riffsmith — Flash, mid-high temperature: the composers CREATE.
-
-    High cognitive load per DESIGN.md, but kept on Flash for now (promote to Pro
-    later via RMA_PRO_MODEL once the loop works end-to-end). The temperature buys
-    variety so the same request doesn't yield the same chart twice, without
-    tipping into malformed structured output.
-    """
-    return build_llm(flash_model(), COMPOSER_TEMPERATURE)
+    """The calls that CONCEIVE the piece — the chart (Pandit/Riffsmith), the Composer's seed, the
+    joint gat — Flash at `conception_thinking()` (promote to Pro later via RMA_PRO_MODEL)."""
+    return build_llm(flash_model(), effort=conception_thinking())
 
 
 def critic_llm():
-    """Critic/Conductor — Pro (or Flash for now via RMA_PRO_MODEL), low temperature."""
-    return build_llm(pro_model(), CRITIC_TEMPERATURE)
-
-
-def conductor_llm():
-    """The arbiter — same tier as the critics (Pro, low temperature). Named separately
-    so the Conductor's tier can diverge later without touching call sites; identical to
-    `critic_llm` today (a referee wants consistency, not variety — hence low temp)."""
-    return build_llm(pro_model(), CRITIC_TEMPERATURE)
+    """The critics — Pro tier (Flash for now, via RMA_PRO_MODEL) at `judge_thinking()`."""
+    return build_llm(pro_model(), effort=judge_thinking())
 
 
 def extractor_llm():
-    """Low-temperature Flash for extraction (Interpreter).
-
-    Runs stone cold (temperature 0 — extraction needs reproducibility, not variety)
-    at MINIMAL thinking. Faithful extraction is driven by the PROMPT's rules +
-    examples, not by deliberation — prompt first, effort only if a solid prompt
-    still fails (see DESIGN.md).
+    """Flash for extraction (Interpreter), at MINIMAL thinking. Faithful extraction is
+    driven by the PROMPT's rules + examples, not by deliberation or a cold sampler —
+    prompt first, effort only if a solid prompt still fails (see DESIGN.md).
     """
-    return build_llm(flash_model(), EXTRACTOR_TEMPERATURE, effort=EXTRACTOR_THINKING)
+    return build_llm(flash_model(), effort=EXTRACTOR_THINKING)

@@ -33,6 +33,50 @@ so **Demo + Step** lets you rehearse the audience walkthrough for free, then fli
 **Live + Step** on stage. This matches `UI_CONTRACT.md` §9 option 1 (collect the stream,
 then pace it in the UI); no backend streaming is needed.
 
+## The roster on stage (the redesign, 2026-10-11)
+
+The stage mirrors the crew as it is now built (CLAUDE.md "Architecture", DESIGN.md "THE
+REDESIGN"), with one room per kind of ownership:
+
+- **Intake** — the **Interpreter** (LLM) turns the query into the brief.
+- **Writers' room** — whoever writes the chart. With `RMA_COMPOSER` on it is the single
+  **Composer** (one SEED call co-writes the chart, the main riff and the hook, then DEVELOP calls
+  write each section around it). With the flag off it is the legacy **Pandit ⇄ Riffsmith** pair.
+  The server's flag only sets the IDLE roster. Once a run streams, the events decide: a
+  `Composer` event switches the room to the one owner, a `Pandit`/`Riffsmith` event to the legacy
+  pair.
+- **Live room** — the two creative voices, **Lead** (sitar) and **Riff** (guitar), plus the
+  **Orchestra**, which appears only when a symphonic chart actually summons it (one LLM call for
+  the intent, which code expands into strings, brass, choir and timpani). A `CODE` rack lists the
+  deterministic voices (drone, jod, bass, drums, tabla, clean guitar); each lights up once the
+  finished composition carries it.
+- **Control room** — **Ustad** is a terminal, not a character, because it is CODE
+  (`validate_composition`, no LLM): its readout is the validator's result. **Rasik** is the raga
+  consultant (pakad/idiom/rasa scores and at most three lead-only suggestions, with no authority).
+  The **Producer** is the one judge whose call stands.
+- **Listening booth** (where the Conductor's riser used to be) — the advisory **Listener**. It is
+  dimmed unless `RMA_LISTEN` is on or a `Listener` event arrives.
+
+The **flow strip** under the sentence line lights the pipeline step by step: interpret → seed
+(or chart) → develop (or generate) → code voices → Ustad → Rasik → Producer → triage → revise
+(↺, bounded by `MAX_ROUNDS`) → render → listen. Steps that are pure code have a dashed border.
+
+The **judging desk** (full width, under the log and player) shows the latest of each verdict:
+Ustad's LEGAL/ILLEGAL and its first violations; Rasik's three scores and suggestions (sections
+numbered from §1, as the piece's structure numbers them); the Producer's ten-criterion rubric and
+decision; the **final call** with its `RevisionPlan` (voice, where, what to do, and what to KEEP),
+plus who made the call; and the listening report (observations plus code's consistency). The
+final call is triage, which is code: an illegal piece is a forced revise (VERDICT from `Ustad`), a
+lead the audience can't hear is a forced revise (recognised by its text, since it is emitted as
+`Producer`), and otherwise the Producer's own call stands.
+
+The Conductor, the critic debate and the Arranger are gone. Old streams still replay: a
+`Conductor` ruling (`data.layer`) shows as a retired final call on the Producer, and a retired
+`DEBATE` event from a critic is logged dimmed with a `[retired debate]` tag and no banner.
+
+The server advertises the crew's shape as `window.SHRUTI_FLOW = {composer, listen, max_rounds}`
+(also in `/api/health`), read from the import-light `crew.config`.
+
 ## Files
 
 - `app.html` — the entire UI (one content-only file: `<style>` + markup + `<script>`, no
@@ -59,13 +103,17 @@ the true sound with no server.)
 
 ## What's real vs. still a mock
 
-- **Real:** the pixel-art stage + 10 mascots, pixel type throughout, the event-driven
-  choreography (spotlight, speech bubbles, cooperate/debate money-moment banners), the
-  session log, and the WAV player + synced piano-roll visualiser.
+- **Real:** the pixel-art stage and its roster, pixel type throughout, the event-driven
+  choreography (spotlight, speech bubbles, the core-idea and final-call banners), the flow
+  strip, the judging desk, the session log, and the WAV player + synced piano-roll visualiser
+  (which now also draws the clean guitar, the jod and the orchestra lanes).
 - **Mock:** the embedded `DEMO_EVENTS` / `DEMO_COMPOSITION` in `app.html` and the demo WAV.
-  The events are hand-authored to match `UI_CONTRACT.md` §4 exactly (Rasik `pakad/idiom/rasa`,
-  Producer's 9 criteria, both money moments, a revise round). Capturing ONE real trace — or
-  flipping on LIVE — replaces them with the real thing through the same code path.
+  The events are hand-authored in the shapes `crew/` emits today, in composer mode: the
+  Composer's seed, the developed riff and lead, Ustad's code verdict, Rasik's scores plus
+  suggestions, the Producer's ten criteria with a `RevisionPlan`, the VERDICT
+  (`data = {decision, plan}`), one revise round, an accept, and an advisory listening report.
+  Capturing ONE real trace, or flipping on LIVE, replaces them with the real thing through the
+  same code path.
 
 ## Dev knob
 

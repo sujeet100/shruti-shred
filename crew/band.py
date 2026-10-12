@@ -22,21 +22,30 @@ from __future__ import annotations
 import shutil
 import sys
 from pathlib import Path
+from collections.abc import Callable
 from typing import Final
 
-from crew.contracts import Arrangement, Composition, DebateEvent, EventStream, Layer
+from crew.contracts import (
+    Arrangement,
+    Composition,
+    DebateEvent,
+    EventStream,
+    Layer,
+    LeadPhrase,
+    RiffPattern,
+)
 from crew.generators import (
     assemble_composition,
     bass_layer,
     double_track,
     drone_layer,
-    harmonize_riff_to_lead,
     intro_jod_layer,
     render_composition,
 )
 from crew.dynamics import apply_dynamics, apply_taan_exposure
 from crew.groove import groove_layer, tabla_layer
 from crew.harmonic_guide import harmonic_guide
+from crew.ending import apply_ending
 from crew.harmony import clean_layer
 from raga import validate_composition
 
@@ -72,12 +81,9 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
     layers.extend(lead_layers)
     layers.extend(orchestra_layers)   # the cinematic voices (symphonic; sparse colour elsewhere)
     if rhythm is not None:
-        # The riff yields to the raga line (clashing notes thin to a chug), so the double
-        # track and the derived low end all inherit the consonant figure. This is the LAST
-        # line of defence: the Arranger (crew/arranger.py) has normally already repaired
-        # these clashes upstream, choosing among legal options; what reaches here is
-        # whatever it judged expressive or could not fix.
-        rhythm = harmonize_riff_to_lead(rhythm, lead_layers)
+        # The riff plays AS COMPOSED under the raga line: a half-step against a held sitar
+        # note is often the sound (Sujit kept the grinds by ear over damping them, 2026-10-11),
+        # so nothing thins it here — `crew/coexistence.py` measures the friction for the Producer.
         layers.append(rhythm)                        # the hard-left rhythm track
         double = double_track(rhythm)                # the hard-right double (different gain patch)
         if double is not None:
@@ -96,8 +102,61 @@ def band_layers(arr: Arrangement, lead_layers: list[Layer], rhythm: Layer | None
         if derived is not None:
             layers.append(derived)
     # The taan exposure runs BEFORE the balance pass: the band-drop window empties first, then
-    # the energy/foreground gains shape whatever still sounds.
-    return apply_dynamics(apply_taan_exposure(layers, arr), arr)
+    # the energy/foreground gains shape whatever still sounds. The ending comes LAST: its final
+    # stroke sits past every section, so no balance gain should ever touch it.
+    return apply_ending(apply_dynamics(apply_taan_exposure(layers, arr), arr), arr)
+
+
+# The two creative LLM voices, injectable so their ORDER is tested with no LLM. Each takes the
+# other voice's seed (None when it is the source): the lead may be handed the main riff to
+# quote, the riff the cached gat head to reduce.
+type LeadVoiceFn = Callable[[Arrangement, RiffPattern | None], tuple[list[Layer], list[DebateEvent]]]
+type RiffVoiceFn = Callable[[Arrangement, LeadPhrase | None], tuple[Layer | None, list[DebateEvent]]]
+
+
+def _quiet(agent: str, text: str) -> None:
+    """The default `announce` — `compose_band` has no live stream to beat on."""
+
+
+def _keep(events: list[DebateEvent]) -> None:
+    """The default `emit` — the events are returned anyway; nothing to publish early."""
+
+
+def compose_creative_voices(
+        arr: Arrangement, *, lead_fn: LeadVoiceFn | None = None, riff_fn: RiffVoiceFn | None = None,
+        announce: Callable[[str, str], None] = _quiet,
+        emit: Callable[[list[DebateEvent]], None] = _keep,
+) -> tuple[list[Layer], Layer | None, list[DebateEvent]]:
+    """Compose the lead and the riff IN ANCHOR ORDER — the source first, then the voice that
+    derives from it, handed the source's seed.
+
+    `gat_first` (the default): the gat is composed, and the riff REDUCES its cached head.
+    `riff_first`: the riff is composed, and the gat's head QUOTES the mukhada section's riff
+    (verified in `lead._compose_gat`). Same calls, same cost — only the order and the seed
+    change, so the composers' anchor finally decides how the piece is built. `announce`
+    (agent, text) fires before each slow call and `emit` after it, so the Flow can stream
+    progress while the work runs. Returns (lead_layers, rhythm, events) in composition order."""
+    from crew.lead import compose_lead, mukhada_cell_from_events
+    from crew.riff import compose_riff, mukhada_riff_from_events
+    lead = lead_fn or compose_lead
+    riff = riff_fn or compose_riff
+
+    if arr.anchor == "riff_first":
+        announce("Riff", "laying down the main riff — it seeds the gat…")
+        rhythm, riff_events = riff(arr, None)
+        emit(riff_events)
+        announce("Lead", "composing the gat on the riff…")
+        lead_layers, lead_events = lead(arr, mukhada_riff_from_events(riff_events))
+        emit(lead_events)
+        return lead_layers, rhythm, [*riff_events, *lead_events]
+
+    announce("Lead", "composing the gat…")
+    lead_layers, lead_events = lead(arr, None)
+    emit(lead_events)
+    announce("Riff", "laying down the riff…")
+    rhythm, riff_events = riff(arr, mukhada_cell_from_events(lead_events))
+    emit(riff_events)
+    return lead_layers, rhythm, [*lead_events, *riff_events]
 
 
 def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:
@@ -107,27 +166,11 @@ def compose_band(arr: Arrangement) -> tuple[Composition, list[DebateEvent]]:
     drums, tabla and drone are deterministic. Imports the LLM generators lazily so
     this module stays importable without paying the crewai import cost.
     """
-    from crew.lead import compose_lead, mukhada_cell_from_events
     from crew.orchestra import compose_orchestra, uses_orchestra
-    from crew.riff import compose_riff
 
-    events: list[DebateEvent] = []
-    lead_layers, lead_events = compose_lead(arr)
-    # Cross-voice seeding: the riff runs AFTER the lead and reduces the cached gat head
-    # (fished from the lead's events), so the band hears the mukhada IN the riff.
-    rhythm, riff_events = compose_riff(arr, mukhada=mukhada_cell_from_events(lead_events))
-    events.extend(lead_events)
-    events.extend(riff_events)
-    # THE ARRANGER — the third question, asked only once both lines are real: do they
-    # coexist? The riff was composed before this lead existed, so it could not know what
-    # the sitar actually sounds on any given beat. It repairs surgically (one note at a
-    # time, never a rhythm), the right-of-way rule decides who gives way, and a piece with
-    # no clashes makes no call at all. It runs BEFORE the orchestra, so the cinematic
-    # voices answer the repaired lines rather than the fighting ones.
-    from crew.arranger import arrange_against_lead
-
-    rhythm, lead_layers, arranger_events = arrange_against_lead(rhythm, lead_layers, arr)
-    events.extend(arranger_events)
+    # Cross-voice seeding in ANCHOR order: the source voice first, the other derived from it.
+    # The two lines go on as composed — their friction is measured, never repaired.
+    lead_layers, rhythm, events = compose_creative_voices(arr)
     # The Orchestra is CAPABILITY-GATED: it joins ONLY when the chart calls for it (symphonic
     # charts always; other subgenres where the composers added it as colour). It runs after
     # the creative voices so it can ANSWER the realized lead + riff rather than double them.

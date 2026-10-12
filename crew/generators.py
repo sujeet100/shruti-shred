@@ -350,79 +350,26 @@ def bass_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
 
 
 # --------------------------------------------------------------------------- #
-# The riff-under-lead consonance guard — the riff YIELDS to the raga line.      #
-# Deterministic: code never re-pitches a note (it never composes); it thins the #
-# ACCOMPANIMENT so a clash reads as a percussive chug, not a sustained grind.   #
+# Riff vs melody interval facts — shared by the coexistence MEASUREMENT and the  #
+# harmonic guide. (The guard that damped clashing riff notes is gone: Sujit kept #
+# the grinds by ear, 2026-10-11; the friction is measured, never repaired.)      #
 # --------------------------------------------------------------------------- #
 
-# A lead note this long reads as a HELD tone the ear tunes to — a riff grinding a harsh
-# interval underneath it is heard as wrong; under a fast passing note it is not.
-_CLASH_SUSTAIN_MIN: Final[float] = 1.0
 # Interval classes (mod 12) that grind under distortion against a held melody note:
 # the semitone, the tritone, and the major seventh. Seconds/sevenths an octave out
 # (add9-style colour) are deliberately NOT in this set.
 HARSH_INTERVAL_CLASSES: Final[frozenset[int]] = frozenset({1, 6, 11})
-_CLASH_CHUG_BEATS: Final[float] = 0.5    # a clashing riff note is clipped to a chug this long
-_CLASH_VEL_SCALE: Final[float] = 0.9     # ...and softened a touch, under the melody
 
 
 def sounding_pitch(note) -> int:
     """A note's pitch relative to Sa, as it is actually HEARD (sa cancels out of any
     interval). A meend sounds at its TARGET — the renderer anchors the note on the target
     sample and bends the wheel into it — so a glide's harmonic identity is where it LANDS,
-    not the swara it was written as. Comparing the written swara judged the clash against a
-    pitch nobody hears, which is what this guard used to do."""
+    not the swara it was written as."""
     if note.meend_swara is not None:
         return SWARAS[note.meend_swara] + 12 * (note.oct if note.meend_oct is None
                                                 else note.meend_oct)
     return SWARAS[note.swara] + 12 * note.oct
-
-
-def harmonize_riff_to_lead(rhythm: Layer | None, lead_layers: list[Layer]) -> Layer | None:
-    """Keep the riff CONSONANT under the melody. Pure — no LLM.
-
-    The generators write lead and riff independently (both raga-legal, so no note is
-    *illegal*), but a riff root a semitone/tritone under a HELD lead note grinds. The riff
-    yields — the raga line is sacred: any rhythm note overlapping a sustained lead note at
-    a harsh interval class loses its chord stack and is clipped to a short, slightly softer
-    palm-mute chug, so the clash becomes a percussive touch instead of a sustained grind.
-    Code owns the checkable (interval math); it never re-pitches a note. Runs BEFORE the
-    bass/double-track derive, so the whole rhythm section inherits the softened figure.
-    """
-    if rhythm is None or not rhythm.notes:
-        return rhythm
-    held = [(n.start, n.start + n.dur, sounding_pitch(n))
-            for layer in lead_layers for n in (layer.notes or [])
-            if n.dur >= _CLASH_SUSTAIN_MIN]
-    if not held:
-        return rhythm
-    notes = [damp_note(n) if _clashes(n, held) else n for n in rhythm.notes]
-    return rhythm.model_copy(update={"notes": notes})
-
-
-def _clashes(note, held: list[tuple[float, float, int]]) -> bool:
-    """Does this riff note overlap a held lead note at a harsh interval class?"""
-    end = note.start + note.dur
-    pitch = sounding_pitch(note)
-    return any(note.start < h_end and h_start < end and (pitch - h_pitch) % 12 in HARSH_INTERVAL_CLASSES
-               for h_start, h_end, h_pitch in held)
-
-
-def damp_note(note):
-    """The clash treatment, and the one definition of it: strip the chord stack, clip to a
-    chug, soften a touch, and make it PERCUSSIVE.
-
-    The technique is forced to palm_mute rather than preserved. A damped note whose slide
-    survived was still a sustained pitch fighting the melody — the gesture kept the clash
-    alive and made no sense at half a beat anyway. Damping means "this becomes a touch", and
-    a touch is a chug. Shared with `crew/repairs.py`, which offers this as a repair.
-    """
-    return note.model_copy(update={
-        "chord": None,
-        "dur": round(min(note.dur, _CLASH_CHUG_BEATS), 4),
-        "vel": max(1, round(note.vel * _CLASH_VEL_SCALE)),
-        "technique": "palm_mute",
-    })
 
 
 # --------------------------------------------------------------------------- #

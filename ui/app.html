@@ -252,7 +252,7 @@
   }
   .moment.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .moment.cooperate { color: var(--temple-gold); border-color: var(--temple-gold); }
-  .moment.debate { color: var(--neon-magenta); border-color: var(--neon-magenta); }
+  .moment.debate, .moment.revise { color: var(--neon-magenta); border-color: var(--neon-magenta); }
 
   /* ---- Sentence line (Thimbleweed's caption) ---- */
   .sentence {
@@ -404,6 +404,107 @@
   .hint { font-family: var(--font-body); font-size: 14px; color: var(--ink-faint); margin-top: 10px; letter-spacing: .02em; }
   .hint b { color: var(--ink-dim); }
 
+  /* ---- Roster states (the redesign: one owner OR the legacy writers; on-demand agents) ---- */
+  .mascot.hidden { display: none; }
+  .mascot .np-tag { font-family: var(--font-body); font-size: 13px; letter-spacing: 0;
+                    color: #6a6178; margin-left: 5px; text-transform: lowercase; }
+  .mascot.active .np-tag { color: var(--ink-dim); }
+  .mascot.off { filter: saturate(.2) brightness(.38); }
+  .mascot.off .np-tag { color: var(--ink-faint); }
+  /* Ustad is CODE: the verdict appears on a terminal readout, never as speech */
+  .bubble.code { background: #0a0f18; color: var(--drone-cyan); border-color: #1d5a55;
+                 font-family: var(--font-mono); }
+  .bubble.code::after { border-top-color: #0a0f18; }
+  .mascot.alarm .face { filter: hue-rotate(160deg) saturate(1.6)
+            drop-shadow(1px 0 0 #0b0812) drop-shadow(-1px 0 0 #0b0812)
+            drop-shadow(0 1px 0 #0b0812) drop-shadow(0 -1px 0 #0b0812); }
+  .mascot.alarm .bubble.code { color: var(--neon-magenta); border-color: #6b1f45; }
+  .zone.off { opacity: .45; }
+  .moment.accept { color: var(--drone-cyan); border-color: var(--drone-cyan); }
+
+  /* the CODE VOICES strip in the live room: deterministic voices light when they play */
+  .codevoices {
+    position: absolute; z-index: 3; display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
+    font-family: var(--font-body); font-size: 13px; color: var(--ink-faint);
+  }
+  .codevoices .cv-l { font-family: var(--font-pixel); font-size: 6px; letter-spacing: 1px; margin-right: 2px; }
+  .codevoices .cv {
+    border: 1px solid var(--stage-line); border-radius: 2px; padding: 0 4px; line-height: 15px;
+    background: rgba(8,7,13,.6); transition: color .3s, border-color .3s, box-shadow .3s;
+  }
+  .codevoices .cv.on { color: var(--drone-cyan); border-color: #1d5a55; box-shadow: 0 0 6px rgba(56,224,207,.25); }
+
+  /* ---- The flow strip: the redesigned pipeline, lit step by step ---- */
+  .flowbar {
+    display: flex; align-items: stretch; gap: 3px; flex-wrap: nowrap; overflow-x: auto;
+    padding: 9px 18px; background: var(--stage-black);
+    border-bottom: var(--edge) solid var(--stage-line);
+    scrollbar-width: thin; scrollbar-color: var(--stage-line) transparent;
+  }
+  .flowbar .fs {
+    display: flex; flex-direction: column; justify-content: center; flex: 1 1 0; min-width: 0;
+    border: 2px solid var(--stage-line); border-radius: 2px; padding: 3px 5px; overflow: hidden;
+    background: var(--stage-deep); transition: border-color .3s, background .3s, opacity .3s;
+  }
+  .flowbar .fs .fs-n { font-family: var(--font-pixel); font-size: 7px; letter-spacing: 1px; color: var(--ink-dim); white-space: nowrap; }
+  .flowbar .fs .fs-s { font-family: var(--font-body); font-size: 13px; line-height: 1.05; color: var(--ink-faint);
+                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .flowbar .fs.code { border-style: dashed; }
+  .flowbar .fs.code .fs-s { color: #4fa59c; }   /* code steps: dashed border + cyan sub-label (no LLM) */
+  .flowbar .fs.done { border-color: #3a3150; }
+  .flowbar .fs.done .fs-n { color: var(--ink); }
+  .flowbar .fs.now { border-color: var(--temple-gold); background: #1f1830; box-shadow: 0 0 10px rgba(242,181,60,.25); }
+  .flowbar .fs.now .fs-n { color: var(--temple-hi); }
+  .flowbar .fs.now.code { border-color: var(--drone-cyan); box-shadow: 0 0 10px rgba(56,224,207,.25); }
+  .flowbar .fs.off { opacity: .35; }
+  .flowbar .fa { align-self: center; font-family: var(--font-body); font-size: 15px; color: var(--ink-faint); }
+
+  /* ---- The judging desk: what the critics and the final call actually said ---- */
+  .desk { padding: 14px 16px; border-top: var(--edge) solid var(--stage-line); }
+  .desk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 10px; }
+  .card {
+    border: 2px solid var(--stage-line); border-radius: 2px; background: var(--stage-black);
+    padding: 9px 10px; min-height: 128px; font-family: var(--font-body); font-size: 15px; line-height: 1.2;
+  }
+  .card.off { opacity: .45; }
+  .card .ch { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 7px; }
+  .card .ch b { font-family: var(--font-pixel); font-size: 8px; letter-spacing: 1px; font-weight: normal; }
+  .card .ch .kind { font-size: 13px; color: var(--ink-faint); text-transform: lowercase; }
+  .card .ch .kind.code { color: var(--drone-cyan); }
+  .card.c-ustad .ch b, .card.c-rasik .ch b, .card.c-producer .ch b, .card.c-listen .ch b { color: var(--role-critic); }
+  .card.c-ustad .ch b { color: var(--drone-cyan); }
+  .card.c-call .ch b { color: var(--temple-gold); }
+  .card .empty { color: var(--ink-faint); }
+  .card .note { color: var(--ink-dim); margin-top: 5px; }
+  .card ul { list-style: none; margin-top: 5px; }
+  .card li { color: var(--ink); padding-left: 10px; text-indent: -10px; margin-top: 2px; }
+  .card li::before { content: "▸ "; color: var(--ink-faint); }
+  .card li .why { color: var(--ink-dim); }
+  .badge {
+    display: inline-block; font-family: var(--font-pixel); font-size: 8px; letter-spacing: 1px;
+    padding: 4px 6px; border: 2px solid; border-radius: 2px; margin-right: 6px;
+  }
+  .badge.good { color: var(--drone-cyan); border-color: var(--drone-cyan); }
+  .badge.bad { color: var(--neon-magenta); border-color: var(--neon-magenta); }
+  .scores { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; align-items: center; margin-top: 4px; }
+  .scores.tight { gap: 0 8px; }
+  .scores.tight .sk { font-size: 13px; line-height: 13px; }
+  .scores .sk { color: var(--ink-dim); font-size: 14px; }
+  .pips { display: inline-flex; gap: 2px; }
+  .pips i { width: 7px; height: 7px; background: var(--stage-line); display: inline-block; }
+  .pips i.on { background: var(--temple-gold); }
+  .pips.lo i.on { background: var(--neon-magenta); }
+  .plan { margin-top: 6px; border-left: 3px solid var(--neon-magenta); padding-left: 8px; }
+  .plan .pr { display: flex; gap: 6px; margin-top: 2px; }
+  .plan .pk { flex: 0 0 52px; font-family: var(--font-pixel); font-size: 7px; letter-spacing: 1px; color: var(--ink-faint); padding-top: 4px; }
+  .plan .keep { display: inline-block; border: 1px solid #1d5a55; color: var(--drone-cyan); padding: 0 5px; margin: 0 3px 3px 0; border-radius: 2px; font-size: 14px; }
+  .who-called { color: var(--ink-dim); margin-top: 3px; }
+
+  /* session-log detail lines (plans, suggestions) + retired / code tags */
+  .logline .lg-sub { display: block; color: var(--ink-dim); padding-left: 10px; }
+  .logline .lg-tag { color: var(--drone-cyan); margin-right: 4px; }
+  .logline.retired .lg-agent, .logline.retired .lg-text { opacity: .55; }
+
   /* ---- Responsive ---- */
   @media (max-width: 720px) {
     .panels { grid-template-columns: 1fr; }
@@ -449,6 +550,9 @@
       <span class="cursor">▌</span>
     </div>
 
+    <!-- FLOW STRIP — the redesigned pipeline; each step lights as its events arrive -->
+    <div class="flowbar" id="flowbar" aria-label="pipeline"></div>
+
     <!-- WALKTHROUGH TRANSPORT — Auto plays paced; Step waits for a click per event -->
     <div class="director-bar">
       <span class="db-label">walkthrough</span>
@@ -484,6 +588,13 @@
       </div>
     </div>
 
+    <!-- JUDGING DESK — Ustad's code verdict, Rasik's consultation, the Producer's judgement,
+         the final call (+ its RevisionPlan), and the advisory listening pass -->
+    <div class="desk">
+      <div class="panel-head"><span>The judging desk</span><span class="tag" id="deskTag">— no critique yet</span></div>
+      <div class="desk-grid" id="desk"></div>
+    </div>
+
     <!-- INPUT BAR -->
     <div class="inputbar">
       <div class="prompt-row">
@@ -514,7 +625,7 @@
         <button class="chip sub" data-sub="doom">doom</button>
         <button class="chip sub" data-sub="death">death</button>
       </div>
-      <div class="hint">One text box drives it — the <b>Interpreter</b> agent extracts the brief and leaves the rest <b>open</b> for the band. Chips just seed the words.</div>
+      <div class="hint">One text box drives it — the <b>Interpreter</b> extracts the brief, the <b>Composer</b> owns the music, <b>Ustad</b> (code) checks legality, <b>Rasik</b> consults on the raga, and the <b>Producer</b> makes the one call. Chips just seed the words.</div>
     </div>
 
   </div>
@@ -527,50 +638,72 @@
   //  PERSONAS — one mascot per stable `agent` (UI_CONTRACT §5.5).            //
   //  x/y are stage coords in %. `spec` drives the parametric pixel sprite.   //
   // ======================================================================= //
-  // The stage is a RECORDING STUDIO laid out as rooms, so the arrangement itself reads
-  // the workflow: the composers face each other at a table (they DISCUSS), the band plays
-  // in the live room (they COLLABORATE), the critics sit behind a console (they JUDGE), and
-  // the Conductor presides on a riser (he RULES). `zone` groups a persona; `face` turns a
-  // sprite toward its partner; `seated` hides the legs behind the table/console.
+  // The stage is a RECORDING STUDIO laid out as rooms, so the arrangement itself reads the
+  // workflow — and since the redesign (DESIGN.md "THE REDESIGN", 2026-10-11) the rooms say who
+  // owns what: ONE Composer at the writers' desk (or, with RMA_COMPOSER off, the legacy
+  // Pandit ⇄ Riffsmith pair), the band's two creative voices in the live room with the CODE
+  // voices racked beside them, and in the control room a code terminal (Ustad), a consultant
+  // (Rasik) and the one judge with authority (the Producer). The old Conductor's riser is now
+  // the listening booth (advisory). `zone` groups a persona; `face` turns a sprite toward its
+  // partner; `seated` hides the legs behind the table/console; `tag` is the nameplate's role
+  // note; `writers` marks which writers'-room mode a persona belongs to; `onDemand` keeps a
+  // capability-gated agent off stage until it actually shows up in the stream.
   const PERSONAS = {
-    Interpreter: { role:"system",    name:"Interpreter", zone:"intake",  x:10, y:52, face:"r",
-      spec:{ skin:"#e6b98a", coat:"#2f7d76", hair:"#241a2e", prop:"headphones", accent:"#38e0cf" } },
-    // Writers' room — Pandit ⇄ Riffsmith face each other across a table (no instruments; they argue the chart)
-    Pandit:      { role:"composer",  name:"Pandit",      zone:"writers", x:27, y:56, face:"r", seated:true,
+    Interpreter: { role:"system",    name:"Interpreter", tag:"llm",       zone:"intake",  x:10, y:52, face:"r",
+      spec:{ skin:"#e6b98a", coat:"#2f7d76", hair:"#241a2e", headphones:true, accent:"#38e0cf" } },
+    // Writers' room — the single Composer (seed → develop) owns the riff, the hook and the form
+    Composer:    { role:"composer",  name:"Composer",    tag:"one owner", zone:"writers", x:34.5, y:56, seated:true, writers:"single",
+      spec:{ skin:"#e0b083", coat:"#7a2a1a", hair:"#141019", longhair:true, tilak:true, accent:"#f2b53c" } },
+    // ...or, with RMA_COMPOSER off, the legacy Pandit ⇄ Riffsmith chart negotiation
+    Pandit:      { role:"composer",  name:"Pandit",      tag:"legacy",    zone:"writers", x:27, y:56, face:"r", seated:true, writers:"legacy",
       spec:{ skin:"#e0b083", coat:"#efe7d2", hair:"#cfc7b8", beard:true, tilak:true, accent:"#f2b53c" } },
-    Riffsmith:   { role:"composer",  name:"Riffsmith",   zone:"writers", x:42, y:56, face:"l", seated:true,
+    Riffsmith:   { role:"composer",  name:"Riffsmith",   tag:"legacy",    zone:"writers", x:42, y:56, face:"l", seated:true, writers:"legacy",
       spec:{ skin:"#d9a679", coat:"#161320", hair:"#0d0a14", longhair:true, accent:"#ff2e88" } },
-    // Live room — Lead & Riff play, facing each other, amp + mic between them
-    Lead:        { role:"generator", name:"Lead",        zone:"live",    x:61, y:56, face:"r",
+    // Live room — the two creative voices (developed around the seed, or generated per section)
+    Lead:        { role:"generator", name:"Lead",        tag:"sitar",     zone:"live",    x:61, y:56, face:"r",
       spec:{ skin:"#e0b083", coat:"#b8462a", hair:"#1c1526", topknot:true, prop:"sitar", accent:"#d9702a" } },
-    Riff:        { role:"generator", name:"Riff",        zone:"live",    x:76, y:56, face:"l",
+    Riff:        { role:"generator", name:"Riff",        tag:"guitar",    zone:"live",    x:76, y:56, face:"l",
       spec:{ skin:"#d9a679", coat:"#20222e", hair:"#141019", cap:true, prop:"guitar", accent:"#d9702a" } },
-    // Control room — the three critics sit behind a long mixing console, facing the room
-    Ustad:       { role:"critic",    name:"Ustad",       zone:"control", x:24, y:92, seated:true,
-      spec:{ skin:"#dcae80", coat:"#26202f", hair:"#8a8072", beard:true, glasses:true, accent:"#38e0cf" } },
-    Rasik:       { role:"critic",    name:"Rasik",       zone:"control", x:44, y:92, seated:true,
-      spec:{ skin:"#e0b083", coat:"#5a1f36", hair:"#241a2e", eyesClosed:true, accent:"#ff2e88" } },
-    Producer:    { role:"critic",    name:"Producer",    zone:"control", x:64, y:92, seated:true,
-      spec:{ skin:"#d9a679", coat:"#1d2740", hair:"#141019", beanie:true, accent:"#ff2e88" } },
-    // The Conductor presides on a riser to the right
-    Conductor:   { role:"conductor", name:"Conductor",   zone:"podium",  x:91, y:72, face:"l",
+    // The Orchestra joins ONLY on a symphonic chart (capability-gated): one LLM call for the
+    // intent, code expands it into strings/brass/choir/timpani
+    Orchestra:   { role:"generator", name:"Orchestra",   tag:"on demand", zone:"live",    x:68.5, y:47, face:"l", onDemand:true,
       spec:{ skin:"#e0b083", coat:"#123a3f", hair:"#e9e3d4", prop:"baton", accent:"#38e0cf", pose:"baton" } },
+    // Control room — Ustad is CODE (a terminal running validate_composition, no LLM); Rasik
+    // consults on the raga (no authority); the Producer is the one judge whose call stands
+    Ustad:       { role:"critic",    name:"Ustad",       tag:"code",      zone:"control", x:24, y:92, seated:true,
+      spec:{ device:"validator", accent:"#38e0cf" } },
+    Rasik:       { role:"critic",    name:"Rasik",       tag:"consultant",zone:"control", x:44, y:92, seated:true,
+      spec:{ skin:"#e0b083", coat:"#5a1f36", hair:"#241a2e", eyesClosed:true, accent:"#ff2e88" } },
+    Producer:    { role:"critic",    name:"Producer",    tag:"the judge", zone:"control", x:64, y:92, seated:true,
+      spec:{ skin:"#d9a679", coat:"#1d2740", hair:"#141019", beanie:true, accent:"#f2b53c", pose:"point" } },
+    // The listening booth — a Pro audio judge hears the RENDER blind (advisory; RMA_LISTEN)
+    Listener:    { role:"critic",    name:"Listener",    tag:"advisory",  zone:"booth",   x:91, y:72, face:"l",
+      spec:{ skin:"#dcae80", coat:"#26202f", hair:"#8a8072", headphones:true, glasses:true, eyesClosed:true, accent:"#38e0cf" } },
     // System / Flow — plumbing, a badge not a character (a rack CRT in the corner)
-    System:      { role:"system",    name:"System",      zone:"rack",    x:91, y:22,
+    System:      { role:"system",    name:"System",      tag:"",          zone:"rack",    x:91, y:22,
       spec:{ device:"crt", accent:"#7d7690" } },
   };
 
   // The rooms behind the personas (x/y/w/h in stage %). Drawn first, each with a pixel
   // label and a role-tinted glow that lights while that room's people are working.
   const ZONES = [
-    { id:"intake",  label:"INTAKE",        role:"system",    x:3,  y:24, w:15, h:40 },
-    { id:"writers", label:"WRITERS ROOM",  role:"composer",  x:20, y:22, w:29, h:41 },
-    { id:"live",    label:"LIVE ROOM",     role:"generator", x:53, y:22, w:31, h:41 },
-    { id:"control", label:"CONTROL ROOM",  role:"critic",    x:6,  y:73, w:75, h:25 },
-    { id:"podium",  label:"",              role:"conductor", x:85, y:52, w:13, h:33 },
+    { id:"intake",  label:"INTAKE",          role:"system",    x:3,  y:24, w:15, h:40 },
+    { id:"writers", label:"COMPOSER",        role:"composer",  x:20, y:22, w:29, h:41 },
+    { id:"live",    label:"LIVE ROOM",       role:"generator", x:53, y:22, w:31, h:41 },
+    { id:"control", label:"CONTROL ROOM",    role:"critic",    x:6,  y:73, w:75, h:25 },
+    { id:"booth",   label:"LISTEN",          role:"critic",    x:85, y:52, w:13, h:33 },
   ];
-  const AGENT_ALIAS = { Flow:"System" };   // Flow narrates through the System badge
+  // The deterministic voices — code, no agent — racked in the live room; each lights once the
+  // finished composition actually carries it (the tabla is off by default, RMA_TABLA).
+  const CODE_VOICES = [
+    { role:"drone", label:"drone" }, { role:"jod", label:"jod" }, { role:"bass", label:"bass" },
+    { role:"drums", label:"drums" }, { role:"tabla", label:"tabla" }, { role:"clean", label:"clean gtr" },
+  ];
+  // Retired agents still replay: the Conductor's final call is now the Producer's; the
+  // Arranger, the studio and the Flow narrate through the System badge.
+  const AGENT_ALIAS = { Flow:"System", Conductor:"Producer", Arranger:"System", Studio:"System" };
   const personaKey = (a) => AGENT_ALIAS[a] || (PERSONAS[a] ? a : "System");
+  const FLOW_SHAPE = Object.assign({ composer: true, listen: false, max_rounds: 2 }, window.SHRUTI_FLOW || {});
 
   // ======================================================================= //
   //  SPRITE FACTORY — parametric pixel-art chibi as SVG <rect>s.            //
@@ -648,7 +781,27 @@
     let r = P(7,4,10,3,hair) + P(7,4,1,4,hair) + P(16,4,1,4,hair);                 // hairline
     if (s.longhair) r += P(6,6,2,9,hair) + P(16,6,2,9,hair);                       // metal long hair
     if (s.topknot)  r += P(11,2,2,2,hair);                                         // a topknot
+    if (s.headphones) {                                                            // band + cups (the listeners)
+      const ac = s.accent || "#38e0cf";
+      r += P(7,2,10,1,"#2a2540") + P(6,3,1,3,"#2a2540") + P(17,3,1,3,"#2a2540");
+      r += P(5,7,3,4,"#1b1626") + P(16,7,3,4,"#1b1626") + P(5,8,1,2,ac) + P(18,8,1,2,ac);
+    }
     return r;
+  }
+
+  // Ustad is CODE since the redesign: a terminal that runs validate_composition (no LLM).
+  function drawValidator(s) {
+    const ac = s.accent;
+    let r = `<rect x="2" y="6" width="22" height="17" fill="#0e1420" stroke="#2a2138" stroke-width="1"/>`;
+    r += P(4,8,18,12,"#0a0f18");
+    for (let y=8; y<20; y+=2) r += P(4,y,18,1,"rgba(56,224,207,.07)");
+    r += P(5,10,2,1,ac) + P(8,10,7,1,"#4a6a70");                 // "$ validate"
+    r += P(5,13,2,1,ac) + P(8,13,5,1,"#4a6a70");
+    r += P(9,17,1,1,ac) + P(10,18,1,1,ac) + P(11,17,1,1,ac) + P(12,16,1,1,ac) + P(13,15,1,1,ac);  // a check mark
+    r += P(16,17,4,1,ac);                                        // cursor
+    r += P(9,23,8,2,"#1a1626") + P(5,25,16,2,"#241f30");         // stand
+    r += P(18,22,4,1,"#38e0cf");                                 // power LED
+    return svgWrap(r);
   }
 
   function drawCRT(s) {
@@ -715,6 +868,7 @@
 
   function mascotSVG(spec) {
     if (spec.device === "crt") return drawCRT(spec);
+    if (spec.device === "validator") return drawValidator(spec);
     // prop behind (tanpura/sitar/rulebook/rose on the left) then person then prop-front
     return `<div style="position:relative">
       <div style="position:absolute;inset:0">${drawProp(spec)}</div>
@@ -760,7 +914,7 @@
     r += `<circle cx="6" cy="7" r="5" fill="#1b1626" stroke="#4a4560" stroke-width="1"/>`;
     return fsvg("12 62", r);
   }
-  function fRiser() {   // the conductor's platform
+  function fRiser() {   // the listening booth's platform (the old conductor's riser)
     return fsvg("60 22", P(0,6,60,14,"#1b1626") + P(0,6,60,2,"#2a3550") + P(3,20,54,2,"#0d0a14"));
   }
   function fScreen() {  // the interpreter's listening screen (a waveform)
@@ -850,15 +1004,55 @@
   // the band
   for (const [key, p] of Object.entries(PERSONAS)) {
     const m = document.createElement("div");
-    m.className = "mascot" + (p.x > 55 ? " right" : "") + (p.face === "r" ? " flip" : "") + (p.seated ? " seated" : "");
+    m.className = "mascot" + (p.x > 55 ? " right" : "") + (p.face === "r" ? " flip" : "")
+                + (p.seated ? " seated" : "") + (p.onDemand ? " hidden" : "");
     m.style.left = p.x + "%"; m.style.top = p.y + "%";
     m.innerHTML =
       `<div class="bubble" id="bub-${key}"></div>` +
       `<div class="bob"><div class="face">${mascotSVG(p.spec)}</div></div>` +
       `<div class="nameplate"></div>`;
     stage.appendChild(m);
-    m.querySelector(".nameplate").textContent = p.name;
+    const plate = m.querySelector(".nameplate");
+    plate.textContent = p.name;
+    if (p.tag) { const t = document.createElement("span"); t.className = "np-tag"; t.textContent = p.tag; plate.appendChild(t); }
     els[key] = m;
+  }
+
+  // the code-voices rack, top of the live room
+  const codeVoicesEl = document.createElement("div");
+  codeVoicesEl.className = "codevoices";
+  codeVoicesEl.style.left = "54.5%"; codeVoicesEl.style.top = "25%"; codeVoicesEl.style.width = "29%";
+  codeVoicesEl.innerHTML = `<span class="cv-l">CODE</span>` +
+    CODE_VOICES.map(v => `<span class="cv" data-role="${v.role}" title="${v.role}: deterministic, no agent">${v.label}</span>`).join("");
+  stage.appendChild(codeVoicesEl);
+  function lightCodeVoices(comp) {
+    const roles = new Set(((comp && comp.layers) || []).map(L => L.role));
+    codeVoicesEl.querySelectorAll(".cv").forEach(c => c.classList.toggle("on", roles.has(c.dataset.role)));
+  }
+
+  // The writers' room shows WHOEVER writes the chart: the single Composer, or the legacy pair.
+  // The server's RMA_COMPOSER flag sets the idle roster; a run's events override it.
+  let writersMode = null;
+  function setWritersMode(mode) {
+    if (mode === writersMode) return;
+    writersMode = mode;
+    for (const [key, p] of Object.entries(PERSONAS))
+      if (p.writers) els[key].classList.toggle("hidden", p.writers !== mode);
+    const lbl = zoneEls.writers && zoneEls.writers.querySelector(".zlabel");
+    if (lbl) lbl.textContent = mode === "single" ? "COMPOSER · ONE OWNER" : "WRITERS ROOM · LEGACY";
+    renderFlowSteps();
+  }
+  function writersModeOf(events) {
+    for (const e of events) {
+      if (e.agent === "Composer") return "single";
+      if (e.agent === "Pandit" || e.agent === "Riffsmith") return "legacy";
+    }
+    return null;
+  }
+  // The listening booth is lit when RMA_LISTEN is on, or as soon as a Listener event shows up.
+  function setListenOn(on) {
+    els.Listener.classList.toggle("off", !on);
+    zoneEls.booth.classList.toggle("off", !on);
   }
 
   const dom = {
@@ -887,6 +1081,9 @@
     meta: document.getElementById("meta"),
     viz: document.getElementById("viz"),
     vizEmpty: document.getElementById("vizEmpty"),
+    flowbar: document.getElementById("flowbar"),
+    desk: document.getElementById("desk"),
+    deskTag: document.getElementById("deskTag"),
   };
 
   // ---- pixel-font application to the chrome (logo, labels, buttons, status) ----
@@ -907,11 +1104,21 @@
   let _rz = 0;
   window.addEventListener("resize", () => { clearTimeout(_rz); _rz = setTimeout(renderLogo, 150); });
 
+  // A persona that speaks is, by definition, on stage: an on-demand agent appears, a writers'
+  // persona switches the room to its mode, and the Listener lights the booth.
+  function reveal(key) {
+    const p = PERSONAS[key]; if (!p) return;
+    if (p.writers) setWritersMode(p.writers);
+    else if (p.onDemand) els[key].classList.remove("hidden");
+    if (key === "Listener") setListenOn(true);
+  }
+
   let activeKey = null;
   function setActive(key, opts = {}) {
     if (activeKey && els[activeKey]) els[activeKey].classList.remove("active","speaking");
     activeKey = key;
     const m = els[key]; if (!m) return;
+    reveal(key);
     m.classList.add("active");
     // move the spotlight to this mascot and light their room
     const p = PERSONAS[key];
@@ -921,7 +1128,12 @@
     glowActiveZone(p.zone);
     if (opts.say) {
       const bub = document.getElementById("bub-" + key);
-      if (bub) { bub.textContent = opts.say; m.classList.add("speaking"); }
+      if (bub) {
+        bub.textContent = opts.say;
+        bub.classList.remove("composing");
+        bub.classList.toggle("code", !!opts.code);
+        m.classList.add("speaking");
+      }
     }
   }
   function clearActive() {
@@ -939,6 +1151,254 @@
   function hideMoment() { dom.moment.className = "moment"; }
 
   // ======================================================================= //
+  //  READING THE REDESIGNED STREAM (DESIGN.md "THE REDESIGN"). The final     //
+  //  call is a VERDICT whose data = {decision, plan}; plan = the ONE          //
+  //  RevisionPlan {voice, sections, instruction, preserve}. Legacy streams    //
+  //  (a Conductor ruling {layer}, retired DEBATE events) still read cleanly.  //
+  // ======================================================================= //
+  const decisionOf = (e) => (e.data && e.data.decision) || e.verdict || null;
+  function planOf(e) {
+    const d = e.data || {};
+    if (d.plan) return d.plan;
+    if (d.layer) return { voice: d.layer, sections: [], instruction: e.text || "", preserve: [] };  // legacy Conductor
+    return null;
+  }
+  // chart sections are 0-based on the wire; the piece's STRUCTURE numbers them from 1
+  const sectionsStr = (secs) => (secs && secs.length) ? secs.map(i => "§" + (i + 1)).join(" ") : "everywhere it plays";
+  // Who made the final call. Triage is code: legality forces a revise (agent Ustad), a lead the
+  // audience can't hear forces one too (emitted as the Producer — recognised by its text), and
+  // otherwise the Producer's own call stands.
+  function callerOf(e) {
+    if (e.agent === "Ustad") return { who: "code · legality", forced: true };
+    if (e.agent === "Conductor") return { who: "the Conductor (retired)", forced: false };
+    if (/barely audible/i.test(e.text || "")) return { who: "code · silent lead", forced: true };
+    return { who: "the Producer", forced: false };
+  }
+  const isCodeSay = (e) => e.agent === "Ustad";
+  const isRetiredDebate = (e) => e.type === "debate" && e.role !== "composer";
+  const listenSummary = (e) => {
+    const d = e.data || {}, obs = ((d.report || {}).observations || []).length;
+    if (e.type !== "critique") return e.text || "";
+    return `heard ${obs} moment${obs === 1 ? "" : "s"} (advisory) · code agrees ${Math.round((d.consistency || 0) * 100)}%`;
+  };
+
+  // one-line detail rows for the session log (plans, suggestions, violations, what was heard)
+  function logDetails(e) {
+    const d = e.data || {}, out = [];
+    if (e.type === "verdict") {
+      const p = planOf(e);
+      if (decisionOf(e) === "revise" && p) {
+        out.push(`plan → ${p.voice} · ${sectionsStr(p.sections)} · ${p.instruction}`);
+        if (p.preserve && p.preserve.length) out.push(`keep: ${p.preserve.join("; ")}`);
+      }
+      out.push(`called by ${callerOf(e).who}`);
+    } else if (e.agent === "Rasik" && e.type === "critique") {
+      for (const s of (d.suggestions || [])) out.push(`suggests §${s.section + 1}: ${s.change}${s.why ? " — " + s.why : ""}`);
+    } else if (e.agent === "Producer" && e.type === "critique" && decisionOf(e)) {
+      out.push(`decision: ${String(decisionOf(e)).toUpperCase()}${planOf(e) ? " — plan goes to the final call" : ""}`);
+    } else if (e.agent === "Ustad" && e.type === "critique") {
+      for (const v of (d.violations || []).slice(0, 3)) out.push(`${v.layer} plays ${v.swara} at beat ${v.start_beat} (${v.kind})`);
+    } else if (e.agent === "Listener") {
+      for (const o of (((d.report || {}).observations) || []).slice(0, 4)) out.push(`${o.at} ${o.aspect} ${o.rating}/5 — ${o.note}`);
+    }
+    return out;
+  }
+
+  // ---- The flow strip: the redesigned pipeline, lit as its events arrive ----------------
+  const FLOW_STEPS = ["interpret","compose","develop","voices","ustad","rasik","producer","decide","revise","render","listen"];
+  const STEP_INDEX = Object.fromEntries(FLOW_STEPS.map((s, i) => [s, i]));
+  const CODE_STEPS = new Set(["voices","ustad","decide","render"]);
+  function stepLabel(id) {
+    const single = writersMode !== "legacy";
+    switch (id) {
+      case "interpret": return ["INTERPRET", "query → brief"];
+      case "compose":   return single ? ["SEED", "chart+riff+hook"] : ["CHART", "pandit⇄riffsmith"];
+      case "develop":   return single ? ["DEVELOP", "riff · lead · orch?"] : ["GENERATE", "lead · riff · orch?"];
+      case "voices":    return ["VOICES", "drone bass drums clean"];
+      case "ustad":     return ["USTAD", "legality"];
+      case "rasik":     return ["RASIK", "consults · no say"];
+      case "producer":  return ["PRODUCER", "the one judge"];
+      case "decide":    return ["TRIAGE", "final call"];
+      case "revise":    return ["REVISE", `↺ ≤${FLOW_SHAPE.max_rounds} rounds`];
+      case "render":    return ["RENDER", "→ wav"];
+      case "listen":    return ["LISTEN", "advisory"];
+    }
+    return [id.toUpperCase(), ""];
+  }
+  function renderFlowSteps() {
+    if (!dom.flowbar) return;
+    dom.flowbar.innerHTML = FLOW_STEPS.map((id, i) => {
+      const [n, s] = stepLabel(id);
+      return (i ? `<span class="fa">▸</span>` : "") +
+        `<div class="fs${CODE_STEPS.has(id) ? " code" : ""}" data-step="${id}"><span class="fs-n">${n}</span><span class="fs-s">${s}</span></div>`;
+    }).join("");
+    applyFlowState(flowNow);
+  }
+  // which step an event belongs to (`revising` = a revise verdict is being carried out)
+  function stepOf(e, revising) {
+    const a = e.agent, t = e.type, txt = e.text || "";
+    if (a === "Interpreter") return "interpret";
+    if (a === "Composer") return (t === "propose" || /core idea/i.test(txt)) ? "compose" : (revising ? "revise" : "develop");
+    if (a === "Pandit" || a === "Riffsmith" || e.role === "composer") return "compose";
+    if (a === "Lead" || a === "Riff" || a === "Orchestra" || a === "Studio") return revising ? "revise" : "develop";
+    if (a === "Flow" && /^Revise round/i.test(txt)) return "revise";
+    if (a === "Flow" && /^Revise cap/i.test(txt)) return "decide";
+    if (t === "verdict" || a === "Conductor") return "decide";
+    if (a === "Ustad") return "ustad";
+    if (a === "Rasik") return "rasik";
+    if (a === "Producer") return "producer";
+    if (a === "Listener") return "listen";
+    if (t === "render" || (a === "System" && /render/i.test(txt))) return "render";
+    return null;
+  }
+  function flowStateOf(events, upto, extra) {
+    const st = { done: new Set(), now: null, revises: 0, listen: false };
+    let revising = false;
+    const mark = (e) => {
+      const id = stepOf(e, revising);
+      if (e.type === "verdict") revising = decisionOf(e) === "revise";
+      if (e.agent === "Flow" && /^Revise cap/i.test(e.text || "")) revising = false;
+      if (e.agent === "Flow" && /^Revise round/i.test(e.text || "")) st.revises++;
+      if (e.agent === "Listener") st.listen = true;
+      if (!id) return;
+      if (st.now && st.now !== id) st.done.add(st.now);
+      st.now = id;
+      // reaching the critics means the whole piece was built and assembled before them
+      if (STEP_INDEX[id] >= STEP_INDEX.ustad && id !== "revise")
+        ["interpret","compose","develop","voices"].forEach(s => st.done.add(s));
+      if (id === "listen") st.done.add("render");
+    };
+    for (let j = 0; j <= upto && j < events.length; j++) mark(events[j]);
+    if (extra) mark(extra);
+    return st;
+  }
+  let flowNow = { done: new Set(), now: null, revises: 0, listen: false };
+  function applyFlowState(st) {
+    flowNow = st;
+    if (!dom.flowbar) return;
+    dom.flowbar.querySelectorAll(".fs").forEach(el => {
+      const id = el.dataset.step;
+      el.classList.toggle("now", st.now === id);
+      el.classList.toggle("done", st.done.has(id) && st.now !== id);
+      el.classList.toggle("off", id === "listen" && !FLOW_SHAPE.listen && !st.listen);
+      if (id === "revise") el.querySelector(".fs-s").textContent =
+        st.revises ? `↺ round ${st.revises}/${FLOW_SHAPE.max_rounds}` : stepLabel("revise")[1];
+      if (id === "listen") el.querySelector(".fs-s").textContent =
+        (FLOW_SHAPE.listen || st.listen) ? "advisory" : "advisory · off";
+    });
+  }
+  function finishFlow() {
+    const st = flowStateOf(director.events, director.events.length - 1);
+    if (st.now) st.done.add(st.now);
+    ["interpret","compose","develop","voices","render"].forEach(s => st.done.add(s));
+    st.now = null;
+    applyFlowState(st);
+  }
+
+  // ---- The judging desk: the latest of each critic + the final call, as cards ------------
+  const PRODUCER_CRITERIA = ["structure","dynamics","climax","motif","hook","balance","independence","mood_fit","repetition","performance"];
+  function pips(v) {
+    const n = Math.max(0, Math.min(5, Math.round(+v || 0)));
+    return `<span class="pips${n <= 2 ? " lo" : ""}" title="${n}/5">` +
+      [1,2,3,4,5].map(i => `<i${i <= n ? ' class="on"' : ""}></i>`).join("") + `</span>`;
+  }
+  const esc = (s) => escapeHtml(String(s == null ? "" : s));
+  const clip = (s, n) => { s = String(s || "").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+  function card(cls, title, kind, kindCode, body, off) {
+    return `<div class="card ${cls}${off ? " off" : ""}"><div class="ch"><b>${title}</b>` +
+      `<span class="kind${kindCode ? " code" : ""}">${kind}</span></div>${body}</div>`;
+  }
+  function ustadCard(e) {
+    if (!e) return card("c-ustad", "USTAD", "code · validate_composition", true,
+      `<span class="empty">runs the raga validator on the assembled piece — no LLM. Legality is a fact, not an opinion.</span>`);
+    const v = (e.data || {}).violations || [], legal = e.verdict === "legal";
+    return card("c-ustad", "USTAD", "code · validate_composition", true,
+      `<span class="badge ${legal ? "good" : "bad"}">${legal ? "LEGAL" : "ILLEGAL"}</span>${v.length} violation${v.length === 1 ? "" : "s"}` +
+      (v.length ? `<ul>${v.slice(0, 3).map(x => `<li>${esc(x.layer)} plays ${esc(x.swara)} at beat ${esc(x.start_beat)} <span class="why">(${esc(x.kind)})</span></li>`).join("")}</ul>` : "") +
+      `<div class="note">${legal ? "every voice stays inside the raga" : "an illegal piece is a forced revise — no debate"}</div>`);
+  }
+  function rasikCard(e) {
+    if (!e) return card("c-rasik", "RASIK", "llm · consultant", false,
+      `<span class="empty">scores pakad · idiom · rasa and suggests up to 3 lead edits. Advises the Producer; decides nothing.</span>`);
+    const sc = e.scores || {}, sug = (e.data || {}).suggestions || [];
+    return card("c-rasik", "RASIK", "llm · consultant", false,
+      `<div class="scores">${["pakad","idiom","rasa"].map(k => `<span class="sk">${k}</span>${pips(sc[k])}`).join("")}</div>` +
+      (sug.length ? `<ul>${sug.slice(0, 3).map(s => `<li>§${s.section + 1} ${esc(s.change)}${s.why ? ` <span class="why">— ${esc(s.why)}</span>` : ""}</li>`).join("")}</ul>`
+                  : `<div class="note">${esc(clip(e.text, 140))}</div>`));
+  }
+  function producerCard(e) {
+    if (!e) return card("c-producer", "PRODUCER", "llm · the one judge", false,
+      `<span class="empty">reads the score, the measurements and Rasik's notes, then accepts or returns ONE revision plan.</span>`);
+    const sc = e.scores || {}, d = decisionOf(e);
+    const keys = PRODUCER_CRITERIA.filter(k => k in sc).concat(Object.keys(sc).filter(k => !PRODUCER_CRITERIA.includes(k)));
+    return card("c-producer", "PRODUCER", "llm · the one judge", false,
+      (d ? `<span class="badge ${d === "accept" ? "good" : "bad"}">${String(d).toUpperCase()}</span>` : "") +
+      `<div class="scores tight">${keys.map(k => `<span class="sk">${esc(k.replace("_", " "))}</span>${pips(sc[k])}`).join("")}</div>` +
+      `<div class="note">${esc(clip(e.text, 150))}</div>`);
+  }
+  function callCard(e, passes, revises) {
+    if (!e) return card("c-call", "FINAL CALL", "code · triage", true,
+      `<span class="empty">illegal ⇒ forced revise; a lead nobody can hear ⇒ forced revise; otherwise the Producer's call stands. Bounded: ≤${FLOW_SHAPE.max_rounds} revise rounds.</span>`);
+    const d = decisionOf(e), p = planOf(e), c = callerOf(e);
+    let body = `<span class="badge ${d === "accept" ? "good" : "bad"}">${String(d || "?").toUpperCase()}</span>` +
+      `<span class="who-called">by ${esc(c.who)}</span>`;
+    if (d === "revise" && p) {
+      body += `<div class="plan">` +
+        `<div class="pr"><span class="pk">VOICE</span><span>${esc(p.voice)}</span></div>` +
+        `<div class="pr"><span class="pk">WHERE</span><span>${esc(sectionsStr(p.sections))}</span></div>` +
+        `<div class="pr"><span class="pk">DO</span><span>${esc(clip(p.instruction, 220))}</span></div>` +
+        ((p.preserve && p.preserve.length) ? `<div class="pr"><span class="pk">KEEP</span><span>${p.preserve.map(x => `<span class="keep">${esc(x)}</span>`).join("")}</span></div>` : "") +
+        `</div>`;
+    } else if (d === "accept") {
+      body += `<div class="note">render it.</div>`;
+    }
+    body += `<div class="note">critique pass ${passes}${revises ? ` · revise round ${revises}/${FLOW_SHAPE.max_rounds}` : ""}</div>`;
+    return card("c-call", "FINAL CALL", "code · triage", true, body);
+  }
+  function listenCard(e) {
+    if (!e) return card("c-listen", "LISTENING", "llm · advisory", false,
+      FLOW_SHAPE.listen ? `<span class="empty">after the render, a Pro audio judge listens blind; code cross-checks it against per-section loudness. Reports only.</span>`
+                        : `<span class="empty">off — set RMA_LISTEN=1 for a blind listen of the render. Advisory: it gates nothing.</span>`,
+      !FLOW_SHAPE.listen);
+    const d = e.data || {}, rep = d.report || {}, obs = rep.observations || [];
+    if (e.type !== "critique") return card("c-listen", "LISTENING", "llm · advisory", false, `<div class="note">${esc(clip(e.text, 160))}</div>`);
+    return card("c-listen", "LISTENING", "llm · advisory", false,
+      `<span class="badge good">${Math.round((d.consistency || 0) * 100)}%</span><span class="who-called">code agrees</span>` +
+      (obs.length ? `<ul>${obs.slice(0, 5).map(o => `<li>${esc(o.at)} ${esc(o.aspect)} ${esc(o.rating)}/5 <span class="why">— ${esc(o.note)}</span></li>`).join("")}</ul>` : "") +
+      (rep.overall_note ? `<div class="note">${esc(clip(rep.overall_note, 160))}</div>` : ""));
+  }
+  function renderDesk(events, upto) {
+    let ustad = null, rasik = null, producer = null, call = null, listen = null, passes = 0, revises = 0;
+    for (let j = 0; j <= upto && j < events.length; j++) {
+      const e = events[j];
+      if (e.agent === "Ustad" && e.type === "critique") { ustad = e; passes++; }
+      else if (e.agent === "Rasik" && e.type === "critique") rasik = e;
+      else if (e.agent === "Producer" && e.type === "critique") producer = e;
+      else if (e.agent === "Listener") listen = e;
+      if (e.type === "verdict") call = e;
+      if (e.agent === "Flow" && /^Revise round/i.test(e.text || "")) revises++;
+    }
+    dom.desk.innerHTML = ustadCard(ustad) + rasikCard(rasik) + producerCard(producer) +
+                         callCard(call, passes, revises) + listenCard(listen);
+    dom.deskTag.textContent = passes ? `— critique pass ${passes}${revises ? ` · ${revises} revise round${revises === 1 ? "" : "s"}` : ""}` : "— no critique yet";
+    els.Ustad.classList.toggle("alarm", !!(ustad && ustad.verdict === "illegal"));
+  }
+  // Everything that is a function of "the stream up to event k": the desk + the flow strip.
+  function renderRunState(k, extra) {
+    renderDesk(director.events, k);
+    applyFlowState(flowStateOf(director.events, k, extra));
+  }
+  // A fresh run: reset the on-demand roster, the desk and the strip; pick the writers' room.
+  function resetRoster(events) {
+    for (const [key, p] of Object.entries(PERSONAS)) if (p.onDemand) els[key].classList.add("hidden");
+    setListenOn(FLOW_SHAPE.listen || events.some(e => e.agent === "Listener"));
+    setWritersMode(writersModeOf(events) || (FLOW_SHAPE.composer ? "single" : "legacy"));
+    lightCodeVoices(null);
+    renderDesk([], -1);
+    applyFlowState({ done: new Set(), now: null, revises: 0, listen: false });
+  }
+
+  // ======================================================================= //
   //  The DIRECTOR — plays a DebateEvent stream with pacing + choreography.   //
   //  Same code path for the embedded replay and a live run (§9 option 1).    //
   // ======================================================================= //
@@ -948,11 +1408,21 @@
   function logEvent(e) {
     const line = document.createElement("div");
     let cls = "logline r-" + (e.role || "system");
-    if (e.type === "verdict" && e.verdict) cls += " verdict-" + e.verdict;
+    const d = decisionOf(e);
+    if (e.type === "verdict" && d) cls += " verdict-" + d;
+    if (isRetiredDebate(e)) cls += " retired";
     line.className = cls;
     const rnd = e.round != null ? `<span class="lg-round">[r${e.round}]</span>` : "";
     const sc = e.scores ? `<span class="lg-score">${scoreStr(e.scores)}</span>` : "";
-    line.innerHTML = `${rnd}<span class="lg-agent">${e.agent}</span><span class="lg-text">${escapeHtml(e.text)}</span> ${sc}`;
+    let tag = "";
+    if (e.type === "verdict") tag = "[final call]";
+    else if (e.agent === "Ustad") tag = "[code]";
+    else if (isRetiredDebate(e)) tag = "[retired debate]";
+    else if (e.agent === "Listener") tag = "[advisory]";
+    const text = e.agent === "Listener" ? listenSummary(e) : e.text;
+    const subs = logDetails(e).map(s => `<span class="lg-sub">${escapeHtml(s)}</span>`).join("");
+    line.innerHTML = `${rnd}<span class="lg-agent">${escapeHtml(e.agent)}</span>` +
+      `<span class="lg-text">${tag ? `<span class="lg-tag">${tag}</span>` : ""}${escapeHtml(text)} ${sc}${subs}</span>`;
     dom.logfeed.appendChild(line);
     dom.logfeed.scrollTop = dom.logfeed.scrollHeight;
   }
@@ -961,7 +1431,7 @@
   function setSentence(e) {
     dom.sWho.textContent = e.agent;
     dom.sWho.style.color = `var(--role-${e.role||"system"})`;
-    dom.sWhat.textContent = e.text;
+    dom.sWhat.textContent = e.agent === "Listener" ? listenSummary(e) : e.text;
   }
 
   let speed = 1;
@@ -994,6 +1464,7 @@
     choreograph(e);
     setSentence(e);
     director.i = k;
+    renderRunState(k);
     updateDirectorUI();
   }
 
@@ -1004,6 +1475,7 @@
     stopAudio();
     dom.logfeed.innerHTML = "";
     hideMoment();
+    resetRoster(events);
     dom.logTag.textContent = `— ${events.length} events`;
     if (director.mode === "step") {
       dom.composeBtn.disabled = false;            // manual mode: recompose any time
@@ -1037,10 +1509,12 @@
   // presenter chooses when to hit Play (the reveal is theirs to time).
   function finishRun(autoplay) {
     clearActive();
-    setActive("Conductor");
+    setActive("Producer");                        // the one judge whose call shipped it
     setStatus("done", "status done");
     dom.composeBtn.disabled = false;
+    finishFlow();
     loadComposition(director.comp, director.audio);
+    lightCodeVoices(director.comp);
     if (autoplay && director.comp && director.audio) startAudio();
   }
 
@@ -1082,19 +1556,31 @@
     seg.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset[attr] === val));
   }
 
-  // Money-moment banners + the Conductor's accept/revise flash — shared by the paced
-  // walkthrough (choreograph) and the live stream (liveSpeak), which differ only in HOW the
+  // The moments worth a banner since the redesign: the ONE owner's core idea (or the legacy
+  // writers negotiating), and the final call — accept, the Producer's ONE revision, or a revise
+  // CODE forced. There is no debate any more (a retired DEBATE event replays without one).
+  function bannerFor(e) {
+    if (e.agent === "Composer" && e.type === "propose") return ["cooperate", "★ THE CORE IDEA · ONE OWNER: CHART + RIFF + HOOK"];
+    if (e.role === "composer" && (e.agent === "Pandit" || e.agent === "Riffsmith")) return ["cooperate", "★ THE WRITERS NEGOTIATE THE CHART"];
+    if (e.type === "verdict") {
+      const d = decisionOf(e), p = planOf(e), c = callerOf(e);
+      if (d === "accept") return ["accept", "★ THE FINAL CALL · ACCEPT"];
+      if (c.forced) return ["revise", `! FORCED REVISE · ${c.who.toUpperCase()}`];
+      return ["revise", `★ THE FINAL CALL · REVISE THE ${String((p && p.voice) || "?").toUpperCase()}`];
+    }
+    return null;
+  }
+  // Banners + the final call's accept/revise flash — shared by the paced walkthrough
+  // (choreograph) and the live stream (liveSpeak), which differ only in HOW the
   // spotlight/bubble move.
   function stageBanners(e) {
-    if (e.role === "composer") showMoment("cooperate", "★ MONEY MOMENT · THE BAND COOPERATES");
-    else if (e.type === "debate" && e.role === "critic") showMoment("debate", "★ MONEY MOMENT · THE CRITICS DEBATE");
-    else if (e.type === "verdict" || (e.role !== "composer" && e.type !== "debate")) {
-      if (e.role !== "composer") hideMoment();
-    }
-    if (e.type === "verdict" && e.role === "conductor") {
+    const b = bannerFor(e);
+    if (b) showMoment(b[0], b[1]);
+    else if (e.role !== "composer") hideMoment();
+    if (e.type === "verdict") {
       stage.classList.remove("flash-accept","flash-revise");
       void stage.offsetWidth;                       // restart the animation
-      stage.classList.add(e.verdict === "accept" ? "flash-accept" : "flash-revise");
+      stage.classList.add(decisionOf(e) === "accept" ? "flash-accept" : "flash-revise");
     }
   }
 
@@ -1102,7 +1588,7 @@
   // walkthrough hides the previous bubble as each speaker steps up (one at a time).
   function choreograph(e) {
     stageBanners(e);
-    setActive(personaKey(e.agent), { say: shortSay(e) });   // hides the previous speaker's bubble
+    setActive(personaKey(e.agent), { say: shortSay(e), code: isCodeSay(e) });   // hides the previous speaker's bubble
   }
 
   // --- LIVE spotlight/bubble: RUNNING-aware, and it LINGERS the previous completed bubble ----
@@ -1118,6 +1604,7 @@
     if (activeKey && els[activeKey]) els[activeKey].classList.remove("active");
     activeKey = key;
     const m = els[key]; if (!m) return;
+    reveal(key);
     m.classList.add("active");
     const p = PERSONAS[key];
     stage.classList.add("lit");
@@ -1126,11 +1613,12 @@
     glowActiveZone(p.zone);
   }
 
-  function liveSetBubble(key, html, composing) {
+  function liveSetBubble(key, html, composing, code) {
     const bub = document.getElementById("bub-" + key);
     if (!bub) return;
     bub.innerHTML = html;
     bub.classList.toggle("composing", !!composing);
+    bub.classList.toggle("code", !!code && !composing);
     if (els[key]) els[key].classList.add("speaking");
   }
 
@@ -1144,7 +1632,8 @@
     liveCur = key;
     liveSpot(key);
     liveSetBubble(key, `<span class="cdot">●</span> ${escapeHtml(e.text || "composing…")}`, true);
-    setStatus(`${e.agent} composing`, "status running");
+    applyFlowState(flowStateOf(director.events, director.events.length - 1, e));   // light the step it is working on
+    setStatus(`${e.agent} ${e.role === "critic" ? "judging" : "working"}`, "status running");
     dom.sWho.textContent = e.agent; dom.sWho.style.color = `var(--role-${e.role||"system"})`;
     dom.sWhat.textContent = e.text || "composing…";
   }
@@ -1159,12 +1648,30 @@
     }
     stageBanners(e);
     liveSpot(key);
-    liveSetBubble(key, escapeHtml(shortSay(e)), false);
+    liveSetBubble(key, escapeHtml(shortSay(e)), false, isCodeSay(e));
     if (livePrev && livePrev !== key) { liveHideBubble(livePrev); livePrev = null; }
   }
 
+  // What a mascot SAYS for an event. Ustad says nothing: its terminal prints the validator's
+  // result. The final call reads as the plan it carries, not as prose.
   function shortSay(e) {
-    let t = (e.text || "").trim();
+    let t;
+    if (e.agent === "Ustad" && e.type === "critique") {
+      const n = ((e.data || {}).violations || []).length;
+      t = `$ validate_composition → ${String(e.verdict || "?").toUpperCase()} · ${n} violation${n === 1 ? "" : "s"}`;
+    } else if (e.type === "verdict") {
+      const p = planOf(e);
+      t = decisionOf(e) === "revise" && p
+        ? `REVISE the ${p.voice} (${sectionsStr(p.sections)}) — ${p.instruction}`
+        : "ACCEPT — render it.";
+      t = (e.agent === "Ustad" ? "$ triage → forced " : "final call: ") + t;
+    } else if (e.agent === "Producer" && e.type === "critique" && decisionOf(e)) {
+      t = `${String(decisionOf(e)).toUpperCase()} — ${e.text || ""}`;
+    } else if (e.agent === "Listener") {
+      t = listenSummary(e);
+    } else {
+      t = (e.text || "").trim();
+    }
     if (t.length > 90) t = t.slice(0, 88) + "…";
     return t;
   }
@@ -1175,8 +1682,10 @@
   //  reads the Composition contract and follows the WAV's clock.             //
   // ======================================================================= //
   const SEMI = { S:0, r:1, R:2, g:3, G:4, m:5, M:6, P:7, d:8, D:9, n:10, N:11 };
-  const VOICE_COLOR = { drone:"#6a5a8a", bass:"#b8532a", rhythm:"#d9702a", lead:"#f2b53c", drums:"#ff2e88", tabla:"#38e0cf" };
-  const VOICE_ORDER = ["lead","rhythm","bass","drone","drums","tabla"];
+  const VOICE_COLOR = { drone:"#6a5a8a", jod:"#8a7aa8", bass:"#b8532a", rhythm:"#d9702a", lead:"#f2b53c",
+                        clean:"#9ad0c8", orch:"#c9a0ff", drums:"#ff2e88", tabla:"#38e0cf" };
+  const VOICE_ORDER = ["lead","rhythm","clean","orch","bass","jod","drone","drums","tabla"];
+  const laneOf = (role) => (role || "").indexOf("orch_") === 0 ? "orch" : role;   // strings/brass/choir/timpani share one lane
 
   const audioEl = document.getElementById("audioEl");   // the FluidSynth WAV plays through a real <audio>
   let currentComp = null, compDur = 0, songDur = 0, rafId = 0;
@@ -1198,7 +1707,8 @@
     dom.playBtn.disabled = !playable; dom.stopBtn.disabled = !playable;
     dom.playBtn.classList.toggle("ready", playable);
     dom.vizEmpty.style.display = comp ? "none" : "flex";
-    if (comp) { renderMeta(comp); drawViz(0); }
+    if (comp) renderMeta(comp); else dom.meta.innerHTML = "";   // never leave a previous run's score on screen
+    drawViz(0);
     updateTime(0);
   }
   function updateTime(el) { dom.time.textContent = `${fmt(el || 0)} / ${fmt(songDur)}`; }
@@ -1209,7 +1719,7 @@
       `<span class="chip-meta">raga <b>${comp.raga}</b></span>` +
       `<span class="chip-meta">tala <b>${t.name||"?"}</b></span>` +
       `<span class="chip-meta">bpm <b>${comp.bpm}</b></span>` +
-      `<span class="chip-meta">voices <b>${comp.layers.length}</b></span>`;
+      `<span class="chip-meta">voices <b>${new Set(comp.layers.map(L => laneOf(L.role))).size}</b></span>`;
   }
 
   // The song is the FluidSynth-rendered WAV (out/*.wav live, state.wav_path from a run).
@@ -1235,7 +1745,7 @@
     if (!currentComp || compDur <= 0) return;
     const dur = songDur || compDur;                 // the WAV's length is the timeline
     const spb = 60/currentComp.bpm;
-    const lanes = VOICE_ORDER.filter(r => currentComp.layers.some(L => L.role===r));
+    const lanes = VOICE_ORDER.filter(r => currentComp.layers.some(L => laneOf(L.role)===r));
     const laneH = H / lanes.length;
     // lane backgrounds + labels
     lanes.forEach((r,i)=>{
@@ -1246,8 +1756,8 @@
     });
     // note blocks
     for (const L of currentComp.layers) {
-      const li = lanes.indexOf(L.role); if (li<0) continue;
-      const col = VOICE_COLOR[L.role] || "#888";
+      const li = lanes.indexOf(laneOf(L.role)); if (li<0) continue;
+      const col = VOICE_COLOR[laneOf(L.role)] || "#888";
       const y0 = li*laneH;
       const items = (L.notes||[]).map(n=>({s:n.start,d:n.dur,p:(SEMI[n.swara]??0)+(n.oct||0)*12}))
                  .concat((L.hits||[]).map(h=>({s:h.start,d:h.dur,p:6})));
@@ -1347,6 +1857,7 @@
     hideMoment();
     clearActive();                                 // drop any bubbles/spotlight from a prior run
     liveResetChoreo();                             // reset the RUNNING-aware linger state
+    resetRoster([]);                               // idle roster from the server's flags; events take over
     dom.logTag.textContent = "— streaming…";
     dom.composeBtn.disabled = true;
     setStatus("composing (live)", "status running");
@@ -1360,7 +1871,7 @@
     logEvent(e);                                   // append this beat to the session log
     setSentence(e);
     liveSpeak(e);                                  // linger-aware spotlight/bubble (not choreograph)
-    director.i = k; updateDirectorUI();
+    director.i = k; renderRunState(k); updateDirectorUI();
     dom.logTag.textContent = `— ${director.events.length} events`;
   }
   function liveFinish(comp, audio) {
@@ -1433,7 +1944,7 @@
       dom.composeBtn.disabled = true;
       setStatus("calling the crew…", "status running");
       dom.sWho.textContent = "System"; dom.sWho.style.color = "var(--role-system)";
-      dom.sWhat.textContent = "running the live crew — interpret → compose → critique → conductor…";
+      dom.sWhat.textContent = "running the live crew — interpret → compose → critique → final call…";
       try {
         await streamCompose(query);      // streams events live and drives the whole run + reveal
       } catch (err) {
@@ -1453,57 +1964,84 @@
   //  matching Composition, so this file runs the full show with no backend.  //
   //  The live server replaces both via /api/compose through the same path.   //
   // ======================================================================= //
+  // The redesigned stream (composer mode): Interpreter → the Composer's SEED → DEVELOP (riff,
+  // lead) → Ustad (code) → Rasik (consults) → Producer (decides) → the final call (a VERDICT,
+  // data = {decision, plan}) → one edit-based revise of the plan's sections → re-critique →
+  // accept → the advisory listening pass. Every shape matches what crew/ emits.
   const DEMO_EVENTS = [
-    {type:"info", agent:"Interpreter", role:"system", text:"heard: raga=Darbari, key=D, subgenre=doom — mood, tempo, tala left open."},
-    {type:"info", agent:"Interpreter", role:"system", text:"brief: Darbari Kanada in D, doom feel; the band picks tala, tempo, instruments."},
-    {type:"info", agent:"System", role:"system", text:"Composer dialogue: Pandit ⇄ Riffsmith, 2 rounds.", round:1},
-    {type:"propose", agent:"Pandit", role:"composer", round:1,
-     text:"Darbari lives in the lower octave — brood on komal g and d, a slow ektaal.",
-     data:{draft:"Darbari · teentaal · alaap→riff→taan", reasoning:"anchor the vadi (R), let the andolan on d carry the weight."}},
-    {type:"debate", agent:"Riffsmith", role:"composer", round:2,
-     text:"Keep the brood, but half-time teentaal so the riff crushes. I'll seat the pakad on the sam.",
-     data:{reasoning:"doom wants space; 16 matras at ~78 gives room for the chug."}},
-    {type:"info", agent:"Pandit", role:"composer", text:"agrees — the chart serves both sides."},
+    {type:"info", agent:"Interpreter", role:"system", text:"heard: {'raga': 'darbari', 'key': 'D', 'subgenre': 'doom', 'mood': 'dark'}"},
+    {type:"info", agent:"Interpreter", role:"system", text:"brief: raga=darbari · sa=D · subgenre=doom · mood=dark · tala/tempo/form OPEN"},
+    {type:"propose", agent:"Composer", role:"composer",
+     text:"the core idea: gat form in darbari, teentaal @ 72 — intro → mukhada → manjha → mukhada → antara → taan_long → outro",
+     data:{form:"gat", anchor:"riff_first", main_slot:"main",
+           reasoning:"Darbari broods in the mandra: a crushing low riff on S with a komal-g grind; the hook quotes the pakad g-m-R-S on the sam.",
+           energy_arc:["low","mid","mid","high","mid","peak","low"],
+           main_riff:["S","S","g","S","m","P","d","P","S","S","g","R"],
+           hook:["g","m","R","S","d","n","P","m","P","g","m","R","S"]}},
     {type:"propose", agent:"Riff", role:"generator",
-     text:"riff: 1-cycle riff, 8 notes/cycle, palm-muted, pakad on the sam.",
-     data:{reasoning:"root-fifth chug on S–P, komal g accent off the beat.", swaras:["S","S","g","S","m","P","d","P"]}},
-    {type:"propose", agent:"Lead", role:"generator",
-     text:"taan: 12 notes over 16 beats [sitar] — a scale run to the peak.",
-     data:{voicing:"sitar", reasoning:"climb S R g m P d n to taar Sa.", swaras:["S","R","g","m","P","d","n","S"]}},
-    {type:"critique", agent:"Ustad", role:"critic", round:1, verdict:"legal",
-     text:"All notes sit inside Darbari — legal.",
-     data:{violations:[], reasoning:"every swara ∈ {S R g m P d n}; the validator passes."}},
-    {type:"critique", agent:"Rasik", role:"critic", round:1,
-     text:"Legal, but the taan runs the scale — the pakad never lands. Missing andolan on d.",
-     scores:{pakad:2, idiom:3, rasa:3}, data:{reasoning:"a straight ascent dilutes the raga; needs vakra phrasing."}},
-    {type:"critique", agent:"Producer", role:"critic", round:1,
-     text:"The riff hooks, but the arc is flat — the taan peaks too early and nothing resolves.",
-     scores:{structure:3, dynamics:2, climax:2, motif:3, hook:4, balance:3, independence:3, mood_fit:4, repetition:3},
-     data:{reasoning:"energy curve is nearly level; no reserved climax."}},
-    {type:"info", agent:"System", role:"system", text:"Aesthetic conflict — Rasik (soul) vs Producer (works-as-song). Debate.", round:1},
-    {type:"debate", agent:"Rasik", role:"critic", round:1, verdict:"revise",
-     text:"Rebuild the taan from the pakad — vakra, andolit d — or it's just a scale in costume.",
-     data:{reasoning:"authenticity is the point; a scalar run fails the raga.", target_layer:"lead"}},
-    {type:"debate", agent:"Producer", role:"critic", round:1, verdict:"revise",
-     text:"Agreed it's the lead — and reserve the peak for the last cycle so the climax is earned.",
-     data:{reasoning:"one fix serves both: a shaped taan lands the arc.", target_layer:"lead"}},
-    {type:"verdict", agent:"Conductor", role:"conductor", round:1, verdict:"revise",
-     text:"Revise the lead: build the taan from the pakad (vakra, andolit d) and hold the peak for the climax.",
-     data:{layer:"lead", reasoning:"both critics converge on the lead; legality already holds."}},
-    {type:"info", agent:"Flow", role:"system", text:"Revise round 2: regenerating 'lead' per the Conductor.", round:2},
-    {type:"propose", agent:"Lead", role:"generator", round:2,
-     text:"taan: pakad-derived, vakra phrasing, andolan on d, peak held to the last cycle.",
-     data:{voicing:"sitar", reasoning:"seed g-m-R-S from the pakad; sequence up, resolve to Sa on the sam.", swaras:["g","m","R","S","d","n","S"]}},
-    {type:"critique", agent:"Ustad", role:"critic", round:2, verdict:"legal", text:"Still legal.", data:{violations:[]}},
-    {type:"critique", agent:"Rasik", role:"critic", round:2,
-     text:"Now it sings Darbari — the pakad lands and the andolan carries the weight.",
-     scores:{pakad:4, idiom:4, rasa:4}, data:{reasoning:"vakra motion + oscillated d reads as the raga."}},
-    {type:"critique", agent:"Producer", role:"critic", round:2,
-     text:"The arc breathes now — the climax is earned and it resolves on the sam.",
-     scores:{structure:4, dynamics:4, climax:4, motif:4, hook:4, balance:4, independence:4, mood_fit:4, repetition:4}},
-    {type:"verdict", agent:"Conductor", role:"conductor", round:2, verdict:"accept",
-     text:"Accept — soul and song agree. Render it.", data:{reasoning:"both rubrics clear the floor; ship it."}},
-    {type:"render", agent:"System", role:"system", text:"Rendered the full band — press Play."},
+     text:"main riff: 2-bar, 12 notes/cycle (drive mode)",
+     data:{slot:"main", mode:"drive", reasoning:"the seed riff, voiced: power chords on S and P, the komal-g grind off the beat.",
+           swaras:["S","S","g","S","m","P","d","P","S","S","g","R"]}},
+    {type:"info", agent:"Riff", role:"generator", text:"reprise: the main riff returns (riff, 2 bars)", data:{slot:"main", reprise:true}},
+    {type:"propose", agent:"Lead", role:"generator", text:"intro: 21 notes over 48 beats [sitar]",
+     data:{voicing:"sitar", reasoning:"seed: the pakad's g-m-R-S · contour: rise to P, fall home · climax: none — an alap holds tension",
+           swaras:["S","R","g","R","S","n","d","n","S","R","g","m","P","g","m","R","S"]}},
+    {type:"propose", agent:"Lead", role:"generator", text:"mukhada: 13 notes over 16 beats [unison]",
+     data:{voicing:"unison", reasoning:"the seed hook, verbatim — it lands on the sam every avartan.",
+           swaras:["g","m","R","S","d","n","P","m","P","g","m","R","S"]}},
+    {type:"info", agent:"Lead", role:"generator", text:"reprise: the mukhada returns (1 avartan)", data:{form_role:"mukhada", reprise:true}},
+    {type:"propose", agent:"Lead", role:"generator", text:"taan_long: 32 notes over 32 beats [unison]",
+     data:{voicing:"unison", reasoning:"seed: S R g m · contour: a straight climb to taar Sa · climax: the final avartan",
+           swaras:["S","R","g","m","P","d","n","S","n","d","P","m","g","R","S"]}},
+    {type:"critique", agent:"Ustad", role:"critic", verdict:"legal",
+     text:"All notes sit inside Darbari Kanada — the piece is legal in the raga.",
+     data:{violations:[], reasoning:"validate_composition returned 0 violation(s)."}},
+    {type:"critique", agent:"Rasik", role:"critic",
+     text:"The hook sings Darbari, but the long taan climbs the scale straight — the andolan on komal g never comes.",
+     scores:{pakad:4, idiom:2, rasa:3},
+     data:{reasoning:"pakad quoted in the mukhada; the taan is a scalar run, which dilutes the raga.",
+           suggestions:[
+             {section:5, change:"build the taan's descent from the pakad g-m-R-S, with a slow andolan on komal g", why:"Darbari's g is oscillated, never sung flat"},
+             {section:4, change:"let the antara touch taar Sa through n-S, not P-S", why:"the vakra approach is the raga's chalan"}]}},
+    {type:"critique", agent:"Producer", role:"critic", verdict:"revise",
+     text:"The riff and the hook are the song — but the long taan peaks too early and the climax is unearned.",
+     scores:{structure:4, dynamics:3, climax:2, motif:4, hook:4, balance:3, independence:3, mood_fit:4, repetition:3, performance:3},
+     data:{reasoning:"energy curve flattens after the antara; the peak arrives two avartans early.", decision:"revise",
+           plan:{voice:"lead", sections:[5],
+                 instruction:"rebuild the long taan from the pakad (Rasik's suggestion) with an andolan on komal g, and hold the peak for its final avartan",
+                 preserve:["the mukhada", "the main riff's rhythm"]}}},
+    {type:"verdict", agent:"Producer", role:"critic", verdict:"revise",
+     text:"Revise the lead: rebuild the long taan from the pakad (Rasik's suggestion) with an andolan on komal g, and hold the peak for its final avartan",
+     data:{decision:"revise",
+           plan:{voice:"lead", sections:[5],
+                 instruction:"rebuild the long taan from the pakad (Rasik's suggestion) with an andolan on komal g, and hold the peak for its final avartan",
+                 preserve:["the mukhada", "the main riff's rhythm"]}}},
+    {type:"info", agent:"Flow", role:"system",
+     text:"Revise round 1: reworking the lead — rebuild the long taan from the pakad (Rasik's suggestion) with an andolan on komal g, and hold the peak for its final avartan"},
+    {type:"propose", agent:"Lead", role:"generator", text:"taan_long: 30 notes over 32 beats [unison]",
+     data:{voicing:"unison", reasoning:"seed: g-m-R-S from the pakad · transformations: vakra sequence, andolan on g · climax: the last avartan",
+           swaras:["g","m","R","S","R","g","m","P","d","n","P","m","g","m","R","S"]}},
+    {type:"critique", agent:"Ustad", role:"critic", verdict:"legal",
+     text:"All notes sit inside Darbari Kanada — the piece is legal in the raga.",
+     data:{violations:[], reasoning:"validate_composition returned 0 violation(s)."}},
+    {type:"critique", agent:"Rasik", role:"critic",
+     text:"Now the taan is Darbari — the pakad returns and the andolan carries the weight.",
+     scores:{pakad:4, idiom:4, rasa:4},
+     data:{reasoning:"vakra motion + an oscillated g reads as the raga.", suggestions:[]}},
+    {type:"critique", agent:"Producer", role:"critic", verdict:"accept",
+     text:"The arc breathes — the climax is earned on the last avartan and resolves on the sam.",
+     scores:{structure:4, dynamics:4, climax:4, motif:4, hook:4, balance:4, independence:3, mood_fit:4, repetition:4, performance:4},
+     data:{reasoning:"the reserved peak gives the outro somewhere to fall from.", decision:"accept", plan:null}},
+    {type:"verdict", agent:"Producer", role:"critic", verdict:"accept",
+     text:"The Producer accepts the piece.", data:{decision:"accept", plan:null}},
+    {type:"critique", agent:"Listener", role:"critic",
+     text:"  LISTENING PASS — ADVISORY: an audio model's timestamped impressions of the RENDER, checked by code but NOT calibrated against Sujit's ear. Weigh it as a hint, never as a verdict. Code consistency: 83%.",
+     data:{advisory:true, consistency:0.83,
+           report:{overall_note:"Heavy and patient; the sitar sits clear of the guitars except in the antara.",
+                   observations:[
+                     {at:"00:41", aspect:"riff_heaviness", rating:4, note:"the main riff lands hard on the sam"},
+                     {at:"01:52", aspect:"lead_audibility", rating:2, note:"the sitar ducks under the guitars in the antara"},
+                     {at:"02:58", aspect:"climax", rating:4, note:"the last taan avartan is the loudest moment"}]}}},
   ];
 
   // A small Darbari (Aeolian: S R g m P d n) piece in D (sa=62), teentaal, ~78 bpm.
@@ -1538,12 +2076,12 @@
       for(let h=0;h<cycle;h+=1) drums.push({drum:"hat",start:b+h,dur:.1,vel:70});
     }
     layers.push({role:"drums", instrument:"kit", hits:drums});
-    // tabla: a light teentaal-ish theka under the kit
-    const tabla = [];
+    // clean guitar (code): a modal-pedal arpeggio of raga tones per beat (the tabla is off by default)
+    const clean = [];
     for (let c=0;c<cycles;c++){ const b=c*cycle;
-      [0,2,4,6,8,10,12,14].forEach((m,i)=> tabla.push({drum:(i%2? "tabla_hi":"tabla_low"), start:b+m, dur:.15, vel:64}));
+      for (let h=0;h<cycle;h+=1) clean.push({swara:["S","g","P","g"][h%4], oct:0, start:b+h, dur:1, vel:58});
     }
-    layers.push({role:"tabla", instrument:"tabla", hits:tabla});
+    layers.push({role:"clean", instrument:"clean_guitar", notes:clean});
     return { raga:"darbari", sa, bpm, tala:{name:"teentaal", beats_per_bar:16}, layers };
 
     function expandCell(cell, cycle, cycles, baseOct, vel) {
@@ -1560,6 +2098,7 @@
   // Idle: pixel-render the chrome, then put the interpreter in the light.
   applyPixelFonts();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(applyPixelFonts);
+  resetRoster([]);                 // the idle roster: the server's RMA_COMPOSER / RMA_LISTEN flags
   setActive("Interpreter");
   loadComposition(null);
 })();

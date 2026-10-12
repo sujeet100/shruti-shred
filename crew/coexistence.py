@@ -10,7 +10,7 @@ over it at that instant.
 
 Measured on `out/fusion_20260720_183403.json` (2026-09-14): 86% of riff notes sound
 underneath a lead note, and a THIRD of those moments sit at a semitone, tritone or major
-seventh against it. `generators.harmonize_riff_to_lead` catches part of that — but only
+seventh against it. The old `generators.harmonize_riff_to_lead` guard caught part of that — but only
 under lead notes held a beat or longer (62 of the 163 harsh moments; the other 101 it never
 looks at), and it only DAMPENS: the clash becomes a duller chug, nothing is recomposed, and
 no evidence survives. The guard is damage control, so the failure is invisible to every
@@ -19,9 +19,10 @@ critic and to us.
 This module makes it visible. It is pure detection — the CHECKABLE half, which by our
 standing rule belongs in code: interval arithmetic against the melody, classified by what
 the melody is doing at that moment. It fixes nothing and judges no taste. Whether a flagged
-moment should be repaired, and how, is the musical question an arranger pass answers later;
-this report is the evidence it reads (`render_coexistence`), and the trigger that decides
-whether it needs to run at all (a clean section costs no tokens).
+moment matters musically is a judgment, not a fact; this report is the evidence. SINCE THE REDESIGN
+(2026-10-11) nothing repairs these moments: Sujit preferred KEEPING the grinds by ear, the
+Arranger agent and the damping guard are gone, and this report is information the Producer
+reads (`render_friction`) — never a fault list.
 
 TWO findings, deliberately separate because they have different cures:
 
@@ -128,8 +129,7 @@ class CoexistenceReport:
 
     @property
     def flagged(self) -> tuple[SectionCoexistence, ...]:
-        """The sections an arranger pass would need to look at — everything else costs
-        nothing, which is the point of detecting in code before spending a token."""
+        """The sections with any settled-note grind or root chase."""
         return tuple(s for s in self.sections if not s.clean)
 
     @property
@@ -285,11 +285,25 @@ def _render_section(section: SectionCoexistence) -> list[str]:
 
 
 def render_coexistence(report: CoexistenceReport) -> str:
-    """The report as the prompt block an arranger pass reads — code measures, the LLM
-    decides the repair. Flagged sections only; a clean piece says so in one line."""
+    """The detailed report (every grind and chase) — the diagnostic view. Flagged sections
+    only; a clean piece says so in one line. The Producer reads `render_friction` instead."""
     if report.clean:
         return "COEXISTENCE: the riff and the melody coexist in every section."
     lines = ["COEXISTENCE — where the riff and the melody fight (code-measured):"]
     for section in report.flagged:
         lines += _render_section(section)
+    return "\n".join(lines)
+
+
+def render_friction(report: CoexistenceReport) -> str:
+    """The report as the Producer reads it: per-section COUNTS of settled-note grinds and
+    root chases, framed as information, not faults (Sujit kept the grinds by ear, 2026-10-11 —
+    a half-step against the sitar is often the sound). Pure."""
+    lines = ["  riff vs melody friction, per section (a half-step grind against a held note "
+             "is often the metal sound — judge it, do not count it as a fault):"]
+    for section in report.sections:
+        label = section.form_role or section.kind
+        lines.append(f"    section {section.index} ({label}): {len(section.grinds)} grind(s) "
+                     f"under settled notes, {section.passing_grinds} under passing notes, "
+                     f"{len(section.chases)} root chase(s), of {section.riff_notes} riff notes")
     return "\n".join(lines)

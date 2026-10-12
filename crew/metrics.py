@@ -21,6 +21,7 @@ Each metric maps to Producer rubric criteria:
   * drums_tabla_overlap               -> independence (kit and tabla playing in lockstep)
   * register_overlaps                 -> balance (voices colliding in one octave)
   * always_on_fraction                -> balance (no arrangement space — everyone always on)
+  * lead_coverage (decay-aware)       -> balance (is the lead actually HEARD where it leads?)
 
 These are DELIBERATELY facts, not verdicts: a high motif_share is not "bad", it is a
 number the Producer interprets (too high = no development, too low = motif dropped).
@@ -31,7 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from crew.contracts import Arrangement, Composition, Layer
+from crew.contracts import Arrangement, Composition, Layer, Note
 from crew.generators import section_spans
 
 # Voices whose octave ranges we check for collisions — the melodic/rhythmic parts. The
@@ -43,6 +44,19 @@ _RHYTHM_ROLE: Final = "rhythm"
 # a "flat" arc, the Producer's cue that nothing builds.
 _FLAT_RATIO: Final[float] = 0.15
 
+# A plucked lead note is AUDIBLE for at most this many beats after its stroke, however long it
+# is written — the same physical limit as `crew/lead.py` `_PLUCK_SUSTAIN_MAX` (restated, not
+# imported: lead.py pulls in crewai and this module stays LLM-free). The first live run held one
+# sitar note 48 beats: on the score it read as melody, in the audio it was ~30 s of silence.
+_PLUCK_DECAY_BEATS: Final[float] = 4.0
+# Lead timbres that SUSTAIN as written (a distorted lead guitar holds its note); every other lead
+# instrument — the sitar, or an unnamed lead — is plucked and decays.
+_SUSTAINING_LEADS: Final = frozenset({"lead_guitar"})
+_LEAD_ROLE: Final = "lead"
+# Below this audible share, a section the lead is supposed to carry is a PHYSICAL fault, not a
+# taste call — `crew/triage.py` forces a lead revise of it, the way an illegal note forces one.
+LEAD_STARVED_COVERAGE: Final[float] = 0.40
+
 
 @dataclass(frozen=True)
 class SectionEnergy:
@@ -53,6 +67,20 @@ class SectionEnergy:
     mean_vel: float             # average velocity of the pitched notes (0 if none)
     ornament_rate: float        # fraction of the section's pitched notes carrying a kan/meend
     energy: float               # composite index = active_voices * mean_vel / 127
+
+
+@dataclass(frozen=True)
+class LeadCoverage:
+    """How much of one lead-playing section the lead is actually HEARD — decay-aware."""
+    index: int                  # chart index (0-based, as `RevisionPlan.sections` reads it)
+    kind: str
+    spotlight: bool             # the section's foreground is the lead
+    coverage: float             # share of the section's beats with a lead note still sounding
+
+    @property
+    def starved(self) -> bool:
+        """A lead-spotlight section where the lead is mostly silence."""
+        return self.spotlight and self.coverage < LEAD_STARVED_COVERAGE
 
 
 @dataclass(frozen=True)
@@ -76,13 +104,14 @@ class ProducerMetrics:
     always_on_fraction: float   # fraction of sections where EVERY present voice plays
     # PERFORMANCE — how the score behaves when musicians PLAY it, as opposed to how it reads.
     # No agent hears audio, so a piece can be compositionally excellent and still arrive as a
-    # string of clicks in dead air. `verify_riff` polices these per CYCLE; these are the
-    # piece-level views it cannot see.
+    # string of clicks in dead air. `riff_texture.texture_notes` reports these per CYCLE;
+    # these are the piece-level views it cannot see.
     rhythm_ring_share: float    # share of the rhythm guitar's sounding time in OPEN notes >= 1 beat
     rhythm_chug_share: float    # share of its notes marked palm_mute (the chug ground)
     rhythm_silence_share: float # share of the rhythm's span with nothing sounding (hollowness)
     flat_chug_runs: int         # runs of 4+ chugs at ONE velocity (the programmed tell)
     accompaniment_grinds: int   # sustained accompaniment tones clashing with a settled melody note
+    lead_coverage: list[LeadCoverage]  # per lead-playing section: how much of it the lead SOUNDS
 
 
 # --------------------------------------------------------------------------- #
@@ -372,6 +401,46 @@ def _accompaniment_grinds(comp: Composition, arr: Arrangement) -> int:
                if n.dur >= _RING_MIN_DUR and n.swara in avoided_at(guide, n.start))
 
 
+def _audible_window(note: Note, instrument: str | None) -> tuple[float, float]:
+    """The beats a lead note is actually heard: its whole length on a sustaining timbre, at
+    most the pluck's decay on a plucked one."""
+    held = note.dur if instrument in _SUSTAINING_LEADS else min(note.dur, _PLUCK_DECAY_BEATS)
+    return note.start, note.start + held
+
+
+def _lead_windows(comp: Composition) -> list[tuple[float, float]]:
+    """Every lead note's audible window across all lead timbres, sorted by onset."""
+    return sorted(_audible_window(n, ly.instrument) for ly in comp.layers
+                  if ly.role == _LEAD_ROLE for n in ly.notes or [])
+
+
+def _covered_beats(windows: list[tuple[float, float]], start: float, end: float) -> float:
+    """Beats of [start, end) inside the UNION of sorted windows — overlapping notes (a unison
+    double, a chord, a re-strike over a ringing note) never count twice."""
+    covered, edge = 0.0, start
+    for onset, release in windows:
+        lo, hi = max(onset, edge), min(release, end)
+        if hi > lo:
+            covered += hi - lo
+            edge = hi
+    return covered
+
+
+def lead_coverage(comp: Composition, arr: Arrangement) -> list[LeadCoverage]:
+    """Per section the lead plays in: the share of its beats where a lead note still SOUNDS,
+    a note counting only until its pluck decays. Pure; the input to the starved-lead fault."""
+    windows = _lead_windows(comp)
+    rows: list[LeadCoverage] = []
+    for span in section_spans(arr):
+        if _LEAD_ROLE not in span.section.layers or span.length <= 0:
+            continue
+        share = _covered_beats(windows, span.start, span.end) / span.length
+        rows.append(LeadCoverage(index=span.index, kind=span.section.kind.value,
+                                 spotlight=span.section.foreground == _LEAD_ROLE,
+                                 coverage=round(share, 3)))
+    return rows
+
+
 def composition_metrics(comp: Composition, arr: Arrangement) -> ProducerMetrics:
     """Measure the composition against its chart — the facts the Producer judges. Pure."""
     energy = _section_energy(comp, arr)
@@ -399,12 +468,26 @@ def composition_metrics(comp: Composition, arr: Arrangement) -> ProducerMetrics:
                                 / max(1, len(rhythm)), 3),
         rhythm_silence_share=_silence_share(rhythm),
         flat_chug_runs=_flat_chug_runs(rhythm),
-        accompaniment_grinds=_accompaniment_grinds(comp, arr))
+        accompaniment_grinds=_accompaniment_grinds(comp, arr),
+        lead_coverage=lead_coverage(comp, arr))
 
 
 # --------------------------------------------------------------------------- #
 # Facts -> prompt text. The Producer reads these numbers and JUDGES them.       #
 # --------------------------------------------------------------------------- #
+
+def _render_lead_coverage(rows: list[LeadCoverage]) -> list[str]:
+    """The audible-lead line, numbered like THE STRUCTURE (0-based), starved spotlights flagged."""
+    if not rows:
+        return []
+    cells = [f"{r.index}.{r.kind}={r.coverage:.0%}"
+             + (f" (lead spotlight, STARVED — under {LEAD_STARVED_COVERAGE:.0%})" if r.starved
+                else "")
+             for r in rows]
+    return [f"    audible lead per section (share of the section where a lead note still sounds; "
+            f"a plucked sitar note fades ~{_PLUCK_DECAY_BEATS:g} beats after its stroke, so a "
+            f"longer hold is silence): " + "  ".join(cells)]
+
 
 def render_metrics(metrics: ProducerMetrics) -> str:
     """Render the computed facts as a compact grounding block for the Producer prompt."""
@@ -415,7 +498,7 @@ def render_metrics(metrics: ProducerMetrics) -> str:
     if metrics.energy:
         peak_kind = metrics.energy[metrics.peak_index].kind
         arc = "FLAT — energy barely moves across the piece" if metrics.is_flat else (
-            f"peaks at section {metrics.peak_index + 1} ({peak_kind}); "
+            f"peaks at section {metrics.peak_index} ({peak_kind}); "
             + ("resolves afterwards" if metrics.resolves else "does NOT resolve after the peak"))
         lines.append(f"  arc: {arc}")
         lines.append("  active voices per section: "
@@ -452,4 +535,5 @@ def render_metrics(metrics: ProducerMetrics) -> str:
                  f"{metrics.flat_chug_runs}")
     lines.append(f"    sustained accompaniment tones clashing with a settled melody note: "
                  f"{metrics.accompaniment_grinds}")
+    lines += _render_lead_coverage(metrics.lead_coverage)
     return "\n".join(lines)

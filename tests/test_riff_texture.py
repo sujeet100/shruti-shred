@@ -1,13 +1,13 @@
 """
 Tests for the riff TEXTURE layer — all pure (no key, no cost).
 
-The diagnosis this layer answers (measured on a live render): the rhythm guitar wrote a
-busy low melody — 79% pitch changes, no chug ground, bright add9/tenth stacks, nothing
-sustained. Everything here is provable without the LLM: the mode is decided by CODE from
-the section's gat role, each mode's budgets catch the diagnosed failures (melody-not-riff,
-no silence, unweighted sam, colour overload, pads that don't ring, stabs without space),
-a clean idiomatic cycle passes, and `verified_riff` re-rolls with the exact violations as
-feedback, keeping the best of a bounded number of takes.
+Since 2026-10-11 the layer has two halves (the A/B/C experiment — the riff Sujit judged best
+failed the old budgets twice). `verify_riff` REJECTS only what is physical: the cycle fills
+to the sam, a mute cannot sustain, a chord cannot bend. `texture_notes` REPORTS the mode's
+recipe (chugs, rings, silence, weight, rations, hook, rhythmic variety) without ever forcing a
+re-roll, and `texture_measures` gives pitch economy as plain numbers with no pass line. The
+mode is decided by CODE from the section's gat role, and `verified_riff` re-rolls only on a
+hard fault, keeping the best of a bounded number of takes.
 
 Runs as a script (`uv run python tests/test_riff_texture.py`) or under pytest.
 """
@@ -27,6 +27,10 @@ from crew.riff_texture import (  # noqa: E402
     _chug_the_ground,
     open_the_rings,
     riff_mode_for,
+    riff_severity,
+    riff_underfilled,
+    texture_measures,
+    texture_notes,
     verified_riff,
     verify_riff,
 )
@@ -98,6 +102,26 @@ def _melody() -> RiffPattern:
     return RiffPattern(notes=[_n(s, 0.5) for s in swaras])
 
 
+def _hard(pattern: RiffPattern) -> list[str]:
+    """What REJECTS a cycle: physics and the loop, nothing else."""
+    return verify_riff(pattern, cycle_beats=_CYCLE)
+
+
+def _notes(pattern: RiffPattern, mode: RiffMode = RiffMode.DRIVE) -> list[str]:
+    """What is only REPORTED: the mode's texture recipe."""
+    return texture_notes(pattern, mode=mode, cycle_beats=_CYCLE)
+
+
+def _shuffle() -> RiffPattern:
+    """Song A's riff in miniature (the one Sujit judged best): a half-step SHUFFLE between Sa
+    and komal re with gallops — roots change on most strokes and Sa holds under half of them.
+    The old budgets rejected this twice (ground share, change rate)."""
+    return RiffPattern(notes=[
+        _n("S", 0.5), _n("S", 0.25), _n("S", 0.25), _n("r", 0.5), _n("S", 0.5), _n("r", 0.5),
+        _n("r", 0.25), _n("S", 0.25), _n("r", 0.5), _n("d", 0.5), _n("P", 0.5), _n("S", 1.0),
+        _n("r", 0.5), _n("S", 1.0), _n("S", 1.0, rest=True)])
+
+
 # --- the mode is decided by CODE from the section's gat role ---------------------
 
 def test_mode_follows_the_form_role_over_the_kind():
@@ -107,9 +131,10 @@ def test_mode_follows_the_form_role_over_the_kind():
     assert riff_mode_for(_section(SectionKind.MELODY)) is RiffMode.DRIVE
 
 
-def test_mukhada_drives_taan_pads_breakdown_stabs():
+def test_mukhada_and_climax_drive_short_taan_pads_breakdown_stabs():
     assert riff_mode_for(_section(SectionKind.RIFF, "mukhada")) is RiffMode.DRIVE
-    assert riff_mode_for(_section(SectionKind.TAAN, "taan_long")) is RiffMode.PADS
+    assert riff_mode_for(_section(SectionKind.TAAN, "taan_long")) is RiffMode.DRIVE   # the climax
+    assert riff_mode_for(_section(SectionKind.TAAN, "taan_short")) is RiffMode.PADS
     assert riff_mode_for(_section(SectionKind.BREAKDOWN, "breakdown")) is RiffMode.STABS
     assert riff_mode_for(_section(SectionKind.BREAKDOWN)) is RiffMode.STABS
 
@@ -135,19 +160,19 @@ def test_a_breakdown_with_nothing_ringing_is_rejected():
                                _n("S", 1.5, rest=True),
                                _n("S", 0.5, chord=["S"], technique="palm_mute"),
                                _n("S", 3.0, rest=True)])
-    text = " ".join(verify_riff(muted, mode=RiffMode.STABS, cycle_beats=_CYCLE))
+    text = " ".join(_notes(muted, RiffMode.STABS))
     assert "RINGS" in text and "OPEN chord" in text
 
 
 def test_a_breakdown_that_opens_its_downbeat_passes():
-    assert not [v for v in verify_riff(_stabs_clean(), mode=RiffMode.STABS, cycle_beats=_CYCLE)
+    assert not [v for v in _notes(_stabs_clean(), RiffMode.STABS)
                 if "RINGS" in v]
 
 
-# --- DRIVE: the chug ground is enforced, melody is rejected ----------------------
+# --- hard faults reject; DRIVE's recipe is reported ------------------------------
 
 def test_a_clean_drive_cycle_passes():
-    assert verify_riff(_drive_clean(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE) == []
+    assert _hard(_drive_clean()) == [] and _notes(_drive_clean()) == []
 
 
 def test_a_chug_written_as_a_sustain_is_rejected():
@@ -156,7 +181,7 @@ def test_a_chug_written_as_a_sustain_is_rejected():
     played as a click followed by dead air."""
     pattern = _drive_clean()
     pattern.notes[1] = _n("S", 2.0, technique="palm_mute")
-    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
+    text = " ".join(_hard(pattern))
     assert "cannot sustain" in text and "OPEN" in text
 
 
@@ -164,7 +189,7 @@ def test_a_quarter_note_chug_is_still_fine():
     """The cap must not outlaw an ordinary doom chug — only the ones asking to ring."""
     pattern = _drive_clean()
     pattern.notes[1] = _n("S", 1.0, technique="palm_mute")
-    assert not [v for v in verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert not [v for v in _hard(pattern)
                 if "cannot sustain" in v]
 
 
@@ -174,24 +199,37 @@ def test_a_pitch_gesture_on_a_chord_is_rejected():
     worse than one it never wrote."""
     pattern = _drive_clean()
     pattern.notes[11] = _n("g", 0.5, chord=["g"], technique="slide")
-    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
+    text = " ".join(_hard(pattern))
     assert "CHORD" in text and "single notes" in text
 
 
 def test_slides_are_rationed():
     pattern = _drive_clean()
     pattern.notes[5] = _n("m", 0.5, technique="slide")     # a second slide in the cycle
-    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
+    text = " ".join(_notes(pattern))
     assert "FRETTED" in text
 
 
-def test_a_long_wander_off_the_ground_is_rejected():
-    """A share alone is not enough: a riff can hit its ground quota and still play one long
-    tune followed by a block of chugs."""
-    pattern = _drive_clean()
-    pattern.notes[4:6] = [_n("g", 0.25), _n("m", 0.25), _n("P", 0.25), _n("d", 0.25)]
-    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
-    assert "leave the ground pitch" in text
+def test_a_shuffle_between_two_roots_is_a_riff():
+    """Song A's half-step shuffle: the roots change on most strokes and Sa holds under half —
+    exactly what the old ground/change budgets rejected. Physically fine, nothing in the
+    recipe objects to its pitches, and its measures are simply reported."""
+    shuffle = _shuffle()
+    assert _hard(shuffle) == []
+    notes = " ".join(_notes(shuffle))
+    assert "change pitch" not in notes and "one ground pitch" not in notes   # the removed rules
+    measures = texture_measures(shuffle)
+    assert measures["pitch_change"] > 0.55 and measures["ground_share"] < 0.55
+
+
+def test_no_pitch_statistic_is_a_pass_line():
+    """Pitch economy is MEASURED, never judged: a shuffle and a wandering line both get
+    numbers, and neither is rejected for them (they overlap on real renders)."""
+    for pattern in (_shuffle(), _melody()):
+        measures = texture_measures(pattern)
+        assert set(measures) == {"pitch_change", "ground_share", "top_two_share",
+                                 "distinct_pitches"}
+        assert not [v for v in _hard(pattern) if "melody" in v]
 
 
 def test_a_run_of_identical_chugs_is_rejected():
@@ -200,7 +238,7 @@ def test_a_run_of_identical_chugs_is_rejected():
     pattern = RiffPattern(notes=[_n("S", 1.0, chord=["S"])]
                           + [_n("S", 0.5, technique="palm_mute") for _ in range(6)]
                           + [_n("S", 1.0, rest=True), _n("g", 0.5), _n("S", 1.0, chord=["P"])])
-    text = " ".join(verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE))
+    text = " ".join(_notes(pattern))
     assert "ACCENTS" in text
 
 
@@ -209,7 +247,7 @@ def test_an_accented_chug_run_passes():
                           + [RiffNote(swara="S", oct=0, dur=0.5, technique="palm_mute", vel=v)
                              for v in (112, 92, 100, 92, 112, 92)]
                           + [_n("S", 1.0, rest=True), _n("g", 0.5), _n("S", 1.0, chord=["P"])])
-    assert not [v for v in verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert not [v for v in _notes(pattern)
                 if "ACCENTS" in v]
 
 
@@ -221,22 +259,24 @@ def test_a_rest_breaks_a_chug_run():
                           + [_n("S", 1.0, rest=True)]
                           + [_n("S", 0.5, technique="palm_mute") for _ in range(3)]
                           + [_n("g", 0.5), _n("S", 1.0, chord=["P"])])
-    assert not [v for v in verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert not [v for v in _notes(pattern)
                 if "ACCENTS" in v]
 
 
-def test_the_live_failure_melody_is_rejected():
-    viol = verify_riff(_melody(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
-    text = " ".join(viol)
-    assert "melody" in text                       # the pitch-change cap names the crime
-    assert "ground" in text                       # and the missing chug ground
-    assert "rest" in text                         # and the missing silence
+def test_the_live_failure_melody_is_reported_not_rejected():
+    """The July 'melody' riff is physically playable, so code does not reject it — whether it
+    grooves is a judgment. What the recipe CAN say about it is reported."""
+    assert _hard(_melody()) == []
+    text = " ".join(_notes(_melody()))
+    assert "rest" in text                         # the missing silence
+    assert "sam" in text                          # the weightless downbeat
+    assert texture_measures(_melody())["pitch_change"] == 1.0
 
 
 def test_drive_requires_a_weighted_sam():
     pattern = _drive_clean()
     pattern.notes[0] = _n("S", 0.5)               # naked short sam
-    viol = verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(pattern)
     assert any("sam" in v for v in viol)
 
 
@@ -245,13 +285,13 @@ def test_drive_rations_the_bright_colour_stacks():
     # pile bright colour (R over S seats as an add9) onto three ground chugs
     for i in (1, 2, 3):
         pattern.notes[i] = _n("S", 0.5, chord=["R"], technique="palm_mute")
-    viol = verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(pattern)
     assert any("colour" in v and "light and happy" in v for v in viol)
 
 
 def test_the_duration_sum_must_roughly_fill_the_cycle():
     tiny = RiffPattern(notes=[_n("S", 0.5, chord=["S"]), _n("S", 0.5, rest=True)])
-    viol = verify_riff(tiny, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _hard(tiny)
     assert any("sum" in v for v in viol)
 
 
@@ -259,7 +299,7 @@ def test_fancy_techniques_are_rationed():
     pattern = _drive_clean()
     pattern.notes[1] = _n("S", 0.5, technique="pick_scrape")
     pattern.notes[2] = _n("S", 0.5, technique="pick_scrape")
-    viol = verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(pattern)
     assert any("scrape" in v for v in viol)
 
 
@@ -273,32 +313,32 @@ def test_drive_owes_open_ringing_weight():
         + [_n("S", 1.0, rest=True)]
         + [_n(s, d, chord=[s], technique="palm_mute") for s, d in tail]
         + [_n("S", 0.5, rest=True)]))
-    viol = verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(pattern)
     assert any("RINGS open" in v for v in viol)
 
 
 def test_a_palm_muted_hold_is_not_sam_weight():
     pattern = _drive_clean()
     pattern.notes[0] = _n("S", 1.0, technique="palm_mute")   # written long, gates to a tick
-    viol = verify_riff(pattern, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(pattern)
     assert any("sam" in v for v in viol)
 
 
 # --- PADS: sustained ringing chords, not motion ----------------------------------
 
 def test_a_clean_pads_cycle_passes():
-    assert verify_riff(_pads_clean(), mode=RiffMode.PADS, cycle_beats=_CYCLE) == []
+    assert _notes(_pads_clean(), RiffMode.PADS) == []
 
 
 def test_pads_reject_a_busy_riff():
-    viol = verify_riff(_drive_clean(), mode=RiffMode.PADS, cycle_beats=_CYCLE)
+    viol = _notes(_drive_clean(), RiffMode.PADS)
     assert any("SUSTAIN" in v or "rings" in v for v in viol)
 
 
 def test_pads_require_a_long_chorded_ring():
     pattern = _pads_clean()
     pattern.notes[0] = _n("S", 3.0)               # the long hold loses its chord stack
-    viol = verify_riff(pattern, mode=RiffMode.PADS, cycle_beats=_CYCLE)
+    viol = _notes(pattern, RiffMode.PADS)
     assert any("chord" in v for v in viol)
 
 
@@ -311,7 +351,7 @@ def test_pads_ring_must_be_open_not_palm_muted():
         _n("g", 2.0, chord=["g"], technique="palm_mute"),
         _n("S", 2.0, chord=["P"], technique="palm_mute"),
     ])
-    viol = verify_riff(pattern, mode=RiffMode.PADS, cycle_beats=_CYCLE)
+    viol = _notes(pattern, RiffMode.PADS)
     assert any("NEVER ring" in v for v in viol)          # the ring share sees through the duration
     assert any("not palm-muted" in v for v in viol)      # and the long-ring check does too
 
@@ -319,18 +359,18 @@ def test_pads_ring_must_be_open_not_palm_muted():
 # --- STABS: hit then silence, low, weighted ---------------------------------------
 
 def test_a_clean_stabs_cycle_passes():
-    assert verify_riff(_stabs_clean(), mode=RiffMode.STABS, cycle_beats=_CYCLE) == []
+    assert _notes(_stabs_clean(), RiffMode.STABS) == []
 
 
 def test_stabs_require_real_silence():
-    viol = verify_riff(_melody(), mode=RiffMode.STABS, cycle_beats=_CYCLE)
+    viol = _notes(_melody(), RiffMode.STABS)
     assert any("silent" in v or "SILENCE" in v for v in viol)
 
 
 def test_stabs_stay_low():
     pattern = _stabs_clean()
     pattern.notes[2] = _n("S", 0.5, oct=1, chord=["S"])
-    viol = verify_riff(pattern, mode=RiffMode.STABS, cycle_beats=_CYCLE)
+    viol = _notes(pattern, RiffMode.STABS)
     assert any("low" in v for v in viol)
 
 
@@ -355,29 +395,44 @@ def test_a_clean_first_take_needs_one_call():
     assert out is not None and len(gen.feedbacks) == 1 and gen.feedbacks[0] is None
 
 
+def _held_chug() -> RiffPattern:
+    """A drive cycle with ONE hard fault: a palm mute written as a 2-beat sustain."""
+    pattern = _drive_clean()
+    pattern.notes[1] = _n("S", 2.0, technique="palm_mute")
+    return pattern
+
+
 def test_a_weak_take_is_rerolled_with_the_exact_violations():
     good = _drive_clean()
-    gen = _gen_sequence(_melody(), good)
+    gen = _gen_sequence(_held_chug(), good)
     out = verified_riff(gen, _section(), _CYCLE)
     assert out is good                            # the repaired take is returned
     assert len(gen.feedbacks) == 2                # bounded: one re-roll
-    assert gen.feedbacks[1] and any("melody" in v for v in gen.feedbacks[1])
+    assert gen.feedbacks[1] and any("cannot sustain" in v for v in gen.feedbacks[1])
+
+
+def test_texture_alone_never_triggers_a_reroll():
+    """The melody and the shuffle both pass on the first take — taste is reported in the
+    event, not enforced with a paid re-roll."""
+    for take in (_melody(), _shuffle()):
+        gen = _gen_sequence(take)
+        verified_riff(gen, _section(), _CYCLE)
+        assert gen.feedbacks == [None]
 
 
 def test_never_clean_keeps_the_best_of_n():
-    bad = _melody()                               # many violations
-    better = _drive_clean()
-    better.notes[0] = _n("S", 1.0)                # exactly one violation (weightless sam)
-    gen = _gen_sequence(bad, better)
+    bad = RiffPattern(notes=[_n("S", 2.0, technique="palm_mute"), _n("S", 0.5)])  # short + held
+    better = _held_chug()                         # exactly one hard violation
+    gen = _gen_sequence(bad, better, bad)
     out = verified_riff(gen, _section(), _CYCLE)
-    assert out is better                          # fewest violations wins; never fatal
+    assert len(gen.feedbacks) == 3                # bounded: two re-rolls, then give up
+    assert out.notes[2:] == better.notes[2:]      # fewest violations wins; never fatal
 
 
-def test_the_verifier_respects_the_sections_mode():
-    # the same pads cycle FAILS a drive section but PASSES an antara (pads) section
-    gen_pads = _gen_sequence(_pads_clean())
-    out = verified_riff(gen_pads, _section(SectionKind.MELODY, "antara"), _CYCLE)
-    assert out is not None and len(gen_pads.feedbacks) == 1
+def test_the_texture_notes_respect_the_sections_mode():
+    # the same pads cycle is off-recipe for a drive section and on-recipe for a pads one
+    assert _notes(_pads_clean(), RiffMode.DRIVE)
+    assert _notes(_pads_clean(), RiffMode.PADS) == []
 
 
 # --- open_the_rings: the deterministic sustain guarantee ---------------------------
@@ -411,12 +466,12 @@ def test_open_the_rings_is_a_noop_when_the_budget_is_met():
     assert open_the_rings(stabs, RiffMode.STABS) == stabs             # STABS has no ring budget
 
 
-def test_a_never_clean_riff_still_comes_back_ringing():
-    # both (all three, with the raised retry) takes are mute walls — the fallback repairs
-    # the best take, so the rendered riff is GUARANTEED sustained chords
-    gen = _gen_sequence(_mute_wall(), _mute_wall(), _mute_wall())
+def test_a_mute_wall_still_comes_back_ringing():
+    # a mute wall is physically playable, so it is accepted on the first take — and the
+    # deterministic guarantee still opens its longest chords, so the riff RINGS
+    gen = _gen_sequence(_mute_wall())
     out = verified_riff(gen, _section(SectionKind.RIFF, "mukhada"), _CYCLE)
-    assert len(gen.feedbacks) == 3                                    # tries raised to 2 re-rolls
+    assert len(gen.feedbacks) == 1
     assert any(not n.rest and n.dur >= 1.0 and n.technique is None for n in out.notes)
 
 
@@ -433,7 +488,7 @@ def _drive_unchugged() -> RiffPattern:
 def test_drive_requires_palm_muted_chugs():
     # the ground can be on one pitch yet un-muted — a chug is an ARTICULATION, so that must
     # be caught (Sujit: chugs too few). It is the ONLY thing wrong with this otherwise-clean cycle.
-    viol = verify_riff(_drive_unchugged(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(_drive_unchugged())
     assert len(viol) == 1 and "palm-muted CHUGS" in viol[0]
 
 
@@ -444,13 +499,13 @@ def test_chug_the_ground_guarantees_the_floor():
     sounding = [n for n in repaired.notes if not n.rest]
     chug = sum(1 for n in sounding if n.technique == "palm_mute")
     assert chug / len(sounding) >= 0.30
-    assert not verify_riff(repaired, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    assert not _notes(repaired)
 
 
 def test_pads_reject_back_to_back_rings():
     # rings edge-to-edge leave no room to chug between them — flagged (only the rest floor)
     no_gap = RiffPattern(notes=[_n("S", 4.0, chord=["S"]), _n("g", 4.0, chord=["g"])])
-    viol = verify_riff(no_gap, mode=RiffMode.PADS, cycle_beats=_CYCLE)
+    viol = _notes(no_gap, RiffMode.PADS)
     assert len(viol) == 1 and "back-to-back" in viol[0]
 
 
@@ -497,12 +552,12 @@ def _drive_hooky() -> RiffPattern:
 
 
 def test_drive_flags_a_wandering_riff_with_no_hook():
-    viol = verify_riff(_drive_wandering(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(_drive_wandering())
     assert any("A A' A B" in v for v in viol)             # asked to restate a hook
 
 
 def test_drive_accepts_a_restated_hook():
-    viol = verify_riff(_drive_hooky(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(_drive_hooky())
     assert not any("A A' A B" in v for v in viol)         # a repeated figure is not "wandering"
 
 
@@ -514,14 +569,42 @@ def test_drive_brief_asks_for_a_restated_hook():
 def test_drive_flags_straight_eighths():
     # every note the same length -> flagged for rhythmic monotony (GPT's "8th 8th 8th 8th")
     monotone = RiffPattern(notes=[_n("S", 0.5, technique="palm_mute") for _ in range(16)])
-    viol = verify_riff(monotone, mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(monotone)
     assert any("same length" in v for v in viol)
 
 
 def test_drive_clean_keeps_its_rhythmic_contrast():
     # the clean fixture (chugs + longer rings) is NOT flagged — the check is a lenient backstop
-    viol = verify_riff(_drive_clean(), mode=RiffMode.DRIVE, cycle_beats=_CYCLE)
+    viol = _notes(_drive_clean())
     assert not any("same length" in v for v in viol)
+
+
+
+# --- best-of-N by SEVERITY: a near-empty cycle never wins on violation count ----------
+
+def _near_empty() -> RiffPattern:
+    """One stroke and a cycle of rest — it fills the cycle on paper and trips almost nothing."""
+    return RiffPattern(notes=[_n("S", 1.0, chord=["S"]), _n("S", _CYCLE - 1.0, rest=True)])
+
+
+def test_a_cycle_of_almost_nothing_is_underfilled_but_sparse_stabs_are_not():
+    assert riff_underfilled(_near_empty(), _CYCLE)
+    assert not riff_underfilled(_drive_clean(), _CYCLE)
+    stabs = RiffPattern(notes=[_n("S", 0.5, chord=["S"]), _n("S", 3.5, rest=True)] * 4)
+    assert not riff_underfilled(stabs, 16.0)                 # four half-beat hits in sixteen
+    assert riff_severity(_drive_clean(), _CYCLE, ["a", "b"]) < riff_severity(_near_empty(), _CYCLE, ["a"])
+
+
+def test_best_of_n_plays_the_fuller_riff_over_an_emptier_one_with_fewer_faults():
+    empty, full = _near_empty(), _drive_clean()
+
+    def extra(pattern: RiffPattern) -> list[str]:            # neither take ever comes back clean
+        return ["a"] if pattern is empty else ["a", "b"]
+
+    gen = _gen_sequence(empty, full, empty)
+    out = verified_riff(gen, _section(), _CYCLE, extra_check=extra)
+    assert len(gen.feedbacks) == 3                           # bounded: every re-roll spent
+    assert any(n.swara == "g" for n in out.notes)            # the full take's figure plays
 
 
 if __name__ == "__main__":

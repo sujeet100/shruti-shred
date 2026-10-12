@@ -245,7 +245,8 @@ def test_flow_revise_stays_canvas_aware():
     # voices and a scripted revise-then-accept. The revised lead must still SEE the riff on
     # the canvas — proving the collaboration survives the critique loop (the step-5 fix).
     from crew.contracts import (
-        ConductorRuling, ProducerScores, ProducerVerdict, RasikScores, RasikVerdict, UstadVerdict)
+        ProducerScores, ProducerVerdict, RasikScores, RasikVerdict, RevisionPlan, UstadVerdict,
+        plan_layer)
     from crew.flow import Stages, compose_flow
 
     arr = _arr(_RIFF_SEC, _TAAN_SEC)
@@ -262,13 +263,12 @@ def test_flow_revise_stays_canvas_aware():
         lead, rhythm, events, canvases = compose_studio(arr, lead_fn=gen_lead, riff_fn=gen_riff)
         return lead, rhythm, [], events, canvases
 
-    def regenerate(_a, lead, rhythm, orchestra, ruling, canvases):
+    def regenerate(_a, lead, rhythm, orchestra, plan, canvases, history=()):
         new_lead, new_rhythm, events, new_canvases = regenerate_layer(
-            arr, canvases, ruling.layer, lead_fn=rev_lead, riff_fn=gen_riff)
+            arr, canvases, plan_layer(plan), lead_fn=rev_lead, riff_fn=gen_riff)
         return new_lead, new_rhythm, orchestra, events, new_canvases
 
-    rulings = iter([ConductorRuling(directive="revise", layer="lead", reason="more space"),
-                    ConductorRuling(directive="accept", reason="good")])
+    decisions = iter([RevisionPlan(voice="lead", instruction="more space"), None])
     stages = Stages(
         interpret=lambda q: (CompositionBrief(mood="dark"), []),
         compose=lambda b: (arr, []),
@@ -281,7 +281,7 @@ def test_flow_revise_stays_canvas_aware():
                 structure=3, dynamics=3, climax=3, motif=3, hook=3,
                 balance=3, independence=3, mood_fit=3, repetition=3, performance=3)),
             []),
-        arbitrate=lambda u, r, p, c: (next(rulings), []),
+        decide=lambda u, r, p, c, a: (next(decisions), []),
         regenerate=regenerate,
         render=lambda c: None)
 

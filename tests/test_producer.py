@@ -27,16 +27,22 @@ from crew.contracts import (  # noqa: E402
     Note,
     ProducerScores,
     ProducerVerdict,
+    RasikScores,
+    RasikSuggestion,
+    RasikVerdict,
+    RevisionPlan,
     Section,
     SectionKind,
     build_arrangement,
 )
 from crew.producer import (  # noqa: E402
+    _render_consultation,
     _render_ensemble,
     _render_riff_line,
     _render_sections,
     _render_subgenre,
     assess,
+    judge_inputs,
 )
 
 
@@ -72,8 +78,8 @@ def _scores(**over) -> ProducerScores:
 def _fake_judge(scores: ProducerScores, notes: str = ""):
     calls: list = []
 
-    def fn(comp, arr):
-        calls.append((comp, arr))
+    def fn(comp, arr, rasik=None):
+        calls.append((comp, arr, rasik))
         return ProducerVerdict(scores=scores, notes=notes)
 
     return fn, calls
@@ -150,6 +156,47 @@ def test_scores_are_bounded_1_to_5():
     except Exception:
         pass
 
+
+
+def test_the_producer_reads_rasiks_consultation_and_the_friction():
+    # the one judge with authority sees the raga consultant's scores AND lead edits, and the
+    # riff/melody friction counts as information
+    rasik = RasikVerdict(scores=RasikScores(pakad=2, idiom=3, rasa=4), notes="pakad missing",
+                         suggestions=[RasikSuggestion(section=1, change="state the pakad",
+                                                      why="the raga's signature")])
+    block = _render_consultation(rasik)
+    assert "pakad 2" in block and "section 1: state the pakad" in block
+    inputs = judge_inputs(_comp(), _arr(), rasik)
+    assert inputs["consultation"] == block
+    assert "friction" in inputs["friction"] and "section 0" in inputs["friction"]
+    assert "no raga consultation" in _render_consultation(None)
+
+
+def test_the_decision_and_plan_ride_the_critique_event():
+    plan = RevisionPlan(voice="riff", sections=[0], instruction="a heavier hook",
+                        preserve=["the lead"])
+
+    def judge(comp, arr, rasik=None):
+        return ProducerVerdict(scores=_SCORES_FIXTURE, decision="revise", plan=plan)
+
+    verdict, events = assess(_comp(), _arr(), judge_fn=judge)
+    assert verdict.decision == "revise" and events[0].verdict == "revise"
+    assert events[0].data["plan"]["voice"] == "riff"
+
+
+def test_the_producer_reads_the_audible_lead_and_is_told_a_held_pluck_is_silence():
+    # the fixture's lead plays in the riff's beats, so the lead-spotlight taan is silent
+    inputs = judge_inputs(_comp(), _arr())
+    assert "1.taan=0% (lead spotlight, STARVED" in inputs["metrics"]
+    import yaml
+    from pathlib import Path
+    tasks = Path(__file__).resolve().parents[1] / "crew" / "config" / "tasks.yaml"
+    prompt = yaml.safe_load(tasks.read_text())["assess_composition"]["description"]
+    assert "audible lead per section" in prompt and "heard as silence" in prompt
+
+
+_SCORES_FIXTURE = ProducerScores(structure=3, dynamics=3, climax=3, motif=3, hook=3, balance=3,
+                                 independence=3, mood_fit=3, repetition=3, performance=3)
 
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

@@ -306,6 +306,66 @@ def test_silence_share_measures_hollowness_without_double_counting_chords():
     assert _silence_share(chord) == 0.5          # 2 beats sounding across a 4-beat span
 
 
+# --- audible lead coverage: a held note on a plucked string is silence ----------
+
+def _taan_arr(bars: int = 3, foreground: str = "lead"):
+    """ONE lead section, 3 teentaal cycles = 48 beats, spotlight on `foreground`."""
+    draft = ArrangementDraft(
+        raga="darbari", subgenre="doom", tala="teentaal", bpm=72, motif=_MOTIF,
+        sections=[Section(kind=SectionKind.TAAN, bars=bars, layers=["lead", "rhythm", "drone"],
+                          foreground=foreground)])
+    return build_arrangement(draft, CompositionBrief(mood="dark"))
+
+
+def _lead_comp(*layers: Layer) -> Composition:
+    return Composition(raga="darbari", sa=62, bpm=72,
+                       tala={"name": "teentaal", "beats_per_bar": 16.0}, layers=list(layers))
+
+
+def test_one_48_beat_sitar_note_is_heard_for_its_pluck_only():
+    """The first live run's fault: on the score a 48-beat note reads as melody; in the audio
+    the sitar is heard for its ~4-beat decay and then ~30 s of nothing."""
+    from crew.metrics import lead_coverage
+    held = Layer(role="lead", instrument="sitar",
+                 notes=[Note(swara="S", oct=0, start=0.0, dur=48.0)])
+    [row] = lead_coverage(_lead_comp(held), _taan_arr())
+    assert abs(row.coverage - 4 / 48) < 0.002 and row.spotlight and row.starved
+
+
+def test_a_dense_lead_section_is_fully_audible():
+    from crew.metrics import lead_coverage
+    dense = Layer(role="lead", instrument="sitar",
+                  notes=[Note(swara="S", oct=0, start=float(i), dur=1.0) for i in range(48)])
+    [row] = lead_coverage(_lead_comp(dense), _taan_arr())
+    assert row.coverage == 1.0 and not row.starved
+
+
+def test_overlapping_lead_notes_do_not_double_count_and_a_lead_guitar_sustains():
+    """A unison double (sitar + lead guitar on the same note) is one sound, not two; and a
+    distorted lead guitar holds its note as written, so only the sitar is pluck-limited."""
+    from crew.metrics import lead_coverage
+    note = Note(swara="S", oct=0, start=0.0, dur=24.0)
+    sitar = Layer(role="lead", instrument="sitar", notes=[note])
+    guitar = Layer(role="lead", instrument="lead_guitar", notes=[note])
+    assert lead_coverage(_lead_comp(sitar, sitar), _taan_arr())[0].coverage == round(4 / 48, 3)
+    assert lead_coverage(_lead_comp(sitar, guitar), _taan_arr())[0].coverage == 0.5
+
+
+def test_only_a_lead_spotlight_section_can_be_starved():
+    from crew.metrics import lead_coverage
+    sparse = Layer(role="lead", instrument="sitar",
+                   notes=[Note(swara="S", oct=0, start=0.0, dur=1.0)])
+    [row] = lead_coverage(_lead_comp(sparse), _taan_arr(foreground="rhythm"))
+    assert row.coverage < 0.1 and not row.spotlight and not row.starved
+
+
+def test_the_producer_sees_the_audible_lead_and_the_starved_flag():
+    held = Layer(role="lead", instrument="sitar",
+                 notes=[Note(swara="S", oct=0, start=0.0, dur=48.0)])
+    text = render_metrics(composition_metrics(_lead_comp(held), _taan_arr()))
+    assert "audible lead per section" in text and "0.taan=8%" in text and "STARVED" in text
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

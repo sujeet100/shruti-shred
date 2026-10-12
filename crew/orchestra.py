@@ -43,6 +43,7 @@ from crew.config import (
     GENERATOR_MAX_ITER,
     GENERATOR_RETRIES,
     generator_llm,
+    structured_output,
 )
 from crew.contracts import (
     Arrangement,
@@ -56,6 +57,7 @@ from crew.contracts import (
     motif_illegal_in_raga,
 )
 from crew.harmonic_guide import HarmonicWindow, avoided_at, harmonic_guide, supported
+from crew.user_request import render_request
 from crew.generators import (
     VOICES,
     SectionSpan,
@@ -561,6 +563,7 @@ class _OrchestraContext:
             "subgenre": SUBGENRES[arr.subgenre]["display"],
             "subgenre_feel": SUBGENRES[arr.subgenre]["feel"],
             "role_brief": _render_role_brief(arr.subgenre),
+            "user_request": render_request(arr.request),
             "motif": " ".join(arr.motif),
             "bpm": arr.bpm,
             "tala": TALAS[arr.tala]["display"],
@@ -601,7 +604,7 @@ class _OrchestraCrew:
         agent = Agent(config=self._agent_config, llm=generator_llm(),
                       allow_delegation=False, max_iter=GENERATOR_MAX_ITER,
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
-        task = Task(config=self._task_config, agent=agent, output_pydantic=OrchestraScore,
+        task = Task(config=self._task_config, agent=agent, **structured_output(OrchestraScore),
                     guardrail=_orchestra_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
         score = _score_from_output(crew.kickoff(inputs=inputs))

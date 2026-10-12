@@ -101,6 +101,29 @@ def longest_scalar_run(seq: Sequence[Pitched], raga: str) -> int:
     return best + 1 if best else 1      # k consecutive steps span k+1 notes
 
 
+def scalar_runs(seq: Sequence[Pitched], raga: str) -> list[int]:
+    """EVERY unbroken run of single ladder steps in one direction, in notes, in order — so a
+    check can tell ONE dash (a sapat, idiomatic) from a line that keeps marching the scale.
+    A repeat, a skip or a turn ends a run."""
+    runs: list[int] = []
+    current, previous = 0, None
+    for move in _moves(seq, raga):
+        if abs(move) == 1 and move == previous:
+            current += 1
+            continue
+        if current:
+            runs.append(current + 1)        # k consecutive steps span k+1 notes
+        current, previous = (1, move) if abs(move) == 1 else (0, None)
+    if current:
+        runs.append(current + 1)
+    return runs
+
+
+def octave_span(raga: str) -> int:
+    """Notes in one stepwise dash from Sa to Sa on the raga's ladder (8 in a 7-note raga)."""
+    return len(ladder(raga)) + 1
+
+
 def direction_change_share(seq: Sequence[Pitched], raga: str) -> float:
     """Share of consecutive moves that REVERSE direction — the vakra character, measured."""
     moves = [m for m in _moves(seq, raga) if m != 0]

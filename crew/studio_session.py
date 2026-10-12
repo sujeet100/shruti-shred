@@ -156,7 +156,7 @@ def regenerate_layer(arr: Arrangement, canvases: list[SectionCanvas], layer: str
     seeing the OTHER voice's current line on the retained canvas — so the collaboration
     survives the revise instead of being overwritten by an isolated regeneration.
 
-    `arr` is the REVISED arrangement (the Conductor's directive already threaded into the
+    `arr` is the REVISED arrangement (the revision plan's directive already threaded into the
     flagged sections' intent). The regenerated voice plays a REFINE move — reworking against
     the ensemble it can see — and the riff keeps its slot recurrence (a returning hook is
     regenerated once and reprised). Mutates the canvases in place and returns the reassembled

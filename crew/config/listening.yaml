@@ -1,0 +1,54 @@
+# The LISTENING PASS — prompts for the audio judge (crew/listening.py). ADVISORY.
+#
+# Design (from the 2026-10-11 audio-judging research):
+#   * AUDIO-FIRST and BLIND to the score: the judge gets the raga name, the subgenre and the
+#     length — never the section map — so it cannot parrot a structure it was told. Code maps
+#     its timestamps onto the sections afterwards and checks them against measured loudness.
+#   * Timestamped OBSERVATIONS (MM:SS) on fixed aspects, each with a 1-5 rating and one
+#     sentence: a reporter of what it hears, not a trusted scorer.
+#   * The model hears ~16 kHz mono: stereo width, panning and fine timbre are out of reach, so
+#     the aspects avoid them; raga correctness and shruti are left to the symbolic critics.
+#   * A sanity exit: if it hears no music, it must say so instead of inventing observations.
+# Templates use $placeholders (string.Template), so literal JSON braces need no escaping.
+
+listen: |
+  You are a metal producer listening to a finished ~$duration fusion track: a sitar-led piece
+  in raga $raga over a $subgenre band (distorted rhythm guitars, bass, drums, a tanpura drone).
+  Listen to the WHOLE recording first. Report only what you actually hear and WHERE you hear it —
+  do not assume a structure, and do not guess at anything you cannot hear. If the recording is
+  silent or is not music, say so in overall_note and return an empty observations list.
+
+  For EACH aspect below give 1-3 observations, each pinned to a timestamp (MM:SS from the start),
+  a rating 1-5 and ONE sentence of evidence:
+    - climax: where does the energy peak, and does the peak LAND (1 = no discernible build or
+      the peak deflates, 3 = a peak you can locate but it underwhelms, 5 = a clear build that
+      arrives with force)
+    - lead_audibility: can you follow the sitar/lead line over the band there (1 = buried,
+      3 = audible but fighting the guitars, 5 = clear and in front)
+    - riff_heaviness: does the rhythm guitar sound like real metal there (1 = thin/toy-like,
+      3 = competent but light, 5 = heavy, tight, authentic)
+    - groove: is the band locked and does it drive (1 = loose or stiff/mechanical, 3 = steady,
+      5 = a groove that pulls you forward)
+    - artifacts: audible problems — out-of-tune bends, harshness, clipping, clicks, abrupt cuts
+      (5 = clean; rate LOW where you hear a problem and say exactly what it is)
+    - mood: does the sound fit what was asked for — $mood_target (1 = wrong mood, 5 = fits)
+
+  Rating guide for every aspect: 1 = a clear problem, 3 = acceptable, 5 = excellent. Length is
+  not quality: a short precise sentence beats a long one.
+  $repair
+  Return ONLY this JSON (no prose, no code fences):
+  {"observations": [{"at": "MM:SS", "aspect": "climax", "rating": 4, "note": "one sentence"}],
+   "overall_note": "one or two sentences"}
+
+compare: |
+  You will hear TWO short fusion tracks (sitar over a $subgenre band) played one after the
+  other, separated by a short silence. Listen to both completely. As a metal producer, which one
+  is the better piece of music overall — riff, groove, how the climax lands, how clearly the
+  sitar carries? Judge only what you hear; the order they are played in carries no information.
+  Return ONLY this JSON (no prose, no code fences):
+  {"preferred": "first", "reason": "one sentence"}
+  where "preferred" is "first" or "second".
+
+repair: |
+  Your previous answer could not be used: $error
+  Answer again with ONLY the JSON object described below.

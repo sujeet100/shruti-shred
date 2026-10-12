@@ -19,6 +19,12 @@ So the default is always the cost-safe Demo unless you explicitly opt in with
 runs the REAL pipeline; with no key it returns 503 and the UI falls back to the replay, so a
 dead key on stage never blanks the screen.
 
+It also advertises the crew's SHAPE as `window.SHRUTI_FLOW` (and in /api/health): whether the
+single-owner Composer is on (`RMA_COMPOSER`), whether the advisory listening pass runs
+(`RMA_LISTEN`), and the revise cap (`MAX_ROUNDS`). The page uses these only for its IDLE roster;
+once a run's events arrive, the events decide (a `Composer` event means the single owner wrote
+the chart, a `Pandit`/`Riffsmith` event means the legacy writers did).
+
 Run:  uv run python -m ui.server   ->  http://127.0.0.1:8500
 """
 
@@ -42,7 +48,7 @@ _SKELETON = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Shruti Shred — श्रुति श्रेड</title>
 <style>*{{margin:0;padding:0}}html,body{{background:#08070d}}</style>
-<script>window.SHRUTI_LIVE = {live}; window.SHRUTI_LIVE_CAPABLE = {capable}; window.SHRUTI_AUDIO = "{audio}";</script>
+<script>window.SHRUTI_LIVE = {live}; window.SHRUTI_LIVE_CAPABLE = {capable}; window.SHRUTI_AUDIO = "{audio}"; window.SHRUTI_FLOW = {flow};</script>
 </head>
 <body>
 {content}
@@ -60,6 +66,19 @@ def _live_default() -> bool:
     """The Source toggle's DEFAULT position: Live only when explicitly opted in AND a key
     exists — never live by accident. Otherwise the cost-safe embedded Demo."""
     return os.getenv("RMA_UI_LIVE") == "1" and _live_capable()
+
+
+def _flow_shape() -> dict:
+    """The crew's configured shape, for the page's idle roster: single Composer or the legacy
+    writers, whether the listening pass runs, and the revise cap. crew.config is import-light
+    (no crewai, no network), so reading it here costs nothing; any failure degrades to the
+    redesign's defaults rather than breaking the page."""
+    try:
+        from crew.config import MAX_ROUNDS, composer_enabled, listening_enabled
+        return {"composer": composer_enabled(), "listen": listening_enabled(),
+                "max_rounds": MAX_ROUNDS}
+    except Exception:  # noqa: BLE001 — the page must still serve
+        return {"composer": True, "listen": False, "max_rounds": 2}
 
 
 def font_face_css() -> str:
@@ -92,6 +111,7 @@ def _page() -> bytes:
         live="true" if _live_default() else "false",
         capable="true" if _live_capable() else "false",
         audio=_demo_audio_url(),
+        flow=json.dumps(_flow_shape()),
         content=content,
     )
     return html.encode("utf-8")
@@ -189,7 +209,8 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path == "/favicon.ico":
             self._send(204, b"", "image/x-icon")
         elif self.path == "/api/health":
-            health = {"live_capable": _live_capable(), "live_default": _live_default()}
+            health = {"live_capable": _live_capable(), "live_default": _live_default(),
+                      "flow": _flow_shape()}
             self._send(200, json.dumps(health).encode(), "application/json")
         elif self.path.startswith("/audio/"):
             self._serve_audio(self.path[len("/audio/"):])

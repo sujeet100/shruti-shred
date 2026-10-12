@@ -24,6 +24,17 @@ still damps well short of a ring, so this budget stands.) Every sustain budget i
 (`_rings`), and DRIVE now owes a minimum of open ringing weight too (Sujit's steer: the
 rhythm guitar's melodic ambition stays low, its RESONANCE stays high).
 
+HARD vs ADVISORY (2026-10-11, the A/B/C experiment — talk/HANDOVER.md §2). The riff Sujit
+judged best (one bare model call) would have FAILED this verifier twice: 48% on its ground pitch
+(floor 55%) and 82% of strokes changing root (cap 55%) — it is a half-step power-chord shuffle,
+one of metal's core moves, which a change-rate cap cannot tell from a wandering melody. Measured
+on four renders, no pitch statistic separates a riff from a melody at all (the July "melody"
+riff's top-two-root share, 0.43-0.74, overlaps the good riff's 0.50-1.00). The budgets were
+calibrated against an older model's failures and had become a ceiling. So only what is PHYSICAL
+rejects a cycle (`verify_riff`: it fills the cycle, a mute cannot sustain, a chord cannot bend);
+the texture recipe is reported, not enforced (`texture_notes`), and pitch economy is a plain
+measurement with no pass line (`texture_measures`) — taste belongs to a judge or the ear.
+
 Pure: no LLM, no I/O; `verified_riff` takes the generation as an injected callable.
 """
 
@@ -45,11 +56,6 @@ RIFF_REPAIR_TRIES: Final = 2
 # --- the budgets (deliberately loose — they flag gross misses, not taste) ---------------
 _FILL_LO: Final = 0.7               # durations must roughly fill the cycle...
 _FILL_HI: Final = 1.3               # ...gross over/undershoot means the model didn't count
-# DRIVE's ground floor, calibrated on two real renders rather than picked: the riff Sujit
-# called "light, not metal" sat at 47% ground, the one he called the best foundation at 73%.
-# 0.55 separates them. Raised from 0.35, which nothing could ever fail.
-_GROUND_MIN_SHARE: Final = 0.55     # DRIVE: share of sounding notes on the modal (ground) pitch
-_NON_GROUND_RUN_MAX: Final = 3      # DRIVE: consecutive off-ground notes before it reads as a tune
 _CHUG_RUN_MIN: Final = 4            # DRIVE: a chug run this long needs a pick accent, not one velocity
 # A mute DAMPS: with the gate now a share of the written slot (src/render.py), a chug breathes
 # with the rhythm — but no mute sustains. A palm-muted note written longer than this is a
@@ -57,8 +63,6 @@ _CHUG_RUN_MIN: Final = 4            # DRIVE: a chug run this long needs a pick a
 # air (measured 2026-09-14: 21% of palm-muted notes written a beat or longer).
 _PM_MAX_SLOT: Final = 1.0
 _SLIDE_MAX: Final = 1               # plain fret-to-fret slides per cycle (long_slide is separate)
-_CHANGE_MAX_DRIVE: Final = 0.55     # DRIVE: consecutive-note pitch-change ceiling (melody tell)
-_CHANGE_MAX_STABS: Final = 0.45     # STABS: hammer one root; movement is the exception
 _REST_SHARE_MAX: Final = 0.35       # DRIVE: silence is seasoning, not the dish
 _REST_SHARE_STABS: Final = 0.20     # STABS: hit-then-silence IS the texture (floor, not cap)
 _WEIGHT_DUR: Final = 1.0            # a note this long counts as weight even unchorded
@@ -114,10 +118,12 @@ class RiffMode(str, Enum):
 # The manjha PADS (changed from DRIVE 2026-07-16): it is the gat's LOW, CALM bridge — the
 # Malkauns render put a full chug engine under its six sparse lead notes and it was the
 # emptiest-feeling section. A quiet bridge wants a ringing chordal platform, simpler than
-# the mukhada, not the same engine.
+# the mukhada, not the same engine. The LONG taan DRIVES (changed from PADS 2026-10-11): it is
+# the climax, and sustained pads under it halved the guitar while the drums peaked — the riff
+# family plays it on a pedal (`riff_family._pedal`), simpler in harmony, full in rhythm.
 _MODE_BY_ROLE: Final[dict[str, RiffMode]] = {
     "mukhada": RiffMode.DRIVE, "manjha": RiffMode.PADS,
-    "antara": RiffMode.PADS, "taan_short": RiffMode.PADS, "taan_long": RiffMode.PADS,
+    "antara": RiffMode.PADS, "taan_short": RiffMode.PADS, "taan_long": RiffMode.DRIVE,
     "intro": RiffMode.PADS, "outro": RiffMode.PADS,
     "breakdown": RiffMode.STABS, "tihai": RiffMode.STABS,
 }
@@ -136,33 +142,29 @@ def riff_mode_for(section: Section) -> RiffMode:
     return _MODE_BY_KIND.get(section.kind, RiffMode.DRIVE)
 
 
-# What each mode ASKS for — rendered into the prompt as {mode_brief}. The numbers match
-# the verifier's budgets, so the model is told exactly what will be enforced.
+# What each mode ASKS for — rendered into the prompt as {mode_brief}. GUIDANCE, not quotas:
+# since 2026-10-11 these textures are reported (`texture_notes`), never enforced, so the briefs
+# describe a palette and say nothing will be rejected for missing a share.
 MODE_BRIEFS: Final[dict[RiffMode, str]] = {
     RiffMode.DRIVE: (
-        "DRIVE — you are the engine. The CHUG GROUND is the default texture: between every "
-        "melodic movement RETURN to repeated short strokes on ONE low pitch (Sa, or this "
-        "riff's root) and MARK them technique 'palm_mute' — the chug is an articulation, not "
-        "just a low note. At least a third of your notes sit on that ground AND at least a "
-        "third are palm-muted chugs, and no more than about half of consecutive notes may "
-        "change pitch (a riff is not a melody). Movement is a HOOK, not novelty: pick ONE "
-        "short 2-4 note figure from the pakad and RESTATE it across the cycle — state it, "
-        "chug, restate it (verbatim, or varied/answered) — so the shape is A A' A B and a "
-        "listener recognizes the riff after two hearings; do NOT introduce a new figure every "
-        "time (A B C D is forgettable). Between the figures, back to the chug. Put POWER-CHORD "
-        "weight (the root's own swara, or P) on the sam and tali; bright colour stacks "
-        "(add9/tenth — R or G over the root) "
-        "are a spice, at most 2 per cycle. BREATHE attack-then-resonance: at least ~20% of "
-        "your sounding time is OPEN ringing chords a beat or longer — a ring is an open "
-        "strike, a palm-muted note can never ring (it gates to a short chug whatever its "
-        "duration). Leave at least one true rest; rough space budget: ~40% chug, ~25% ring, "
-        "~20% movement, ~15% silence. VARY the note lengths against the chug (16ths, 8ths, a "
-        "dotted or held accent, a rest) — never one steady value."),
+        "DRIVE — you are the engine, and the riff's IDENTITY is rhythmic: strip the pitches "
+        "and the bare rhythm should still be recognisable. Keep landing on your HOME root "
+        "(given below — from the raga's own resting notes, not automatically Sa). From there, use whatever the riff needs from the metal palette: "
+        "palm-muted chugs on the home root, a SHUFFLE between two roots a half or whole step "
+        "apart (the half-step grind between the raga's half-step neighbours, listed below, is "
+        "the darkest move a raga riff has), a gallop cell (long-short-short), off-beat pushes into the accents, a "
+        "ringing chord to let it breathe, a rest. Build it around ONE short cell that you state "
+        "and RESTATE (A A' A B), not a new figure every time — that is the hook, what makes "
+        "a riff memorable after two hearings. Write ROOTS and RHYTHM: code voices every bare stroke "
+        "as a power chord inside the raga, so leave `chord` empty unless you want a deliberate "
+        "colour (a bright add9/tenth stack — R or G over the root — is a spice; dark moods skip "
+        "it). Nothing here is a quota: what matters is that it grooves, it is heavy, and it "
+        "loops back onto the sam."),
     RiffMode.PADS: (
         "PADS — the sitar carries ALL movement here; you are texture, not motion. Sustain "
         "wide RINGING power chords: one or two per vibhag, most of your sounding time in "
-        "notes a beat or longer, at least one chord held 2+ beats — and every long chord "
-        "CARRIES a chord stack (own swara / P) so it blooms. Strike the chords OPEN, never "
+        "notes a beat or longer, at least one chord held 2+ beats (code voices each one as a "
+        "power chord, so it blooms). Strike the chords OPEN, never "
         "palm-muted — a palm-muted note gates to a short chug and cannot ring; the ring IS "
         "this section's platform for the sitar. But do NOT let the chords run edge-to-edge: "
         "leave a GAP (a true rest of a beat or so) between the sustained rings — code drops "
@@ -176,8 +178,8 @@ MODE_BRIEFS: Final[dict[RiffMode, str]] = {
         "heaviness). OPEN THE DOWNBEAT: strike at least one OPEN chord of a beat or more and "
         "let it hang — a breakdown needs something ringing to drop away from, and a "
         "palm-muted hit can never provide it however heavily you chord it. Stay in the low "
-        "register (oct 0 or below), give at least half the hits chord weight, hammer ONE root "
-        "and move only for the final stab into the sam; a displaced 16th before an accent "
+        "register (oct 0 or below), hammer ONE root and move only for the final stab into the "
+        "sam (code voices every hit as a power chord); a displaced 16th before an accent "
         "gives the lurch."),
 }
 
@@ -246,13 +248,9 @@ def _weighted(note: RiffNote) -> bool:
     return bool(note.chord) or _rings(note)
 
 
-def _shared_violations(notes: list[RiffNote], sounding: list[RiffNote],
-                       cycle_beats: float) -> list[str]:
+def _ration_notes(sounding: list[RiffNote]) -> list[str]:
+    """The gesture rations — how often the fancy techniques appear. Taste, reported."""
     viol: list[str] = []
-    total = sum(n.dur for n in notes)
-    if not _FILL_LO * cycle_beats <= total <= _FILL_HI * cycle_beats:
-        viol.append(f"the cycle's durations (rests included) sum to {total:g} beats but one "
-                    f"cycle is {cycle_beats:g} — count the beats so the loop lands on the sam")
     scrapes = sum(1 for n in sounding if n.technique == "pick_scrape")
     if scrapes > _SCRAPE_MAX:
         viol.append(f"{scrapes} pick scrapes in one cycle — a scrape is an entrance/climax "
@@ -261,14 +259,26 @@ def _shared_violations(notes: list[RiffNote], sounding: list[RiffNote],
     if slides > _LONG_SLIDE_MAX:
         viol.append(f"{slides} long slides in one cycle — a long slide marks a seam or a big "
                     f"accent, use at most {_LONG_SLIDE_MAX}")
-    viol += _articulation_violations(sounding)
+    plain = sum(1 for n in sounding if n.technique == "slide")
+    if plain > _SLIDE_MAX:
+        viol.append(f"{plain} slides in one cycle — rhythm guitar is FRETTED; the sitar owns "
+                    f"continuous pitch. Keep at most {_SLIDE_MAX} short slide per cycle, and "
+                    f"most cycles want none")
     return viol
+
+
+def _fill_violation(notes: list[RiffNote], cycle_beats: float) -> list[str]:
+    """The loop must land: durations that grossly miss one cycle mean the model didn't count."""
+    total = sum(n.dur for n in notes)
+    if _FILL_LO * cycle_beats <= total <= _FILL_HI * cycle_beats:
+        return []
+    return [f"the cycle's durations (rests included) sum to {total:g} beats but one cycle is "
+            f"{cycle_beats:g} — count the beats so the loop lands on the sam"]
 
 
 def _articulation_violations(sounding: list[RiffNote]) -> list[str]:
     """The rules that follow from what a guitar (and the renderer) can physically do: a mute
-    cannot sustain, the pitch wheel is channel-wide so a chord cannot bend, and a rhythm
-    guitar is fretted rather than gliding."""
+    cannot sustain, and the pitch wheel is channel-wide so a chord cannot bend."""
     viol: list[str] = []
     held_mutes = [n for n in sounding if n.technique == "palm_mute" and n.dur > _PM_MAX_SLOT]
     if held_mutes:
@@ -282,31 +292,18 @@ def _articulation_violations(sounding: list[RiffNote]) -> list[str]:
                     f"a power chord strikes it again at the new position, and the renderer "
                     f"drops the gesture rather than bending the whole voicing. Put slides and "
                     f"bends on single notes (an empty chord list)")
-    slides = sum(1 for n in sounding if n.technique == "slide")
-    if slides > _SLIDE_MAX:
-        viol.append(f"{slides} slides in one cycle — rhythm guitar is FRETTED; the sitar owns "
-                    f"continuous pitch. Keep at most {_SLIDE_MAX} short slide per cycle, and "
-                    f"most cycles want none")
     return viol
 
 
-def _drive_violations(notes: list[RiffNote], sounding: list[RiffNote],
+def _drive_notes(notes: list[RiffNote], sounding: list[RiffNote],
                       cycle_beats: float) -> list[str]:
     viol: list[str] = []
-    if _ground_share(sounding) < _GROUND_MIN_SHARE:
-        viol.append(f"only {_ground_share(sounding):.0%} of the notes sit on one ground pitch "
-                    f"(need >= {_GROUND_MIN_SHARE:.0%}) — return to the low palm-muted root "
-                    f"between figures; the chug ground is the riff's floor")
     chug = sum(1 for n in sounding if n.technique == "palm_mute")
     if chug < _CHUG_MIN_SHARE_DRIVE * len(sounding):
         viol.append(f"only {chug / len(sounding):.0%} of the notes are palm-muted CHUGS "
                     f"(need >= {_CHUG_MIN_SHARE_DRIVE:.0%}) — MARK the low ground strokes "
                     f"technique 'palm_mute' so they punch as muted chugs; an unmuted ground "
                     f"note is not a chug")
-    rate = _pitch_change_rate(sounding)
-    if rate > _CHANGE_MAX_DRIVE:
-        viol.append(f"{rate:.0%} of consecutive notes change pitch (cap {_CHANGE_MAX_DRIVE:.0%})"
-                    f" — this is a melody, not a riff; repeat the root between movements")
     rests = [n for n in notes if n.rest and n.dur >= 0.25]
     if not rests:
         viol.append("no true rest in the cycle — leave at least one deliberate silence; the "
@@ -342,28 +339,8 @@ def _drive_violations(notes: list[RiffNote], sounding: list[RiffNote],
             viol.append("almost every note is the same length (straight 8ths) — VARY the note "
                         "values against the chug: a 16th burst, a dotted or held accent, a "
                         "triplet, a rest, so the riff has rhythmic contrast")
-    viol += _grounding_violations(sounding, ground)
     viol += _accent_violations(notes)
     return viol
-
-
-def _longest_off_ground_run(sounding: list[RiffNote], ground: tuple[str, int]) -> int:
-    longest = run = 0
-    for note in sounding:
-        run = 0 if (note.swara, note.oct) == ground else run + 1
-        longest = max(longest, run)
-    return longest
-
-
-def _grounding_violations(sounding: list[RiffNote], ground: tuple[str, int]) -> list[str]:
-    """How long the riff may wander before coming home. A share alone is not enough: a riff
-    can hit its ground quota and still play one long tune followed by a block of chugs."""
-    run = _longest_off_ground_run(sounding, ground)
-    if run <= _NON_GROUND_RUN_MAX:
-        return []
-    return [f"{run} notes in a row leave the ground pitch (cap {_NON_GROUND_RUN_MAX}) — a "
-            f"movement figure is 2-4 notes and then you COME BACK; a longer run stops being "
-            f"an answer to the ground and becomes a tune"]
 
 
 def _chug_runs(notes: list[RiffNote]) -> list[list[RiffNote]]:
@@ -398,7 +375,7 @@ def _accent_violations(notes: list[RiffNote]) -> list[str]:
             f"so it breathes instead of sounding programmed"]
 
 
-def _pads_violations(notes: list[RiffNote], sounding: list[RiffNote],
+def _pads_notes(notes: list[RiffNote], sounding: list[RiffNote],
                      cycle_beats: float) -> list[str]:
     viol: list[str] = []
     ring = _ring_share(sounding)
@@ -431,7 +408,7 @@ def _pads_violations(notes: list[RiffNote], sounding: list[RiffNote],
     return viol
 
 
-def _stabs_violations(notes: list[RiffNote], sounding: list[RiffNote],
+def _stabs_notes(notes: list[RiffNote], sounding: list[RiffNote],
                       cycle_beats: float) -> list[str]:
     viol: list[str] = []
     rest_beats = sum(n.dur for n in notes if n.rest)
@@ -452,10 +429,6 @@ def _stabs_violations(notes: list[RiffNote], sounding: list[RiffNote],
                     "no weight to drop from. Strike at least one OPEN chord of a beat or more "
                     "(the downbeat is where it belongs) and let it hang before the crush; "
                     "a chorded palm-mute carries weight on paper and a click in the air")
-    rate = _pitch_change_rate(sounding)
-    if rate > _CHANGE_MAX_STABS:
-        viol.append(f"{rate:.0%} of consecutive stabs change pitch — hammer ONE root and move "
-                    f"only for the final stab into the sam")
     colors = sum(1 for n in sounding if _is_color(n))
     if colors > _COLOR_MAX_STABS:
         viol.append(f"{colors} bright colour stacks in a breakdown — stabs are the darkest "
@@ -465,26 +438,49 @@ def _stabs_violations(notes: list[RiffNote], sounding: list[RiffNote],
 
 _MODE_CHECKS: Final[dict[RiffMode, Callable[[list[RiffNote], list[RiffNote], float],
                                             list[str]]]] = {
-    RiffMode.DRIVE: _drive_violations,
-    RiffMode.PADS: _pads_violations,
-    RiffMode.STABS: _stabs_violations,
+    RiffMode.DRIVE: _drive_notes,
+    RiffMode.PADS: _pads_notes,
+    RiffMode.STABS: _stabs_notes,
 }
 
 
-def verify_riff(pattern: RiffPattern, *, mode: RiffMode, cycle_beats: float) -> list[str]:
-    """Return the riff cycle's TEXTURE violations against its mode's budgets (empty ==
-    an idiomatic metal cycle). Pure.
+def verify_riff(pattern: RiffPattern, *, cycle_beats: float) -> list[str]:
+    """Return the cycle's HARD violations — what makes it unplayable or unrenderable, never
+    what makes it unfashionable (empty == it works). Pure.
 
-    Checks structure only — ground share, pitch-change rate, weight on the sam, ring/
-    sustain shares, real silence, the colour and fancy-technique rations, and that the
-    durations actually fill the cycle. Which pitches, which figures, which pakad fragment
-    — the taste — is never judged here (that stays with Rasik/Producer)."""
+    Three things only: something sounds, the durations fill the cycle so the loop lands on the
+    sam, and the articulation is physical (no sustained palm mute, no bend or slide on a chord).
+    Everything about texture and taste is `texture_notes` — reported, not enforced."""
     sounding = _sounding(pattern.notes)
     if not sounding:
         return ["the riff has no sounding notes — even the sparsest mode strikes something"]
-    viol = _shared_violations(pattern.notes, sounding, cycle_beats)
-    viol += _MODE_CHECKS[mode](pattern.notes, sounding, cycle_beats)
-    return viol
+    return _fill_violation(pattern.notes, cycle_beats) + _articulation_violations(sounding)
+
+
+def texture_notes(pattern: RiffPattern, *, mode: RiffMode, cycle_beats: float) -> list[str]:
+    """The cycle's texture against its mode's RECIPE — chug and ring shares, silence, weight on
+    the sam, colour and gesture rations, hook restatement, rhythmic variety. ADVISORY: these are
+    observations for a judge (and the ear), never a reason to re-roll — the recipe was tuned on an
+    older model and rejects good metal (see the module docstring). Pure."""
+    sounding = _sounding(pattern.notes)
+    if not sounding:
+        return []
+    return _ration_notes(sounding) + _MODE_CHECKS[mode](pattern.notes, sounding, cycle_beats)
+
+
+def texture_measures(pattern: RiffPattern) -> dict[str, float]:
+    """Plain pitch-economy numbers, with NO pass line: how often the root changes, how much of
+    the cycle its commonest pitch and its two commonest pitches cover, and how many distinct
+    pitches it uses. A shuffle and a melody can share any of these — a judge reads them. Pure."""
+    sounding = _sounding(pattern.notes)
+    if not sounding:
+        return {}
+    counts = Counter((n.swara, n.oct) for n in sounding)
+    top_two = sum(c for _, c in counts.most_common(2))
+    return {"pitch_change": round(_pitch_change_rate(sounding), 2),
+            "ground_share": round(_ground_share(sounding), 2),
+            "top_two_share": round(top_two / len(sounding), 2),
+            "distinct_pitches": float(len(counts))}
 
 
 def open_the_rings(pattern: RiffPattern, mode: RiffMode) -> RiffPattern:
@@ -595,27 +591,58 @@ def _finalize_texture(pattern: RiffPattern, mode: RiffMode) -> RiffPattern:
     return pattern
 
 
+# Best-of-N by SEVERITY (2026-10-12, the lead's near-empty-take bug, same shape here): a cycle
+# that is mostly rests passes the fill check (rests count toward the cycle) and trips few
+# texture rules, so on fault count alone the emptiest failed take could win. It now always
+# loses to a fuller one. Deliberately low lines — a STABS cycle (four half-beat hits in sixteen)
+# is sparse on purpose and must not read as empty; this only RANKS takes that already failed.
+_UNDERFILL_STROKES: Final = 3        # fewer sounding strokes per cycle than this = near-empty...
+_UNDERFILL_SOUNDING: Final = 0.1     # ...or strokes sounding for under this share of the cycle
+
+
+def riff_underfilled(pattern: RiffPattern, cycle_beats: float) -> bool:
+    """Whether a riff cycle is NEAR-EMPTY: fewer than `_UNDERFILL_STROKES` sounding strokes, or
+    strokes whose written durations cover under `_UNDERFILL_SOUNDING` of the cycle. Pure."""
+    sounding = _sounding(pattern.notes)
+    covered = sum(n.dur for n in sounding)
+    return len(sounding) < _UNDERFILL_STROKES or covered < _UNDERFILL_SOUNDING * cycle_beats
+
+
+def riff_severity(pattern: RiffPattern, cycle_beats: float,
+                  violations: list[str]) -> tuple[bool, int]:
+    """How bad a failed riff take is, as a sortable key (lower is better): near-empty first,
+    then the number of violations — an emptier cycle never wins on a lower count. Pure."""
+    return (riff_underfilled(pattern, cycle_beats), len(violations))
+
+
 def verified_riff(gen: Callable[[Optional[list[str]]], RiffPattern], section: Section,
-                  cycle_beats: float) -> RiffPattern:
-    """Generate a VERIFIED riff cycle: call `gen(feedback)` and re-roll a cycle that
-    misses its mode's budgets up to `RIFF_REPAIR_TRIES` times, feeding back the EXACT
-    violations (a targeted re-roll, not a blind one). Bounded, best-of-N (fewest
-    violations) when none come back clean — a weak riff plays; a live run never dies on
-    taste. Every returned cycle (clean or best-of-N) passes through `_finalize_texture`,
+                  cycle_beats: float,
+                  extra_check: Optional[Callable[[RiffPattern], list[str]]] = None) -> RiffPattern:
+    """Generate a VERIFIED riff cycle: call `gen(feedback)` and re-roll a cycle with a HARD
+    violation (`verify_riff` — it must fill the cycle and be physically playable) up to
+    `RIFF_REPAIR_TRIES` times, feeding back the EXACT violations (a targeted re-roll, not a
+    blind one). Texture is never a reason to re-roll (`texture_notes` reports it). Bounded,
+    best-of-N (least severe — `riff_severity`: a fuller cycle beats a near-empty one, then fewest
+    violations) when none come back clean — a live run never dies here. Every returned cycle (clean or best-of-N) passes through `_finalize_texture`,
     the deterministic guarantees: enough open ring, DRIVE's palm-mute chug floor, and PADS'
     between-ring chugs — so those textures are guarantees, not hopes. Pure control flow:
-    `gen` is injected, so this tests with no LLM."""
+    `gen` is injected, so this tests with no LLM. `extra_check` adds budgets a particular
+    chart needs (e.g. `riff_playability` when a human will play the part); its violations
+    join the texture's in the same feedback and the same best-of-N count."""
     mode = riff_mode_for(section)
     best: Optional[RiffPattern] = None
-    best_viol: Optional[list[str]] = None
+    best_severity: Optional[tuple[bool, int]] = None
     feedback: Optional[list[str]] = None
     for _ in range(RIFF_REPAIR_TRIES + 1):
         pattern = gen(feedback)
-        viol = verify_riff(pattern, mode=mode, cycle_beats=cycle_beats)
+        viol = verify_riff(pattern, cycle_beats=cycle_beats)
+        if extra_check is not None:
+            viol += extra_check(pattern)
         if not viol:
             return _finalize_texture(pattern, mode)
         feedback = viol                       # the re-roll sees EXACTLY what failed
-        if best_viol is None or len(viol) < len(best_viol):
-            best, best_viol = pattern, viol
+        severity = riff_severity(pattern, cycle_beats, viol)
+        if best_severity is None or severity < best_severity:
+            best, best_severity = pattern, severity
     assert best is not None                   # the loop ran at least once
     return _finalize_texture(best, mode)

@@ -105,9 +105,30 @@ def test_no_form_role_is_always_base():
     assert [variant_for_bar(sec, i, 4, is_final_rhythm=True) for i in range(4)] == ["base"] * 4
 
 
-def test_taan_section_is_stripped():
-    sec = _sec(form_role="taan_long", bars=2)
-    assert all(variant_for_bar(sec, i, 2, is_final_rhythm=False) == "stripped" for i in range(2))
+def test_a_short_taan_thins_but_the_climax_taan_drives_on_a_pedal():
+    # the short taan is a cadential filler (the riff makes room); the LONG taan is the peak:
+    # full drive on one floor, and the piece's last bar still lands on the heaviest hit
+    short = _sec(form_role="taan_short", bars=2)
+    assert all(variant_for_bar(short, i, 2, is_final_rhythm=False) == "stripped" for i in range(2))
+    climax = _sec(form_role="taan_long", bars=2)
+    assert [variant_for_bar(climax, i, 2, is_final_rhythm=False) for i in range(2)] == ["pedal"] * 2
+    assert [variant_for_bar(climax, i, 2, is_final_rhythm=True) for i in range(2)] == ["pedal", "double"]
+
+
+def test_the_pedal_keeps_every_attack_on_one_floor():
+    """Song C's climax halved the guitar (28 strokes per cycle -> 14) while the drums peaked.
+    The pedal keeps the rhythm whole and simplifies only the harmony."""
+    base = [RiffNote(swara="S", dur=0.5, chord=["P", "S"], technique="palm_mute"),
+            RiffNote(swara="r", dur=0.5, chord=["d", "r"]),
+            RiffNote(swara="S", dur=0.5, chord=["P", "S"], technique="palm_mute"),
+            RiffNote(swara="d", dur=0.5, technique="slide"),
+            RiffNote(swara="S", dur=1.0, rest=True),
+            RiffNote(swara="S", dur=1.0, chord=["P", "S"])]
+    out = apply_variant(base, "pedal")
+    assert [n.dur for n in out] == [n.dur for n in base]            # every attack and rest kept
+    sounding = [n for n in out if not n.rest]
+    assert {(n.swara, tuple(n.chord or [])) for n in sounding} == {("S", ("P", "S"))}
+    assert [n.technique for n in out] == ["palm_mute", None, "palm_mute", None, None, None]
 
 
 def test_primes_every_third_bar_of_a_long_section():

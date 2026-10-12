@@ -1,13 +1,9 @@
 """
-Tests for Ustad, the LEGALITY critic — the CODE side, with no LLM (free, no key).
+Tests for Ustad, the LEGALITY critic — pure code since the redesign (no LLM, free).
 
-The one property worth pinning: code — not the model — owns the verdict. `assess`
-takes an injected `judge_fn`, so we hand it a fake narration and check that the
-verdict/violations still come straight from the deterministic validator: a planted
-illegal swara reads "illegal" even when the fake Ustad claims the piece is fine, and
-a clean piece reads "legal". We also exercise the tool adapter directly (it surfaces
-the same violations) and confirm the CRITIQUE event carries the verdict. The real LLM
-narration is exercised live via `uv run python -m crew.ustad`, not here.
+Legality is a grammar fact, so the deterministic validator owns the verdict AND, now, its
+explanation: a planted illegal swara reads "illegal" with the voice, swara and beat named;
+a clean piece reads "legal"; the CRITIQUE event carries the verdict and the violations.
 
 Runs as a script (`uv run python tests/test_ustad.py`) or under pytest.
 """
@@ -24,20 +20,13 @@ from crew.contracts import (  # noqa: E402
     EventType,
     Layer,
     Note,
-    UstadNarration,
 )
-from crew.ustad import (  # noqa: E402
-    ValidateCompositionTool,
-    _an_illegal_swara,
-    _never_cache,
-    _validator_tool,
-    assess,
-)
-from raga import RAGAS  # noqa: E402
+from crew.ustad import assess, critique_legality  # noqa: E402
+from raga import RAGAS, SWARAS  # noqa: E402
 
 _RAGA = "bhairav"
 _SA = RAGAS[_RAGA]["allowed"][0]                 # Sa — always legal
-_FOREIGN = _an_illegal_swara(_RAGA)              # a swara Bhairav forbids
+_FOREIGN = next(sw for sw in SWARAS if sw not in RAGAS[_RAGA]["allowed"])  # a swara Bhairav forbids
 
 
 def _comp(*lead_swaras: str) -> Composition:
@@ -52,84 +41,36 @@ def _comp(*lead_swaras: str) -> Composition:
         ])
 
 
-def _fake_judge(explanation: str = "", reasoning: str = ""):
-    """A stand-in Ustad: returns a canned narration and records how it was called."""
-    calls: list[dict] = []
-
-    def fn(comp, payload):
-        calls.append({"comp": comp, "payload": payload})
-        return UstadNarration(reasoning=reasoning, explanation=explanation)
-
-    return fn, calls
-
-
 def test_clean_piece_reads_legal():
-    verdict, _ = assess(_comp(_SA, _SA), judge_fn=_fake_judge()[0])
-    assert verdict.verdict == "legal"
-    assert verdict.violations == []
+    verdict, _ = assess(_comp(_SA, _SA))
+    assert verdict.verdict == "legal" and verdict.violations == []
+    assert "legal" in verdict.explanation.lower()
 
 
 def test_planted_illegal_swara_reads_illegal():
-    verdict, _ = assess(_comp(_SA, _FOREIGN), judge_fn=_fake_judge()[0])
+    verdict, _ = assess(_comp(_SA, _FOREIGN))
     assert verdict.verdict == "illegal"
     assert [v.swara for v in verdict.violations] == [_FOREIGN]
     assert verdict.violations[0].layer == "lead"
 
 
-def test_code_owns_the_verdict_not_the_llm():
-    # The fake Ustad LIES ("all clean"); the deterministic check must still rule illegal.
-    lying_judge, _ = _fake_judge(explanation="Looks perfectly legal to me.")
-    verdict, _ = assess(_comp(_SA, _FOREIGN), judge_fn=lying_judge)
-    assert verdict.verdict == "illegal"                      # code overrides the model
-    assert verdict.explanation == "Looks perfectly legal to me."   # but the narration is preserved
+def test_the_explanation_names_the_voice_the_swara_and_the_beat():
+    verdict, _ = assess(_comp(_SA, _FOREIGN))
+    assert f"lead plays {_FOREIGN} at beat 1" in verdict.explanation
+    assert " ".join(RAGAS[_RAGA]["allowed"]) in verdict.explanation
 
 
-def test_judge_is_handed_the_render_payload():
-    # the judge (the LLM) runs ONLY when there's a violation to explain — hand it an ILLEGAL piece
-    fn, calls = _fake_judge()
-    assess(_comp(_SA, _FOREIGN), judge_fn=fn)
-    assert len(calls) == 1
-    assert calls[0]["payload"]["raga"] == _RAGA                # the dict the tool binds to
-    assert any(layer["role"] == "lead" for layer in calls[0]["payload"]["layers"])
-
-
-def test_clean_piece_skips_the_llm_judge():
-    # a LEGAL piece needs no narration — code owns the "legal" verdict, so the LLM/ReAct call is
-    # skipped entirely (Sujit, 2026-07-16: "do things programmatically instead of the ReAct loop").
-    fn, calls = _fake_judge(explanation="should never be used")
-    verdict, _ = assess(_comp(_SA, _SA), judge_fn=fn)
-    assert verdict.verdict == "legal" and calls == []          # the judge was NOT called
-    assert "legal" in verdict.explanation.lower()              # a deterministic confirmation instead
+def test_a_long_list_is_summarised_not_dumped():
+    verdict, _ = assess(_comp(*([_FOREIGN] * 6)))
+    assert "and 3 more" in verdict.explanation
 
 
 def test_critique_event_carries_the_verdict():
-    _, events = assess(_comp(_SA, _FOREIGN), judge_fn=_fake_judge(explanation="foreign note")[0])
+    _, events = critique_legality(_comp(_SA, _FOREIGN))
     critique = [e for e in events if e.type == EventType.CRITIQUE]
     assert len(critique) == 1
     assert critique[0].agent == "Ustad" and critique[0].verdict == "illegal"
-    assert critique[0].text == "foreign note"
     assert len(critique[0].data["violations"]) == 1
-
-
-def test_tool_adapter_surfaces_the_same_violations():
-    tool = _validator_tool(_comp(_SA, _FOREIGN).model_dump(exclude_none=True))
-    result = tool._run()
-    assert [v["swara"] for v in result["violations"]] == [_FOREIGN]
-
-
-def test_tool_is_not_cached():
-    # A zero-arg tool with default caching would hand back a PRIOR piece's result;
-    # our factory disables caching so each composition is checked fresh.
-    tool = _validator_tool(_comp(_SA).model_dump(exclude_none=True))
-    assert tool.cache_function() is False
-
-
-def test_tool_binds_the_composition():
-    tool = ValidateCompositionTool(
-        composition=_comp(_SA).model_dump(exclude_none=True),
-        cache_function=_never_cache)
-    assert tool.name == "validate_composition"
-    assert tool._run()["violations"] == []                    # a clean piece: no violations
 
 
 if __name__ == "__main__":

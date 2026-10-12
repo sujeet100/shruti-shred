@@ -20,12 +20,17 @@ gat chart and a form-less demo/fixture is still placed literally (variant "base"
 
 from __future__ import annotations
 
-from typing import Callable, Literal
+from collections import Counter
+from typing import Callable, Final, Literal
 
 from crew.contracts import RiffNote, Section
 
 # The family members. "base" = the cycle as written; the rest develop it (see the transforms).
-RiffVariant = Literal["base", "prime", "stripped", "double"]
+RiffVariant = Literal["base", "prime", "stripped", "pedal", "double"]
+
+# Techniques that MOVE pitch — meaningless on a pedal that holds one pitch, so they are dropped.
+_PITCH_MOVES: Final = frozenset({"slide", "long_slide", "pick_scrape", "bend",
+                                 "hammer_on", "pull_off"})
 
 
 def _base(notes: list[RiffNote]) -> list[RiffNote]:
@@ -68,6 +73,26 @@ def _stripped(notes: list[RiffNote]) -> list[RiffNote]:
             for n in notes[::2]]
 
 
+def _pedal(notes: list[RiffNote]) -> list[RiffNote]:
+    """The CLIMAX version — every attack kept, every pitch collapsed onto the cycle's GROUND
+    (its commonest sounding pitch) with that note's power chord. Under the long taan the band
+    must simplify HARMONICALLY, not rhythmically (Sujit, f65dbce): the sitar's fast runs get a
+    single unmoving floor to fly over, while the guitar keeps driving at full density. The
+    stripped variant halved the attacks there (song C: 28 strokes per cycle -> 14 at the peak,
+    while the drums got busier — the GPT review's "imbalance at 45 s"). Rests, rhythm,
+    velocities and the palm mute are untouched; pitch-moving techniques are dropped. Legal by
+    construction: the ground and its chord come from the base cycle itself."""
+    sounding = [n for n in notes if not n.rest]
+    if not sounding:
+        return [n.model_copy() for n in notes]
+    ground = Counter((n.swara, n.oct) for n in sounding).most_common(1)[0][0]
+    anchor = next(n for n in sounding if (n.swara, n.oct) == ground)
+    return [n.model_copy() if n.rest else n.model_copy(update={
+                "swara": anchor.swara, "oct": anchor.oct, "chord": anchor.chord,
+                "technique": None if n.technique in _PITCH_MOVES else n.technique})
+            for n in notes]
+
+
 def _double(notes: list[RiffNote]) -> list[RiffNote]:
     """The HEAVIEST version — an octave power chord on every note (stack the note's OWN swara
     a register up) plus a palm-mute for weight; the climactic version to land the piece on.
@@ -89,12 +114,13 @@ def _double(notes: list[RiffNote]) -> list[RiffNote]:
 
 
 _TRANSFORMS: dict[str, Callable[[list[RiffNote]], list[RiffNote]]] = {
-    "base": _base, "prime": _prime, "stripped": _stripped, "double": _double,
+    "base": _base, "prime": _prime, "stripped": _stripped, "pedal": _pedal, "double": _double,
 }
 
-# The form roles whose riff should be thinned so the melodic line leads (taans, an alaap-like
-# intro). A rhythm layer under these makes ROOM rather than competing.
-_STRIPPED_ROLES: frozenset[str] = frozenset({"taan_short", "taan_long"})
+# The SHORT taan is a cadential filler: the riff thins so the line leads. The LONG taan is the
+# PEAK: the riff keeps its full drive on a pedal (`_pedal`) — never thinned at the climax.
+_STRIPPED_ROLES: frozenset[str] = frozenset({"taan_short"})
+_CLIMAX_ROLE: Final = "taan_long"
 
 
 def apply_variant(notes: list[RiffNote], variant: RiffVariant) -> list[RiffNote]:
@@ -109,8 +135,9 @@ def variant_for_bar(section: Section, bar_index: int, bars: int, *,
     Reads the section's `form_role` (step 1) and its position, never the notes:
       * no declared gat form (form_role is None) -> "base": place the cycle literally, so a
         legacy/demo chart is unchanged (this is why the whole existing test-suite stays green);
-      * a taan section          -> "stripped": thin the riff so the taan leads;
+      * a short taan            -> "stripped": thin the riff so the taan leads;
       * the last bar of the final rhythm section -> "double": land the ending on the heaviest hit;
+      * the long taan (the climax) -> "pedal": full drive on one floor under the sitar's runs;
       * every 3rd bar of a section of >=3 bars   -> "prime": vary after two cycles, so no more
         than two identical cycles run back-to-back (GPT: "A, A, then A'");
       * otherwise               -> "base".
@@ -121,6 +148,8 @@ def variant_for_bar(section: Section, bar_index: int, bars: int, *,
         return "stripped"
     if is_final_rhythm and bar_index == bars - 1:
         return "double"
+    if section.form_role == _CLIMAX_ROLE:
+        return "pedal"
     if bars >= 3 and (bar_index + 1) % 3 == 0:
         return "prime"
     return "base"

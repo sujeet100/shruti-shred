@@ -18,7 +18,7 @@ import sys
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
-from crew.config import AGENT_RETRY_LIMIT, extractor_llm, load_env
+from crew.config import AGENT_RETRY_LIMIT, extractor_llm, load_env, structured_output
 from crew.contracts import (
     CompositionBrief,
     DebateEvent,
@@ -44,7 +44,7 @@ class InterpreterCrew:
     @task
     def interpret_query(self) -> Task:
         return Task(config=self.tasks_config["interpret_query"],
-                    agent=self.interpreter(), output_pydantic=RawIntent)
+                    agent=self.interpreter(), **structured_output(RawIntent))
 
     @crew
     def crew(self) -> Crew:
@@ -68,6 +68,10 @@ def _fmt_brief(b: CompositionBrief) -> str:
     parts.append(f"instruments={b.instruments}" if b.instruments else "instruments=OPEN")
     if b.mood:
         parts.append(f"mood={b.mood}")
+    if b.duration_s:
+        parts.append(f"length={b.duration_s}s")
+    if b.playable_rhythm:
+        parts.append("rhythm=playable")
     return " | ".join(parts)
 
 
@@ -79,7 +83,7 @@ def interpret(query: str) -> tuple[CompositionBrief, list[DebateEvent]]:
     including the raga itself when the user only gave a mood).
     """
     intent = _extract_intent(query)
-    brief = resolve_brief(intent)
+    brief = resolve_brief(intent, request=query)
 
     events: list[DebateEvent] = [DebateEvent(
         type=EventType.INFO, agent="Interpreter", role="system",
