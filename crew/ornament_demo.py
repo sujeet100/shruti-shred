@@ -93,7 +93,15 @@ def _bageshree() -> _Cues:
 def _darbari() -> _Cues:
     from crew.expression import with_gamak_cells, with_gestures, with_intonation
     c = _Cues(bpm=_DARBARI_BPM, sa=_DARBARI_SA)
-    andolan = {"andolan": True, "andolan_st": -0.5}       # Darbari's komal Ga/Dha sway below
+    from raga import ANDOLAN_SWINGS
+    once = {"andolan": True, "andolan_st": -0.5}          # Darbari's komal Ga/Dha sway below
+    andolan = {**once, "andolan_swings": ANDOLAN_SWINGS["darbari"]}   # 2-3 swings (2026-10-18)
+    for label, sway in (("BEFORE, the default one swing", once), ("AFTER, Darbari's 2-3 swings", andolan)):
+        c.add(f"ANDOLAN COUNT A/B: Ga held 3 beats, {label} (R (R)g~ R S)",
+              [("R", 0, 1, {}), ("g", 0, 3, {"grace": ["R"], **sway}), ("R", 0, 1, {}),
+               ("S", 0, 2, {})])
+        c.add(f"ANDOLAN COUNT A/B: mandra Dha held 4 beats, {label} (n d~ n P)",
+              [("n", -1, 1, {}), ("d", -1, 4, {**sway}), ("n", -1, 1, {}), ("P", -1, 2, {})])
     c.add("komal Ga andolan, approached by a Re kan (R (R)g~ R S)",
           [("R", 0, 1, {}), ("g", 0, 3, {"grace": ["R"], **andolan}), ("R", 0, 1, {}),
            ("S", 0, 2, {})])

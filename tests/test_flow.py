@@ -157,7 +157,7 @@ def test_the_same_edit_asked_again_without_gain_stops_the_loop():
 
     stages = dataclasses.replace(stages, critique=critique,
                                  decide=lambda u, r, p, c, a: (p.plan, [_ev("decide")]))
-    state = compose_flow("q", stages=stages, max_rounds=3)
+    state = compose_flow("q", stages=stages, max_rounds=3, max_judge_rounds=3)   # a budget the stop rule can bite on
     assert counts["regenerate"] == 1 and counts["critique"] == 2   # one revise, then stop
     assert any("same edit" in e.text for e in state.events) and counts["render"] == 1
 
@@ -205,6 +205,41 @@ def test_canvas_passes_default_override_and_fallback():
     os.environ.pop("RMA_CANVAS_PASSES", None)
 
 
+class _redesign_off:
+    """The legacy routing these tests exercise: the Composer and the rhythm-section call (the
+    default since 2026-10-18) switched off for the block, the previous values restored after."""
+    _KEYS = ("RMA_COMPOSER", "RMA_RHYTHM_SECTION")
+
+    def __enter__(self):
+        self._saved = {k: os.environ.get(k) for k in self._KEYS}
+        for k in self._KEYS:
+            os.environ[k] = "0"
+
+    def __exit__(self, *exc):
+        for k, v in self._saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def test_generate_routes_to_the_composer_and_the_rhythm_section_by_default():
+    import crew.flow as flow
+    import crew.rhythm_voice as rv
+    seen: list = []
+    original = rv.creative_voices_with_rhythm_section
+    rv.creative_voices_with_rhythm_section = lambda arr, **kw: seen.append(kw["composer"]) or ([], None, [])
+    saved = {k: os.environ.pop(k, None) for k in ("RMA_COMPOSER", "RMA_RHYTHM_SECTION", "RMA_STUDIO")}
+    try:
+        flow._generate(_arr())
+        assert seen == [True]                        # one Composer, then the rhythm-section call
+    finally:
+        rv.creative_voices_with_rhythm_section = original
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+
+
 def test_generate_routes_to_the_studio_when_enabled():
     import crew.flow as flow
     import crew.studio_session as ss
@@ -214,7 +249,8 @@ def test_generate_routes_to_the_studio_when_enabled():
     os.environ["RMA_STUDIO"] = "1"
     os.environ["RMA_CANVAS_PASSES"] = "2"
     try:
-        result = flow._generate(_arr())
+        with _redesign_off():                        # the Composer takes precedence over the studio
+            result = flow._generate(_arr())
         assert marks == [("studio", 2)]              # routed to the studio, passes threaded
         # _arr() uses no orchestra, so orchestra_layers is empty: (lead, rhythm, orchestra, events, canvases)
         assert result == ([], None, [], [], [])
@@ -233,7 +269,7 @@ def test_the_flow_never_calls_an_arranger():
     assert importlib.util.find_spec("crew.arranger") is None
 
 
-def test_generate_routes_to_parallel_by_default():
+def test_generate_routes_to_parallel_with_the_redesign_off():
     import crew.flow as flow
     import crew.lead as lead_mod
     import crew.riff as riff_mod
@@ -241,9 +277,10 @@ def test_generate_routes_to_parallel_by_default():
     ol, orr = lead_mod.compose_lead, riff_mod.compose_riff
     lead_mod.compose_lead = lambda arr, riff=None: marks.append("lead") or ([], [])
     riff_mod.compose_riff = lambda arr, mukhada=None: marks.append("riff") or (None, [])
-    os.environ.pop("RMA_STUDIO", None)               # default: studio OFF
+    os.environ.pop("RMA_STUDIO", None)               # studio OFF
     try:
-        flow._generate(_arr())
+        with _redesign_off():
+            flow._generate(_arr())
         assert marks == ["lead", "riff"]             # the parallel generate-in-isolation path
     finally:
         lead_mod.compose_lead = ol
@@ -274,7 +311,8 @@ def test_generate_scores_the_orchestra_when_the_chart_uses_it():
         lambda a, **kw: marks.append("orchestra") or ([Layer(role="orch_strings")], [_ev("orch")]))
     os.environ.pop("RMA_STUDIO", None)
     try:
-        _lead, _rhythm, orchestra_layers, _events, _canvases = flow._generate(_symphonic_arr())
+        with _redesign_off():
+            _lead, _rhythm, orchestra_layers, _events, _canvases = flow._generate(_symphonic_arr())
         assert marks == ["orchestra"]                        # the capability gate fired
         assert [la.role for la in orchestra_layers] == ["orch_strings"]
     finally:
@@ -334,6 +372,99 @@ def test_the_listening_pass_is_off_unless_the_flag_is_set():
         assert production_stages(name="x").listen is not None
     finally:
         os.environ.pop("RMA_LISTEN", None)
+
+
+# --- keep the better take (2026-10-18) ---------------------------------------
+
+def _judged_stages(counts: dict, *, keep: bool | None, forced: bool = False):
+    """A run where the judge (not code) asks for one lead revision. Each assembly is a distinct
+    take; `compare` answers `keep` (None = no compare stage); `forced` makes the plan code's."""
+    stages = _fake_stages([], counts=counts)
+    plan = RevisionPlan(voice="lead", sections=[1], instruction="the ending does not land")
+    takes = iter(range(10))
+
+    def assemble(arr, lead, rhythm, orchestra):
+        n = next(takes)
+        return Composition(raga="darbari", sa=62, bpm=120, tala={"name": "teentaal", "beats_per_bar": 16.0},
+                           layers=[Layer(role="lead", notes=[Note(swara="S", oct=0, start=float(n), dur=1.0)])])
+
+    def critique(_comp, _arr):
+        counts["critique"] = counts.get("critique", 0) + 1
+        return (UstadVerdict(verdict="legal", explanation="clean"),
+                RasikVerdict(scores=RasikScores(pakad=3, idiom=3, rasa=3)),
+                ProducerVerdict(scores=ProducerScores(structure=4, dynamics=4, climax=4, motif=4, hook=4, balance=4,
+                                                      independence=4, mood_fit=4, repetition=4, performance=4),
+                                decision="revise", plan=plan), [_ev("critique")])
+
+    def decide(u, r, prod, c, a):
+        return (RevisionPlan(voice="lead", instruction="forced") if forced else prod.plan), [_ev("decide")]
+
+    def compare(draft, revision, arr):
+        counts["compare"] = counts.get("compare", 0) + 1
+        return keep, [_ev("compare")]
+
+    def render(comp):
+        counts["rendered_take"] = comp.layers[0].notes[0].start
+        return "out/fake.wav"
+
+    return dataclasses.replace(stages, assemble=assemble, critique=critique, decide=decide, render=render,
+                               compare=None if keep is None else compare)
+
+
+def test_a_judge_revision_that_loses_the_comparison_ships_the_first_draft():
+    counts: dict = {}
+    compose_flow("q", stages=_judged_stages(counts, keep=False))
+    assert counts["regenerate"] == 1 and counts["compare"] == 1
+    assert counts["rendered_take"] == 0.0                          # take 0: the first draft
+    assert counts["critique"] == 1                                 # the budget is spent: no re-critique
+
+
+def test_a_judge_revision_that_wins_both_orders_ships():
+    counts: dict = {}
+    state = compose_flow("q", stages=_judged_stages(counts, keep=True))
+    assert counts["rendered_take"] == 1.0 and counts["compare"] == 1
+    assert any("budget" in e.text for e in state.events)
+
+
+def test_a_code_forced_fix_is_never_compared():
+    counts: dict = {}
+    compose_flow("q", stages=_judged_stages(counts, keep=False, forced=True), max_rounds=1)
+    assert counts.get("compare", 0) == 0 and counts["rendered_take"] == 1.0   # the fix always stands
+
+
+def test_the_revision_must_win_in_both_orders():
+    from crew.compare import revision_wins
+    arr, draft, revision = _arr(), _comp(), _comp()
+
+    def answers(*seq):
+        it = iter(seq)
+
+        def choose(_inputs):
+            a = next(it)
+            if a == "boom":
+                raise RuntimeError("down")
+            return a
+        return choose
+    # the revision is B in the first ask and A in the swapped one
+    assert revision_wins(draft, revision, arr, choose=answers("B", "A"))[0] is True
+    assert revision_wins(draft, revision, arr, choose=answers("B", "B"))[0] is False   # position bias
+    assert revision_wins(draft, revision, arr, choose=answers("same", "A"))[0] is False
+    assert revision_wins(draft, revision, arr, choose=answers("boom", "A"))[0] is False  # unjudged -> draft
+    _, events = revision_wins(draft, revision, arr, choose=answers("A", "B"))
+    assert events[0].data["votes"] == ["draft", "draft"]
+
+
+def test_every_compare_placeholder_is_supplied():
+    import re
+    from pathlib import Path
+
+    import yaml
+
+    from crew.compare import compare_inputs
+    task = yaml.safe_load((Path(__file__).resolve().parents[1] / "crew" / "config" / "tasks.yaml").read_text())["compare_versions"]
+    wanted = set(re.findall(r"\{([a-z_]+)\}", task["description"] + task["expected_output"]))
+    assert wanted <= set(compare_inputs(_comp(), _comp(), _arr()))
+
 
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

@@ -35,6 +35,7 @@ from crew.contracts import (
     Layer,
     Note,
     RhythmSection,
+    RhythmSectionDraft,
     RiffNote,
     RiffPattern,
     SectionPart,
@@ -43,6 +44,7 @@ from crew.generators import BASS_FLOOR, VOICES, bass_layer, section_spans
 from crew.head_anatomy import accent_beats
 from crew.lead_notation import note_token
 from crew.riff import place_cycles, riff_grammar_error
+from crew.riff_notation import NotationError, parse_cycle
 from crew.riff_texture import verify_riff
 from crew.riff_voicing import voice_riff
 
@@ -138,6 +140,29 @@ def _cycle_errors(cycles: list[list[RiffNote]], where: str, arr: Arrangement, *,
         if bass and any(n.chord for n in notes if not n.rest):
             errors.append(f"{label}: the bass plays single notes — no chord")
     return errors
+
+
+def from_draft(draft: RhythmSectionDraft) -> tuple[RhythmSection | None, list[str]]:
+    """The model's compact answer read back into the `RhythmSection` the pipeline plays: every
+    cycle string parsed (`crew/riff_notation.py`). Returns the section, or None with one fault per
+    unreadable cycle (fed back as the retry's repair list). Pure."""
+    faults: list[str] = []
+    parts: list[SectionPart] = []
+    for draft_part in draft.parts:
+        voices = {}
+        for voice in ("guitar", "bass"):
+            cycles = []
+            for i, text in enumerate(getattr(draft_part, voice), start=1):
+                try:
+                    cycles.append(parse_cycle(text))
+                except NotationError as exc:
+                    faults.append(f"section {draft_part.section} {voice} cycle {i}: {exc}")
+            voices[voice] = cycles
+        parts.append(SectionPart(section=draft_part.section, role=draft_part.role,
+                                 same_as=draft_part.same_as, **voices))
+    if faults:
+        return None, faults
+    return RhythmSection(reasoning=draft.reasoning, parts=parts), []
 
 
 def part_errors(rs: RhythmSection, arr: Arrangement) -> list[str]:

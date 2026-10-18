@@ -803,3 +803,145 @@ the swaras that sway, and places the tihai's last note on the sam, which is arit
 *The lesson:* **knowledge in your data is not knowledge in your output until something applies
 it.** If a fact is deterministic, telling a model about it is a hope, not a mechanism. Trace each
 fact to the place where it acts on the output, and when no such place exists, give it one.
+
+## 2026-10-18 — what measuring taught us (talk-gold)
+
+### The baseline moved: 92 wrong notes became zero
+The experiment slide's headline was "one bare prompt, 92 wrong notes" (gemini-3.5, 2026-10-11).
+Re-run on gemini-3.8 for Bhairav, Yaman and Darbari, the bare call plays **no** forbidden notes in
+two of three ragas (4 in Darbari's guitar). The model learned the notes. What it still cannot do is
+the raga: Rasik scores its mood 2-3 against the system's 4; it shreds in straight runs of 9-13
+notes; it missed Bhairav's "G m d d P" pakad entirely ("Bhairav's pitch set treated as a Western
+double-harmonic scale"). *The lesson:* **re-baseline your control on every model change** — a
+headline about the model's weakness can expire in a week.
+
+### Correct is not good — nine songs, measured
+Three ragas × A (bare) / B (bare + the raga's rules) / C (the system). B made every pakad exact and
+shortened the scale runs — and its mood score did not move (Rasik on Bhairav B: "a Byzantine
+scale exercise"). C won the musical measures that are fair to compare: power chords on 81-100% of
+guitar strokes (21-33% bare), the opening idea returning three times (0-2), all four parts ending
+on the same beat (bare: up to 31 beats apart), mood 4 (2-3), and the only sway on Bhairav's re and
+dha. *The lesson:* knowledge buys correctness; structure and ownership buy music.
+
+### Our own prompt made the bare call look worse
+The bare prompt said "with every part playing for the whole length" — meant to align the parts'
+lengths, read by the model as "never stop". Two of our headline findings about the bare call
+("every part plays every bar", "never breathes") are partly that sentence. *The lesson:* before
+blaming the model, read your own prompt as the model reads it.
+
+### A judge optimises whatever you show it
+The seed debate (two composers argue, a judge picks) ran a third blind round. Every debate turn
+rewrote about half the notes and most of the rhythm, and the arguments quoted our measurements:
+"the rival correctly introduced authentic compound strokes … a recognizable stroke motif". Sujit's
+ear: in Darbari the untouched single seed won — "more weight, the real character of Darbari"; in
+Bhairav the debate won, where its revision happened to ADD breathing space. Across four blind rounds
+debate is not reliably better than one composer. GPT's review named it: *correlated revision* —
+two copies of one model, same facts, same numbers, converging on what is measurable. *The lesson:*
+**if a judge or a critic can see a number, it will optimise the number.** Show the notes first; the
+numbers only to check a concern.
+
+### Code that applies a fact can be wrong, too
+We moved raga facts out of prompts into code so they would always apply. Then code applied one
+sway rule ("swing half way to the neighbour") to every raga: right for Darbari, a wrong note for
+Bageshree (+98 cents, three times in 20 s), and for Bhairav a swing down onto pitch the raga does not
+own. A research pass (Parrikar, Ragajunglism, and van der Meer & Rao's measurement of a real
+Bhairav performance: the dha's whole movement inside ~32 cents, approached from above) gave the
+right shape. *The lesson:* a generic rule reused across domains is a bug waiting for the second
+domain — test each fact per case, and measure the output (we now audit the rendered pitch).
+
+### Our harness lied twice in one day
+A test summary counted lines containing "passed" and hid three failing tests; an experiment
+auditioned the composer's sketched gat heads instead of the composed ones. *The lesson:* verify the
+verification — check each file's x/y, check what an experiment actually played.
+
+### Every pattern has a precondition (the slide this talk needs)
+| Pattern | It needs | What we found |
+|---|---|---|
+| Debate | different information + a trustworthy judge | same model, same facts; rewrote, chased numbers |
+| Role per job | separable work | riff, hook and form are one idea — one call beat eleven agents |
+| Collaboration (shared canvas) | two equal owners | one owner did better |
+| Sequential handoff | the next agent must see the finished work | works: the guitar answers the sitar |
+| Plan → execute | a plan worth committing to | works: the hook returns, the form holds |
+| Evaluator–optimiser | a critic that predicts the listener | unmeasured; 40% of the calls; anchors on numbers |
+| Guardrails | a rule that is actually true | zero illegal notes; fake rules rejected the best riff |
+| Tool use / ReAct | a tool that tells the model something new | Ustad's tool only narrated code's verdict |
+| Human in the loop | a judge you trust | the ear decided every experiment |
+*The line:* don't ask "which pattern is most advanced?", ask "what does it need, and does my problem
+have it?" The patterns that survived are the plain ones.
+
+### Human in the loop — the strongest pattern here (say it, don't build it)
+Ground truth in this system is a listener. Every LLM judge we tried (the Seed judge, the Producer,
+the debate) was a prediction of that listener, and each time Sujit's blind ranking was the deciding
+evidence. The cheapest high-value design is a human at the one decision that matters most — pick
+between two genuinely different seeds in under a minute — and machines everywhere checkable. On
+stage: "the most advanced agent in this system is the person in the room; the architecture's job is
+to spend that attention only where it counts."
+
+### What the nine songs say to change (for the next build)
+Breathing must be PLANNED (the system's Bhairav never drops a part); the raga's defining notes need
+room (Darbari's ga and dha held 0 of 47 times, so never swayed); the energy arc should reach the
+dynamics (the flattest velocities of all nine songs). Next session tries two patterns whose
+preconditions this problem HAS: ReAct with tools that report what the model cannot see (does this
+phrase linger on a wrong pitch? did I hold Darbari's ga long enough to sway?), and a challenger that
+proposes one bounded alternative and never replaces the original.
+
+### ReAct needs a tool that tells the agent something it can ACT on (2026-10-18, built)
+The obvious first tool was "audit the ornaments: does a bend linger on a wrong pitch?". Reading the
+code killed it: every ornament the audit checks (sway, kan, gestures, shruti) is stamped by CODE
+after the model answers, so the agent would be told about faults it cannot fix — and since the
+October fixes the answer is almost always "clean", a paid round trip that buys nothing. The tool
+that earns its call reports the CONSEQUENCES of the agent's own choices that it cannot see: "your
+0.5-beat Ga plays plain — too short to sway", "this Ga takes guruji's loop to Ma", "your draft runs
+19 beats; the last 3 are cut". So the rule for a ReAct tool: it must return something the agent
+(a) cannot compute itself and (b) can change. And it reports what WILL HAPPEN, never a score — a
+judge optimises whatever number you show it, and a composer told "1 of 5 sway" would hold every Ga.
+Second, quieter lesson: attaching a tool silently switched CrewAI off native structured output for
+the whole call (the answer comes back as text the guardrail must parse). A pattern changes the
+plumbing under it; read the framework before the first live call.
+
+**The first live A/B (same call, same inputs, n=1):** without the tool, the Composer put a gamak on
+8 of its 14 notes and never held Darbari's ga or dha. With it, the first draft held ga and dha one
+beat each; the tool answered "0.47 s is too short to sway at this tempo"; the model rewrote both as
+two-beat holds, listened again, and answered. Cost: 3 calls instead of 1, ~5x the input tokens,
+~3x the time. That is ReAct earning its keep: the change it made is exactly the one the tool exposed.
+
+**The fresh A/B (seeds stripped) and Sujit's ear: A (no tool) wins.** The first A/B was confounded:
+song C's seed hook rode the prompt, so both were editing an old melody. From scratch, A wrote
+Darbari's own cadence (`m P g~ m R S`) unaided; B fixed everything the tool reported and lost the
+cadence. ReAct WORKED — the agent changed exactly what the tool showed it — and that is the lesson:
+a tool decides what the agent pays attention to. Point it at a minor, measurable property and you
+get a better score on that property and a worse piece. The same law as the judges: an agent
+optimises whatever you show it, whether a judge's number or a tool's report.
+
+### We skipped the baseline (found 2026-10-18 in the git history)
+Day one (2026-07-11) went straight to agents: the "naive strawman" in the July talk plan ("in scale
+but soulless, or worse, breaks the raga") was an EXPECTATION, never measured; the "naive" clip in
+`src/demo.py` was a hand-written riff with one forbidden note swapped in; the earliest of 77 traces is
+already a composer-agent run. The first real plain-prompt test came three months later (2026-10-11,
+`talk/audio/pure_songs.py`): Gemini wrote legal, fluent melodies unaided, and its band-level riffs beat
+ours (despite 92 forbidden guitar notes). The honest Act 1 opening is "we designed eleven agents
+before measuring one prompt" — the lesson: measure the single call first, keep it as your control.
+
+### The judge's own edit made the piece worse, by its own score (2026-10-18)
+High-effort run (`talk/audio/high_effort.py`, trace 57af304fd1ad; Composer + judges at HIGH): the first
+draft scored 5/4 across the board; the Producer asked for ONE edit (a mandra dip at the cadence); the
+edited version scored LOWER on its own rubric (repetition 4 -> 3) and its next plan asked to undo the
+repetition its edit introduced; the stop rule ended the loop and shipped the worse version. High effort
+cost 4x the thinking (119k vs 30k) and 2.3x the time (14.5 vs 6.2 min) for one measurable gain: Ga/Dha
+held long enough to sway, 0 -> 4. Blind pair for Sujit: `out/blind_producer_20261018_165129/`.
+**Sujit's blind ear (same day): Y — the FIRST DRAFT — "clearly better"; X (the Producer's edit, shipped)
+"had issues in rhythm and towards the end sounded off".** The ear agrees with the judge's own score drop,
+and the fault sits exactly where the edit landed (section 4's cadence). The loop shipped the version
+its own judge rated worse because the stop rule ships the LATEST, not the best. Lesson: an
+evaluator-optimiser loop needs a keep-the-best rule, or the loop can only add risk.
+
+### The Producer, measured across every run (2026-10-18; `talk/audio/producer_analysis_20261018.json`)
+39 of 79 traces carry Producer verdicts; 14 runs had the accept/revise decision. It REVISED THE FIRST
+DRAFT 14 OF 14 TIMES (notes praising "superb… fantastic energy", then revising one phrase). 30 of 36
+plans copied a Rasik suggestion near-verbatim; 30 of 36 prescribed swaras; all 36 targeted the lead.
+87% of its scores are 4 or 5 (round means 3.2-4.4); after an edit the mean went up 10 times, down 9,
+flat 5 — a coin flip — and criteria an edit could not touch (mood_fit, structure, balance) moved
+anyway: noise. 6 of 14 runs shipped a version below one of its own earlier rounds. 15 of 22 follow-up
+plans re-targeted the sections it had just edited. Each reasoning cited ~11 numbers. The one blind ear
+test (57af304fd1ad) preferred the first draft. Verdict: it was a relay for Rasik's notes with a revise
+reflex and a noisy scale, not a judge.

@@ -14,7 +14,11 @@ of what made it sound out of tune, read straight off the file the synthesizer pl
   * DETUNED UNISON — a note sounding unbent on one channel while the SAME pitch is bent on
     another: the sympathetic copy beating against the moving string;
   * CLIPPED — the wheel pinned at its limit: a bend asked for more than the armed range;
-  * MECHANICAL — one bend trajectory repeated many times: a fixed effect, not a hand.
+  * MECHANICAL — one bend trajectory repeated many times: a fixed effect, not a hand;
+  * FOREIGN DWELL — a bend that lingers on a pitch the raga does not own (given the raga and Sa):
+    a glide may PASS one, but a turn or hold there is heard as that swara. The Bageshree alap of
+    `fusion_20261013_081705` swung komal Ga up to shuddha Ga and turned there ~250 ms, three
+    times; it passed every other check (its hold, at 0.25 s, was under HELD_AWAY_MAX_S).
 
 Pure analysis (it reads a file and returns findings; it prints nothing). The audio half — what the
 synthesizer actually sounded — is `crew/pitch_audit.py`.
@@ -29,6 +33,12 @@ from typing import Final
 import mido
 
 HELD_AWAY_MAX_S: Final = 0.30      # longer than the longest measured hold at a neighbour (245 ms)
+# Within this of a swara, a pitch is heard AS that swara (half way to the next is ambiguous)...
+FOREIGN_NEAR_CENTS: Final = 30
+# ...and staying there longer than this is a dwell: a release from Ma to Ga crosses shuddha Ga's
+# 60-cent window in ~50 ms; the faulty sway sat in it ~250 ms.
+FOREIGN_DWELL_MAX_S: Final = 0.08
+_SAMPLE_S: Final = 0.005
 MECHANICAL_MIN_REPEATS: Final = 4  # one exact trajectory this often is a fixed effect
 _MOVING_VALUES: Final = 3          # a trajectory through this many pitches MOVES — a kan's step onto
                                    # a fret (and a note held at its shruti) is meant to repeat
@@ -38,7 +48,7 @@ _EPS: Final = 1e-6
 
 @dataclass(frozen=True)
 class Finding:
-    kind: str          # unsettled | held_away | detuned_unison | clipped | mechanical
+    kind: str          # unsettled | held_away | detuned_unison | clipped | mechanical | foreign_dwell
     time_s: float
     channel: int
     detail: str
@@ -198,11 +208,43 @@ def _mechanical(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]]) -
             for s, count in shapes.items() if count >= MECHANICAL_MIN_REPEATS]
 
 
-def audit_midi(path: str, *, bend_range: int = 12) -> list[Finding]:
+def _foreign_dwell(notes: list[_Note], wheel: dict[int, list[tuple[float, int]]],
+                   bend_range: int, sa: int, owned: frozenset[int]) -> list[Finding]:
+    """Bent notes that stay within `FOREIGN_NEAR_CENTS` of a pitch class outside `owned` (semitones
+    from Sa) for longer than `FOREIGN_DWELL_MAX_S`. Octave-blind: the sitar sounds transposed."""
+    out = []
+    bent = _bent_channels(wheel)
+    for n in (n for n in notes if n.channel in bent):
+        run, t = 0.0, n.on
+        while t < n.off:
+            semis = n.pitch - sa + _wheel_at(wheel[n.channel], t) * bend_range / _WHEEL_LIMIT
+            near = round(semis)
+            foreign = abs(semis - near) * 100 <= FOREIGN_NEAR_CENTS and near % 12 not in owned
+            run = run + _SAMPLE_S if foreign else 0.0
+            if run > FOREIGN_DWELL_MAX_S:
+                out.append(Finding("foreign_dwell", round(t - run, 3), n.channel,
+                                   f"pitch {n.pitch} lingers on semitone {near % 12} from Sa, "
+                                   f"which the raga does not own"))
+                break
+            t += _SAMPLE_S
+    return out
+
+
+def owned_pitch_classes(raga: str) -> frozenset[int]:
+    """The semitones from Sa a raga's swaras occupy."""
+    from raga import RAGAS, SWARAS
+    return frozenset(SWARAS[sw] % 12 for sw in RAGAS[raga]["allowed"])
+
+
+def audit_midi(path: str, *, bend_range: int = 12, raga: str | None = None,
+               sa: int | None = None) -> list[Finding]:
     """Every finding in a rendered MIDI file, in time order. `bend_range` is the semitones the
-    channels are armed with (the renderer's MEEND_RANGE)."""
+    channels are armed with (the renderer's MEEND_RANGE). Given the `raga` and its `sa` (MIDI
+    pitch), bends are also checked for dwelling on pitches the raga does not own."""
     notes, wheel = _timeline(path)
     findings = (_unsettled(notes, wheel) + _held_away(notes, wheel, bend_range)
                 + _detuned_unison(notes, wheel, bend_range) + _clipped(wheel)
                 + _mechanical(notes, wheel))
+    if raga is not None and sa is not None:
+        findings += _foreign_dwell(notes, wheel, bend_range, sa, owned_pitch_classes(raga))
     return sorted(findings, key=lambda f: f.time_s)

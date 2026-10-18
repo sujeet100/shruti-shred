@@ -17,10 +17,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 
-from crew.audition import audition_composition  # noqa: E402
+from crew.audition import audition_composition, head_arrangement  # noqa: E402
 from crew.contracts import DebateTurn, EventType, LeadNote, SeedChoice  # noqa: E402
 from crew.seed_debate import (  # noqa: E402
     APPROACHES,
+    realised,
     GAT_FIRST,
     RIFF_FIRST,
     best_of,
@@ -30,7 +31,7 @@ from crew.seed_debate import (  # noqa: E402
 )
 from crew.seed_debate_crew import _debate_task_config, _yaml, choice_guardrail, turn_guardrail  # noqa: E402
 from crew.seed_measures import measure_seed, render_seed  # noqa: E402
-from tests.test_composer import _BRIEF, _seed  # noqa: E402
+from tests.test_composer import _BRIEF, _gat_seed, _good_head, _idea, _seed  # noqa: E402
 
 
 def _seed_fn(log: list):
@@ -181,6 +182,116 @@ def test_the_audition_is_the_seed_itself_and_calls_no_model():
     assert any(layer.role == "rhythm" for layer in comp.layers)
     sitar = next(layer for layer in comp.layers if layer.instrument == "sitar")
     assert min(n.start for n in sitar.notes) >= 16.0     # the riff plays one avartan alone first
+
+
+
+# --- gat seeds are REALISED: the debate argues, and the ear hears, the composed head ----------
+
+def _gat_seed_fn(log: list):
+    def fn(brief, approach):
+        log.append(approach)
+        return _gat_seed(reasoning=f"gat seed {len(log)}")
+    return fn
+
+
+def _head_fn(log: list):
+    def fn(seed, brief):
+        log.append(seed.reasoning)
+        return _good_head()
+    return fn
+
+
+def test_every_gat_seed_gets_its_head_composed_before_it_is_weighed():
+    seeds, judge, heads = [], [], []
+    result = best_of(_BRIEF, seed_fn=_gat_seed_fn(seeds), select_fn=_select_fn(judge), head_fn=_head_fn(heads))
+    assert len(heads) == 4 and all(c.hook is not None for c in result.candidates)
+    assert result.calls == 4 + 4 + 2
+    assert "hook (one avartan" in judge[0]                 # the selector reads the composed notes
+
+
+def test_a_debate_recomposes_only_the_head_its_argument_changed():
+    heads: list = []
+    revised = _gat_seed(reasoning="A, persuaded", head=_idea(sam_swara="m"))
+
+    def turn_fn(brief, own, rival, both):
+        if own.reasoning == "gat seed 1":
+            return DebateTurn(argument="the rival's cell is stronger", changed=True, seed=revised)
+        return DebateTurn(argument="kept", changed=False, seed=own.model_copy(update={"hook": None}))
+
+    result = debate(_BRIEF, seed_fn=_gat_seed_fn([]), turn_fn=turn_fn, select_fn=_select_fn([]),
+                    head_fn=_head_fn(heads))
+    assert heads == ["gat seed 1", "gat seed 2", "A, persuaded"]     # B kept its composed head
+    assert all(f.hook is not None for f in result.candidates)
+    assert result.calls == 2 + 2 + 2 + 1 + 2
+
+
+def test_a_gat_seed_that_also_sketched_a_hook_still_gets_its_head_composed():
+    # the 2026-10-18 run: the composer wrote a hook AND a head idea; the system ignores the sketch
+    heads: list = []
+    sketched = _gat_seed(hook=_seed().hook)
+    seed, calls = realised(sketched, _BRIEF, _head_fn(heads))
+    assert calls == 1 and heads and seed.hook == _good_head()
+
+
+def test_a_failed_head_call_stops_the_run_rather_than_audition_a_headless_seed():
+    def dead(seed, brief):
+        raise RuntimeError("504")
+    try:
+        realised(_gat_seed(), _BRIEF, dead)
+        raise AssertionError("a dead head call must stop the run")
+    except RuntimeError as e:
+        assert str(e) == "504"
+
+
+def test_a_song_seed_needs_no_head_call():
+    heads: list = []
+    result = single_seed(_BRIEF, seed_fn=_seed_fn([]), head_fn=_head_fn(heads))
+    assert heads == [] and result.calls == 1
+
+
+def test_the_head_chart_carries_the_idea_and_a_realised_seed_can_be_heard():
+    arr = head_arrangement(_gat_seed(), _BRIEF)
+    assert arr.seed_head == _idea() and arr.seed_hook is None
+    assert any(s.form_role == "mukhada" for s in arr.sections)
+    seed, _ = realised(_gat_seed(), _BRIEF, lambda s, b: _good_head())
+    assert audition_composition(seed, _BRIEF).layers           # no longer refused
+    assert measure_seed(seed, _BRIEF).sam_note is not None     # note-level measures, not the idea's
+
+def test_each_side_of_a_cross_model_debate_runs_its_own_calls():
+    """Two debaters can be two models end to end: A's seed, turn and head go through A's calls,
+    B's through B's, including the head a persuaded debater's revised seed needs."""
+    from crew.seed_debate import Side
+    calls: list = []
+
+    def side(name: str) -> Side:
+        def seed(brief, approach):
+            calls.append((name, "seed"))
+            return _gat_seed(reasoning=f"{name} seed")
+
+        def turn(brief, own, rival, both):
+            calls.append((name, "turn"))
+            changed = name == "A"
+            return DebateTurn(argument="a", changed=changed,
+                              seed=_gat_seed(reasoning="A, revised") if changed else own)
+
+        def head(seed_, brief):
+            calls.append((name, "head"))
+            return _good_head()
+        return Side(seed, turn, head)
+
+    result = debate(_BRIEF, seed_fn=None, turn_fn=None, select_fn=_select_fn([]),
+                    sides=(side("A"), side("B")), arm="debate-cross")
+    assert calls == [("A", "seed"), ("A", "head"), ("B", "seed"), ("B", "head"),
+                     ("A", "turn"), ("B", "turn"), ("A", "head")]
+    assert result.arm == "debate-cross" and result.calls == 2 + 2 + 2 + 1 + 2
+
+
+def test_the_composer_override_is_scoped_to_its_block():
+    from crew.config import composer_llm, composer_override, flash_model
+    with composer_override("gemini/gemini-3.7-flash", "high"):
+        inside = composer_llm().model
+    assert inside == "gemini-3.7-flash"
+    assert composer_llm().model == flash_model().removeprefix("gemini/")
 
 
 if __name__ == "__main__":

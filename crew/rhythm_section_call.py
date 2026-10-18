@@ -27,15 +27,15 @@ from crew.config import (
     AGENT_RETRY_LIMIT,
     GENERATOR_MAX_ITER,
     GENERATOR_RETRIES,
-    composer_llm,
-    rhythm_section_timeout_s,
+    rhythm_section_llm,
     structured_output,
 )
-from crew.contracts import Arrangement, Layer, RhythmSection
+from crew.contracts import Arrangement, Layer, RhythmSection, RhythmSectionDraft
 from crew.generators import section_spans
 from crew.lead import render_direction_rule
-from crew.rhythm_section import part_errors, render_timed_lead
+from crew.rhythm_section import from_draft, part_errors, render_timed_lead
 from crew.riff import render_half_steps, render_home_root
+from crew.riff_notation import render_cycle
 from crew.riff_playability import render_playability
 from crew.riff_voicing import render_power_roots
 from crew.user_request import render_request
@@ -49,27 +49,32 @@ _OUTPUT_SCHEMA: Final = """{
   "reasoning": "the arrangement plan, FIRST: the home chord and where it holds; the head's chord pattern (it recurs with every mukhada); how the manjha and antara move, and the antara's climb; where the guitar rings under the sitar and where it answers",
   "parts": [
     {"section": <section index>, "role": "<what the guitar does here, and why>",
-     "guitar": [[<one avartan of notes>], [<the next avartan>]],
-     "bass": [[<one avartan of single notes>]]},
+     "guitar": ["<one avartan, in the note notation below>", "<the next avartan>"],
+     "bass": ["<one avartan of single notes>"]},
     {"section": <section index>, "role": "<what the guitar does here, and why>",
      "same_as": <the section whose part this replays exactly>}
   ]
 }
-A note: {"swara": "<raga swara>", "oct": <octave>, "dur": <beats>} with optional "chord",
-"technique" and "vel"; a silence: {"rest": true, "swara": "S", "dur": <beats>}.
-(Format only — every musical choice is yours.)
-"guitar" and "bass" are lists of AVARTAN CYCLES: cycle 1 plays the section's first avartan,
-cycle 2 its second, and a section longer than its cycles repeats the last one — write as many
-cycles as the section needs to develop, or one if it holds. Each cycle's durations, rests
-included, add up to exactly one avartan. Durations are in beats (0.25 = 16th, 0.5 = 8th, 1 =
-quarter). "oct" for the guitar: 0 = its low home register, 1 = an octave up (the antara's
-climb); for the bass: 0 = an octave under the guitar's home. "chord" — leave it EMPTY for weight:
-code voices every bare stroke as a power chord inside the raga. Write a chord only for a
-deliberate colour (extra raga swaras sounded with the root). "technique" = palm_mute (a tight
-chug, a beat or shorter), slide, long_slide, pick_scrape, bend, hammer_on, pull_off — on single
-notes; omit it for a plain picked note, and give a ringing chord no technique and a long
-"dur". "vel" (optional, 1-127) shapes the accents. "same_as" replays another section's part —
-use it for every return of the head. A section where the guitar does not play needs no part."""
+Each avartan CYCLE is ONE string of notes separated by spaces, written the way the sitar line
+above is written — octave in parentheses, length in square brackets:
+  d[2]          d held 2 beats (0.25 = 16th, 0.5 = 8th, 1 = quarter)
+  d[.5]pm       a palm-muted chug; techniques: pm palm_mute (a beat or shorter), sl slide,
+                ls long_slide, ps pick_scrape, bd bend, ho hammer_on, po pull_off
+  P(+1)[1]      an octave up;  R(-1)[1] an octave down
+  S+P[2]        a chord: extra raga swaras sounded with the root
+  n[.5]!        a deliberate single note, never voiced into a power chord
+  d[1]@120      a velocity (1-127) to shape an accent
+  -[1]          a silence of 1 beat
+e.g. "d[1]@120 d[.5]pm d[.5]pm P[1] -[.5] d[.5]pm m[2] S[2]". (Format only — every musical choice
+is yours.) "guitar" and "bass" are lists of these cycles: cycle 1 plays the section's first
+avartan, cycle 2 its second, and a section longer than its cycles repeats the last one — write as
+many cycles as the section needs to develop, or one if it holds. Each cycle's lengths, silences
+included, add up to exactly one avartan. Octave for the guitar: none = its low home register,
+(+1) = an octave up (the antara's climb); for the bass: none = an octave under the guitar's home.
+Leave chords out for weight: code voices every bare stroke as a power chord inside the raga —
+write one only for a deliberate colour. Put techniques on single notes, give a ringing chord no
+technique and a long length. "same_as" replays another section's part — use it for every return
+of the head. A section where the guitar does not play needs no part."""
 
 
 # --------------------------------------------------------------------------- #
@@ -101,18 +106,10 @@ def _render_chart(arr: Arrangement) -> str:
 
 
 def _render_seed_riff(arr: Arrangement) -> str:
+    """The seed's main riff, in the notation the call writes its own cycles in."""
     if arr.seed_riff is None:
         return "  (none — the rhythm section is yours to invent)"
-    tokens = []
-    for n in arr.seed_riff.notes:
-        if n.rest:
-            tokens.append(f"rest({n.dur:g})")
-            continue
-        tok = n.swara if n.oct == 0 else f"{n.swara}({n.oct:+d})"
-        tok += ("+" + "+".join(n.chord)) if n.chord else ""
-        tok += f"({n.dur:g}{', ' + n.technique if n.technique else ''})"
-        tokens.append(tok)
-    return "  " + " ".join(tokens)
+    return "  " + render_cycle(arr.seed_riff.notes)
 
 
 def _render_repair(feedback: Sequence[str] | None) -> str:
@@ -160,23 +157,41 @@ def rhythm_section_inputs(arr: Arrangement, lead_layers: Sequence[Layer],
 # The boundary: parse, then the hard checks as one bounded retry              #
 # --------------------------------------------------------------------------- #
 
-def _section_from_output(output: Any) -> RhythmSection | None:
+def _draft_from_output(output: Any) -> RhythmSection | RhythmSectionDraft | None:
+    """The answer as the model returned it — the compact draft, or (a fixture, an old answer) a
+    full `RhythmSection`; None when neither parses."""
     parsed = getattr(output, "pydantic", None)
-    if isinstance(parsed, RhythmSection):
+    if isinstance(parsed, (RhythmSection, RhythmSectionDraft)):
         return parsed
     raw = getattr(output, "raw", None)
-    try:
-        return RhythmSection.model_validate_json(raw) if raw else None
-    except ValidationError:
-        return None
+    for model in (RhythmSectionDraft, RhythmSection):
+        try:
+            return model.model_validate_json(raw) if raw else None
+        except ValidationError:
+            continue
+    return None
+
+
+def _read_output(output: Any) -> tuple[RhythmSection | None, list[str]]:
+    """The playable `RhythmSection` and the notation faults that kept it from parsing."""
+    answer = _draft_from_output(output)
+    if answer is None:
+        return None, ["Return a single valid RhythmSection JSON object and nothing else."]
+    if isinstance(answer, RhythmSection):
+        return answer, []
+    return from_draft(answer)
+
+
+def _section_from_output(output: Any) -> RhythmSection | None:
+    return _read_output(output)[0]
 
 
 def rhythm_section_guardrail(arr: Arrangement):
     """The Task guardrail: (True, RhythmSection) when it can be played, else (False, the faults)."""
     def guard(output: Any):
-        rs = _section_from_output(output)
+        rs, unreadable = _read_output(output)
         if rs is None:
-            return (False, "Return a single valid RhythmSection JSON object and nothing else.")
+            return (False, "Fix these and resend:\n" + "\n".join(unreadable[:_MAX_FEEDBACK]))
         errors = part_errors(rs, arr)
         if errors:
             return (False, "Fix these and resend:\n" + "\n".join(errors[:_MAX_FEEDBACK]))
@@ -208,10 +223,10 @@ class _RhythmSectionCrew:
             (config_dir / "tasks.yaml").read_text())["compose_rhythm_section"]
 
     def run(self, arr: Arrangement, inputs: dict[str, Any]) -> RhythmSection:
-        agent = Agent(config=self._agent_config, llm=composer_llm(timeout_s=rhythm_section_timeout_s()),
+        agent = Agent(config=self._agent_config, llm=rhythm_section_llm(),
                       allow_delegation=False,
                       max_iter=GENERATOR_MAX_ITER, max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
-        task = Task(config=self._task_config, agent=agent, **structured_output(RhythmSection),
+        task = Task(config=self._task_config, agent=agent, **structured_output(RhythmSectionDraft),
                     guardrail=rhythm_section_guardrail(arr), guardrail_max_retries=GENERATOR_RETRIES)
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
         rs = _section_from_output(crew.kickoff(inputs=inputs))

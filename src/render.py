@@ -149,6 +149,13 @@ ANDOLAN_MIN_MS = 800         # shortest NOTE (kan included) that carries the set
 # so the last thing heard of Ga was a note 40 cents FLAT (Sujit: "0:07 sounds out of tune").
 # The waves now fit inside the note's AUDIBLE life; after it the string rests on the swara.
 ANDOLAN_AUDIBLE_MS = 1200
+# v5 (2026-10-18): a raga whose andolan names a swing count (`Note.andolan_swings` from
+# raga.ANDOLAN_SWINGS — Darbari 2-3, van der Meer & Rao + Sujit) sways LONGER: the sitar's NRPN
+# sustain (SITAR_DECAY_TIMECENTS, +9 dB at 1 s) keeps it audible past the old window, and the
+# sway fits as many of its swings as it can, none quicker than ANDOLAN_MIN_PERIOD_MS — still a
+# slow swing, never vibrato. A note too short for the fewest keeps the default waves.
+ANDOLAN_COUNTED_AUDIBLE_MS = 1800
+ANDOLAN_MIN_PERIOD_MS = 500
 ANDOLAN_STEPS_PER_CYCLE = 20 # wheel events per wave — dense enough that the curve has no zipper
 ANDOLAN_CC11_DIP = 8         # expression dips a hair with the pitch (a pulled string darkens)
 # v3 (2026-10-11 research): the sources describe GLIDES WITH HOLDS — "multiple meend in
@@ -586,10 +593,23 @@ def _knot_shape(frac: float, knots: tuple[tuple[float, float], ...]) -> float:
     return prev_y
 
 
+def _wave_count(sway_ms: float, swings: tuple[int, int] | None) -> int:
+    """How many waves a sway of `sway_ms` carries: the default slow period's worth, or — where the
+    raga counts its swings — the most of (fewest, most) that fit at ANDOLAN_MIN_PERIOD_MS or
+    slower, falling back to the default when even the fewest do not. Pure."""
+    default = max(1, int(round(sway_ms / ANDOLAN_PERIOD_MS)))
+    if swings is None:
+        return default
+    fewest, most = swings
+    fit = int(sway_ms // ANDOLAN_MIN_PERIOD_MS)
+    return min(most, fit) if fit >= fewest else default
+
+
 def _andolan_wheel(start: float, dur: float, bpm: float,
                    after_glide: bool = False,
                    depth_st: float = -ANDOLAN_DEPTH_ST, *, note_ms: float | None = None,
-                   lead_ms: float | None = None) -> list[tuple[float, int]]:
+                   lead_ms: float | None = None,
+                   swings: tuple[int, int] | None = None) -> list[tuple[float, int]]:
     """Pure: the (time, wheel) ramp for an andolan — land, settle, then a slow, one-sided
     undulation dipping BELOW the note toward its lower sruti. The pitch holds steady for
     ANDOLAN_DELAY_MS, then sways in waves of deterministically varied length and depth
@@ -606,16 +626,19 @@ def _andolan_wheel(start: float, dur: float, bpm: float,
     v4: the gate reads the whole NOTE (`note_ms`, a kan included — the kan used to push a
     one-second Ga under the gate, so it played plain while its neighbours swayed), and the waves
     are drawn only within the note's audible life (`ANDOLAN_AUDIBLE_MS`, counted from the attack:
-    `lead_ms` is how much of it a kan or glide already used); the string then rests on 0."""
+    `lead_ms` is how much of it a kan or glide already used); the string then rests on 0.
+    v5: `swings` (the raga's counted range) lengthens the window and sets the wave count
+    (`_wave_count`)."""
     dur_ms = dur * 60000.0 / bpm
     if (note_ms if note_ms is not None else dur_ms) < ANDOLAN_MIN_MS:
         return []                                        # too short to sway — leave it clean
-    window_ms = min(dur_ms, ANDOLAN_AUDIBLE_MS - (lead_ms or 0.0))
+    audible_ms = ANDOLAN_COUNTED_AUDIBLE_MS if swings else ANDOLAN_AUDIBLE_MS
+    window_ms = min(dur_ms, audible_ms - (lead_ms or 0.0))
     if window_ms - ANDOLAN_DELAY_MS < 0.75 * ANDOLAN_PERIOD_MS:
         return []                                        # no room for one whole wave while audible
     delay = ANDOLAN_DELAY_MS * bpm / 60000.0             # the settle, in beats
     sway = window_ms * bpm / 60000.0 - delay             # the swaying span, in beats
-    n = max(1, int(round((window_ms - ANDOLAN_DELAY_MS) / ANDOLAN_PERIOD_MS)))
+    n = _wave_count(window_ms - ANDOLAN_DELAY_MS, swings)
     lengths = [0.85 + 0.3 * _andolan_jitter(start, k) for k in range(n)]        # ±15% per wave
     depths = [depth_st * (1.0 - ANDOLAN_DEPTH_SPREAD * _andolan_jitter(start, n + k))
               for k in range(n)]                                                # aimed, ±a hair
@@ -634,6 +657,21 @@ def _andolan_wheel(start: float, dur: float, bpm: float,
     return ramp[1:] if after_glide else ramp
 
 
+def sways(dur: float, bpm: float, *, lead_ms: float = 0.0,
+          swings: tuple[int, int] | None = None) -> bool:
+    """Whether a flagged andolit note of `dur` beats is drawn with a sway at `bpm` — this
+    renderer's own gate (`_andolan_wheel`), so a report can never disagree with the render.
+    `lead_ms` is what a kan or glide already used of the note's audible life. Pure."""
+    return bool(_andolan_wheel(0.0, dur, bpm, note_ms=dur * 60000.0 / bpm, lead_ms=lead_ms,
+                               swings=swings))
+
+
+def _swings(n: dict) -> tuple[int, int] | None:
+    """The note's counted swing range, if its raga names one (JSON carries it as a list)."""
+    counted = n.get("andolan_swings")
+    return (int(counted[0]), int(counted[1])) if counted else None
+
+
 def _andolan_cc(wheel_val: int, depth_st: float = ANDOLAN_DEPTH_ST) -> int:
     """Expression (CC11) tracking the sway: the level dips a hair as the pitch moves away from
     the swara — a pulled string darkens — and recenters to full (127) as the wheel returns."""
@@ -645,13 +683,13 @@ def _andolan_cc(wheel_val: int, depth_st: float = ANDOLAN_DEPTH_ST) -> int:
 def _render_andolan(mf: MIDIFile, track: int, ch: int, start: float, dur: float,
                     bpm: float, *, shimmer: bool = True, after_glide: bool = False,
                     depth_st: float = -ANDOLAN_DEPTH_ST, note_ms: float | None = None,
-                    lead_ms: float | None = None) -> bool:
+                    lead_ms: float | None = None, swings: tuple[int, int] | None = None) -> bool:
     """Draw the sway on the wheel, with the expression shimmer riding the same curve.
     `shimmer` is off when the note also carries a fade — the fade owns CC11 then.
     `after_glide` is set when a meend leads INTO the sway (see `_andolan_wheel`). Returns
     whether a sway was drawn (a hold under the real-time gate plays plain)."""
     events = _andolan_wheel(start, dur, bpm, after_glide=after_glide, depth_st=depth_st,
-                            note_ms=note_ms, lead_ms=lead_ms)
+                            note_ms=note_ms, lead_ms=lead_ms, swings=swings)
     for t, val in events:
         mf.addPitchWheelEvent(track, ch, t, val)
         if shimmer:
@@ -710,14 +748,18 @@ def path_wheel(start: float, dur: float, bpm: float,
                path: list[list[float]]) -> tuple[list[tuple[float, int]], float]:
     """Pure: the wheel events for a gesture path of (ms, semitones) knots, and the beats it
     uses. Held segments emit one event; moving ones a smoothstep. A path longer than the note
-    is not drawn (the caller only stamps paths that fit) — returns ([], 0.0)."""
+    is not drawn (the caller only stamps paths that fit) — returns ([], 0.0). A path that
+    starts AWAY from the swara (a release — plucked already pulled to the neighbour) sets the
+    wheel a hair before the onset, as a kan and a slow meend do, so the pluck itself sounds
+    there instead of on the swara with a jump a tick later."""
     def beat(ms: float) -> float:
         return ms * bpm / 60000.0
 
     used = beat(path[-1][0])
     if used > dur or len(path) < 2:
         return [], 0.0
-    events: list[tuple[float, int]] = [(round(start, 4), _wheel(path[0][1]))]
+    onset = start if path[0][1] == 0 else max(0.0, start - 0.002)
+    events: list[tuple[float, int]] = [(round(onset, 4), _wheel(path[0][1]))]
     for (t0, v0), (t1, v1) in zip(path, path[1:]):
         steps = 1 if v0 == v1 else _PATH_STEPS
         for k in range(1, steps + 1):
@@ -1023,7 +1065,8 @@ def build_midi(comp: dict, path: str) -> None:
                     depth = n.get("andolan_st") or -ANDOLAN_DEPTH_ST
                     _render_andolan(wm, i, ch, sway_from, g_start + g_dur - sway_from, bpm,
                                     shimmer=not fading, after_glide=True, depth_st=depth,
-                                    note_ms=_ms(dur), lead_ms=_ms(sway_from - n["start"]))
+                                    note_ms=_ms(dur), lead_ms=_ms(sway_from - n["start"]),
+                                    swings=_swings(n))
             elif n.get("technique") == "slide":
                 bent = True
                 st = _pull_offset(connected, sounding, SLIDE_FROM_PREV_MAX) or SLIDE_IN_ST
@@ -1061,12 +1104,13 @@ def build_midi(comp: dict, path: str) -> None:
                     bent = _render_andolan(wm, i, ch, g_start + used, rest, bpm,
                                            shimmer=not fading, after_glide=True, depth_st=depth,
                                            note_ms=_ms(dur),
-                                           lead_ms=_ms(g_start + used - n["start"])) or bent
+                                           lead_ms=_ms(g_start + used - n["start"]),
+                                           swings=_swings(n)) or bent
             elif n.get("andolan"):
                 depth = n.get("andolan_st") or -ANDOLAN_DEPTH_ST
                 bent = _render_andolan(wm, i, ch, g_start, g_dur, bpm, shimmer=not fading,
                                        depth_st=depth, note_ms=_ms(dur),
-                                       lead_ms=_ms(g_start - n["start"])) or bent
+                                       lead_ms=_ms(g_start - n["start"]), swings=_swings(n)) or bent
             elif n.get("gamak_st"):
                 for t, val in gamak_wheel(g_start, g_dur, bpm, n["gamak_st"]):
                     wm.addPitchWheelEvent(i, ch, t, val)

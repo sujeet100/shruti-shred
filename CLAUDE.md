@@ -41,9 +41,9 @@ agents compose, critique, and revise live; the result renders to audio.
   The riff, the hook, the groove and the form are ONE idea — conceived together. Code owns only
   REAL constraints (legality + direction, length, the loop filling its cycle, playability when
   asked); every taste/craft rule is a MEASUREMENT reported to a judge, never a rejection.
-- **Composer (one owner, behind `RMA_COMPOSER`):** a SEED call co-writes the chart (form — `gat` or
+- **Composer (one owner; the DEFAULT since 2026-10-18, `RMA_COMPOSER=0` = legacy):** a SEED call co-writes the chart (form — `gat` or
   `song`, the gat is optional), the main riff and the hook; DEVELOP calls (the existing lead/riff
-  loops) write each section with the seed in view and never replace it. Flag off = the legacy
+  loops) write each section with the seed in view and never replace it. `RMA_COMPOSER=0` = the legacy
   Pandit⇄Riffsmith composers + per-voice generators.
 - **Critics:** **Ustad = CODE** (`validate_composition`; no LLM); **Rasik = raga consultant**
   (pakad/idiom/rasa scores + ≤3 lead-only suggestions); **Producer = the ONE judge with
@@ -979,7 +979,7 @@ and build order.
   with harmony plans, seed riff, timed sitar line, repair), the guardrail (`part_errors`, ONE
   bounded retry), `compose_rhythm_section` at the conception tier. ~3.1k input tokens on 152048
   (interpolated through CrewAI's own `interpolate_only`). **Step 3 ✅ BUILT — wired behind
-  `RMA_RHYTHM_SECTION` (default OFF):** `crew/rhythm_voice.py` — the path's own lead composer runs
+  `RMA_RHYTHM_SECTION` (default ON since 2026-10-18; `=0` = the per-section riff path):** `crew/rhythm_voice.py` — the path's own lead composer runs
   WITHOUT the per-section riff (`no_riff`; except a riff_first head on the parallel path, which
   quotes the riff — that riff is then the fallback), then the call; ANY failure (raise or
   unplayable) falls back to the path's legacy riff with an event. The composed part rides the
@@ -1074,6 +1074,73 @@ and build order.
   must be chaugun (`_TAAN_OPENING_PULSE`), never slowing after, chhagun only to quicken near the
   climax; the build comes from register and line, not speed. 1232 pure tests.
   **Next:** one more live taan with the new rules (ask).
+- **RAGA-SPECIFIC ORNAMENTS — Bageshree's Ga (2026-10-13;** the opening alap of
+  `fusion_20261013_081705_bageshree`**):** its held komal Ga swung to SHUDDHA Ga (+98 c) and TURNED
+  there ~250 ms, three times in 20 s (plus once in the antara). Not the LLM: code flagged andolan on
+  every held Ga, and one depth rule (half the gap to the neighbour) was microtonal for Darbari's
+  semitone neighbours but a foreign swara for Bageshree's whole tone. Fix: the sway's TURN must sit
+  on pitch the raga owns (`expression.andolan_turn_st`: semitone neighbour -> half way, unchanged;
+  whole tone -> `ANDOLAN_SHALLOW_ST` 0.3 inside its own swara — also fixes Todi's r, which turned on
+  shuddha Re); the shallow sway is a RESTING ornament (off when Ga steps straight into a held Ma);
+  Bageshree kan `(m)g` both ways (Parrikar + Ragajunglism + guruji); a new RELEASE motion in
+  `src/gestures.py` (`GA_MA_RELEASE`: plucked pulled to Ma, held, released slowly onto Ga — guruji's
+  "slow Ma->Ga reverse bend"; varied per occurrence) chosen when Ga arrives from Ma, in alap AND gat
+  (`GestureRule.in_alap`); `check_gestures` rejects any hold between two swaras; `path_wheel`
+  pre-bends a path that starts away from the swara. Audit: `ornament_audit` FOREIGN DWELL (given
+  raga + Sa) — the old `held_away` (0.30 s) missed this 0.25 s dwell. Free A/B/C (same instrument):
+  `out/fusion_20261013_081705_bageshree_alap_{A_plain,B_corrected,C_original}_{mix,sitar}.wav`.
+  Darbari/Bhairav unchanged by construction (turn -0.5, gat gestures, `vary` untouched; pinned by tests). Open (needs sources): Bageshree shrutis — the sitar's ET+10 c
+  shuddha Dha over the Ma drone is a ~16 c wide third. `tests/test_raga_ornaments.py` (12).
+- **2026-10-18 — DEFAULTS FLIPPED + BHAIRAV ANDOLAN + EXPERIMENTS (see HANDOFF.md):** the five-agent
+  path is the default (`RMA_COMPOSER`/`RMA_RHYTHM_SECTION` ON; `=0` legacy). Bhairav's andolan
+  corrected from three sources (Parrikar, Ragajunglism, van der Meer & Rao): kan from above in
+  descent (G→r, N→d), a ~20 c sway UP inside the swara (`raga.ANDOLAN_DEPTH_ST`), plain when the line
+  rises through r/d (`ANDOLAN_ONLY_IN`); Darbari untouched. Seed-debate harness fixed (a gat seed's
+  head is always composed; per-prompt saves) — **debate stays parked** after a third blind round
+  (turns rewrite; judges chase the measurements). Single-prompt test on gemini-3.8 across three
+  ragas (`talk/audio/single_prompt_results.md`): the bare call now plays legal notes but not the raga;
+  the system wins the fair musical measures; its gaps = no planned breathing, no room for Darbari's
+  ga/dha, flat dynamics. Next: ReAct tools for the Composer + a bounded challenger. 1263 pure tests.
+- **REACT STEP 1 — the Composer can LISTEN (2026-10-18, pure half ✅ BUILT, behind `RMA_HEAR`,
+  default OFF):** `hear_phrase` (`crew/hearing_tool.py`, a thin `BaseTool`, cache off,
+  `max_usage_count=2`) over pure `crew/hearing.py`: one statement of the draft run through the REAL
+  realisation (`lead.heard_statement` — placement, pluck limit, voicing, code-set gestures; a test
+  holds it equal to what `generate_lead` places), each andolit note judged by the renderer's own
+  gate (`render.sways`), the statement rendered to MIDI and ornament-audited. Reports in words what
+  the sitar WILL do (sway / kan / measured gesture / jhala / silences / window overrun / bends in
+  tune) — no targets, no score. Attached only to lead calls with a held line (`wants_hearing`: not
+  taan/tihai/takeover/solo/breakdown); `{hearing}` prompt paragraph only when attached.
+  `audit_ornaments` was DROPPED as a tool: code stamps those ornaments, so the agent can't fix
+  what it reports. **Wiring fact:** with tools attached CrewAI 1.15.2 sends NO native schema
+  (`response_model=None` in the native tool loop) — the answer is parsed from text by the
+  guardrail; proved end-to-end with a scripted `BaseLLM` (no key). 1278 pure tests.
+  **LIVE A/B DONE (2026-10-18, `talk/audio/hear_ab.py`, `out/hear_ab_20261018_151123/`):** the
+  Composer's mukhada lead call on song C's chart, identical inputs. A (no tool, trace 58f3ac9c73d6):
+  gamak on 8 of 14 notes incl. every g/d, nothing held to sway; 1 call, 6.6k in / 9k thinking, 66 s.
+  B (tool, trace 8ceb769ebf63): drafted g/d at 1 beat, HEARD "0.47 s is too short to sway",
+  rewrote them as 2-beat holds, listened again, answered that draft — 2 sway + guruji's loop on the
+  last g; 3 calls, 32.6k in / 12.9k thinking, 184 s. Text answer parsed fine. n=1; awaits Sujit's ear
+  (`mukhada_A.wav` vs `mukhada_B.wav`). The second listen only confirmed — a cap of 1 may do.
+  **That A/B was confounded** — song C's seed hook rode the prompt ("develop it, never replace it"):
+  A = the seed hook verbatim + gamaks; B's first draft = the seed hook. **FRESH A/B** (seeds stripped,
+  `hear_ab.py ... fresh`, `out/hear_ab_20261018_152351_fresh/`): blind reviewer picked A (~75%) — A
+  wrote Darbari's vakra cadence `m P (m)g~ m R S` unaided; B fixed what the tool reported (overrun,
+  longer Ga, a mandra phrase) but closed straight `P m g S`, and its 3-beat Ga took guruji's dip (a
+  Ga from Ma never sways in a gat). **Sujit's ear: A is better.** Verdict: ReAct works mechanically
+  (B changes exactly what it is shown) but this tool is the wrong target — sway duration is a minor,
+  code-stamped property, and the report pulls attention off the line's grammar. `RMA_HEAR` stays OFF.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.
+- **THE PRODUCER LOOP REWORKED (2026-10-18;** evidence: `talk/audio/producer_analysis_20261018.json`, TALK.md
+  "The Producer, measured across every run"**):** it revised the first draft 14/14 times, copied Rasik in
+  30/36 plans, and its scores rose after an edit as often as they fell; blind, Sujit preferred the first
+  draft to the shipped revision. Now: (1) the Flow keeps a CHAMPION take (`Version`; the first draft until
+  beaten) — after a revision on the JUDGE's plan, `crew/compare.py` asks "draft or revision?" twice with
+  the order swapped (`compare_versions` task, `VersionChoice`), and the revision is kept only if it wins
+  both (a split, "same" or a failed call keeps the champion); code-forced fixes always stand.
+  (2) `MAX_JUDGE_ROUNDS = 1` — the judge's revision ends the loop with no re-critique. (3) Producer prompt:
+  ACCEPT is the default (revise only for a fault a listener would hear), the instruction names the
+  PROBLEM not swaras, Rasik's suggestions are advice (no auto-adopt), no numbers quoted in reasoning.
+  Scores schema unchanged (UI + stop rule read it) — slimming it is the next step. 1285 pure tests.
+  Live-untested.

@@ -591,6 +591,51 @@ def test_a_kan_hands_over_to_a_meend_without_a_blip():
     assert wheel[0] == _wheel(4) and wheel[1] == _wheel(1)
 
 
+
+# --- counted andolan (raga.ANDOLAN_SWINGS: Darbari's 2-3 swings) ----------------------
+
+def _waves(events: list[tuple[float, int]]) -> int:
+    """Each wave leaves the swara and comes back to 0, so a wave is one run of non-zero wheel."""
+    runs, inside = 0, False
+    for _, v in events:
+        if v != 0 and not inside:
+            runs += 1
+        inside = v != 0
+    return runs
+
+
+def test_counted_andolan_fits_its_most_swings_on_a_long_note():
+    # a 4 s Darbari hold: the longer window holds three slow swings, never a fourth
+    assert _waves(_andolan_wheel(0.0, 4.0, bpm=60, swings=(2, 3))) == 3
+
+
+def test_counted_andolan_fits_fewer_swings_on_a_medium_note():
+    # 1.4 s: room for two swings at the minimum period, not three
+    assert _waves(_andolan_wheel(0.0, 1.4, bpm=60, swings=(2, 3))) == 2
+
+
+def test_counted_andolan_falls_back_when_the_fewest_do_not_fit():
+    # 0.9 s cannot carry two half-second swings: it keeps the default single wave
+    assert _andolan_wheel(0.0, 0.9, bpm=60, swings=(2, 3)) == _andolan_wheel(0.0, 0.9, bpm=60)
+
+
+def test_counted_andolan_never_swings_faster_than_the_minimum_period():
+    from render import ANDOLAN_MIN_PERIOD_MS, _wave_count
+    for sway_ms in (900, 1100, 1650, 3000):
+        n = _wave_count(sway_ms, (2, 3))
+        assert n == 1 or sway_ms / n >= ANDOLAN_MIN_PERIOD_MS
+
+
+def test_counted_andolan_ends_inside_its_longer_window():
+    from render import ANDOLAN_COUNTED_AUDIBLE_MS
+    events = _andolan_wheel(0.0, 4.0, bpm=60, swings=(2, 3))
+    assert events[-1][0] <= ANDOLAN_COUNTED_AUDIBLE_MS / 1000.0 + 1e-9 and events[-1][1] == 0
+
+
+def test_uncounted_andolan_is_unchanged():
+    # every other raga keeps the 1.2 s window and its one or two waves
+    assert _waves(_andolan_wheel(0.0, 4.0, bpm=60)) == 2
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

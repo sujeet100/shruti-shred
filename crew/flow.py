@@ -39,7 +39,7 @@ from crewai.flow.flow import Flow, listen, or_, router, start
 from pydantic import BaseModel, Field
 
 from crew.anchor import with_realized_seeds
-from crew.config import MAX_ROUNDS, listening_enabled, load_env
+from crew.config import MAX_JUDGE_ROUNDS, MAX_ROUNDS, listening_enabled, load_env
 from crew.contracts import (
     Arrangement,
     Composition,
@@ -101,6 +101,9 @@ type Render = Callable[[Composition], Optional[str]]
 # The ADVISORY listening pass: (wav path, chart) -> its report as events. Post-render only, and
 # never a gate — it is uncalibrated against Sujit's ear (DESIGN.md "THE REDESIGN").
 type Listen = Callable[[str, Arrangement], list[DebateEvent]]
+# DRAFT OR REVISION? (crew/compare.py): (earlier version, revision, chart) -> (keep the revision?,
+# events). Asked after a revision made on the JUDGE's plan; None = keep every revision (the old loop).
+type Compare = Callable[[Composition, Composition, Arrangement], tuple[bool, list[DebateEvent]]]
 
 
 @dataclass(frozen=True)
@@ -115,6 +118,7 @@ class Stages:
     regenerate: Regenerate
     render: Render
     listen: Optional[Listen] = None      # the advisory listening pass (None = off)
+    compare: Optional[Compare] = None    # draft or revision? (None = the revision always stands)
 
 
 # The real adapters (lazy imports keep crewai off the light path until a stage runs).
@@ -344,6 +348,11 @@ def _render(comp: Composition, *, soundfont: Path, out_dir: Path, name: str) -> 
     return str(render_composition(comp, out_dir=out_dir, name=name, soundfont=soundfont))
 
 
+def _compare(draft: Composition, revision: Composition, arr: Arrangement) -> tuple[bool, list[DebateEvent]]:
+    from crew.compare import compare_versions
+    return compare_versions(draft, revision, arr)
+
+
 def _default_render_name() -> str:
     """A unique per-run render name (fusion_YYYYMMDD_HHMMSS), so a new live render never
     OVERWRITES an earlier one — each run's .wav/.mid/.json triplet stays comparable
@@ -362,12 +371,23 @@ def production_stages(*, soundfont: Path = _SOUNDFONT, out_dir: Path = _OUT_DIR,
         interpret=_interpret, compose=_compose, generate=_generate, assemble=_assemble,
         critique=_critique, decide=_decide, regenerate=_regenerate,
         render=lambda comp: _render(comp, soundfont=soundfont, out_dir=out_dir, name=name),
-        listen=_listen if listening_enabled() else None)
+        listen=_listen if listening_enabled() else None, compare=_compare)
 
 
 # --------------------------------------------------------------------------- #
 # Flow state (a Pydantic model, per CLAUDE.md) + the events.                   #
 # --------------------------------------------------------------------------- #
+
+class Version(BaseModel):
+    """One complete take of the piece — everything a revise starts from and the render needs. The
+    Flow keeps the best take so far (the CHAMPION) and falls back to it when a revision loses."""
+    arrangement: Optional[Arrangement] = None
+    lead_layers: list[Layer] = Field(default_factory=list)
+    rhythm: Optional[Layer] = None
+    orchestra_layers: list[Layer] = Field(default_factory=list)
+    canvases: list[SectionCanvas] = Field(default_factory=list)
+    composition: Optional[Composition] = None
+
 
 class ComposeState(BaseModel):
     """The Flow's typed state (an `id` field is auto-added by CrewAI)."""
@@ -388,6 +408,9 @@ class ComposeState(BaseModel):
     asked_scores: Optional[ProducerScores] = None     # ...and the scores it was asked from (the stop rule)
     events: list[DebateEvent] = Field(default_factory=list)
     wav_path: Optional[str] = None
+    champion: Optional[Version] = None                # the best take so far (the first draft until beaten)
+    judge_rounds: int = 0                             # rounds spent on the JUDGE's own plans
+    judge_revising: bool = False                      # the revise in progress follows the judge's plan
 
 
 def _flow_event(text: str) -> DebateEvent:
@@ -421,10 +444,39 @@ class ComposeFlow(Flow[ComposeState]):
     feeds back into `critique` via `or_(begin, revise)` — the visible bounded loop.
     """
 
-    def __init__(self, stages: Stages, *, max_rounds: int = MAX_ROUNDS) -> None:
+    def __init__(self, stages: Stages, *, max_rounds: int = MAX_ROUNDS,
+                 max_judge_rounds: int = MAX_JUDGE_ROUNDS) -> None:
         super().__init__()
         self._stages = stages
         self._max_rounds = max_rounds
+        self._max_judge_rounds = max_judge_rounds
+
+    def _take(self) -> Version:
+        st = self.state
+        return Version(arrangement=st.arrangement, lead_layers=st.lead_layers, rhythm=st.rhythm,
+                       orchestra_layers=st.orchestra_layers, canvases=st.canvases,
+                       composition=st.composition)
+
+    def _restore(self, take: Version) -> None:
+        st = self.state
+        st.arrangement, st.lead_layers, st.rhythm = take.arrangement, take.lead_layers, take.rhythm
+        st.orchestra_layers, st.canvases, st.composition = take.orchestra_layers, take.canvases, take.composition
+
+    def _keep_the_better(self) -> None:
+        """After a revision on the JUDGE's plan: the judge compares it with the champion in both
+        orders, and the revision replaces the champion only if it wins both — else the champion
+        is restored. A code-forced fix (an illegal or starved piece) always replaces it."""
+        st = self.state
+        champion = st.champion
+        if st.judge_revising and self._stages.compare and champion is not None and champion.composition:
+            assert st.composition is not None and st.arrangement is not None
+            keep, events = self._stages.compare(champion.composition, st.composition, st.arrangement)
+            publish_all(events)
+            st.events.extend(events)
+            if not keep:
+                self._restore(champion)
+                return
+        st.champion = self._take()
 
     @start()
     def begin(self) -> None:
@@ -446,6 +498,7 @@ class ComposeFlow(Flow[ComposeState]):
         st.orchestra_layers = orchestra_layers
         st.canvases = canvases
         st.composition = self._stages.assemble(st.arrangement, lead_layers, rhythm, orchestra_layers)
+        st.champion = self._take()
         st.events.extend([*e1, *e2, *e3])
 
     @router("revise")
@@ -471,6 +524,13 @@ class ComposeFlow(Flow[ComposeState]):
         st.composition = self._stages.assemble(st.arrangement, lead_layers, rhythm, orchestra_layers)
         publish_all(events)
         st.events.extend(events)
+        self._keep_the_better()
+        if st.judge_revising and st.judge_rounds >= self._max_judge_rounds:
+            spent = _flow_event(f"The judge's revision budget ({self._max_judge_rounds}) is spent — "
+                                "finishing with the better take.")
+            st.events.append(spent)
+            publish(spent)
+            return "done"
         return "recritique"
 
     @listen(or_(begin, "recritique"))
@@ -519,7 +579,9 @@ class ComposeFlow(Flow[ComposeState]):
             publish(capped)
             return "done"
         st.round += 1
-        if self._judges_plan():
+        st.judge_revising = self._judges_plan()
+        if st.judge_revising:
+            st.judge_rounds += 1
             st.asked_plan, st.asked_scores = st.plan, st.producer.scores
         revising = _flow_event(
             f"Revise round {st.round}: reworking the {st.plan.voice} — {st.plan.instruction}")
@@ -614,12 +676,13 @@ def _save_arrangement(wav_path: Optional[str], arrangement: Optional[Arrangement
         pass
 
 
-def compose_flow(query: str, *, stages: Optional[Stages] = None,
-                 max_rounds: int = MAX_ROUNDS) -> ComposeState:
+def compose_flow(query: str, *, stages: Optional[Stages] = None, max_rounds: int = MAX_ROUNDS,
+                 max_judge_rounds: int = MAX_JUDGE_ROUNDS) -> ComposeState:
     """Run the full pipeline as a Flow and return its final state (composition, the
     event stream, the final decision, the rendered WAV path). `stages` is injectable —
     defaults to the real adapters."""
-    flow = ComposeFlow(stages or production_stages(), max_rounds=max_rounds)
+    flow = ComposeFlow(stages or production_stages(), max_rounds=max_rounds,
+                       max_judge_rounds=max_judge_rounds)
     flow.kickoff(inputs={"query": query})
     return flow.state
 

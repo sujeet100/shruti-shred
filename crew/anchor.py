@@ -19,6 +19,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Final
 
+from crew.head_brief import withheld
 from crew.contracts import (Arrangement, DebateEvent, HeadIdea, LeadNote, LeadPhrase, RiffNote,
                             RiffPattern, Section)
 from gats import stroke_motif
@@ -191,7 +192,7 @@ def render_song_seed(arr: Arrangement) -> str:
     lines = [f"  You composed this core idea first — DEVELOP it, never replace it. Form: {arr.form}."]
     if arr.energy_arc:
         lines.append(f"  Energy arc: {arr.energy_arc}")
-    if arr.seed_riff is not None:
+    if arr.seed_riff is not None and not withheld():          # FREE: no riff notes to borrow from
         lines.append(f"  Main riff (slot '{main_riff_slot(arr)}', one cycle, swara(beats)): "
                      f"{riff_tokens(arr.seed_riff.notes)}")
     if arr.seed_hook is not None:
@@ -206,7 +207,14 @@ def render_song_seed(arr: Arrangement) -> str:
 
 
 def render_head_idea(head: HeadIdea) -> list[str]:
-    """The gat head's IDEA as the develop prompts read it, until the head itself is composed. Pure."""
+    """The gat head's IDEA as the develop prompts read it, until the head itself is composed. In
+    the FREE head brief only the idea and its sam swara are shown: the motif and strokes are the
+    head's to define (`crew/head_brief.py`). Pure."""
+    if withheld():
+        return ["  The gat HEAD'S IDEA (the mukhada is composed FROM it — land its sam swara; the motif "
+                "and the stroke line are yours):",
+                f"    idea: {head.idea.strip() or '(not stated)'}",
+                f"    sam swara: {head.sam_swara}"]
     strokes = " ".join(head.stroke_line) if head.stroke_line else "(not planned — plan it)"
     return ["  The gat HEAD'S IDEA (the mukhada is composed FROM it — keep its sam swara, let its "
             "cell recur, play its stroke line):",

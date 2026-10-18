@@ -13,6 +13,9 @@ once, then reads config via the getters; the LLM factories build clients lazily.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 # --- Pure constants (no env, safe at import) ------------------------------------
 # NO TEMPERATURE (Sujit, 2026-10-11). Every agent runs at the model's DEFAULT sampling. Google
@@ -27,6 +30,10 @@ import os
 # plateau fast); small is also live-safe. The router returns "done" once it is reached, so
 # the propose->critique->revise loop always terminates (crew/flow.py).
 MAX_ROUNDS: int = 2
+# Rounds the PRODUCER's own plans may spend (2026-10-18). Across every recorded run it revised the
+# first draft 14/14 times and its scores rose after an edit as often as they fell; one round, kept
+# only if it wins a both-orders comparison (crew/compare.py). Code-forced fixes keep MAX_ROUNDS.
+MAX_JUDGE_ROUNDS: int = 1
 
 # The composer dialogue's clock: how many turn-by-turn exchanges Pandit and
 # Riffsmith get before we stop (they may stop earlier by agreeing). The bounded
@@ -97,6 +104,10 @@ _DEFAULT_REASONING: str = "low"
 # (`phrase_plan`, `reasoning`), and `medium` on 26 lead calls would cost minutes on stage.
 _DEFAULT_CONCEPTION_THINKING: str = "medium"
 _DEFAULT_JUDGE_THINKING: str = "medium"
+# The rhythm section thinks at LOW (Sujit, 2026-10-13): at medium it spent 39.7k of its 49.2k
+# output tokens thinking — 305 s for one call on fusion_20261013_074703, the run's slowest and
+# costliest step. Low (no thinking on 3.8 Flash) is the trial; `RMA_RHYTHM_THINKING` restores it.
+_DEFAULT_RHYTHM_THINKING: str = "low"
 
 # The Interpreter's thinking level. Faithful extraction is driven by the PROMPT's
 # rules + examples, not by deliberation (prompt-before-effort), so it runs at the
@@ -160,6 +171,12 @@ def judge_thinking() -> str:
     return os.getenv("RMA_JUDGE_THINKING", _DEFAULT_JUDGE_THINKING)
 
 
+def rhythm_thinking() -> str:
+    """Thinking for the rhythm-section call (guitar + bass for the whole piece);
+    `RMA_RHYTHM_THINKING` overrides (default low)."""
+    return os.getenv("RMA_RHYTHM_THINKING", _DEFAULT_RHYTHM_THINKING)
+
+
 def llm_timeout_s() -> int:
     """Per-request LLM timeout in seconds; `RMA_LLM_TIMEOUT_S` overrides (default 180).
     A non-integer value falls back to the default rather than crashing a run."""
@@ -180,6 +197,11 @@ def has_api_key() -> bool:
 def _env_flag(name: str) -> bool:
     """True iff env var `name` is set to a truthy value (1/true/yes/on)."""
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_flag_on(name: str) -> bool:
+    """A default-ON flag: True unless env var `name` is set to a falsy value (0/false/no/off)."""
+    return os.getenv(name, "").strip().lower() not in {"0", "false", "no", "off"}
 
 
 def tabla_enabled() -> bool:
@@ -212,6 +234,14 @@ def lead_guitar_enabled() -> bool:
     return _env_flag("RMA_LEAD_GUITAR")
 
 
+def hearing_enabled() -> bool:
+    """Whether the lead calls may LISTEN to a draft before answering (crew/hearing.py — the
+    `hear_phrase` tool, the Composer's first ReAct step); env `RMA_HEAR`. Default OFF until one
+    live run has shown what the model does with it and Sujit has heard the result: each listen
+    is another round trip on that section's call."""
+    return _env_flag("RMA_HEAR")
+
+
 def studio_enabled() -> bool:
     """True iff the COOPERATIVE studio session is the generation path; env `RMA_STUDIO`.
 
@@ -239,19 +269,20 @@ def rhythm_section_enabled() -> bool:
     """True iff ONE call writes guitar + bass for the whole piece from the placed sitar line
     (crew/rhythm_voice.py, Sujit's decision 2026-10-12); env `RMA_RHYTHM_SECTION`.
 
-    Opt-in — default OFF until a live run has been heard. Off, the per-section riff + the code
-    passes (chord floor, articulation) + the derived bass play as before; on, they are the
-    fallback when the call fails. The studio path ignores it."""
-    return _env_flag("RMA_RHYTHM_SECTION")
+    Default ON since 2026-10-18 (Sujit: the redesigned five-agent path is the system); set it to 0
+    for the per-section riff + the code passes (chord floor, articulation) + the derived bass, which
+    are also the fallback when the call fails. The studio path ignores it."""
+    return _env_flag_on("RMA_RHYTHM_SECTION")
 
 
 def composer_enabled() -> bool:
     """True iff the single COMPOSER owns the music (crew/composer.py: one seed call co-writes the
     chart, main riff and hook; the generators develop around it); env `RMA_COMPOSER`.
 
-    Opt-in — default OFF until Sujit has heard it. Takes precedence over the studio (whose
-    two-agent canvas is what the single owner replaces)."""
-    return _env_flag("RMA_COMPOSER")
+    Default ON since 2026-10-18 (Sujit: the redesigned five-agent path is the system); set it to 0
+    for the legacy Pandit/Riffsmith composers and per-voice generators. Takes precedence over the
+    studio (whose two-agent canvas is what the single owner replaces)."""
+    return _env_flag_on("RMA_COMPOSER")
 
 
 def canvas_passes() -> int:
@@ -289,6 +320,10 @@ def build_llm(model: str, effort: str | None = None, *, timeout_s: int | None = 
     which those providers do forward.
     """
     from crewai import LLM
+
+    from crew.trace_replay import replay_llm
+    if (replayed := replay_llm()) is not None:                # inside `trace_replay.replaying`
+        return replayed
     level = effort or reasoning_effort()
     timeout_ms = (timeout_s or llm_timeout_s()) * 1000
     common: dict = {"client_params": {"http_options": {"timeout": timeout_ms}}}
@@ -301,7 +336,16 @@ def build_llm(model: str, effort: str | None = None, *, timeout_s: int | None = 
                                                                include_thoughts=True),
                           **common)
     valid = {"none", "low", "medium", "high"}                 # CrewAI's reasoning_effort Literal
-    return LLM(model=model, reasoning_effort=level if level in valid else "low", **common)
+    # `http_options` is the google-genai client's; other providers take a plain timeout (seconds)
+    # — passing the Gemini dict broke every non-Gemini model (found 2026-10-18, gpt-6.1-sol).
+    # OpenAI: the RESPONSES API. On Chat Completions CrewAI 1.15.2 sends `reasoning_effort` only to
+    # "o1" model names, so gpt-6.1-sol silently ran at its default (medium); the Responses path sends
+    # `reasoning: {effort}` and carries structured output as `text.format` (verified 2026-10-18).
+    # `max_retries=0`: the OpenAI client silently retries a timed-out call twice, so one slow
+    # gpt-6.1-sol call at a 420 s limit hung for 21 minutes (2026-10-18). Fail once, loudly.
+    extra = {"api": "responses", "max_retries": 0} if model.startswith("openai/") else {}
+    return LLM(model=model, reasoning_effort=level if level in valid else "low",
+               timeout=timeout_ms / 1000, **extra)
 
 
 def structured_output(model: type) -> dict[str, type]:
@@ -321,11 +365,36 @@ def generator_llm():
     return build_llm(flash_model())
 
 
+# The cross-model debate's seam: inside `composer_override(model, effort)` every Composer call
+# (the seed, the gat head, a debate turn) runs on that model; outside it nothing changes.
+_COMPOSER_OVERRIDE: ContextVar[tuple[str, str] | None] = ContextVar("composer_override", default=None)
+
+
+@contextmanager
+def composer_override(model: str, effort: str) -> Iterator[None]:
+    """Run the Composer's calls on `model` (e.g. "openai/<id>" or "gemini/gemini-3.8-flash") at
+    `effort` for the duration of the block."""
+    token = _COMPOSER_OVERRIDE.set((model, effort))
+    try:
+        yield
+    finally:
+        _COMPOSER_OVERRIDE.reset(token)
+
+
 def composer_llm(*, timeout_s: int | None = None):
     """The calls that CONCEIVE the piece — the chart (Pandit/Riffsmith), the Composer's seed, the
-    joint gat, the rhythm section — Flash at `conception_thinking()` (promote to Pro later via
-    RMA_PRO_MODEL). `timeout_s` lengthens the per-request limit for a call with a long answer."""
+    joint gat — Flash at `conception_thinking()` (promote to Pro later via RMA_PRO_MODEL), or the
+    model and effort a `composer_override` block names. `timeout_s` lengthens the per-request
+    limit for a call with a long answer."""
+    override = _COMPOSER_OVERRIDE.get()
+    if override is not None:
+        return build_llm(override[0], effort=override[1], timeout_s=timeout_s)
     return build_llm(flash_model(), effort=conception_thinking(), timeout_s=timeout_s)
+
+
+def rhythm_section_llm():
+    """The rhythm-section call — Flash at `rhythm_thinking()`, with its own longer limit."""
+    return build_llm(flash_model(), effort=rhythm_thinking(), timeout_s=rhythm_section_timeout_s())
 
 
 # The rhythm section writes guitar AND bass for the whole piece in one answer: on 2026-10-12 it ran

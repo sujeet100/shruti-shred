@@ -101,6 +101,17 @@ def _clean_messages(messages: Any) -> list[dict[str, str]]:
             for m in messages if isinstance(m, dict)]
 
 
+def _response_text(response: Any) -> str:
+    """The answer as text a replay can hand back: structured answers (OpenAI's Responses path
+    returns a parsed dict or model, not text) as JSON — `str()` wrote a Python repr that no
+    parser reads back (found 2026-10-18 resuming a gpt-6.1-sol run)."""
+    if hasattr(response, "model_dump_json"):
+        return response.model_dump_json()
+    if isinstance(response, (dict, list)):
+        return json.dumps(response, ensure_ascii=False, separators=(",", ":"))
+    return str(response)
+
+
 def trace_stats(spans: list[dict[str, Any]]) -> dict[str, Any]:
     """Roll a trace's spans up to headline numbers (spans, LLM calls, tokens, ...)."""
     tokens = sum((s["data"].get("usage") or {}).get("total_tokens", 0) or 0
@@ -169,7 +180,7 @@ class LocalTracer(BaseEventListener):
             total = usage.get("total_tokens")
             self._record("llm.done", e.agent_role,
                          f"{f'{total:,} tok' if total else '? tok'} · finish={getattr(e, 'finish_reason', None)}",
-                         {"response": str(getattr(e, "response", "")), "usage": usage})
+                         {"response": _response_text(getattr(e, "response", "")), "usage": usage})
 
         @bus.on(LLMGuardrailStartedEvent)
         def on_guard_start(_src, e):

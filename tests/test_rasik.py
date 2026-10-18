@@ -206,6 +206,16 @@ def test_every_placeholder_in_rasiks_template_is_an_input_it_receives():
     assert wanted <= set(judge_inputs(comp)), wanted - set(judge_inputs(comp))
 
 
+def test_rasik_judges_a_taan_as_a_continuous_run():
+    # 2026-10-13 live (074703): Rasik asked for a rest mid-taan ("an unbroken 32-beat run sounds
+    # like generic shredding") and the Producer adopted it
+    import yaml
+    task = yaml.safe_load(open(os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "crew", "config", "tasks.yaml")))["assess_taste"]
+    assert "judge a taan AS a taan" in task["description"]
+    assert "Never suggest a rest, a pause, a held nyas" in task["description"]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

@@ -54,6 +54,7 @@ from crew.config import (
     GENERATOR_MAX_ITER,
     GENERATOR_RETRIES,
     composer_llm,
+    hearing_enabled,
     generator_llm,
     lead_guitar_enabled,
     load_env,
@@ -79,6 +80,8 @@ from crew.contracts import (
     motif_illegal_in_raga,
 )
 from crew.expression import express_section
+from crew.hearing import HEAR_MAX_USES, hearing_brief, wants_hearing
+from crew.head_brief import core_idea_header, motif_line, motif_value
 from crew.gat_verifier import (
     CellChecks,
     check_amad,
@@ -1254,7 +1257,7 @@ class _LeadContext:
         self._frame_block: str = _render_bol_frame(frame_for_bpm(arr.bpm))
         self._static: dict[str, Any] = {
             "raga_block": _render_raga_facts(arr.raga),
-            "motif": " ".join(arr.motif),
+            "motif": motif_value(arr.motif),
             "subgenre_feel": SUBGENRES[arr.subgenre]["feel"],
             "bpm": arr.bpm,
             "tala": TALAS[arr.tala]["display"],
@@ -1284,6 +1287,7 @@ class _LeadContext:
             "move": move.value,
             "canvas": _render_canvas_for_lead(canvas, move),
             "repair": _render_repair(feedback),
+            "hearing": "",
         }
 
 
@@ -1399,9 +1403,13 @@ class _LeadCrew:
         self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())[agent_key]
         self._task_config = yaml.safe_load((config_dir / "tasks.yaml").read_text())["generate_lead"]
 
-    def run(self, raga: str, inputs: dict[str, Any]) -> LeadPhrase:
-        agent = Agent(config=self._agent_config, llm=_lead_llm(inputs.get("form_role")),
-                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER,
+    def run(self, raga: str, inputs: dict[str, Any], tools: list[Any] | None = None, *,
+            llm: Any = None) -> LeadPhrase:
+        """One section's call. `tools` (the listening tool) turn on CrewAI's native tool loop;
+        `llm` replaces the configured model (a scripted test double)."""
+        agent = Agent(config=self._agent_config, llm=llm or _lead_llm(inputs.get("form_role")),
+                      tools=tools or [], allow_delegation=False,
+                      max_iter=GENERATOR_MAX_ITER + (HEAR_MAX_USES if tools else 0),
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._task_config, agent=agent, **structured_output(LeadPhrase),
                     guardrail=_lead_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
@@ -1431,7 +1439,19 @@ class _LLMLead:
 
     def __call__(self, span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], *,
                  feedback: list[str] | None = None) -> LeadPhrase:
-        return self._crew.run(arr.raga, self._context.inputs_for(span, memory, feedback=feedback))
+        inputs = self._context.inputs_for(span, memory, feedback=feedback)
+        tools = _hearing_tools(span, arr)
+        inputs["hearing"] = hearing_brief(span.section, bool(tools))
+        return self._crew.run(arr.raga, inputs, tools)
+
+
+def _hearing_tools(span: SectionSpan, arr: Arrangement) -> list[Any]:
+    """The listening tool for this section's call, when it is switched on and the section has a
+    held line to hear (`hearing.wants_hearing`)."""
+    if not (hearing_enabled() and wants_hearing(span.section)):
+        return []
+    from crew.hearing_tool import HearPhraseTool
+    return [HearPhraseTool(span, arr)]
 
 
 # --------------------------------------------------------------------------- #
@@ -1470,7 +1490,8 @@ class _GatContext:
         from talas import TALAS
         self._static: dict[str, Any] = {
             "raga_block": _render_raga_facts(arr.raga),
-            "motif": " ".join(arr.motif),
+            "motif_line": motif_line(arr.motif),
+            "core_idea_header": core_idea_header(),
             "subgenre_feel": SUBGENRES[arr.subgenre]["feel"],
             "bpm": arr.bpm,
             "tala": TALAS[arr.tala]["display"],
@@ -1956,6 +1977,34 @@ def _lead_layer(voice_name: str, notes: list[Note]) -> Layer:
     voice = VOICES[voice_name]
     return Layer(role=_LEAD_ROLE, instrument=voice.instrument, program=voice.program,
                  channel=voice.channel, pan=voice.pan, notes=notes)
+
+
+def sitar_layer(notes: list[Note]) -> Layer:
+    """The sitar's lead Layer for a placed line."""
+    return _lead_layer("sitar", notes)
+
+
+def heard_statement(notes: list[LeadNote], span: SectionSpan, arr: Arrangement) -> list[Note]:
+    """The SITAR line ONE statement of a draft becomes — the same processing, placement, pluck
+    limit, voicing and code-set gestures `lead_layers_from` applies, without the loop and the
+    taan fills: a looping head is heard as its one avartan. What the Composer's listening tool
+    reports (`crew/hearing.py`). Pure."""
+    register = arr.registers[_LEAD_ROLE]
+    andolan_swaras = frozenset(RAGAS[arr.raga].get("andolan", []))
+    processed = apply_strokes(apply_ornaments(strip_noop_meends(notes), arr.raga))
+    if is_intro(span.section):
+        line = _ring_out_intro(_place_intro(processed, span, arr, register=register,
+                                            andolan_swaras=andolan_swaras), span)
+    elif is_mukhada(span.section) or is_song_hook(span.section, arr):
+        one = _one_cycle_span(span, arr.beats_per_bar)
+        line = place_phrase(processed, start=one.start, end=one.end, register=register,
+                            andolan_swaras=andolan_swaras)
+    else:
+        line = _place_lead_section(processed, span=span, register=register,
+                                   cycle_beats=arr.beats_per_bar, andolan_swaras=andolan_swaras)
+    line = pluck_limited(line, register=register, metered=not is_unmetered(span.section))
+    sitar, guitar = _voice_line(line, _voicing_for(span.section), arr.raga)
+    return express_section(sitar, guitar, span.section, arr)[0]
 
 
 def lead_layers_from(phrases: dict[int, LeadPhrase], arr: Arrangement,
@@ -2582,6 +2631,16 @@ def compose_seeded_lead(arr: Arrangement, *,
         gat_fn = None
     return generate_lead(arr, gen_fn=_LLMLead(arr, agent_key), gat_fn=gat_fn,
                          riff_source=riff_seed_for_lead(arr))
+
+
+def compose_head(arr: Arrangement, *, agent_key: str = "composer") -> LeadPhrase | None:
+    """The gat HEAD alone: the whole-gat call, on a chart holding only a mukhada, composes it from
+    the chart's `seed_head` idea and it is verified (and repaired) like any mukhada. The seed
+    debate's realisation step (`crew/seed_debate.py`). None when the chart has no mukhada."""
+    riff = riff_seed_for_lead(arr)
+    gat = _compose_gat(arr, gat_fn=_LLMGat(arr, riff, agent_key), gen_fn=_LLMLead(arr, agent_key),
+                       events=[], riff_source=riff)
+    return gat.mukhada if gat else None
 
 
 def mukhada_cell_from_events(events: list[DebateEvent]) -> LeadPhrase | None:

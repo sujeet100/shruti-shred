@@ -72,6 +72,13 @@ RAGAS = {
         # un-oscillated r/d sounds like a different raga. Rasik checks for this.
         "andolan": ["r", "d"],
         "ornaments": [],    # a grave raga — andolan, not light murki/khatka
+        # Kan (2026-10-18): the andolit r and d are approached FROM ABOVE in descent — Parrikar
+        # "G M P G M (G)r, S" and "G M (N)d, d, P"; Ragajunglism "GmG\\r~S", "NSN\\d~P"; van der
+        # Meer & Rao measured Gundecha's dha "attacked from above". No aroha kan: r is alpa there.
+        "kan": {
+            "r": {"avaroha": "G"},
+            "d": {"avaroha": "N"},
+        },
         "pakad": [
             ["G", "m", "d", "d", "P"],
             ["G", "m", "r", "r", "S"],
@@ -326,6 +333,13 @@ RAGAS = {
         "jati": "audhav-sampurna",   # 5 up, 7 down (R/P dropped ascending)
         "andolan": ["g"],   # ga sways UP toward ma (Parrikar "(m)g"; Sujit's guruji, oral tradition — see ANDOLAN_TOWARD)
         "ornaments": [],  # lyrical/romantic — light murki possible but not an identity ornament
+        # Kan (2026-10-13): Ga takes its colour from Ma ABOVE, whichever way the line arrives —
+        # Parrikar "(m)g", Ragajunglism "(m)g (m)gm" (rising into Ma), Sujit's guruji (oral
+        # tradition: "Ga approached from above"). Arriving FROM Ma it is a slow release instead
+        # (`gestures.GA_MA_RELEASE`), which claims the note before the kan pass sees it.
+        "kan": {
+            "g": {"aroha": "m", "avaroha": "m"},
+        },
         "pakad": [
             ["m", "D", "n", "D", "m", "g", "R", "S"],
             ["m", "P", "D", "m", "g"],          # the vakra Pa signature (avaroha-only)
@@ -930,9 +944,14 @@ def _tetrachord(raga: str, anga: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 ANDOLAN_TOWARD: dict[str, dict[str, str]] = {
-    # ITC: Bhairav's komal re is sung "within the periphery of S". Its dha's direction is not
-    # stated by a source — kept BELOW (toward Pa), the July gesture's direction. FLAG.
-    "bhairav": {"r": "below", "d": "below"},
+    # Bhairav (corrected 2026-10-18): the sway lives INSIDE the swara, leaning UP from where it
+    # lands — van der Meer & Rao (Microtonality in Indian Music) measured Gundecha's dha within
+    # 796-828 cents (a ~32 c span): attacked from above, a bounce up, a slow landing, a hump up
+    # before Pa; Parrikar and Ragajunglism write r/d approached from G/N above. No source swings it
+    # down to Sa/Pa (the old "below" turned 50 c down, on pitch Bhairav does not own). FLAG: ITC
+    # says the re is sung "within the periphery of S" — a statement of its low intonation, read here
+    # as pitch, not as a swing toward Sa.
+    "bhairav": {"r": "above", "d": "above"},
     # AUTRIM/NCPA: ga's movements "occur between Re and Ga"; Deepak Raja: oscillating "between
     # Re–ga and Pa–dha" — both swing down toward their lower neighbour.
     "darbari": {"g": "below", "d": "below"},
@@ -943,6 +962,24 @@ ANDOLAN_TOWARD: dict[str, dict[str, str]] = {
     # the raganga as "S, r<->g". (Tanarang calls the same r<->g movement meend.)
     "todi": {"r": "above"},
 }
+
+
+# How far an andolit swara's sway turns, in semitones, where a source measured it (otherwise the
+# expression pass derives it from the neighbour: half way to a semitone, 0.3 toward a whole tone).
+# Bhairav: van der Meer & Rao's measured dha spans ~32 cents, so the turn is ~20 c above the landing.
+ANDOLAN_DEPTH_ST: dict[str, float] = {"bhairav": 0.2}
+
+# Where in the melodic direction a raga's andolan belongs. Bhairav: on held r/d in DESCENT
+# (Parrikar "(G)r S", "(N)d P"; r is "alpa and often omitted in arohi phrases"); a re or dha the
+# line rises THROUGH (S r G) is played plain. No source forbids it in a turn (S r S) — FLAG.
+ANDOLAN_ONLY_IN: dict[str, str] = {"bhairav": "avaroha"}
+
+# How many swings an andolan carries, where a source counts them (the renderer otherwise fits one or
+# two slow waves). Darbari: van der Meer & Rao ("Microtonality in Indian Music") measured its komal
+# dha undulating "usually two or three times" (one vocalist, two renditions); Sujit (sitar,
+# 2026-10-18): Darbari's andolan generally takes 2-3 swings, a longer sway than one. FLAG: no source
+# counts the ga's swings, nor any of Bhairav's (left at the default).
+ANDOLAN_SWINGS: dict[str, tuple[int, int]] = {"darbari": (2, 3)}
 
 
 def andolan_neighbour_st(raga: str, swara: str) -> int:

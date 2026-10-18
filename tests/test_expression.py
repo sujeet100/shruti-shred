@@ -22,7 +22,7 @@ from crew.contracts import (  # noqa: E402
     SectionKind,
     build_arrangement,
 )
-from crew.expression import ANDOLAN_REACH, express_section  # noqa: E402
+from crew.expression import ANDOLAN_REACH, ANDOLAN_SHALLOW_ST, express_section  # noqa: E402
 from render import (  # noqa: E402
     GAMAK_MAX_CYCLES,
     _andolan_wheel,
@@ -54,9 +54,17 @@ def _express(notes: list[Note], raga: str, role: str = "mukhada",
 def test_andolan_swings_toward_the_raga_specific_neighbour():
     bageshree, _ = _express([Note(swara="g", start=0, dur=4, andolan=True)], "bageshree")
     bhairav, _ = _express([Note(swara="r", start=0, dur=4, andolan=True)], "bhairav")
-    assert bageshree[0].andolan_st == ANDOLAN_REACH * 2       # up toward ma (two semitones)
-    assert bhairav[0].andolan_st == -ANDOLAN_REACH * 1        # down toward Sa
+    assert bageshree[0].andolan_st == ANDOLAN_SHALLOW_ST      # up toward ma, inside its own Ga
+    assert bhairav[0].andolan_st == 0.2                       # Bhairav: a small sway UP inside re (measured)
 
+
+
+def test_darbari_andolan_carries_its_counted_swings():
+    # van der Meer & Rao + Sujit: Darbari's andolan takes 2-3 swings; Bhairav names no count
+    darbari, _ = _express([Note(swara="d", start=0, dur=4, andolan=True)], "darbari")
+    bhairav, _ = _express([Note(swara="r", start=0, dur=4, andolan=True)], "bhairav")
+    assert darbari[0].andolan and darbari[0].andolan_swings == (2, 3)
+    assert bhairav[0].andolan_swings is None
 
 def test_slow_meend_belongs_to_the_alap_only():
     glide = [Note(swara="m", start=0, dur=4, meend_swara="g")]

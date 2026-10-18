@@ -140,9 +140,12 @@ def _similarity(a: list, b: list) -> float:
 
 
 def _hook_line(seed: SongSeed) -> list[str]:
+    """The hook's swaras WITHOUT octave: the same line an octave lower is the same melody to the
+    ear (Sujit, 2026-10-18: "X and Y are same with X in lower octave"), and comparing octaves too
+    scored that pair 0.0 similar."""
     if seed.hook is None:
         return list(seed.head.cell) if seed.head else []
-    return [f"{n.swara}{n.oct}" for n in seed.hook.notes if not n.rest]
+    return [n.swara for n in seed.hook.notes if not n.rest]
 
 
 def _hook_rhythm(seed: SongSeed) -> list[float]:

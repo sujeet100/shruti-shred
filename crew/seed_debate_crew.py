@@ -13,16 +13,35 @@ Lazy crewai imports keep the module importable with no key; the pure arms never 
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, TypeVar
 
 import yaml
 
 from crew.composer import SeedContext, seed_errors
-from crew.contracts import CompositionBrief, DebateTurn, SeedChoice, SongSeed
+from crew.contracts import CompositionBrief, DebateTurn, LeadPhrase, SeedChoice, SongSeed
 from crew.user_request import render_request
 
 _CONFIG: Final = Path(__file__).parent / "config"
+T = TypeVar("T")
+
+# A live experiment makes ~25 calls over most of an hour; one provider blip (a 503 "high demand", a
+# request that never answers — both ended the 2026-10-18 cross-model runs) must neither end it nor
+# quietly degrade it. One retry after a pause, then the failure propagates.
+RETRY_WAIT_S: Final = 30.0
+
+
+def with_retry(call: Callable[..., T]) -> Callable[..., T]:
+    """`call`, retried once after RETRY_WAIT_S when it raises; a second failure propagates."""
+    def retried(*args: Any, **kwargs: Any) -> T:
+        try:
+            return call(*args, **kwargs)
+        except Exception:  # noqa: BLE001 — LIVE SAFETY: one bounded retry, then fail loudly
+            time.sleep(RETRY_WAIT_S)
+            return call(*args, **kwargs)
+    return retried
 
 
 def _yaml(name: str) -> dict[str, Any]:
@@ -108,3 +127,30 @@ def llm_seed(brief: CompositionBrief, approach: str) -> SongSeed:
     """A fresh seed, live, nudged by `approach`."""
     from crew.composer import _LLMSeed
     return _LLMSeed()(brief, approach)
+
+
+def llm_side(model: str, effort: str):
+    """One live debater on its own model: its seed, its turn and its gat head all run inside
+    `composer_override(model, effort)`, so a cross-model debate is two models, end to end."""
+    from crew.config import composer_override
+    from crew.seed_debate import Side
+
+    def seed(brief: CompositionBrief, approach: str) -> SongSeed:
+        with composer_override(model, effort):
+            return with_retry(llm_seed)(brief, approach)
+
+    def turn(brief: CompositionBrief, own: SongSeed, rival: SongSeed, both: str) -> DebateTurn:
+        with composer_override(model, effort):
+            return with_retry(llm_turn)(brief, own, rival, both)
+
+    def head(seed_: SongSeed, brief: CompositionBrief) -> LeadPhrase | None:
+        with composer_override(model, effort):
+            return with_retry(llm_head)(seed_, brief)
+    return Side(seed, turn, head)
+
+
+def llm_head(seed: SongSeed, brief: CompositionBrief) -> LeadPhrase | None:
+    """The live realisation step: the gat call composes a gat seed's head from its idea."""
+    from crew.audition import head_arrangement
+    from crew.lead import compose_head
+    return compose_head(head_arrangement(seed, brief))

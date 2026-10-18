@@ -967,6 +967,9 @@ class Note(BaseModel):
     andolan_st: Optional[float] = None           # the sway's signed depth in semitones — negative swings
                                                  # BELOW, positive ABOVE (code stamps it from the raga's
                                                  # ANDOLAN_TOWARD); None = the renderer's default dip
+    andolan_swings: Optional[tuple[int, int]] = None  # the (fewest, most) swings the raga's andolan
+                                                 # takes (raga.ANDOLAN_SWINGS, Darbari 2-3; code-set);
+                                                 # None = the renderer's default one or two
     meend_style: Optional[Literal["quick", "slow"]] = None  # how the glide moves: a quick gat pull
                                                  # (None/quick) or a slow alap meend that holds the source
                                                  # and pauses on the raga swaras it passes (code-set)
@@ -1464,6 +1467,23 @@ class RhythmSection(BaseModel):
     parts: list[SectionPart] = Field(min_length=1)
 
 
+class SectionPartDraft(BaseModel):
+    """`SectionPart` as the model WRITES it: each avartan cycle one string in the compact riff
+    notation (`crew/riff_notation.py`) instead of a list of note objects — the same music in a
+    fraction of the output tokens. `rhythm_section.from_draft` reads it back."""
+    section: int
+    role: str = ""
+    same_as: Optional[int] = None
+    guitar: list[str] = Field(default_factory=list)
+    bass: list[str] = Field(default_factory=list)
+
+
+class RhythmSectionDraft(BaseModel):
+    """`RhythmSection` as the model writes it — the call's structured output."""
+    reasoning: str = ""
+    parts: list[SectionPartDraft] = Field(min_length=1)
+
+
 # --------------------------------------------------------------------------- #
 # Contract 1.55: The Orchestra — the symphonic-metal voice (see crew/orchestra.py)
 #
@@ -1892,6 +1912,14 @@ class SeedChoice(BaseModel):
     with the order reversed; code reads a disagreement as a tie (position bias, not a preference)."""
     reasoning: str = ""
     choice: int = Field(ge=1)
+
+
+class VersionChoice(BaseModel):
+    """The judge's answer to "draft or revision?": `reasoning` first (what a listener hears in
+    each), then `better` — "A", "B", or "same" when no real difference is audible. Asked twice with
+    the order swapped; code keeps a revision only if it wins both times (crew/compare.py)."""
+    reasoning: str = ""
+    better: Literal["A", "B", "same"]
 
 
 # The chart refers to the riff/phrase contracts defined further down this module.

@@ -248,32 +248,40 @@ def test_every_develop_prompt_is_shown_the_seed():
 def test_the_flag_routes_compose_and_generate_to_the_composer():
     from crew import flow
     original = (composer_mod.compose_seed, composer_mod.compose_seeded_voices,
-                os.environ.get("RMA_COMPOSER"))
+                os.environ.get("RMA_COMPOSER"), os.environ.get("RMA_RHYTHM_SECTION"))
     seen: list[str] = []
     composer_mod.compose_seed = lambda brief: (seen.append("seed") or _seeded_song(), [])
     composer_mod.compose_seeded_voices = (
         lambda arr, **kw: (seen.append("develop") or [], None, []))
     try:
         os.environ["RMA_COMPOSER"] = "1"
+        os.environ["RMA_RHYTHM_SECTION"] = "0"      # the develop path on its own, no rhythm-section call
         arr, _ = flow._compose(_BRIEF)
         flow._creative_voices(arr)
         assert seen == ["seed", "develop"]
     finally:
         composer_mod.compose_seed, composer_mod.compose_seeded_voices = original[:2]
-        if original[2] is None:
-            os.environ.pop("RMA_COMPOSER", None)
-        else:
-            os.environ["RMA_COMPOSER"] = original[2]
+        for key, value in (("RMA_COMPOSER", original[2]), ("RMA_RHYTHM_SECTION", original[3])):
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
-def test_the_flag_is_off_by_default():
-    from crew.config import composer_enabled
-    saved = os.environ.pop("RMA_COMPOSER", None)
+def test_the_five_agent_path_is_the_default_and_zero_turns_it_off():
+    # Sujit, 2026-10-18: the redesigned path (one Composer + the rhythm-section call) is the system
+    from crew.config import composer_enabled, rhythm_section_enabled
+    saved = {k: os.environ.pop(k, None) for k in ("RMA_COMPOSER", "RMA_RHYTHM_SECTION")}
     try:
-        assert composer_enabled() is False
+        assert composer_enabled() is True and rhythm_section_enabled() is True
+        os.environ["RMA_COMPOSER"], os.environ["RMA_RHYTHM_SECTION"] = "0", "off"
+        assert composer_enabled() is False and rhythm_section_enabled() is False
     finally:
-        if saved is not None:
-            os.environ["RMA_COMPOSER"] = saved
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
 
 # --- Option A: a gat seed writes the head's IDEA; the gat call composes the head ----------------

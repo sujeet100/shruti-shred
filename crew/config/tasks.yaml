@@ -530,6 +530,8 @@ generate_lead:
     GAT STRUCTURE CHECK (verified cells — mukhada / intro / manjha / taan fill):
     {repair}
 
+    {hearing}
+
     Based on everything above, compose this ONE section now — the phrase_plan first, then
     the notes that realise it.
   expected_output: |
@@ -551,14 +553,10 @@ generate_gat:
     THE RAGA (the single source of truth — every swara you write, in every part, must be legal here):
     {raga_block}
 
-    THE MOTIF (your seed — quote/derive the mukhada from it and the raga's pakad): {motif}
+    {motif_line}
     Metal feel: {subgenre_feel}    Tempo: {bpm} bpm    Tala: {tala}    One avartan = {cycle_beats} beats.
 
-    THE SONG'S CORE IDEA (when the Composer seeded the piece, YOU wrote it — build on it. When it
-    holds a hook, that hook IS the mukhada: copy it verbatim and compose the other parts around it.
-    When it holds the gat HEAD'S IDEA, the mukhada is yours to compose FROM it, with your full
-    attention: its first note the sam swara, its core cell recurring, the idea's stroke line as the
-    mukhada's stroke_line — refine it only where the melody truly asks):
+    {core_idea_header}
     {song_seed}
 
     THE SOURCE — which voice seeds the mukhada (the composers' anchor):
@@ -926,6 +924,13 @@ assess_taste:
     that only shows the raga's notes slowly earns a low idiom score, and it is a fair target
     for one of your suggestions (name its section).
 
+    THE TAAN — judge a taan AS a taan: one continuous fast run, at chaugun from its first note,
+    with no rests and no held notes inside it. That is the composer's decision for this piece,
+    not a flaw to fix. A taan carries the raga in its PHRASING at speed — vakra turns, the
+    chalan's direction, how it approaches and leaves the raga's characteristic swaras — and its
+    nyas is its arrival on the sam. Never suggest a rest, a pause, a held nyas or a "breath"
+    inside a taan; suggest a change to its line instead.
+
     GROUNDING — a fact computed for you, so your pakad score is anchored rather than
     guessed (a phrase can be evoked without a literal quote — judge that with your ear):
     {pakad_hint}
@@ -1050,7 +1055,7 @@ assess_composition:
     THE RUBRIC — score each an integer 1-5, and let these anchors set the boundaries:
       structure    — 1 sections stitched together arbitrarily; 3 a workable order; 5 each section leads naturally into the next, and a returning main riff frames the form (verse/chorus-like).
       dynamics     — 1 flat throughout; 3 some variation; 5 the energy clearly builds across the arc.
-      climax       — 1 every section equally intense; 3 a mild peak; 5 an earned peak and a real resolution. Read THE TAAN facts: a taan that peaks early and descends, thins out toward its end, ends on a mechanical repeated cell, or stops before the sam (a gap) scores at most 2; 5 needs a late taar peak, rising momentum and a continuous arrival on the sam.
+      climax       — 1 every section equally intense; 3 a mild peak; 5 an earned peak and a real resolution. Read THE TAAN facts: a taan that peaks early and descends, thins out toward its end, ends on a mechanical repeated cell, or stops before the sam (a gap) scores at most 2; 5 needs a late taar peak, rising momentum and a continuous arrival on the sam. A taan in this piece is ONE continuous run at chaugun with no rests or held notes — by design, not a fault: its unbroken drive is what you are judging, so never mark it down for "never breathing".
       handoff      — ONLY when the structure has a "takeover" section (else null): 1 the guitar plays an unrelated riff; 3 the head's rhythm is there but its melody is lost (or a stiff note-for-note copy); 5 unmistakably the gat (its rhythm, accents and structural swaras — read the KINSHIP for the takeover section), idiomatic on guitar (low chords where it lands, its melody as single notes), the second avartan developing the first, and the sitar returning seamlessly on the sam. A takeover quoting the head is NOT a lack of independence.
       motif        — 1 stated once or never; 3 repeated but not developed; 5 introduced, varied and resolved.
       hook         — 1 forgettable, unloopable riff that never returns; 3 serviceable; 5 a memorable, loopable riff with a strong downbeat that RECURS as the song's hook.
@@ -1064,34 +1069,69 @@ assess_composition:
     busier, more crowded one that sprawls; length and density are not quality.
 
     GROUND EVERY SCORE:
-      - Justify each integer 1-5 in `reasoning` before you commit it, from the score above.
-      - Ground scores in the MEASURED FACTS where they apply (dynamics/climax in the energy
-        curve and ornament rate, motif in motif_share and the riff ↔ gat-head kinship (does the
-        guitar's riff grow out of the sitar's head, or interrupt it?), hook and structure in the
-        riff form — riff_recurrence (does the main riff RETURN?) and riff_variety — repetition in
-        riff_recurrence, motif_recurrence and section_variety, independence in the lead/riff
-        and bass/riff and drums/tabla overlaps, balance in the register overlaps, the
-        everyone-playing fraction and the audible lead per section). When your score departs
-        from a number, say why.
+      - Justify each integer 1-5 in `reasoning` before you commit it, from the score above, in
+        terms of what a listener would hear. The measured facts are there so you can read the
+        score as it will sound; never let a number decide a score on its own.
       - Score the song, not the raga — the raga's authenticity is Rasik's score above.
       - `notes` is a short (2-3 sentence) critique a musician can act on.
 
-    YOUR DECISION — `decision` is "accept" or "revise":
-      - ACCEPT when the piece works and no single change would clearly make it better. A
-        revision re-composes the named sections of one voice (naming the mukhada re-writes the
-        head everywhere it returns); spend it only on a real improvement. Asking for the same
-        edit twice without the scores rising ends the loop.
-      - REVISE with ONE `plan`: the `voice` whose fix would improve the music most (lead, riff
-        or orchestra), the `sections` to rework (the numbers THE STRUCTURE shows, from 0; empty = everywhere
-        it plays), the `instruction` (what to change, concretely — a generator acts on it), and
+    YOUR DECISION — `decision` is "accept" or "revise". ACCEPT is the default.
+      - ACCEPT unless something in the piece would sound WRONG or WEAK to a listener: a section
+        that falls flat, an ending that does not land, a hook that never comes back, a line that
+        sounds mechanical. Fine-tuning a piece that already works is not a reason to revise: a
+        revision re-composes whole sections and often breaks what worked, and it is kept only if
+        it beats this version when the two are compared side by side.
+      - REVISE with ONE `plan`: the `voice` (lead, riff or orchestra), the `sections` (the numbers
+        THE STRUCTURE shows, from 0; empty = everywhere it plays), the `instruction`, and
         `preserve` (what must survive: the hook, the main riff's rhythm, the mukhada, a section
         that already lands). Only the named sections are rewritten.
-      - When the music works and the raga is the weakest link, ADOPT one of Rasik's lead
-        suggestions as the plan (voice "lead", its section, its change).
+      - Write the `instruction` as the PROBLEM a listener hears and the effect you want ("the
+        ending stops dead instead of resolving; let it settle into the low register"), never as
+        a list of swaras or notes: the composer solves it in music, and a note list gets copied
+        literally.
+      - Rasik's suggestions are advice about the raga, not plans. Adopt one only when it fixes
+        something a listener would hear, and then say what it fixes in words.
+      - In `reasoning` and `notes`, describe what a listener would hear. Do not quote the measured
+        numbers back; they are background for you, not evidence to cite.
+      - A taan plan works INSIDE the taan's design — one continuous chaugun run, no rests or
+        held notes (the generator rejects them). Never ask a taan for a rest, a nyas or a breath.
       - Return only the fields asked for.
   expected_output: |
     A single ProducerVerdict as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
+    {output_schema}
+
+# DRAFT OR REVISION? (crew/compare.py): the critique loop's decision, by comparison. Asked twice with
+# the order swapped; a revision is kept only if it wins both. Braces live only in {output_schema}.
+compare_versions:
+  description: |
+    You are the Producer. Below are two versions, A and B, of the same piece. They share the same
+    structure; one of them is a revision of the other in some sections. Your one question: which
+    is the better SONG for a listener?
+
+    THE SUBGENRE — the intended feel:
+    {subgenre_facts}
+
+    THE STRUCTURE — shared by both versions:
+    {sections}
+
+    WHAT THE USER ASKED FOR (verbatim):
+    {user_request}
+
+    VERSION A:
+    {version_a}
+
+    VERSION B:
+    {version_b}
+
+    Judge them as a listener would hear them: which holds together better, builds and lands
+    better, and sounds less mechanical or wrong? Do not prefer a version because it is busier, more
+    ornate, or changed more. If you cannot hear a real difference, answer "same".
+
+    Fill `reasoning` first (a few sentences on what a listener hears in each; no numbers), then
+    `better`: "A", "B" or "same".
+  expected_output: |
+    A single JSON object and nothing else, in this shape:
     {output_schema}
 
 # The RHYTHM SECTION task (crew/rhythm_section_call.py): guitar + bass for the whole piece, from the
@@ -1122,7 +1162,7 @@ compose_rhythm_section:
         comes back with every return of the head — write it once and give the later mukhada
         sections `same_as` that section. Mostly home, with one move that resolves on the sam.
       - THE MANJHA AND ANTARA MOVE: the chords change there, following the section's harmony
-        plan below; in the antara the guitar climbs an octave ("oct": 1) as the sitar climbs.
+        plan below; in the antara the guitar climbs an octave ((+1) on its notes) as the sitar climbs.
       - A SLOW CHORD PLAN, A FAST PICKING PATTERN: decide each section's chords first (a root per
         vibhag or longer), then the right hand plays on them — chugs, ringing chords, stops. A
         guitar that changes root with every melody note is harmonising the tune, not arranging it.

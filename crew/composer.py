@@ -21,7 +21,7 @@ generator fragmented it. So on this path:
     `composer` persona, shown the whole seed (`{song_seed}` — "develop it, never replace it").
   * The seeds ride the Arrangement (`seed_riff`, `seed_hook`, `energy_arc`), so a revise hands them on.
 
-Behind `RMA_COMPOSER` (default OFF, like the studio) until Sujit has heard it. The studio session
+The default path since 2026-10-18 (`RMA_COMPOSER=0` restores the legacy composers). The studio session
 is not used on this path — ownership is the point. The LLM is injected everywhere, so every loop
 here is tested with no key.
 """

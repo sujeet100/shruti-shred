@@ -19,12 +19,26 @@ The times are the measured medians; the tracker's confidence on a mixed recordin
 the shapes are trustworthy and the milliseconds are approximate (tune by ear). Dha's gestures
 are NOT encoded: its evidence (4 loops down to Pa, 1 up to Ni) was too thin.
 
+Bageshree's komal Ga, arriving from Ma (Sujit's guruji, oral tradition, 2026-10-11 — "a slow Ma->Ga
+reverse bend"; Parrikar "(m)g", Ga taking its colour from Ma above): the string is plucked already
+pulled to Ma's pitch, rests there a moment, and is RELEASED slowly onto Ga, which then holds still.
+It replaced a sway that turned on shuddha Ga (fusion_20261013_081705_bageshree, 6.5/10/20.5 s:
++98 cents held ~250 ms, three times) — a gesture may PASS a pitch the raga does not own, but it
+never RESTS on one (`check_gestures`). The release's milliseconds are inference, for the ear.
+
+Two motions, kept distinct because they mean different things:
+  * LOOP — leaves the swara and comes home (a kan-like touch, a dip): starts and ends on it;
+  * RELEASE — a meend that ARRIVES at the swara from its neighbour: starts on the neighbour, ends
+    on the swara and stays. (Andolan, the sway that turns inside a swara's own periphery, lives
+    in `crew/expression.py`; gamak, the re-struck swing between two swaras, is below.)
+
 Pure — no I/O, no LLM. The renderer never imports this; code resolves a gesture to a concrete
 path on the note (`Note.pitch_path`) and the renderer draws whatever path it is given.
 """
 
 from __future__ import annotations
 
+import zlib
 from dataclasses import dataclass
 from typing import Final
 
@@ -33,31 +47,46 @@ from raga import KHADA_RAGAS, RAGAS, SWARAS, directional_varjya, scale_step_up
 SETTLE_MS: Final = 60      # the note must still sound this long after the gesture ends
 
 
+LOOP: Final = "loop"
+RELEASE: Final = "release"
+
+
 @dataclass(frozen=True)
 class Gesture:
-    """A pitch path toward `toward` and back: knots of (ms after the note sounds, share of the
-    way to `toward`). The path starts and ends on the swara itself (share 0)."""
+    """A pitch path between a swara and its neighbour `toward`: knots of (ms after the note
+    sounds, share of the way to `toward`). A LOOP starts and ends on the swara (share 0); a
+    RELEASE starts on the neighbour (share 1) and ends on the swara. Either way it rests only on
+    the two swaras themselves — every held stretch is at share 0 or 1."""
     name: str
     toward: str
     knots: tuple[tuple[float, float], ...]
     source: str
     hold_range_ms: tuple[float, float] | None = None   # the measured spread of the hold at the neighbour
+    motion: str = LOOP
+    move_range_ms: tuple[float, float] | None = None   # the spread of the final move onto the swara
 
     @property
     def length_ms(self) -> float:
-        """The longest the gesture can take — its hold at the top of the measured range."""
-        if self.hold_range_ms is None:
-            return self.knots[-1][0]
-        return self.knots[-1][0] + self.hold_range_ms[1] - _hold_ms(self.knots)
+        """The longest the gesture can take — its hold and its final move at the top of their
+        ranges."""
+        longest = self.knots[-1][0]
+        if self.hold_range_ms is not None:
+            longest += self.hold_range_ms[1] - _hold_ms(self.knots)
+        if self.move_range_ms is not None:
+            longest += self.move_range_ms[1] - _last_move_ms(self.knots)
+        return longest
 
 
 @dataclass(frozen=True)
 class GestureRule:
     """`swara` is played with `gesture` when the line arrives from `from_swara` (the swara just
-    before it, as the adjacent neighbour) — or from anywhere else when `from_swara` is None."""
+    before it, as the adjacent neighbour) — or from anywhere else when `from_swara` is None.
+    `in_alap`: the gesture also belongs in the slow alap/outro (guruji's Darbari figures were
+    measured in a fast gat, so they stay out of it; Bageshree's release is an alap gesture)."""
     swara: str
     gesture: Gesture
     from_swara: str | None = None
+    in_alap: bool = False
 
 
 _GURUJI: Final = "Sujit's guruji, recorded Darbari gat (oral tradition, measured 2026-10-12)"
@@ -67,6 +96,18 @@ def _hold_ms(knots: tuple[tuple[float, float], ...]) -> float:
     """How long the path rests at the neighbour (the knots at full share)."""
     top = [ms for ms, share in knots if share == 1.0]
     return top[-1] - top[0] if len(top) >= 2 else 0.0
+
+
+def _last_move_ms(knots: tuple[tuple[float, float], ...]) -> float:
+    """How long the final move onto the swara takes."""
+    return knots[-1][0] - knots[-2][0]
+
+
+def _mixed(seed: float, k: int) -> float:
+    """A deterministic fraction in [0, 1) keyed on (seed, k) through CRC32 — well mixed where
+    `vary`'s low bits are not (starts 20 and 41 land 4% apart there). Kept separate so the
+    gestures already tuned by ear on `vary` sound exactly as they did."""
+    return (zlib.crc32(f"{seed:.4f}:{k}".encode()) % 4096) / 4096.0
 
 
 def vary(seed: float, k: int) -> float:
@@ -88,18 +129,30 @@ GA_RE_DIP: Final = Gesture(
     source=f"{_GURUJI}; AUTRIM/NCPA ga moves 'between Re and Ga'; Deepak Raja 'Re-ga'",
     hold_range_ms=(35.0, 70.0))
 
+GA_MA_RELEASE: Final = Gesture(
+    name="ga_ma_release", toward="m",
+    knots=((0, 1.0), (140, 1.0), (560, 0.0)),
+    source="Sujit's guruji (oral tradition, 2026-10-11): 'a slow Ma->Ga reverse bend'; "
+           "Parrikar Bageshree '(m)g'",
+    hold_range_ms=(90.0, 200.0), motion=RELEASE, move_range_ms=(340.0, 520.0))
+
 GESTURES: dict[str, tuple[GestureRule, ...]] = {
     "darbari": (
         GestureRule(swara="g", gesture=GA_RE_DIP, from_swara="m"),
         GestureRule(swara="g", gesture=GA_MA_LOOP),
     ),
+    "bageshree": (
+        GestureRule(swara="g", gesture=GA_MA_RELEASE, from_swara="m", in_alap=True),
+    ),
 }
 
 
-def gesture_for(raga: str, swara: str, from_swara: str | None) -> Gesture | None:
+def gesture_for(raga: str, swara: str, from_swara: str | None, *,
+                alap: bool = False) -> Gesture | None:
     """The gesture this swara takes arriving from `from_swara` (None = no adjacent approach):
-    a rule naming that approach first, else the swara's default, else None."""
-    rules = [r for r in GESTURES.get(raga, ()) if r.swara == swara]
+    a rule naming that approach first, else the swara's default, else None. In the alap only
+    the rules marked `in_alap` apply."""
+    rules = [r for r in GESTURES.get(raga, ()) if r.swara == swara and (r.in_alap or not alap)]
     specific = [r for r in rules if r.from_swara is not None and r.from_swara == from_swara]
     default = [r for r in rules if r.from_swara is None]
     chosen = (specific or default or [None])[0]
@@ -116,7 +169,8 @@ def gesture_path(gesture: Gesture, swara: str, seed: float | None = None) -> lis
     """The gesture as concrete (ms, semitones) knots from `swara` — the neighbour's interval
     taken the short way round the octave (g -> m is +2, g -> R is -1). With a `seed` (the note's
     start) the hold at the neighbour takes a length inside its measured range, so each
-    occurrence differs as a player's does; without one, the measured median."""
+    occurrence differs as a player's does; without one, the median. A RELEASE begins at the
+    neighbour's interval and ends at 0."""
     gap = (SWARAS[gesture.toward] - SWARAS[swara]) % 12
     interval = gap - 12 if gap > 6 else gap
     knots = gesture.knots
@@ -125,12 +179,17 @@ def gesture_path(gesture: Gesture, swara: str, seed: float | None = None) -> lis
         shift = lo + (hi - lo) * vary(seed, 0) - _hold_ms(knots)
         top_end = max(ms for ms, share in knots if share == 1.0)
         knots = tuple((ms + shift if ms >= top_end else ms, share) for ms, share in knots)
+    if seed is not None and gesture.move_range_ms is not None:
+        lo, hi = gesture.move_range_ms
+        last = knots[-2][0] + lo + (hi - lo) * _mixed(seed, 1)
+        knots = knots[:-1] + ((last, knots[-1][1]),)
     return [[round(ms, 1), round(share * interval, 3)] for ms, share in knots]
 
 
 def check_gestures() -> list[str]:
-    """Data hygiene: every rule's swara and neighbour belong to its raga, every path starts and
-    ends on the swara with time moving forward, and every gesture names its source."""
+    """Data hygiene: every rule's swara and neighbour belong to its raga, every path ends on the
+    swara (a loop also starts there, a release starts on the neighbour) with time moving forward,
+    every hold rests on one of the two swaras, and every gesture names its source."""
     problems: list[str] = []
     for raga, rules in GESTURES.items():
         allowed = RAGAS[raga]["allowed"]
@@ -141,8 +200,13 @@ def check_gestures() -> list[str]:
             if r.from_swara is not None and r.from_swara not in allowed:
                 problems.append(f"{raga}.{g.name}: approach swara outside the raga")
             times = [ms for ms, _ in g.knots]
-            if g.knots[0][1] != 0 or g.knots[-1][1] != 0 or times != sorted(set(times)):
-                problems.append(f"{raga}.{g.name}: path must start/end on the swara, time forward")
+            first = 1.0 if g.motion == RELEASE else 0.0
+            if g.knots[0][1] != first or g.knots[-1][1] != 0 or times != sorted(set(times)):
+                problems.append(f"{raga}.{g.name}: a {g.motion} must start on "
+                                f"{'its neighbour' if first else 'the swara'}, end on the swara, "
+                                "time forward")
+            if any(a == b and a not in (0.0, 1.0) for (_, a), (_, b) in zip(g.knots, g.knots[1:])):
+                problems.append(f"{raga}.{g.name}: rests between two swaras — on no swara at all")
             if not g.source:
                 problems.append(f"{raga}.{g.name}: no source")
         if sum(1 for r in rules if r.from_swara is None) > len({r.swara for r in rules}):

@@ -37,13 +37,9 @@ def _never(*_args, **_kwargs):
     raise AssertionError("an audition replays its seed — it never calls a model")
 
 
-def audition_arrangement(seed: SongSeed, brief: CompositionBrief) -> Arrangement:
-    """The seed's chart cut down to the audition: the main riff alone, then the hook over it as
-    a mukhada (sitar alone, looped) — the seed's own raga, tala, tempo and subgenre. A gat seed that
-    holds only its head's IDEA has no notes to replay (the gat call composes them), so it cannot be
-    auditioned on its own. Pure."""
-    if seed.hook is None:
-        raise ValueError("this seed holds only the gat head's idea — compose the head before auditioning")
+def _audition_chart(seed: SongSeed, brief: CompositionBrief) -> Arrangement:
+    """The seed's chart cut down to two sections: the main riff alone, then the head (a mukhada)
+    over it — the seed's own raga, tala, tempo and subgenre. Pure."""
     sections = [
         Section(kind=SectionKind.RIFF, bars=_RIFF_BARS, layers=list(_BAND), foreground="rhythm",
                 riff_slot=_SLOT, intent="the main riff alone"),
@@ -52,8 +48,23 @@ def audition_arrangement(seed: SongSeed, brief: CompositionBrief) -> Arrangement
                 intent="the hook over the main riff"),
     ]
     draft = seed.chart.model_copy(update={"sections": sections, "form": "gat"})
-    arr = build_arrangement(draft, brief)
-    return arr.model_copy(update={"seed_riff": seed.main_riff, "seed_hook": seed.hook})
+    return build_arrangement(draft, brief)
+
+
+def head_arrangement(seed: SongSeed, brief: CompositionBrief) -> Arrangement:
+    """The audition chart carrying a gat seed's head IDEA and no notes, so the gat call (asked for
+    the mukhada alone) composes the head from it — the seed debate's realisation step. Pure."""
+    return _audition_chart(seed, brief).model_copy(update={
+        "seed_riff": seed.main_riff, "seed_head": seed.head, "seed_hook": None, "energy_arc": seed.energy_arc})
+
+
+def audition_arrangement(seed: SongSeed, brief: CompositionBrief) -> Arrangement:
+    """The audition: the main riff alone, then the hook over it (sitar looped). A gat seed is
+    auditioned once realised (`seed_debate.realised` composes its head into `hook`); an idea-only
+    seed has no notes to replay. Pure."""
+    if seed.hook is None:
+        raise ValueError("this seed holds only the gat head's idea — compose the head before auditioning")
+    return _audition_chart(seed, brief).model_copy(update={"seed_riff": seed.main_riff, "seed_hook": seed.hook})
 
 
 def audition_composition(seed: SongSeed, brief: CompositionBrief) -> Composition:

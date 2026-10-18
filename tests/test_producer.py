@@ -195,6 +195,17 @@ def test_the_producer_reads_the_audible_lead_and_is_told_a_held_pluck_is_silence
     assert "audible lead per section" in prompt and "heard as silence" in prompt
 
 
+def test_the_producer_never_asks_a_taan_to_stop():
+    # 2026-10-13 live (074703): both revise rounds asked for "a 1-beat resting nyas to break the
+    # continuous burst" — the taan Sujit rejected, which the generator then refused
+    import yaml
+    from pathlib import Path
+    tasks = Path(__file__).resolve().parents[1] / "crew" / "config" / "tasks.yaml"
+    prompt = yaml.safe_load(tasks.read_text())["assess_composition"]["description"]
+    assert "ONE continuous run at chaugun" in prompt
+    assert "Never ask a taan for a rest, a nyas or a breath" in prompt
+
+
 _SCORES_FIXTURE = ProducerScores(structure=3, dynamics=3, climax=3, motif=3, hook=3, balance=3,
                                  independence=3, mood_fit=3, repetition=3, performance=3)
 
