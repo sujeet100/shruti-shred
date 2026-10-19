@@ -41,10 +41,10 @@ from crew.hearing import (  # noqa: E402
 
 
 def _arr(role: str | None = "antara", *, kind: SectionKind = SectionKind.MELODY,
-         raga: str = "darbari", bars: int = 1, sections: int = 1):
+         raga: str = "darbari", bars: int = 1, sections: int = 1, bpm: int = 72):
     secs = [Section(kind=kind, bars=bars, layers=["lead", "drone"], foreground="lead",
                     form_role=role) for _ in range(sections)]
-    draft = ArrangementDraft(raga=raga, subgenre="doom", tala="teentaal", bpm=72,
+    draft = ArrangementDraft(raga=raga, subgenre="doom", tala="teentaal", bpm=bpm,
                              motif=["S"], sections=secs)
     return build_arrangement(draft, CompositionBrief(mood="dark"))
 
@@ -74,7 +74,7 @@ def test_a_held_komal_dha_after_ni_takes_its_kan_and_sways():
 
 
 def test_in_the_gat_a_held_ga_takes_gurujis_measured_loop_instead_of_a_sway():
-    arr = _arr()
+    arr = _arr(bpm=120)                     # guruji's tempo; a slow gat's held Ga sways instead
     report = hear(_notes(("S", 1), ("g", 2), ("R", 1), ("S", 2)), section_spans(arr)[0], arr)
     assert "loops up to m and back" in _line_for(report, 1.0)
     assert "1 take a measured gesture" in report

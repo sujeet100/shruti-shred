@@ -1144,3 +1144,40 @@ and build order.
   PROBLEM not swaras, Rasik's suggestions are advice (no auto-adopt), no numbers quoted in reasoning.
   Scores schema unchanged (UI + stop rule read it) — slimming it is the next step. 1285 pure tests.
   Live-untested.
+- **HEAD SELF-REVISION — debate's control, and what replaced it (2026-10-19;** TALK.md "The rival
+  added nothing"**):** the head debate's control (same proposals, same measurements, NO rival —
+  `talk/audio/head_control_run.py`, `revise_head` task) made the debaters' exact move (into the
+  mandra, `d n P`) in one revision at half the tokens, so the rival contributed nothing the
+  measurement didn't; debate stays parked. The finding: ten first drafts IGNORED the prompt's
+  stated register fact ("DWELL below Sa": max 19%), but a measurement of their OWN draft moved 4/4
+  revisions. Built: `crew/head_report.py` (pure — register per `raga.REGISTER`, each listed saptak
+  ≥20%; one pakad/chalan phrase; vilambit held andolit swara) + `crew/head_revision.py`
+  (`revise_head_once`, reviser injected; `LLMHeadReviser`), wired in `_compose_gat` after the
+  mukhada's checks for freshly composed heads only (`compose_lead`, `compose_seeded_lead` with a
+  `seed_head`; a seed hook is never revised); env `RMA_HEAD_REVISE`, default ON. A head meeting every
+  fact makes no call; a revision is KEPT only if it passes the head's hard checks, keeps the first
+  note, and fixes a missed fact without missing one the draft met (reverts the control's 94%-mandra
+  overshoot). 1319 pure tests. Live-untested in the pipeline.
+- **2026-10-19 — ALAP CALL-AND-ANSWER, the REHEARSAL (parked), the NOTES DEBATE (TALK.md "2026-10-19 —
+  what the day taught"):** (1) ALAP: Sujit's ear — "phrases don't resolve, random, no pulse". Root cause:
+  the July "only the last phrase resolves" brief relied on a code-plucked low Sa (the jod) deleted 10-12
+  while the prompt still forbade playing home. Now (`lead_roles.yaml` intro + `gat_verifier.
+  _intro_call_and_answer` / `_intro_pulse_violations` + `lead.intro_phrase_grid`): a CALL ends on tension
+  OFF the raga's CORE nyas (Malkauns permits every swara as a rest, so core, not permitted), an ANSWER
+  resolves onto a core nyas, calls may pile up, no phrase climbs into a main nyas (Sa exempt), at least one
+  call before the close (hard); phrases start on a vibhag, notes ≥1 beat on a beat (hard); the old
+  tension/pluck checks removed. (2) RHYTHM SECTION brief: manjha/antara SPARSE (one ringing stroke per
+  vibhag, softer) — confirmed in the fresh run's measured guitar. (3) HEAD SELF-REVISION: the reviser's
+  guardrail now holds the keep rule's lines (`head_turn_guardrail(arr, verify, first)`) — the first live
+  revision fixed the register but ended on Ni and was discarded unrepaired. (4) REHEARSAL (`crew/
+  rehearsal.py`, `rehearsal_edits.py`, `config/rehearsal.yaml`, `talk/audio/rehearsal_run.py`): sitarist +
+  guitarist hear the mix + their stem, propose knob edits (sit out/louder/softer/sparser/chug/cut/repeat),
+  dual-theory bandleader decides, ≤3 rounds, blind both-orders final check. Two live runs: unanimous,
+  subtractive, ears hallucinated; Sujit preferred the original — PARKED until an audio model is calibrated.
+  (5) NOTES DEBATE (`crew/notes_debate.py`, `notes_debate_crew.py`, `config/notes_debate.yaml`,
+  `talk/audio/notes_debate_run.py`): sitarist (Gemini) vs guitarist (`openai/gpt-6-luna`, no audio input)
+  rewrite notes of their own part, critique each other, keep/revise/withdraw; code checks every rewrite;
+  versions rendered for Sujit's ear. The song is recovered EXACTLY by trace replay (`replaying(...,
+  tolerance=)` + the checks as recorded). (6) Infra: `GeminiAudioJudge(timeout_s=)`, rehearsal resume from
+  `calls.jsonl`; `talk/audio/fresh_run.py` (records every judged round + notes.md); medium effort stays.
+  1343 pure tests. Uncommitted since `521554b`.

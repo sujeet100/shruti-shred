@@ -39,7 +39,7 @@ from crewai.flow.flow import Flow, listen, or_, router, start
 from pydantic import BaseModel, Field
 
 from crew.anchor import with_realized_seeds
-from crew.config import MAX_JUDGE_ROUNDS, MAX_ROUNDS, listening_enabled, load_env
+from crew.config import MAX_JUDGE_ROUNDS, MAX_ROUNDS, listening_enabled, load_env, notes_debate_enabled
 from crew.contracts import (
     Arrangement,
     Composition,
@@ -56,6 +56,7 @@ from crew.contracts import (
     plan_layer,
 )
 from crew.live import publish, publish_all
+from crew.realized import KeptLead, realized_lead
 from crew.rhythm_section import with_rhythm_section
 from crew.revision import (
     is_stalled,
@@ -104,6 +105,10 @@ type Listen = Callable[[str, Arrangement], list[DebateEvent]]
 # DRAFT OR REVISION? (crew/compare.py): (earlier version, revision, chart) -> (keep the revision?,
 # events). Asked after a revision made on the JUDGE's plan; None = keep every revision (the old loop).
 type Compare = Callable[[Composition, Composition, Arrangement], tuple[bool, list[DebateEvent]]]
+# THE NOTES DEBATE (crew/notes_debate.py): (chart, realised lead material, the band's other voices, the
+# accepted composition) -> (the composition to render, its chart, events). None = off.
+type NotesDebate = Callable[[Arrangement, KeptLead, Optional[Layer], list[Layer], Composition],
+                            tuple[Composition, Arrangement, list[DebateEvent]]]
 
 
 @dataclass(frozen=True)
@@ -119,6 +124,7 @@ class Stages:
     render: Render
     listen: Optional[Listen] = None      # the advisory listening pass (None = off)
     compare: Optional[Compare] = None    # draft or revision? (None = the revision always stands)
+    debate: Optional[NotesDebate] = None  # the notes debate on the accepted song (None = off)
 
 
 # The real adapters (lazy imports keep crewai off the light path until a stage runs).
@@ -371,7 +377,8 @@ def production_stages(*, soundfont: Path = _SOUNDFONT, out_dir: Path = _OUT_DIR,
         interpret=_interpret, compose=_compose, generate=_generate, assemble=_assemble,
         critique=_critique, decide=_decide, regenerate=_regenerate,
         render=lambda comp: _render(comp, soundfont=soundfont, out_dir=out_dir, name=name),
-        listen=_listen if listening_enabled() else None, compare=_compare)
+        listen=_listen if listening_enabled() else None, compare=_compare,
+        debate=_notes_debate if notes_debate_enabled() else None)
 
 
 # --------------------------------------------------------------------------- #
@@ -616,6 +623,7 @@ class ComposeFlow(Flow[ComposeState]):
         """
         st = self.state
         assert st.composition is not None
+        _flow_notes_debate(self)
         publish(_running("System", "rendering the audio…", role="system"))
         st.wav_path = self._stages.render(st.composition)
         _save_arrangement(st.wav_path, st.arrangement)
@@ -624,6 +632,39 @@ class ComposeFlow(Flow[ComposeState]):
             heard = self._stages.listen(st.wav_path, st.arrangement)
             publish_all(heard)
             st.events.extend(heard)
+
+
+def _flow_notes_debate(flow: "ComposeFlow") -> None:
+    """Run the notes debate on the accepted song, when the stage is on and the song has what it
+    needs (the realised lead and a composed guitar part). Never fatal: the accepted song stands."""
+    st = flow.state
+    kept = realized_lead(st.events)
+    if flow._stages.debate is None or st.arrangement is None or kept is None \
+            or st.arrangement.rhythm_section is None or st.composition is None:
+        return
+    publish(_running("Band", "the sitarist and the guitarist argue the notes…", role="composer"))
+    try:
+        st.composition, st.arrangement, events = flow._stages.debate(
+            st.arrangement, kept, st.rhythm, st.orchestra_layers, st.composition)
+    except Exception as exc:  # noqa: BLE001 — LIVE SAFETY: a failed debate keeps the accepted song
+        events = [_flow_event(f"notes debate skipped ({exc}) — the accepted song stands")]
+    publish_all(events)
+    st.events.extend(events)
+
+
+def _notes_debate(arr: Arrangement, kept: KeptLead, rhythm: Optional[Layer], orchestra: list[Layer],
+                  composition: Composition) -> tuple[Composition, Arrangement, list[DebateEvent]]:
+    """The live notes debate: Gemini sitarist vs gpt-6-luna guitarist, judged blind (crew/compare.py)."""
+    from crew.lead import lead_layers_from
+    from crew.notes_debate import debate_stage
+    from crew.notes_debate_crew import players
+
+    def assemble(song) -> Composition:
+        return _assemble(song.arr, lead_layers_from(song.phrases, song.arr, song.fills), song.rhythm,
+                         song.orchestra)
+    comp, arr2, events, _, _ = debate_stage(arr, kept.phrases, kept.fills, rhythm, orchestra, composition,
+                                            players=players, assemble=assemble, compare=_compare)
+    return comp, arr2, events
 
 
 def _compose_beat() -> DebateEvent:

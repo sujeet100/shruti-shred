@@ -368,6 +368,84 @@ debate_seed:
     A single DebateTurn JSON object and nothing else: "argument" (3-5 sentences), "changed"
     (true or false), and "seed" — a SongSeed exactly as specified above.
 
+debate_head:
+  description: |
+    You are a composer of a Hindustani-raga x metal fusion, in a studio session with a second
+    composer. You each wrote the GAT HEAD for the same piece — the mukhada, one avartan that returns
+    on every sam — from your own approach. This is round {round} of at most {rounds}.
+
+    YOUR APPROACH (yours alone; the other composer was given a different one):
+    {approach}
+
+    THE RAGA (the single source of truth — every swara you write must be legal here):
+    {raga_block}
+
+    Tempo: {bpm} bpm    Tala: {tala}    One avartan = {cycle_beats} beats.
+
+    THE STROKE FRAME — the head's rhythmic identity (bols are strokes, not pitches):
+    {bol_frame}
+
+    WHAT THE USER ASKED FOR (verbatim): {user_request}
+
+    THE TWO HEADS, as they stand — swara(octave):bol(beats), the head loops back to its first note
+    on the sam — and code's measurements of each:
+    {debate}
+
+    Argue first (`argument`, 3-5 sentences): where the other head is stronger than yours and where
+    yours is stronger, judged as music a listener hears — is it unmistakably this raga, does it sing,
+    does it land on the sam, will it be remembered. Then decide. Keep your head when it is already the
+    stronger idea (`changed`: false — return it exactly as it is, and say why). Revise it when the
+    other head or the measurements persuaded you (`changed`: true) — take a principle, never the other
+    head's notes, and stay true to your own approach.
+
+    The head must fill exactly {cycle_beats} beats, use only the raga's swaras in their legal
+    direction, be one continuous sentence with no rest and no chikari inside it, and hold one note,
+    struck once, for at least two beats. Return it in this shape — the phrase_plan first, then the
+    notes that realise it:
+    {output_schema}
+  expected_output: |
+    A single HeadTurn JSON object and nothing else: "argument" (3-5 sentences), "changed" (true or
+    false), and "head" — a gat head exactly as specified above.
+
+revise_head:
+  description: |
+    You are a composer of a Hindustani-raga x metal fusion. You wrote the GAT HEAD for this piece —
+    the mukhada, one avartan that returns on every sam. Code has measured it against the raga's
+    facts. This is revision pass {round} of at most {rounds}.
+
+    YOUR APPROACH:
+    {approach}
+
+    THE RAGA (the single source of truth — every swara you write must be legal here):
+    {raga_block}
+
+    Tempo: {bpm} bpm    Tala: {tala}    One avartan = {cycle_beats} beats.
+
+    THE STROKE FRAME — the head's rhythmic identity (bols are strokes, not pitches):
+    {bol_frame}
+
+    WHAT THE USER ASKED FOR (verbatim): {user_request}
+
+    YOUR HEAD, as it stands — swara(octave):bol(beats), the head loops back to its first note on
+    the sam — and code's measurements of it:
+    {your_head}
+
+    Critique first (`argument`, 3-5 sentences): where your head is strong and where it is weak,
+    judged as music a listener hears — is it unmistakably this raga, does it sing, does it land on
+    the sam, will it be remembered. Then decide. Keep your head when it is already strong
+    (`changed`: false — return it exactly as it is, and say why). Revise it when your critique or
+    the measurements persuaded you (`changed`: true), staying true to your approach. A revision
+    fixes what was missed without losing what was met; it is not a new head.
+
+    The head must fill exactly {cycle_beats} beats, keep its first note (the sam swara, in the same
+    octave), use only the raga's swaras in their legal direction, be one continuous sentence with
+    no rest and no chikari inside it, and hold one note, struck once, for at least two beats.
+    Return it in this shape — the phrase_plan first, then the notes that realise it:
+    {output_schema}
+  expected_output: |
+    A single HeadTurn JSON object and nothing else: "argument" (3-5 sentences), "changed" (true or
+    false), and "head" — a gat head exactly as specified above.
+
 select_seed:
   description: |
     You are choosing the strongest MUSICAL IDENTITY for a Hindustani-raga x metal piece: a chart,
@@ -1161,8 +1239,12 @@ compose_rhythm_section:
       - THE HEAD'S CHORD PATTERN RECURS: the gat head (mukhada) gets ONE chord pattern, and it
         comes back with every return of the head — write it once and give the later mukhada
         sections `same_as` that section. Mostly home, with one move that resolves on the sam.
-      - THE MANJHA AND ANTARA MOVE: the chords change there, following the section's harmony
-        plan below; in the antara the guitar climbs an octave ((+1) on its notes) as the sitar climbs.
+      - THE MANJHA AND ANTARA MOVE, SPARSE: the chords change there, following the section's
+        harmony plan below; in the antara the guitar climbs an octave ((+1) on its notes) as the
+        sitar climbs. The right hand goes SPARSE there: ONE stroke at the start of each vibhag,
+        ringing to the next (a long note, no palm mute), a little softer than the head's drive —
+        busy chugging under the sitar's development buries it, and a ringing chord left loud
+        fills the room just as much.
       - A SLOW CHORD PLAN, A FAST PICKING PATTERN: decide each section's chords first (a root per
         vibhag or longer), then the right hand plays on them — chugs, ringing chords, stops. A
         guitar that changes root with every melody note is harmonising the tune, not arranging it.

@@ -1144,24 +1144,24 @@ def test_noop_meends_are_stripped_at_placement():
 # --- the intro/alap: verified, generated into a SHORTENED window ------------------
 
 def _good_intro() -> LeadPhrase:
-    # passes verify_intro (the alap-VISTAR shape): THREE tension-holding phrases developing the
-    # ONE motif (n S) — each ends AWAY from home — separated by real rests with the mandra Sa
-    # PLUCKED between them; opens on Sa, the melodic line dips into the mandra, STATES the
-    # pakad, widest reach (m) late, and only the FINAL phrase comes home. The final Sa starts
-    # at beat 13.0 and the cell is 16 beats, so the shortened-window / ring-out tests hold.
+    # passes verify_intro — CALL AND ANSWER on a jod's pulse (Sujit, 2026-10-19): a call that
+    # pauses on d, an answer that takes the ONE motif (n S) home, a call from further away that
+    # turns onto g, and the final answer onto a held Sa. Every phrase starts on a 4-beat vibhag,
+    # every note of a beat or more on a beat; opens on Sa, dips into the mandra, states the pakad
+    # (g m g ... S). The final Sa starts at beat 13.0 and the cell is 16 beats, so the
+    # shortened-window / ring-out tests hold.
     return LeadPhrase(phrase_plan=_plan("n", "S"),
-                      notes=[LeadNote(swara="S", dur=0.5), LeadNote(swara="n", dur=1.0, oct=-1),
+                      notes=[LeadNote(swara="S", dur=1.0), LeadNote(swara="n", dur=0.5, oct=-1),   # 0 call
                              LeadNote(swara="S", dur=0.5), LeadNote(swara="d", dur=1.0, oct=-1),
                              LeadNote(swara="S", dur=1.0, rest=True),
-                             LeadNote(swara="S", dur=0.5, oct=-1),               # the low pluck
+                             LeadNote(swara="d", dur=0.5, oct=-1), LeadNote(swara="n", dur=0.5, oct=-1),  # 4 answer
+                             LeadNote(swara="S", dur=2.0),
                              LeadNote(swara="S", dur=1.0, rest=True),
-                             LeadNote(swara="d", dur=0.5, oct=-1), LeadNote(swara="n", dur=0.5, oct=-1),
-                             LeadNote(swara="S", dur=0.5), LeadNote(swara="g", dur=1.5),
+                             LeadNote(swara="g", dur=1.0), LeadNote(swara="m", dur=1.0),   # 8 call
+                             LeadNote(swara="g", dur=1.0),
                              LeadNote(swara="S", dur=1.0, rest=True),
-                             LeadNote(swara="S", dur=0.5, oct=-1),               # the low pluck
-                             LeadNote(swara="S", dur=1.0, rest=True),
-                             LeadNote(swara="g", dur=0.5), LeadNote(swara="m", dur=1.0),
-                             LeadNote(swara="g", dur=0.5), LeadNote(swara="S", dur=3.0)])
+                             LeadNote(swara="g", dur=0.5), LeadNote(swara="m", dur=0.5),   # 12 final answer
+                             LeadNote(swara="S", dur=3.0)])
 
 
 def test_intro_is_generated_into_a_shortened_window():

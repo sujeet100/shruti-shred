@@ -41,13 +41,14 @@ class Recording:
     """Recorded model calls in order: (prompt size in characters, the answer — None if it failed)."""
     calls: list[tuple[int, str | None]]
     used: int = 0
+    tolerance: float = _SIZE_TOLERANCE      # how far a prompt's size may drift before it is a different call
 
     def remaining(self) -> int:
         return len(self.calls) - self.used
 
     def next_answer(self, prompt_chars: int) -> str:
         expected, answer = self.calls[self.used]
-        if abs(prompt_chars - expected) > _SIZE_TOLERANCE * expected:
+        if abs(prompt_chars - expected) > self.tolerance * expected:
             raise RuntimeError(f"replay out of step at call {self.used + 1}: prompt is "
                                f"{prompt_chars:,} chars, the recording's was {expected:,}")
         self.used += 1
@@ -140,9 +141,12 @@ _ACTIVE: ContextVar[Recording | None] = ContextVar("trace_replay", default=None)
 
 
 @contextmanager
-def replaying(*trace_ids: str) -> Iterator[Recording]:
-    """Answer the block's model calls from the traces, in order, until the recording runs out."""
+def replaying(*trace_ids: str, tolerance: float = _SIZE_TOLERANCE) -> Iterator[Recording]:
+    """Answer the block's model calls from the traces, in order, until the recording runs out.
+    `tolerance` widens the size check when a prompt was edited since the recording (a reworded brief
+    still asks the same question); the ORDER is what the replay relies on."""
     recording = load_recording(*trace_ids)
+    recording.tolerance = tolerance
     token = _ACTIVE.set(recording)
     try:
         yield recording

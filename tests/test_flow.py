@@ -162,6 +162,31 @@ def test_the_same_edit_asked_again_without_gain_stops_the_loop():
     assert any("same edit" in e.text for e in state.events) and counts["render"] == 1
 
 
+def test_the_notes_debate_runs_before_the_render_and_its_song_is_rendered():
+    import dataclasses
+
+    from crew.contracts import LeadNote, LeadPhrase, PhrasePlan, RhythmSection, RiffNote, SectionPart
+    from crew.realized import lead_realized_event
+    counts, rendered, seen = {}, [], {}
+    stages = _fake_stages([None], counts=counts)
+    rs = RhythmSection(parts=[SectionPart(section=0, guitar=[[RiffNote(swara="S", dur=16.0)]])])
+    arr = _arr().model_copy(update={"rhythm_section": rs})
+    head = LeadPhrase(phrase_plan=PhrasePlan(seed=["S"], contour="arch", transformations=["repeat"],
+                                             climax_and_sam="Sa"), notes=[LeadNote(swara="S", dur=16.0)])
+    debated = _comp().model_copy(update={"raga": "debated"})
+
+    def debate(arr_, kept, rhythm, orchestra, comp):
+        seen["phrases"] = sorted(kept.phrases)
+        return debated, arr_, [_ev("debate")]
+    stages = dataclasses.replace(
+        stages, compose=lambda brief: (arr, [_ev("compose")]),
+        generate=lambda a: ([Layer(role="lead")], Layer(role="rhythm"), [],
+                            [lead_realized_event({0: head}, [])], []),
+        render=lambda comp: rendered.append(comp.raga) or "out/fake.wav", debate=debate)
+    state = compose_flow("q", stages=stages)
+    assert seen["phrases"] == [0] and rendered == ["debated"] and any(e.agent == "debate" for e in state.events)
+
+
 def test_query_is_seeded_into_state():
     counts: dict = {}
     state = compose_flow("doom in Malkauns", stages=_fake_stages([_accept()], counts=counts))

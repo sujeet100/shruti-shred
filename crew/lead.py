@@ -82,6 +82,7 @@ from crew.contracts import (
 from crew.expression import express_section
 from crew.hearing import HEAR_MAX_USES, hearing_brief, wants_hearing
 from crew.head_brief import core_idea_header, motif_line, motif_value
+from crew.head_revision import HeadReviser, LLMHeadReviser, revise_head_once
 from crew.gat_verifier import (
     CellChecks,
     check_amad,
@@ -116,6 +117,7 @@ from crew.tihai_landing import land_tihais
 from crew.user_request import render_request
 from gats import (
     BOL_WORDS,
+    is_vilambit,
     GAT_CRAFT,
     GAT_FRAMES,
     INWARD_STROKES,
@@ -125,7 +127,9 @@ from gats import (
     is_compound,
 )
 from gestures import render_gamak
+from render import counted_hold_ms
 from raga import (
+    ANDOLAN_SWINGS,
     RAGAS,
     direction_violations,
     directional_varjya,
@@ -471,6 +475,19 @@ def _intro_lead_in_beats(section: Section, cycle_beats: float, first_vibhag: flo
     if section.bars < _INTRO_FULL_LEAD_IN_MIN_BARS:
         return first_vibhag
     return cycle_beats * _INTRO_LEAD_IN_BARS
+
+
+def intro_phrase_grid(arr: Arrangement, start: float, window: float) -> tuple[float, ...]:
+    """Where an alap phrase may begin, in beats from the alap's first beat (`start`): every vibhag
+    start inside its window — the jod's pulse the phrases walk on (Sujit, 2026-10-19). Pure."""
+    cycle, starts = arr.beats_per_bar, vibhag_starts(arr) or (0.0,)
+    first = int(start // cycle) * cycle
+    grid: list[float] = []
+    bar = first
+    while bar < start + window:
+        grid += [bar + v - start for v in starts if 0 <= bar + v - start < window]
+        bar += cycle
+    return tuple(grid)
 
 
 def first_vibhag_beats(arr: Arrangement) -> float:
@@ -942,8 +959,18 @@ def render_direction_rule(rules: dict[str, str]) -> str:
     return "; ".join(parts)
 
 
-def _render_raga_facts(raga: str) -> str:
-    """The raga's facts the lead composes from — the single source of truth."""
+def _sway_hold(raga: str, bpm: float | None) -> float | None:
+    """The beats a held andolit swara needs for all its counted swings in a vilambit piece, rounded
+    up to a whole beat; None at a faster tempo, or when the raga counts no swings. Pure."""
+    swings = ANDOLAN_SWINGS.get(raga)
+    if bpm is None or swings is None or not is_vilambit(bpm):
+        return None
+    return float(math.ceil(counted_hold_ms(swings, most=True) * bpm / 60000.0))
+
+
+def _render_raga_facts(raga: str, bpm: float | None = None) -> str:
+    """The raga's facts the lead composes from — the single source of truth. With the piece's
+    `bpm`, a slow piece in a raga that counts its andolan's swings is told how long to hold."""
     r = RAGAS[raga]
     lines = [
         f"  {r['display']} ({r['western_mode']}) — allowed swaras: {' '.join(r['allowed'])}",
@@ -962,6 +989,11 @@ def _render_raga_facts(raga: str) -> str:
     if r.get("andolan"):
         lines.append(f"  andolan — the code SWAYS these komal swaras when you HOLD them (a slow"
                      f" oscillation that defines the raga), so give them length: {' '.join(r['andolan'])}")
+        hold = _sway_hold(raga, bpm)
+        if hold:
+            lines.append(f"  slow tempo — where {' or '.join(r['andolan'])} rests, hold it at least {hold:g} "
+                         f"beats: it then sways {ANDOLAN_SWINGS[raga][0]}-{ANDOLAN_SWINGS[raga][1]} times, "
+                         f"the raga's weight; a one-beat {r['andolan'][0]} plays as a passing note")
     if r.get("ornaments"):
         lines.append(f"  ornaments — light decorations idiomatic to THIS raga (flag a note's "
                      f"\"ornament\"; favour the komal notes): {', '.join(r['ornaments'])}")
@@ -1256,7 +1288,7 @@ class _LeadContext:
         self._cycle_beats: float = arr.beats_per_bar
         self._frame_block: str = _render_bol_frame(frame_for_bpm(arr.bpm))
         self._static: dict[str, Any] = {
-            "raga_block": _render_raga_facts(arr.raga),
+            "raga_block": _render_raga_facts(arr.raga, arr.bpm),
             "motif": motif_value(arr.motif),
             "subgenre_feel": SUBGENRES[arr.subgenre]["feel"],
             "bpm": arr.bpm,
@@ -1489,7 +1521,7 @@ class _GatContext:
         from subgenres import SUBGENRES
         from talas import TALAS
         self._static: dict[str, Any] = {
-            "raga_block": _render_raga_facts(arr.raga),
+            "raga_block": _render_raga_facts(arr.raga, arr.bpm),
             "motif_line": motif_line(arr.motif),
             "core_idea_header": core_idea_header(),
             "subgenre_feel": SUBGENRES[arr.subgenre]["feel"],
@@ -1860,7 +1892,8 @@ def _head_checks(cell: LeadPhrase, *, cycle_beats: float, frame: str, raga: str)
 
 
 def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
-                 events: list[DebateEvent], riff_source: RiffPattern | None = None) -> Gat | None:
+                 events: list[DebateEvent], riff_source: RiffPattern | None = None,
+                 reviser: HeadReviser | None = None) -> Gat | None:
     """Compose the gat as ONE object — mukhada + (manjha) + (antara) + (amad) in a single
     `gat_fn` call so they share a motif and a register arc — then verify each part and repair a
     failing one in isolation. The amad (Parikh's fourth line) exists when the antara section has
@@ -1892,13 +1925,16 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
         data={"gat": True, "anchor": gat.anchor, "parts": parts}))
 
     memory: list[LeadMemo] = []
-    mukhada = _verify_or_repair_part(
-        gat.mukhada, _MUKHADA, _one_cycle_span(mspan, cycle), arr, memory,
-        verify=lambda c: (check_mukhada(c, cycle_beats=cycle, raga=raga)
-                          + _head_checks(c, cycle_beats=cycle, frame=frame, raga=raga)
-                          + check_head_idea(c, arr.seed_head)
-                          + hard_only(verify_riff_quote(c, accents))),
-        gen_fn=gen_fn, events=events)
+
+    def verify_head(c: LeadPhrase) -> CellChecks:
+        return (check_mukhada(c, cycle_beats=cycle, raga=raga)
+                + _head_checks(c, cycle_beats=cycle, frame=frame, raga=raga)
+                + check_head_idea(c, arr.seed_head)
+                + hard_only(verify_riff_quote(c, accents)))
+    mukhada = _verify_or_repair_part(gat.mukhada, _MUKHADA, _one_cycle_span(mspan, cycle), arr, memory,
+                                     verify=verify_head, gen_fn=gen_fn, events=events)
+    if reviser is not None:                          # one measured self-revision (crew/head_revision.py)
+        mukhada = revise_head_once(arr, mukhada, verify=verify_head, reviser=reviser, events=events)
     memory.append(LeadMemo(mspan.section.kind.value, mukhada, _MUKHADA))
 
     manjha = None
@@ -2094,8 +2130,8 @@ def _fill_slot_count(arr: Arrangement) -> int:
 
 
 def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = None,
-                  riff_source: RiffPattern | None = None,
-                  keep: KeptLead | None = None) -> tuple[list[Layer], list[DebateEvent]]:
+                  riff_source: RiffPattern | None = None, keep: KeptLead | None = None,
+                  head_reviser: HeadReviser | None = None) -> tuple[list[Layer], list[DebateEvent]]:
     """Fill the lead across the arrangement's lead-active sections, VOICED.
 
     `keep` (a REVISE): the sections it holds are REPLAYED, not regenerated — their phrases go
@@ -2140,7 +2176,8 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = No
     register = arr.registers[_LEAD_ROLE]
     raga = arr.raga
     frame = frame_for_bpm(arr.bpm)                  # the gat's stroke frame (laya-picked)
-    gat = (_compose_gat(arr, gat_fn=gat_fn, gen_fn=gen_fn, events=events, riff_source=riff_source)
+    gat = (_compose_gat(arr, gat_fn=gat_fn, gen_fn=gen_fn, events=events, riff_source=riff_source,
+                        reviser=head_reviser)
            if gat_fn and keep is None else None)
     kept_head = _kept_head(arr, keep)               # a revise's head, when the plan leaves it alone
     # The head as a memo, for cells generated BEFORE the mukhada span is reached (the intro
@@ -2204,7 +2241,8 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = No
             intro_memory = memory + [head_memo] if head_memo is not None else memory
             phrase, tries, viol, craft = _generate_verified_cell(
                 gen_span, arr, intro_memory, gen_fn=gen_fn,
-                verify=lambda c: check_intro(c, window_beats=window, raga=raga, mukhada=head))
+                verify=lambda c: check_intro(c, window_beats=window, raga=raga, mukhada=head,
+                                             phrase_grid=intro_phrase_grid(arr, gen_span.start, window)))
             # In time from the window's start, the LLM's own rests and durations kept — a jod-like
             # pulse (Sujit, 2026-10-12: the vibhag snap comes off; "the alap still needs to follow
             # the pulse, more like jod than free flowing").
@@ -2593,7 +2631,8 @@ def compose_lead(arr: Arrangement,
     no `riff` given, the chart's own seed is used (`riff_seed_for_lead`) — so a REVISE of the gat
     still quotes the riff instead of being handed nothing."""
     riff = riff or riff_seed_for_lead(arr)
-    return generate_lead(arr, gen_fn=_LLMLead(arr), gat_fn=_LLMGat(arr, riff), riff_source=riff)
+    return generate_lead(arr, gen_fn=_LLMLead(arr), gat_fn=_LLMGat(arr, riff), riff_source=riff,
+                         head_reviser=_head_reviser("lead"))
 
 
 class _SeededGat:
@@ -2623,14 +2662,22 @@ def compose_seeded_lead(arr: Arrangement, *,
     `is_song_hook`); a gat seed's head IDEA goes to the whole-gat call, which composes the head FROM
     it beside the manjha and antara. Everything is composed by the same `composer` persona, shown
     the whole seed (`{song_seed}`)."""
+    reviser = None                                   # a seed hook is the head as written: never revised
     if arr.seed_hook is not None:
         gat_fn = _SeededGat(arr, agent_key)
     elif arr.seed_head is not None:
         gat_fn = _LLMGat(arr, riff_seed_for_lead(arr), agent_key)
+        reviser = _head_reviser(agent_key)
     else:
         gat_fn = None
     return generate_lead(arr, gen_fn=_LLMLead(arr, agent_key), gat_fn=gat_fn,
-                         riff_source=riff_seed_for_lead(arr))
+                         riff_source=riff_seed_for_lead(arr), head_reviser=reviser)
+
+
+def _head_reviser(agent_key: str) -> HeadReviser | None:
+    """The live head self-revision, when `RMA_HEAD_REVISE` is on (the default)."""
+    from crew.config import head_revision_enabled
+    return LLMHeadReviser(agent_key) if head_revision_enabled() else None
 
 
 def compose_head(arr: Arrangement, *, agent_key: str = "composer") -> LeadPhrase | None:

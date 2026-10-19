@@ -144,6 +144,11 @@ def _match_pakad(lead: list[str], phrase: list[str]) -> PakadMatch:
     return "absent"
 
 
+def match_phrase(lead: list[str], phrase: list[str]) -> PakadMatch:
+    """How one raga phrase surfaces in `lead`: literal / fuzzy / absent. Pure."""
+    return _match_pakad(lead, phrase)
+
+
 def pakad_presence(lead: list[str], raga: str) -> list[tuple[list[str], PakadMatch]]:
     """For each pakad phrase, how it surfaces in `lead`: literal / fuzzy / absent.
 

@@ -945,3 +945,243 @@ anyway: noise. 6 of 14 runs shipped a version below one of its own earlier round
 plans re-targeted the sections it had just edited. Each reasoning cited ~11 numbers. The one blind ear
 test (57af304fd1ad) preferred the first draft. Verdict: it was a relay for Rasik's notes with a revise
 reflex and a noisy scale, not a judge.
+
+### The rival added nothing; the measurement did everything (2026-10-19, the head-debate control)
+
+**The experiment.** The head debate (out/head_debate_20261018_234135, trace `924cad7451fd`) let two
+composers argue over their gat heads for up to four rounds — each starting from a different
+approach (A: weight, B: rhythm), each seeing both heads plus code's measurements. In round 1 both
+moved into the mandra and added Darbari's `d n P` cell; in round 2 both kept. It looked like the
+debate worked. The CONTROL (out/head_control_20261019_000558, trace `c0e7320909c6`) re-ran it with
+the same proposals A0/B0, the same approaches and measurements, and NO rival: each composer saw
+only its own head and code's numbers.
+
+**The result.** Without a rival, both made the same move in one revision and then kept, exactly as
+the debaters did. Solo A landed at 44% below Sa — the identical figure debate A reached. The two
+solo heads ended LESS alike than the two debated ones (swara similarity 0.40 vs 0.53): the debate
+pulled the composers toward each other, not toward better music. Cost: 5 calls / 89k tokens for
+the control vs 12 calls / 184k for the debate.
+
+**The real finding — a stated fact is ignored; a measured fault is acted on.** Every first-draft
+prompt said, in plain words, *"DWELL below home Sa (octave -1), do not just touch it"* — and approach
+A added "open low". Across TEN first drafts (A0, B0 and the eight heads of the motif experiment) the
+most any spent below Sa was 19%; the median was under 5%. One measurement of the composer's OWN
+draft ("mandra 0%") moved four of four revisions to 31-94%. That is self-correction from code —
+CRITIC's result (tool feedback works) — but for a craft fact, not a legality rule.
+
+**The failure inside the success.** Solo B chased the number: 94% below Sa, the whole head an
+octave down, the madhya gone. The measure was one-sided ("how much below Sa?"), so the fix
+overshot into the opposite fault. The debate's B landed at 31% — maybe the rival moderated it, n=1
+can't say. Lesson: a number shown without its band becomes a target (the same thing the seed
+judges did with our measurements).
+
+**And a bug the replay caught before production.** The first keep-rule measured the PAKAD whole. A
+7-9 note pakad rarely fits one head, so the best revision (A: both `g m R S` and `d n P`) read as
+"pakad lost" and was rejected, while solo B (pakad sung whole in the mandra) read as "pakad
+gained" and was kept — exactly backwards. Replaying the six real heads through the rule before
+wiring it found it; measuring pakad OR chalan phrases fixed it.
+
+**The decision (built).** Debate stays parked — this is its fourth failure, and the first with a
+control proving the rival contributes nothing the measurement doesn't. Instead the production gat
+head gets ONE measured self-revision (`crew/head_report.py` + `crew/head_revision.py`, flag
+`RMA_HEAD_REVISE`, default ON): code measures the head against the facts its prompt already
+states (where the raga LIVES — each saptak it lives in ≥20% of the head; one pakad/chalan phrase;
+in a vilambit gat a held andolit swara long enough to sway); a head that meets them never reaches
+the model; one that misses gets one revision pass; code KEEPS the revision only when it passes the
+head's hard checks, keeps the first note, and fixes a missed fact without missing one the draft
+met. Replayed on the real heads it keeps A (both runs) and debate B, and reverts solo B's
+overshoot. +1 call only when a fact is missed. Live-untested in the pipeline.
+
+**For the talk.** "We gave the model a sparring partner. It turned out the sparring partner was
+the ruler we handed it." The debate slide's honest evidence line: *same move, half the cost,
+without the rival.*
+
+### The rehearsal — a band that hears, tries, and has a leader (2026-10-19, first live run)
+
+Built because Sujit asked why debate fails when real bands argue their way to better music. A
+real argument works because the members hear differently, argue over ONE song, and settle it by
+playing. `crew/rehearsal.py` + `crew/rehearsal_edits.py`: a sitarist (Vilayat Khan, Shahid Parvez),
+a guitarist (Metallica … Slayer, Megadeth) and a drummer (Lombardo, Hoglan, Cavalera, McBrain,
+Zakir Hussain) each HEAR the mix plus their own part solo (their "monitor"), propose at most one
+change from a rehearsal vocabulary code plays for free (sit out / louder / softer / sparser /
+cut / repeat), hear each other's changes before→after and argue; a bandleader fluent in BOTH
+Hindustani and Western theory (Sujit's requirement; proposes nothing) hears every before→after
+and decides. Run: out/rehearsal_20261019_075624 on fusion_20261013_074703 (Darbari doom, 160 s),
+14 Gemini Pro audio calls, ~15 s each, two rounds.
+
+**What it did that no debate did.** It argued about the ARRANGEMENT and the RIFF — the first time
+the guitars were ever on the table. Round 1: all three heard the same fault (busy guitars burying
+the sitar's taan at 1:52) and proposed different fixes (sparser / sit out / sparser); the
+bandleader chose the drastic one (guitars out under the taan, an Opeth-style dip). Round 2
+diverged: sparser guitars in the antara (sitarist), in the manjha (guitarist), and **drums out of
+the intro** (drummer) — "a proper alap" in the sitarist's words. Traditional practice agrees (an
+alap has no percussion), but Sujit's ear overruled it for this band: the drums under our intro are a
+BUILDUP, and he wants them kept — now a house rule every member is shown.
+
+**What it did not fix.** 12 of 12 reactions were "support", including the guitarist voting to
+remove his own guitars. No one pushed back: an agreeable band, the same-model failure in a new
+room. And there is no proof they LISTENED rather than read the map: every claim lines up with the
+section map they were given (the listening pass is score-blind for exactly this reason).
+
+**Measurement disagrees with the intent.** "Sparser" was meant to give the sitar space, yet the
+manjha and antara came out ~1.2 dB LOUDER relative to the rest: ringing, un-muted distorted chords
+fill more continuously than palm-muted chugs. And with the guitars out, the climax taan is now
+~1 dB quieter than its neighbours — the band traded the climax for a dip (our design had the climax
+riff at full density). Whether that is better is an ear question; ear verdict pending.
+
+**Next, if it earns it:** blind the reactions (before/after in random order, labelled X/Y, no
+"why") so agreement must come from hearing; give each member a stake ("your part must survive");
+and fix "sparser" to ring SOFTER, not just longer.
+
+**Sujit's ear (same day).** Liked the sparser guitars in the manjha and antara. The guitars sitting
+out under the taan: "debatable — could have done chugs only". No drums in the intro: either is fine
+(with drums it was a buildup). So of the bandleader's four kept changes: two liked, one neutral, one
+debatable — the closest any model judge has come to his ear. And the debatable one exposes the
+lesson: the band could only choose from the menu we gave it, and Sujit's answer ("chugs only")
+wasn't on the menu. A rehearsal is only as good as the moves it is allowed to try.
+
+**Acted on (same day, Sujit: "do the changes").** (1) The rhythm-section brief (`compose_rhythm_section`)
+now plays the manjha and antara SPARSE — one ringing stroke per vibhag, a little softer than the
+head's drive (the rehearsal also showed ringing chords left loud fill the room). The taan line was
+already "full drive on a home pedal" — Sujit's "chugs only". (2) The rehearsal menu gained `chug`:
+keep the rhythm, every stroke a palm-muted low Sa. (3) House rule shown to the band: a drum buildup
+under the intro is welcome; don't propose dropping it.
+
+### The alap that only asked questions (2026-10-19, Sujit's ear on fusion_20261019_083259_fresh)
+
+"The alap phrases don't halt on nyas; they end leaving tension; it never builds and resolves; it
+feels random; the pacing is off — as an intro it should have a pulse, like a jod." Measured: four
+phrases resting on Re, Re, Pa, Sa — two of them CLIMBING into their last note — and 11 of 30 notes
+starting between beats, one phrase entering mid-vibhag. Root cause was ours, twice over: the July
+brief said "every earlier phrase keeps its tension, only the last resolves" — written when a
+code-plucked low Sa (the jod string) supplied home between phrases — and on 2026-10-12 we deleted
+that pluck but left the prompt telling the composer "don't pluck mandra Sa yourself, code does it".
+Home was forbidden by the prompt and removed from the code. A rule's justification can be deleted
+while the rule survives.
+
+Sujit's rules, now built (`crew/config/lead_roles.yaml` intro brief + `gat_verifier._intro_call_and_answer`,
+`_intro_pulse_violations`, `lead.intro_phrase_grid`): CALL AND ANSWER — a call does NOT rest on a
+nyas, it stops on a tension note off the raga's CORE nyas (Darbari: a held komal Ga or Dha); an
+answer resolves onto a core nyas, falling or turning; calls may pile up (a longer call, or several
+in a row) before the answer; the close is a held Sa. ON A JOD'S PULSE — phrases start on a vibhag,
+notes of a beat or more on a beat, long swaras re-struck rather than held. Code enforces: at least
+one call before the close, phrases on the vibhag, long notes on the beat (hard, one retry); an answer
+climbing into its nyas is reported. Defined against the CORE nyas because in Malkauns every swara is
+a permitted rest — "off every nyas" would have left calls nowhere to stop. The first live retry:
+two phrases started off the vibhag, code named the beats, the second draft fixed them.
+
+### The rehearsal's ears were not listening (2026-10-19, second rehearsal)
+
+Two members, three rounds, on the fresh song. Both members opened by proposing the same fix — "chugs
+under the taan, the moving chords clash" — and later "the busy riffs smother the antara". Measured on
+the song itself: the guitar was ALREADY 76% palm-muted chugs under the taan, and already sparse in the
+antara (1.4 strokes per vibhag, notes nearly 3 beats long — the new brief working). The complaints were
+about a song that wasn't playing. The final check settled it: in one order the bandleader described
+the ORIGINAL as having no guitars under the taan and heard "synthesizer runs"; in the other it heard
+the two versions as identical. Split verdict, so the original was kept — the safeguard did its job.
+
+The lesson: a rehearsal is only as good as its ears. The audio model's descriptions track the section
+map and the personas' priors, not the sound. Until a model can hear a before/after difference a human
+hears (the listening pass's own rule: calibrate against Sujit's blind ranking first), the rehearsal's
+proposals are guesses with a confident voice — and the cheap guard that caught it is the same one as
+the Producer's: the revision must beat the original, both orders, blind.
+
+**Sujit's ear on rehearsal #2:** "r0 (the original) feels better than r3 — r3 feels hollow in places
+because of the lack of guitars." The final check was right to keep the original. Across BOTH
+rehearsals almost every kept change SUBTRACTED (guitars out of the taan / manjha, softer in every
+mukhada, bass out) — each reasonable alone ("give the sitar space"), unanimous every time, hollow
+once stacked. The framing (personas + map) made "the sitar is buried" the default diagnosis and
+removing guitar the default cure; deaf ears meant nothing pushed back. Rehearsal PARKED until an audio
+model passes calibration against Sujit's blind ranking; its two good ideas live on as plain rules
+(sparse manjha/antara in the rhythm-section brief; chugs under the taan).
+
+## 2026-10-19 — what the day taught (talk-gold, one line of evidence each)
+
+1. **A rule you state gets ignored; a fault you measure on the model's OWN draft gets fixed.** Ten gat
+   heads were told "dwell below Sa" — none did (max 19%). Shown "mandra 0%" about its own draft, four
+   of four moved (31-94%). The alap the same day: told "start on the vibhag", the first draft didn't;
+   code named the beats, the retry did. → self-correction from code works for CRAFT, not only legality.
+2. **The rival added nothing the ruler didn't.** Head debate vs its control (same proposals, same
+   measurements, no rival): the same move, half the tokens, and the debated heads ended MORE alike. Four
+   debate designs, four parks — each time for the same three gaps: one mind twice, nobody can hear, a
+   judge who can't hear either.
+3. **A number shown without its range becomes a target.** One composer chased "0% below Sa" to 94% and
+   lost the madhya. Fix: keep a revision only if it fixes a missed fact WITHOUT breaking one the draft
+   met — and replay the rule on real data first (our first keep-rule judged exactly backwards).
+4. **The menu bounds the debate.** A rehearsal whose only moves were knobs (sit out, softer, sparser)
+   argued only about volume — every kept change subtracted guitar, unanimously, and the song went hollow
+   (Sujit: "r3 hollow, lack of guitars"). The answer he wanted ("chugs only") wasn't on the menu. →
+   rebuilt as a NOTES debate: each player rewrites notes of its own part.
+5. **Audio models describe the map, not the sound.** The band complained of busy guitars that measured
+   sparse, heard "synthesizer runs", and called two different mixes identical. The blind both-orders
+   final check caught it and kept the original — the same guard as the reworked Producer. Calibrate
+   ears against a human before they get a vote.
+6. **An agent with no part to defend adds noise.** The drummer (drums are code) proposed nothing Sujit
+   liked; dropped. Split agents where the information or the stake differs.
+7. **A deleted mechanism can leave its rule behind.** The jod string was deleted on 10-12; the prompt
+   still forbade the composer to play home "because code does it" — the alap became all questions.
+   When code goes, grep the prompts and the checks for what relied on it.
+8. **Tests can encode the old design.** Reworking the alap, the "good alap" fixtures were the July shape
+   and failed the new rules — and the new pulse check caught off-beat notes in our own fixtures. Rewrite
+   the reference examples with the rule, not after it.
+9. **Exact replay makes content edits honest.** The song was recovered note-for-note from its own trace
+   (free), so a rewritten phrase or riff goes through the same pipeline as the original — no
+   approximation to argue about. Changing a prompt shifts the replay; restore the checks as they were.
+10. **More thinking was not better music.** High effort ≈ 4× thinking tokens, no difference Sujit could
+    hear; medium stays (114k of the head debate's 184k tokens were thinking).
+11. **The Producer, reworked, finally accepted a first draft** — the first acceptance on record (the old
+    one revised 14/14). Live-confirmed on fusion_20261019_083259_fresh.
+12. **Domain rules came from the ear, in Sujit's words:** a call ends on tension OFF the nyas; the answer
+    resolves onto a main nyas; calls may pile up; a phrase may not climb into a main nyas (Sa excepted);
+    the intro walks on a jod's pulse; under a taan, chugs on a home pedal; manjha and antara ring sparse.
+
+### The first debate that argued about the music (2026-10-19, notes debate, out/notes_debate_20261019_094935)
+
+Sitarist (Gemini) vs guitarist (gpt-6-luna), each rewriting notes of its own part; 8 calls (6 + 2
+guardrail retries), trace 8975dcdabcef. For the first time the exchange was about notes, and the two
+DISAGREED:
+  * The sitarist rewrote the head, justifying it with "the old head ended on Sa, merging with the sam" —
+    FALSE: it ended on Re. The guitarist (the other model) caught it: "the existing head already ends on
+    R, so that cadence is not new", and named a real coexistence fault — the sitar's held Re rubbing the
+    guitar's sustained Sa just before the sam — proposing a one-beat rest. The sitarist refused on a
+    genuine gat principle ("a gat head cannot fracture into a rest") — which our own hard rule agrees with.
+  * The guitarist rewrote the antara riff: from ringing upper-register steps to a low, palm-muted line
+    tracing Darbari's own turns (d n P). The sitarist supported the weight but asked for the second
+    cycle to end on Re with the sitar's nyas; the guitarist ACCEPTED and changed exactly that note.
+One rewrite defended with a reason, one adjusted to the other's ear — the shape of a real exchange, and
+the cross-model critic caught a factual error a same-model critic had never caught. Open question for the
+ear: the new antara riff is busy and low where Sujit had just approved SPARSE ringing chords.
+
+**Sujit's ear on the notes debate:** "I liked the riff change. The gat change is also good — both
+mukhadas are good — but the original had more tension and was more interesting." The first debate
+output his ear preferred: the guitarist's antara rewrite (low, palm-muted, tracing d n P / g m R,
+ending on Re with the sitar). The sitarist's head rewrite — argued from a false premise — smoothed away
+the original's motion into the sam (fewer dir strokes, no gamak, a long held Re): asked to fix what
+wasn't broken, it made it calmer. Best version: riff_final (original head + new riff). OPEN: he liked
+a BUSY low riff in the antara the same day he approved SPARSE ringing chords there — the rule may be
+"speak the raga's language low, don't fight the sitar with unrelated high chords", not "sparse".
+
+### The notes debate, second song: Bhairav (2026-10-19, out/notes_debate_20261019_101238)
+
+Fresh song `fusion_20261019_100727_bhairav` (trace fb08fb641163): the Producer ACCEPTED the first draft
+again (2 of 2 since the rework); the head met every measured fact (no self-revision); the alap followed the
+new rules live — phrases on the vibhag, a call hanging on komal re (off Bhairav's core nyas), answers home.
+The debate (trace 4b6e80296582) was about notes, grounded in the raga's sourced facts, and both players
+caught real things:
+  * The sitarist rewrote the head to honour Bhairav's "Pa is skipped rising" (our CHARACTER data,
+    Parrikar + Tanarang) and to give the vadi komal dha a 4-beat andolan. The guitarist agreed with the
+    direction but caught a SECOND rising Pa the rewrite still had, and that the held dha ended before the
+    riff's dha hit — the sitarist took the fix (m→d, skipping Pa) and defended its Re ending.
+  * The guitarist rewrote the outro riff (a single S held 16 beats) into descending palm-muted figures
+    shadowing the sitar's tihai. The sitarist caught the rhythm: the tihai breathes in 5+5+6, so without
+    one-beat rests the 2nd and 3rd statements enter on the wrong beats. The guitarist took it — and pointed
+    out the sitar's printed outro is 17 beats in a 16-beat section. TRUE (measured): a real length bug in
+    the shipped song that no code check caught.
+Two runs, two kinds of value: the cross-model reader catches factual and arithmetic errors a same-model
+critic never did; and when the premise is a sourced raga fact, the argument converges on better notes.
+
+**Sujit's ear on Bhairav:** "clearly the revised gat was better; the outro seems the same." Notes-debate
+record after two songs: 2 better (Darbari antara riff, Bhairav head), 1 sidegrade (Darbari head), 1 neutral
+(Bhairav outro — the last 8 s, already ringing out), 0 worse — the first debate design with a winning record
+against the human ear. What changed from the four parked designs: notes not knobs, each player owns a real
+part, two different models read each other, arguments rest on sourced raga facts, code checks every rewrite.

@@ -135,8 +135,9 @@ class GeminiAudioJudge:
     """The real judge: google-genai directly, audio as an inline part, JSON response, the model's
     DEFAULT sampling (no temperature) and default thinking. The client is built lazily."""
 
-    def __init__(self, model: Optional[str] = None) -> None:
+    def __init__(self, model: Optional[str] = None, timeout_s: Optional[float] = None) -> None:
         self._model = model or listen_model()
+        self._timeout_s = timeout_s      # None = the SDK's own (none): a stuck call then hangs forever
         self._client = None
 
     def judge(self, audio: bytes, mime_type: str, prompt: str) -> str:
@@ -153,7 +154,9 @@ class GeminiAudioJudge:
 
             from crew.config import load_env
             load_env()
-            self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+            from google.genai import types
+            http = types.HttpOptions(timeout=int(self._timeout_s * 1000)) if self._timeout_s else None
+            self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options=http)
         return self._client
 
 

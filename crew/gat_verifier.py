@@ -44,7 +44,7 @@ from crew.contracts import (HEAD_STAGES, TAAN_PHRASE_ROLES, TAAN_SUBDIVISIONS, H
                             LeadPhrase, TaanPhrase)
 from gats import BOL_WORDS, GAT_FRAMES, STROKE_HOLD, bol_onsets, is_compound, stroke_line_attacks
 from chalan import ang_matches, octave_span, scalar_runs
-from raga import REGISTER, RAGAS, SWARAS, direction_violations, nyas_problem, resting_swaras
+from raga import NYAS, REGISTER, RAGAS, SWARAS, direction_violations, nyas_problem, resting_swaras
 
 @dataclass(frozen=True)
 class CellChecks:
@@ -837,6 +837,92 @@ def intro_min_phrases(window_beats: float) -> int:
     return _INTRO_MIN_PHRASES if window_beats >= _INTRO_ROOMY_WINDOW else _INTRO_MIN_PHRASES_SHORT
 
 
+def _phrase_end(phrase: list[LeadNote]) -> LeadNote | None:
+    """A phrase's resting note: its last sounding note that is not a chikari stroke."""
+    return next((n for n in reversed(phrase) if not n.rest and n.bol != "chikari"), None)
+
+
+def _intro_call_and_answer(phrases: list[list[LeadNote]], raga: str) -> tuple[list[str], list[str]]:
+    """The alap's phrase endings by ROLE (Sujit, 2026-10-19: "a call should not rest on a nyas; it
+    ends on a note that builds tension, so the resolving phrase feels like home"):
+      * a CALL ends OFF the raga's CORE nyas — on a tension note (a lighter permitted rest counts:
+        tension is relative), never on a swara the raga forbids resting on;
+      * an ANSWER resolves onto a CORE nyas (arrived the raga's way). Calls may pile up first — a
+        long call, or two or three in a row, build more tension (Sujit) — and the close answers
+        whatever is still open, so no call needs its answer in the very next phrase;
+    CORE, not every permitted rest: in Malkauns all five swaras are permitted rests, which would
+    leave a call nowhere to stop.
+      * with three or more phrases, at least one call comes before the close — tension is built;
+      * the close (checked elsewhere) is the held Sa.
+    A phrase before the close that CLIMBS into a main nyas other than Sa is a hard fault (Sujit, same
+    day: "a call should not stop on a nyas" — n d n R climbing into Re is a call that stopped on one).
+    Sa is exempt: home is home from either side (d n S, the leading tone rising, resolves).
+    Returns (hard faults, craft notes). Pure."""
+    rules = NYAS[raga]
+    hard: list[str] = []
+    craft: list[str] = []
+    roles: list[str] = []
+    for i, ph in enumerate(phrases):
+        melody = [n for n in ph if not n.rest and n.bol != "chikari"]
+        if not melody:
+            roles.append("none")
+            continue
+        end, before = melody[-1], (melody[-2] if len(melody) > 1 else None)
+        swara = _landing_swara(end)
+        rising = None if before is None or _height(before) == _height(end) else _height(before) < _height(end)
+        if swara in rules["avoid"]:
+            hard.append(f"phrase {i + 1} stops on {swara}, a weak swara in this raga — neither a call nor "
+                        f"an answer may stop there")
+            roles.append("none")
+        elif swara not in rules["core"]:
+            roles.append("call")
+        else:
+            problem = nyas_problem(raga, swara, rising)
+            if problem:
+                hard.append(f"phrase {i + 1}: {problem}")
+            elif rising and swara != "S" and i < len(phrases) - 1:
+                hard.append(f"phrase {i + 1} climbs into {swara}, a main nyas — that is a call stopping on a "
+                            f"nyas, and it sounds unfinished. Either end the call on a tension note (off "
+                            f"{' '.join(rules['core'])}), or make it an answer that FALLS or TURNS onto {swara}")
+            roles.append("answer")
+    if len(phrases) >= 3 and "call" not in roles[:-1]:
+        hard.append(f"every phrase before the close rests on a main nyas — the alap never builds tension: "
+                    f"let at least one CALL stop short of them ({' '.join(rules['core'])}) on a note that "
+                    f"leans onward, so the answer that follows lands home")
+    return hard, craft
+
+
+def _height(note: LeadNote) -> int:
+    return SWARAS[_landing_swara(note)] + 12 * _landing_oct(note)
+
+
+def _intro_pulse_violations(notes: list[LeadNote], phrase_grid: tuple[float, ...]) -> list[str]:
+    """The alap walks on a jod's pulse: each phrase starts on a vibhag (a beat in `phrase_grid`,
+    counted from the window's start) and every note of a beat or more starts on a beat. Pure."""
+    viol: list[str] = []
+    t, prev_rest, starts, off_beat = 0.0, True, [], []
+    for n in notes:
+        if not n.rest:
+            if prev_rest:
+                starts.append(t)
+            if n.dur >= 1.0 and abs(t - round(t)) > 1e-6:
+                off_beat.append(t)
+        prev_rest = n.rest
+        t += n.dur
+    grid = [round(g, 6) for g in phrase_grid]
+    stray = [b for b in starts if not any(abs(b - g) < 1e-6 for g in grid)]
+    if stray:
+        allowed = ", ".join(f"{g:g}" for g in grid[:8]) + (" ..." if len(grid) > 8 else "")
+        viol.append(f"phrase(s) start at beat {', '.join(f'{b:g}' for b in stray)} — off the vibhag: "
+                    f"start every phrase on a vibhag (beats {allowed} from the alap's first beat), "
+                    f"so the call and answer walk on the pulse")
+    if off_beat:
+        viol.append(f"{len(off_beat)} note(s) of a beat or longer start between beats (first at beat "
+                    f"{off_beat[0]:g}) — on a jod's pulse a long note lands ON a beat; only half-beat "
+                    f"passing notes sit between")
+    return viol
+
+
 def _intro_rhythm_violations(notes: list[LeadNote]) -> list[str]:
     """The alap keeps time with the arpeggio under it: durations on the sixteenth grid, single
     strokes, and quick steps as contrast rather than the texture. Pure."""
@@ -861,20 +947,23 @@ def _intro_rhythm_violations(notes: list[LeadNote]) -> list[str]:
 
 
 def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
-                 mukhada: LeadPhrase | None = None) -> CellChecks:
+                 mukhada: LeadPhrase | None = None,
+                 phrase_grid: tuple[float, ...] | None = None) -> CellChecks:
     """Return the intro/alap's structural violations (empty == a grounded alap). Pure.
 
-    The shape is a MINIATURE ALAP VISTAR (Sujit's ear, 2026-07-16, revising the earlier
-    every-phrase-resolves design): the phrases hold TENSION — each explores the motif, up or
-    down, and does NOT come home — while the MANDRA Sa is PLUCKED between phrases as a drone
-    anchor (the low open string / jod string), and the one true resolution is the close.
-    Each requirement is that feel translated into a checkable rule (an LLM cannot invent
-    silence or groundedness from "be spacious"):
+    The shape is CALL AND ANSWER ON A JOD'S PULSE (Sujit's ear, 2026-10-19). The July design held
+    every phrase's tension and let a code-plucked low Sa (the jod string) supply home between
+    phrases; the jod was deleted on 2026-10-12 and nothing replaced it, so the alap became a
+    string of questions with no answer, drifting off the beat ("random"). Now:
+      * CALL AND ANSWER (hard) — a CALL ends OFF the nyas, on a note that builds tension; the next
+        phrase ANSWERS it onto a nyas; at least one call comes before the close
+        (`_intro_call_and_answer` — the generic every-ending-on-a-nyas rule does not apply here);
+      * ON THE PULSE (hard, with `phrase_grid`) — every phrase starts on a vibhag (`phrase_grid`:
+        the beats, from the window's start, where one begins) and every note of a beat or more
+        starts on a beat;
       * OPENS AROUND SA — the first note is Sa or a step or two from it, never in the taar;
-      * TOUCHES THE MANDRA — the melodic line itself dips below home (the pluck doesn't count);
-      * TENSION HELD — no phrase before the last resolves onto a madhya-or-higher Sa;
-      * PLUCKED HOME — every gap between phrases is anchored by a mandra-Sa pluck;
-      * ENDS ON A HELD SA — the final phrase alone resolves, onto the intro's longest Sa;
+      * TOUCHES THE MANDRA — the melodic line itself dips below home;
+      * ENDS ON A HELD SA — the final phrase resolves, onto the intro's longest Sa;
       * SA-ANCHORED — Sa (the plucks + the close) still carries real duration and recurs;
       * REAL SILENCE — at least two true rests of a beat or more.
     Plus the ONE-MOTIF discipline (`_motif_violations`): the intro develops a single declared
@@ -923,13 +1012,13 @@ def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
     sa_dur = sum(n.dur for n in sounding if _landing_swara(n) == "S")
     if sa_dur < _INTRO_SA_SHARE * total:
         craft.append(f"Sa carries only {sa_dur / total:.0%} of the alap's sounding time — keep "
-                    f"home ringing (>= {_INTRO_SA_SHARE:.0%} by duration): pluck the mandra Sa "
-                    f"between phrases and hold the closing Sa")
+                    f"home ringing (>= {_INTRO_SA_SHARE:.0%} by duration): let the answers come "
+                    f"home to Sa and hold the closing Sa")
     returns = _sa_returns(sounding)
     if returns < _INTRO_MIN_SA_RETURNS:
         craft.append(f"Sa is sounded only {returns} separate time(s) — touch home at least "
-                    f"{_INTRO_MIN_SA_RETURNS} times: the low pluck between phrases, and the "
-                    f"held Sa at the close")
+                    f"{_INTRO_MIN_SA_RETURNS} times: an answer that comes home, and the held "
+                    f"Sa at the close")
 
     rests = [n for n in notes if n.rest and n.dur >= _INTRO_MIN_REST_BEATS]
     if len(rests) < _INTRO_MIN_RESTS:
@@ -940,9 +1029,8 @@ def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
     craft += _intro_breath_violations(notes)
     craft += _intro_rhythm_violations(notes)
 
-    # PHRASE GRAMMAR — the alap is short independent sentences separated by real silence, each
-    # holding its TENSION (no mid-intro homecoming), with the mandra-Sa pluck anchoring the gaps
-    # and Sa never sustained as a wall. A pluck-only group is punctuation, not a phrase.
+    # PHRASE GRAMMAR — short sentences separated by real silence, in CALL AND ANSWER: calls pause
+    # on a nyas that is not Sa, answers come home to Sa (Sujit, 2026-10-19).
     phrases = _intro_phrases(notes)
     min_phrases = intro_min_phrases(window_beats)
     if len(phrases) < min_phrases:
@@ -951,22 +1039,14 @@ def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
                     f"do not write one continuous line")
     for i, ph in enumerate(phrases[:-1]):           # every phrase but the final settle
         core = _melodic(ph)
-        if not core:
-            continue                                # a degenerate phrase; the pluck rules cover it
-        last = core[-1]
-        if _landing_swara(last) == "S" and _landing_oct(last) > _INTRO_PLUCK_MAX_OCT:
-            craft.append(f"phrase {i + 1} resolves onto Sa — hold the TENSION: no phrase before "
-                        f"the last comes home; touch home between phrases as a LOW plucked "
-                        f"mandra Sa (oct {_INTRO_PLUCK_MAX_OCT}) instead, and save the real "
-                        f"resolution for the closing held Sa")
-        if all(_landing_swara(n) == "S" for n in core):
+        if core and all(_landing_swara(n) == "S" for n in core):
             craft.append(f"phrase {i + 1} is only Sa — a phrase must EXPLORE the motif through "
                         f"the raga's swaras; bare Sa is a drone stroke, not a sentence")
-    unanchored = _unanchored_boundaries(notes)
-    if unanchored:
-        craft.append(f"{unanchored} gap(s) between phrases have no mandra-Sa pluck — between "
-                    f"every pair of phrases, sound Sa LOW (oct {_INTRO_PLUCK_MAX_OCT}, like a "
-                    f"low open string) so home keeps ringing under the held tension")
+    calls, answers = _intro_call_and_answer(phrases, raga)
+    hard += calls
+    craft += answers
+    if phrase_grid is not None:
+        hard += _intro_pulse_violations(notes, phrase_grid)
     held = [n for n in notes if n.bol == "chikari" and n.dur > _CHIKARI_MAX_DUR]
     if held:
         hard.append(f"{len(held)} chikari stroke(s) written longer than {_CHIKARI_MAX_DUR:g} "
@@ -999,15 +1079,16 @@ def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
 
     craft.extend(_motif_violations(cell, phrases, mukhada, reach_down=lives_low(raga)))
 
-    hard += nyas_violations(cell.notes, raga)
     return CellChecks(tuple(hard), tuple(craft))
 
 
 def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
-                 mukhada: LeadPhrase | None = None) -> list[str]:
+                 mukhada: LeadPhrase | None = None,
+                 phrase_grid: tuple[float, ...] | None = None) -> list[str]:
     """The intro's HARD faults only — what drives a re-roll. `check_intro` adds the
     reported craft notes."""
-    return list(check_intro(cell, window_beats=window_beats, raga=raga, mukhada=mukhada).hard)
+    return list(check_intro(cell, window_beats=window_beats, raga=raga, mukhada=mukhada,
+                            phrase_grid=phrase_grid).hard)
 
 
 def _intro_breath_violations(notes: list[LeadNote]) -> list[str]:
@@ -1218,22 +1299,6 @@ def _intro_phrases(notes: list[LeadNote]) -> list[list[LeadNote]]:
     phrase -> silence -> low Sa pluck -> phrase..., so a group that is ONLY the mandra-Sa
     pluck is punctuation between phrases, not a phrase of its own."""
     return [g for g in _intro_groups(notes) if not all(_is_sa_pluck(n) for n in g)]
-
-
-def _unanchored_boundaries(notes: list[LeadNote]) -> int:
-    """How many gaps between consecutive PHRASES lack the mandra-Sa drone anchor. A gap is
-    anchored when a pluck-only group sits between the phrases, or when the earlier phrase
-    ends — or the later one begins — with the pluck (both orderings are idiomatic)."""
-    groups = _intro_groups(notes)
-    is_phrase = [not all(_is_sa_pluck(n) for n in g) for g in groups]
-    idx = [i for i, p in enumerate(is_phrase) if p]
-    missing = 0
-    for a, b in zip(idx, idx[1:]):
-        between = any(not is_phrase[j] for j in range(a + 1, b))
-        edge = _is_sa_pluck(groups[a][-1]) or _is_sa_pluck(groups[b][0])
-        if not (between or edge):
-            missing += 1
-    return missing
 
 
 def _longest_mid_sa_run(notes: list[LeadNote]) -> float:

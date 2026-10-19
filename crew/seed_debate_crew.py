@@ -21,7 +21,8 @@ from typing import Any, Final, TypeVar
 import yaml
 
 from crew.composer import SeedContext, seed_errors
-from crew.contracts import CompositionBrief, DebateTurn, LeadPhrase, SeedChoice, SongSeed
+from crew.contracts import Arrangement, CompositionBrief, DebateTurn, HeadTurn, LeadPhrase, SeedChoice, SongSeed
+from crew.head_revision import head_turn_guardrail  # noqa: F401 — the debate's guardrail too
 from crew.user_request import render_request
 
 _CONFIG: Final = Path(__file__).parent / "config"
@@ -154,3 +155,31 @@ def llm_head(seed: SongSeed, brief: CompositionBrief) -> LeadPhrase | None:
     from crew.audition import head_arrangement
     from crew.lead import compose_head
     return compose_head(head_arrangement(seed, brief))
+
+
+# --------------------------------------------------------------------------- #
+# The HEAD debate's live turn (`crew/head_debate.py`).                         #
+# --------------------------------------------------------------------------- #
+
+def llm_head_turn(arr: Arrangement, approaches: dict[str, str], rounds: int, solo: bool = False):
+    """The live head-debate turn for `arr`: each composer argues from its own `approaches` entry.
+    `solo` is the CONTROL: the same turn with the other composer's head withheld — the composer
+    revises against its own head and code's measurements only (`revise_head`)."""
+    from crew.config import SEED_RETRIES, composer_llm
+    from crew.head_debate import render_head, render_pair
+    from crew.lead import _render_bol_frame, _render_raga_facts, phrase_schema
+    from gats import frame_for_bpm
+    from talas import TALAS
+    static = {"raga_block": _render_raga_facts(arr.raga, arr.bpm), "bpm": arr.bpm,
+              "tala": TALAS[arr.tala]["display"], "cycle_beats": f"{arr.beats_per_bar:g}",
+              "bol_frame": _render_bol_frame(frame_for_bpm(arr.bpm)), "user_request": render_request(arr.request),
+              "output_schema": phrase_schema(), "rounds": rounds}
+    task = _yaml("tasks.yaml")["revise_head" if solo else "debate_head"]
+
+    def turn(composer: str, own: LeadPhrase, other: LeadPhrase, round_: int) -> HeadTurn:
+        inputs = ({**static, "approach": approaches[composer], "your_head": render_head("YOUR HEAD", own),
+                   "round": round_} if solo else
+                  {**static, "approach": approaches[composer], "debate": render_pair(own, other), "round": round_})
+        return with_retry(_run)("composer", composer_llm(), task, HeadTurn, head_turn_guardrail(arr),
+                                SEED_RETRIES, inputs)
+    return turn

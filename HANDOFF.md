@@ -1,87 +1,63 @@
-# Handoff — ReAct tested, the Producer measured and reworked, cross-model debate running, deck at V68 (2026-10-18, evening)
+# Handoff — measured self-revision, alap call-and-answer, the rehearsal (parked), the notes debate (2026-10-19)
 
-Read this first, then CLAUDE.md (Status, last bullets) and TALK.md (2026-10-18 sections). Earlier
-handoffs: `HANDOFF_2026-10-18_morning.md`, `HANDOFF_2026-10-11.md` (history only).
+Read this first, then CLAUDE.md (Status, last bullet) and TALK.md ("2026-10-19 — what the day taught").
+Earlier handoffs: `HANDOFF_2026-10-18_evening.md`, `HANDOFF_2026-10-18_morning.md` (history only).
 
 ## 1. State of the tree
 
-- **Nothing is committed** (~37 changed paths incl. earlier sessions' work; `talk/` and `out/` untracked).
-  Commit only when Sujit asks.
-- **Suite: 1285/1285 pure tests.** Run every file with dummy keys and check EACH file's x/y:
-  `export GEMINI_API_KEY=invalid OPENAI_API_KEY=invalid CREWAI_DISABLE_TELEMETRY=true; for f in tests/test_*.py; do uv run python $f | tail -1; done`
-- `.env` now holds `GEMINI_API_KEY` and `OPENAI_API_KEY` (never print values).
+- **Nothing committed since `521554b`** (~36 paths; `talk/` and `out/` untracked). Commit only when Sujit asks.
+- **Suite: 1343 pure tests.** `export GEMINI_API_KEY=invalid OPENAI_API_KEY=invalid CREWAI_DISABLE_TELEMETRY=true;
+  for f in tests/test_*.py; do uv run python $f | tail -1; done`
+- **Deck: V75** (https://claude.ai/artifact/9fb9xNiGt1rF8UWXMQ82ja) — self-correction pattern card (slide 15),
+  debate verdict rewritten with the control, new self-correction verdict after it (65 slides).
 
-## 2. IN FLIGHT — the cross-model debate (check this first)
+## 2. DONE — the notes debate (out/notes_debate_20261019_094935). Sujit: riff change LIKED; head rewrite a sidegrade (original had more tension). Best = riff_final.wav
 
-- Started 17:41 in the background: `uv run python -m crew.seed_experiment --cross openai/gpt-6.1-sol:high
-  gemini/gemini-3.8-flash:high "a slow doom gat in Darbari Kanada, key of C sharp"` (RMA_LLM_TIMEOUT_S=420).
-  At handover: 18 model calls done, 0 failures, still running. Output dir `out/seed_ab_20261018_174135/`
-  (blind clips p1_X/Y/Z.wav + key.json + record appear at the END); log copy `out/seed_ab_20261018_174135.log`
-  (the live log is in the old session's scratchpad). Arms: **single** (Gemini high) / **debate-same**
-  (Gemini high vs itself) / **debate-cross** (Sol high vs Gemini high). If the dir is still empty, the run
-  died with the old session — re-run the command above (ask Sujit; ~25 calls, Sol + Gemini at high).
-- When done: (1) give Sujit the blind clips; (2) analyse **idea flow** from the record: draft diversity
-  same-model vs cross-model (`draft_diversity`), what each revised seed took from the rival (head cell,
-  sam swara, riff rhythm/roots, form), whether arguments cite music or numbers, selector pick vs his ear.
-- Verdict feeds the debate cards (`talk/deck/patterns.py` debate record; currently "Parked: same model,
-  same facts" — the hypothesis this run tests).
+`talk/audio/notes_debate_run.py` was running at handover → `out/notes_debate_<stamp>/` (transcript.md,
+record.json, original/sitar_proposed/sitar_final/riff_proposed/riff_final/both_final.wav). Sitarist = Gemini,
+guitarist = `openai/gpt-6-luna` medium. If the dir has no transcript.md the run died — re-run (~6 calls, ask).
+When done: summarise the exchange in plain words for Sujit (did they argue NOTES? did the critique change
+the other's rewrite? did anyone withdraw?), give him the files; his ear judges. Check whether the guitarist's
+riff edit changed the drums (they are re-derived from the guitar).
 
-## 3. What was built / found this session
+## 2b. DONE, awaiting the ear — notes debate #2, Bhairav (out/notes_debate_20261019_101238; song
+fusion_20261019_100727_bhairav). Found a real bug: the sitar's outro phrase is 17 beats in a 16-beat
+section (no check catches an outro overrun) — fix candidate, ask first.
 
-**ReAct (step 1 of the plan):** `hear_phrase` tool (`crew/hearing.py`, `crew/hearing_tool.py`, behind
-`RMA_HEAR`, OFF). Live A/B (`talk/audio/hear_ab.py`): the first pair was confounded (song C's seed hook rode
-the prompt); fresh pair: blind reviewer + **Sujit's ear prefer A (no tool)** — B fixed what the tool showed
-and lost Darbari's vakra cadence. Lesson (TALK.md): a tool decides what the agent attends to. Off it stays.
+## 3. What was found and built today (details: TALK.md 2026-10-19 sections)
 
-**The Producer, measured** (`talk/audio/producer_analysis_20261018.json`): revised round 0 in 14/14 runs;
-30/36 plans copied Rasik near-verbatim; 87% of scores 4-5; after an edit scores rose 10 / fell 9 / flat 5;
-6/14 shipped a version below its own earlier round. High-effort run (`talk/audio/high_effort.py`, trace
-57af304fd1ad): its one edit lowered its own score and shipped; **Sujit blind: the first draft "clearly
-better"** (`out/blind_producer_20261018_165129/`).
-**Reworked (BUILT, pure-tested, LIVE-UNTESTED):** champion take + `crew/compare.py` (draft vs revision,
-asked twice with order swapped, revision kept only if it wins both; failure keeps the draft), Flow `Version`
-snapshot + `_keep_the_better`, `MAX_JUDGE_ROUNDS=1` (judge's revision ends the loop), new
-`compare_versions` task + `VersionChoice` contract, Producer prompt: ACCEPT by default, problem-not-swaras
-instructions, no auto-adopt of Rasik, no numbers quoted. Scores schema unchanged (UI + stop rule read it).
-**Next:** slim the 11-criterion scores; a 3-run blind test draft-vs-final (live — ask).
+- **Head-debate control** (`talk/audio/head_control_run.py`): solo revision with the same measurements made
+  the debaters' move at half the cost → debate parked; built **measured head self-revision** (`crew/
+  head_report.py`, `crew/head_revision.py`, `RMA_HEAD_REVISE` on). Live: fired (6% mandra), revision ended on
+  Ni and was discarded → guardrail now holds the keep rule's lines.
+- **Fresh live run** `fusion_20261019_083259_fresh` (`talk/audio/fresh_run.py`, notes in `_rounds/notes.md`):
+  the reworked Producer ACCEPTED the first draft (first ever); sparse manjha/antara measured in the guitar.
+- **Rehearsal** (two live runs, `out/rehearsal_20261019_075624`, `_092350`): unanimous, subtractive, ears
+  hallucinated; Sujit: "r0 better, r3 hollow" → PARKED. Kept from it: sparse manjha/antara, chugs under taan.
+- **Alap** rebuilt to Sujit's rules (call off the nyas / answer onto a core nyas / calls may pile up / no
+  climb into a main nyas / jod pulse). One live alap A/B: `out/alap_ab_20261019_092312/` (B predates the
+  no-climb rule; its phrase 4 climbs into Re — Sujit heard it as off).
+- Infra: trace replay `tolerance=`; audio judge timeout + rehearsal resume; `gpt-6-luna` has NO audio input.
 
-**Effort/models:** high effort (Composer + judges) = 4x thinking, only gain Ga/Dha held 0→4. Plain prompt on
-older models: gemini-2.5-* all refused ("no longer available"); `gemini-3-flash-preview` low = a 20-s fragment,
-parts misaligned; asked 3.5 → **answered by 3.6** (5/32 distinct guitar bars); all 0 wrong notes.
-`talk/audio/pure_songs.py` now has `RMA_PURE_THINKING` and model-suffixed clip ids. Git history: there was
-**no plain-LLM baseline before the agents** (July "naive" was hand-written) — memory `no-pre-agent-baseline`;
-the Act 1 "one prompt: plausible" slide is unmeasured (Sujit: don't change yet).
+## 4. Waiting on Sujit's ear
 
-**Wiring fixes (verified):** `crew/config.py` `composer_override(model, effort)` (ContextVar) +
-`seed_debate.Side` / `debate(sides=, arm=)` + `seed_debate_crew.llm_side` + `seed_experiment --cross`.
-`build_llm`: non-Gemini models got Gemini's `http_options` (crash) → plain `timeout`; OpenAI uses
-`api="responses"` because CrewAI's Chat-Completions path sends reasoning_effort only to "o1" names (Sol had
-silently run at medium). No temperature anywhere (OpenAI docs: Sol effort low/medium(default)/high/xhigh/max).
-**CAUTION:** an edit to `crew/config/tasks.yaml` once anchored on a heading shared by two tasks and cut both;
-repaired from trace-rendered prompts. Anchor edits inside the task's own block.
+- The notes debate versions (above).
+- `out/alap_ab_20261019_092312/A.wav` vs `B.wav` (old vs call-and-answer alap) — a fresh alap call under the
+  no-climb rule is the obvious next live step (1 call, ask).
+- `out/fusion_20261019_083259_fresh.wav` as a whole.
 
-## 4. The deck — https://claude.ai/artifact/9fb9xNiGt1rF8UWXMQ82ja (Version 68, 61 slides)
+## 5. Next (ask before any live call)
 
-Source `talk/deck/story.py` (+ `patterns.py`, `scenes.py`, `workflow.py`, `titles/bot.py`). Publish
-procedure unchanged (story.py → preview.py (LOOK) → clickcheck.py 0 BLOCKED → publish changed files; send
-deck.json only when order changes; read any unread live file first). Changes this session:
-title = small geometric **DevDay bot** playing sitar (`titles/bot.py`, headbang + strum, reusable per talk);
-dividers = outlined numeral + progress strip with the bot; quote slides = radial purple glow + mustard “;
-Music 101 `process` scene ("four jobs, not four instruments"); slide 10 poses the question, `ladder` (end of
-Act 2) answers it (correct → raga's words → music); step-by-step workflow graphs steps 3–11
-(`workflow.py`); 7 pattern INTRO cards = **animated persona scenes** (`scenes.py`: envelopes fly, bubbles
-pop with verbatim trace quotes) + What/Use/Avoid; 7 VERDICT cards in Act 3 (incl. "Predefined workflow —
-Kept", evaluator "Reworked — revised the first draft 14 times out of 14"); `balance` take-home (steering
-scale); vote moved before close (pick composes live during Q&A; pre-rendered fallback NOT made yet).
-**Open on the deck:** 61 slides is long (trim candidates l1, l4, eleven); "legal"→"correct" elsewhere
-(step 7, guardrail, eleven); slide 4 & quote both say "Swap the raga…"; experiment caveats; debate verdict
-awaits §2; pre-rendered vote fallbacks (live, ask).
+1. Collect + explain the notes debate; if it argued music and Sujit likes a version, decide whether a
+   notes-debate pass belongs in the pipeline (cost ~6 calls) or stays a talk experiment.
+2. One alap call under the full rules (no-climb included).
+3. Ears calibration (Gemini Pro vs OpenAI `gpt-audio`) on Sujit's judged pairs — gates any audio judge.
+4. Deck: the rehearsal + notes-debate story (menu bounds the debate; ears describe the map) once judged.
+5. Producer: slim the scores schema; blind draft-vs-final once it revises again.
 
-## 5. Next session, in order
+## 6. Cautions
 
-1. Collect §2 (clips + idea-flow analysis), update the debate card with the result.
-2. Producer: scores slimming + 3-run blind draft-vs-final test of the reworked loop (ask before live).
-3. Challenger (the morning plan; the keep-the-best rule already embodies "original wins ties").
-4. Deck trims + the open items above.
-
-Rules unchanged: ask Sujit before ANY live run; batch; trace; never overwrite a render; commit only when asked.
+- Changing a prompt shifts trace replays (sizes); restore the checks as they were (see
+  `talk/audio/notes_debate_run.py::_checks_as_recorded`).
+- Direct google-genai audio calls are invisible to the CrewAI tracer — log them (rehearsal `calls.jsonl`).
+- When deleting code, grep prompts and checks for anything that relied on it (the jod lesson).

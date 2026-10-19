@@ -174,22 +174,18 @@ def _intro_cell(*notes: LeadNote) -> LeadPhrase:
 
 
 def _good_intro() -> LeadPhrase:
-    # the verified ALAP-VISTAR shape (malkauns): THREE tension-holding phrases developing the
-    # ONE motif (d n S) — each ends AWAY from home — separated by real rests with the mandra Sa
-    # PLUCKED between them (the drone anchor / jod string); opens on Sa, the melodic line dips
-    # into the mandra, STATES the pakad (g m g S), and only the FINAL phrase comes home to the
-    # longest held Sa (17.25 beats total).
+    # CALL AND ANSWER (malkauns, Sujit 2026-10-19): a call that pauses away from home, an answer
+    # that takes the ONE motif (d n S) home, a call from further away that turns onto its nyas,
+    # and the final answer — the pakad (g m g S) onto the longest held Sa. Opens on Sa, dips into
+    # the mandra, every phrase starting on a 4-beat vibhag (17 beats total).
     return _intro_cell(
-        _n("S", 1.0), _n("d", 1.0, oct=-1), _n("n", 1.5, oct=-1),   # phrase 1 — ends away
+        _n("S", 1.0), _n("d", 1.0, oct=-1), _n("n", 1.0, oct=-1),     # 0  call — pauses on n
         _n("S", 1.0, rest=True),
-        _n("S", 1.0, oct=-1),                                        # the low Sa pluck (drone)
+        _n("d", 0.5, oct=-1), _n("n", 0.5, oct=-1), _n("S", 2.0),     # 4  answer — home to Sa
         _n("S", 1.0, rest=True),
-        _n("d", 0.5, oct=-1), _n("n", 0.5, oct=-1), _n("S", 0.5),    # phrase 2 — full motif,
-        _n("g", 1.5),                                                #  widens, ends away on g
-        _n("m", 1.0, rest=True),
-        _n("S", 0.75, oct=-1),                                       # the low Sa pluck again
+        _n("n", 0.5, oct=-1), _n("S", 0.5), _n("m", 1.0), _n("g", 1.0),  # 8  call — turns onto g
         _n("g", 1.0, rest=True),
-        _n("g", 1.0), _n("m", 1.0), _n("g", 0.5), _n("S", 2.5))      # final: pakad -> held Sa
+        _n("g", 1.0), _n("m", 1.0), _n("g", 1.0), _n("S", 2.0))        # 12 final answer — held Sa
 
 
 def test_a_grounded_alap_has_no_violations():
@@ -254,12 +250,54 @@ def test_intro_gaps_need_the_low_sa_pluck():
     assert any("pluck" in v for v in viol)
 
 
-def test_intro_phrases_must_hold_tension():
-    # phrase 1 resolves onto madhya Sa before its rest — the homecoming arrives too soon
+def test_intro_must_build_tension_before_the_close():
+    # Sujit 2026-10-19: "a call should not rest on a nyas" — every phrase resting is no call at all
     cell = _good_intro()
-    cell.notes[2] = _n("S", 1.5)                     # phrase 1 now ends home instead of away
-    viol = _craft(check_intro, cell, window_beats=18.0, raga="malkauns")
-    assert any("TENSION" in v for v in viol)
+    cell.notes[2] = _n("S", 1.0)                     # the first call now rests on Sa
+    assert any("never builds tension" in v for v in verify_intro(cell, window_beats=18.0, raga="malkauns"))
+
+
+def test_calls_may_pile_up_before_the_answer():
+    # Sujit: "tension can be built by longer call phrases or multiple call phrases before the answer"
+    cell = _good_intro()
+    cell.notes[6] = _n("n", 2.0, oct=-1)             # two calls in a row (n, n), then the answers
+    assert not any("call" in v for v in verify_intro(cell, window_beats=18.0, raga="malkauns"))
+
+
+def test_darbari_calls_hang_on_ga_and_answers_land_on_re():
+    from crew.gat_verifier import _intro_call_and_answer
+    call = [_n("S", 1.0), _n("R", 1.0), _n("g", 2.0)]                 # hangs on komal Ga
+    answer = [_n("m", 1.0), _n("g", 1.0), _n("m", 1.0), _n("R", 2.0)]  # g m R lands on Re
+    home = [_n("n", 1.0, oct=-1), _n("S", 3.0)]
+    assert _intro_call_and_answer([call, answer, home], "darbari") == ([], [])
+    hard, _ = _intro_call_and_answer([answer, answer, home], "darbari")
+    assert any("never builds tension" in v for v in hard)
+
+
+def test_intro_walks_on_the_vibhag_pulse():
+    grid = (0.0, 4.0, 8.0, 12.0, 16.0)
+    assert verify_intro(_good_intro(), window_beats=18.0, raga="malkauns", phrase_grid=grid) == []
+    cell = _good_intro()
+    cell.notes[3] = _n("S", 2.0, rest=True)          # the answer now enters at beat 5, mid-vibhag
+    viol = verify_intro(cell, window_beats=18.0, raga="malkauns", phrase_grid=grid)
+    assert any("off the vibhag" in v and "beat 5" in v for v in viol)
+    cell = _good_intro()
+    cell.notes[0] = _n("S", 1.5)                     # long notes now land off the beat
+    assert any("start between beats" in v for v in
+               verify_intro(cell, window_beats=18.0, raga="malkauns", phrase_grid=grid))
+
+
+def test_a_phrase_that_climbs_into_a_main_nyas_is_rejected():
+    # Sujit 2026-10-19 on the live alap's "n-1 ... R" ending: a call should not stop on a nyas
+    cell = _good_intro()
+    cell.notes[10] = _n("g", 1.0)                    # the second call now ends g -> m, climbing into m
+    cell.notes[11] = _n("m", 1.0)
+    assert any("climbs into m, a main nyas" in v for v in verify_intro(cell, window_beats=18.0, raga="malkauns"))
+    from crew.gat_verifier import _intro_call_and_answer
+    climb = [_n("d", 1.0, oct=-1), _n("n", 1.0, oct=-1), _n("R", 2.0)]          # the live phrase 4
+    home = [_n("n", 1.0, oct=-1), _n("S", 3.0)]
+    hard, _ = _intro_call_and_answer([[_n("S", 1.0), _n("R", 1.0), _n("g", 2.0)], climb, home], "darbari")
+    assert any("climbs into R" in v for v in hard)
 
 
 def test_intro_pluck_groups_are_not_phrases():

@@ -204,9 +204,10 @@ def test_the_alap_keeps_its_ornament_slow():
 
 
 def test_in_the_gat_the_gesture_replaces_the_sway():
-    # after the loop, guruji's Ga holds steady; a sway bolted on read as two movements
+    # after the loop, guruji's Ga holds steady; a sway bolted on read as two movements. At guruji's
+    # own tempo (a 120 bpm gat): in a slow gat a held Ga sways instead (test_expression)
     line = [Note(swara="S", start=0, dur=1), Note(swara="g", start=1, dur=2, andolan=True)]
-    sitar, _ = _express(line)
+    sitar, _ = _express(line, bpm=120)
     assert sitar[1].gesture == "ga_ma_loop" and not sitar[1].andolan
 
 

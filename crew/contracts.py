@@ -1895,6 +1895,17 @@ class SongSeed(BaseModel):
     head: Optional[HeadIdea] = None                 # GAT form: the head's IDEA (the gat call writes its notes)
 
 
+class HeadTurn(BaseModel):
+    """One composer's turn in the HEAD debate (`crew/head_debate.py`): having heard the other
+    composer's gat head — written from a different approach — it argues (`argument`, filled FIRST:
+    where each head is stronger, as music) and returns its OWN head, revised where it was persuaded
+    (`changed`: true) or unchanged where it was not. It keeps its own approach: a turn is not a merge.
+    The head answers to the same hard lines as any gat head (the turn guardrail)."""
+    argument: str = ""
+    changed: bool = False
+    head: LeadPhrase
+
+
 class DebateTurn(BaseModel):
     """One composer's turn in the SEED DEBATE (`crew/seed_debate.py`): having heard a rival
     composer's seed for the same request, it argues (`argument`, filled FIRST — what the rival does

@@ -59,6 +59,32 @@ def test_andolan_swings_toward_the_raga_specific_neighbour():
 
 
 
+
+def _held_ga(bpm: int, beats: float):
+    """S then a held komal Ga (the approach that takes guruji's loop to Ma in a fast gat)."""
+    line = [Note(swara="S", start=0, dur=1), Note(swara="g", start=1, dur=beats, andolan=True)]
+    return _express(line, "darbari", bpm=bpm)[0][1]
+
+
+def test_a_slow_gats_held_ga_sways_instead_of_taking_the_fast_gat_gesture():
+    # Sujit (2026-10-18): guruji's gestures were measured on a 120 bpm gat; in a slow Darbari the
+    # held Ga sways 2-3 times, which adds weight
+    slow = _held_ga(60, 2)
+    assert slow.gesture is None and slow.andolan and slow.andolan_swings == (2, 3)
+
+
+def test_a_fast_gat_and_a_short_slow_ga_keep_the_gesture():
+    assert _held_ga(120, 2).gesture is not None               # guruji's tempo: the measured loop
+    assert _held_ga(60, 1).gesture is not None                # one second: too short to sway twice
+
+
+def test_the_prompt_asks_for_a_long_enough_hold_only_when_slow():
+    from crew.lead import _render_raga_facts
+    assert "hold it at least 2 beats" in _render_raga_facts("darbari", 60)
+    assert "slow tempo" not in _render_raga_facts("darbari", 120)
+    assert "slow tempo" not in _render_raga_facts("bhairav", 60)    # Bhairav counts no swings
+    assert "slow tempo" not in _render_raga_facts("darbari")
+
 def test_darbari_andolan_carries_its_counted_swings():
     # van der Meer & Rao + Sujit: Darbari's andolan takes 2-3 swings; Bhairav names no count
     darbari, _ = _express([Note(swara="d", start=0, dur=4, andolan=True)], "darbari")

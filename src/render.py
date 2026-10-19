@@ -593,6 +593,12 @@ def _knot_shape(frac: float, knots: tuple[tuple[float, float], ...]) -> float:
     return prev_y
 
 
+def counted_hold_ms(swings: tuple[int, int], *, most: bool = False) -> float:
+    """How long a note must sound for a counted andolan to carry its fewest (or `most`) swings at
+    the slowest allowed pace: the settle plus that many ANDOLAN_MIN_PERIOD_MS waves. Pure."""
+    return ANDOLAN_DELAY_MS + (swings[1] if most else swings[0]) * ANDOLAN_MIN_PERIOD_MS
+
+
 def _wave_count(sway_ms: float, swings: tuple[int, int] | None) -> int:
     """How many waves a sway of `sway_ms` carries: the default slow period's worth, or — where the
     raga counts its swings — the most of (fewest, most) that fit at ANDOLAN_MIN_PERIOD_MS or

@@ -275,6 +275,23 @@ def rhythm_section_enabled() -> bool:
     return _env_flag_on("RMA_RHYTHM_SECTION")
 
 
+def notes_debate_enabled() -> bool:
+    """True iff the accepted song goes through the NOTES DEBATE before it is rendered — the sitarist
+    (the Composer's model) and the guitarist (`gpt-6-luna`) each rewrite one piece of their own part,
+    critique each other, revise; a rewrite is kept only if it wins the blind both-orders comparison
+    (crew/notes_debate.py). Env `RMA_NOTES_DEBATE`, default ON (Sujit, 2026-10-19: "run it in
+    pipeline" after 2 better / 1 sidegrade / 1 neutral / 0 worse by ear). Costs ~8-12 calls; 0 turns
+    it off (e.g. for a live demo's latency)."""
+    return _env_flag_on("RMA_NOTES_DEBATE")
+
+
+def head_revision_enabled() -> bool:
+    """True iff a freshly composed gat head gets ONE measured self-revision when it misses a raga
+    fact its prompt states (crew/head_revision.py, decided 2026-10-19 from the head-debate control);
+    env `RMA_HEAD_REVISE`, default ON. Costs one call only when a fact is missed; 0 turns it off."""
+    return _env_flag_on("RMA_HEAD_REVISE")
+
+
 def composer_enabled() -> bool:
     """True iff the single COMPOSER owns the music (crew/composer.py: one seed call co-writes the
     chart, main riff and hook; the generators develop around it); env `RMA_COMPOSER`.

@@ -58,6 +58,8 @@ from gestures import (
     gesture_for,
     gesture_path,
 )
+from gats import is_vilambit
+from render import counted_hold_ms
 from raga import (ANDOLAN_DEPTH_ST, ANDOLAN_ONLY_IN, ANDOLAN_SWINGS, INTONATION, KHADA_RAGAS, RAGAS, SWARAS, andolan_neighbour_st,
                   ascent_step)
 
@@ -157,8 +159,20 @@ def _approach(prev: Note | None, n: Note) -> str | None:
     return _resting_swara(prev)
 
 
+def _sways_slowly(n: Note, raga: str, bpm: int) -> bool:
+    """Whether a held andolit note SWAYS instead of taking guruji's gesture: in a vilambit piece,
+    when the raga counts its andolan's swings and the note can carry the fewest of them. Guruji's
+    gestures were measured on a 120 bpm gat; Sujit (2026-10-18): "for slower Darbari fusion multiple
+    andolan should be possible and will actually add more weight". Pure."""
+    swings = ANDOLAN_SWINGS.get(raga)
+    return bool(n.andolan and swings and is_vilambit(bpm)
+                and n.dur * 60000.0 / bpm >= counted_hold_ms(swings))
+
+
 def _gestured(n: Note, approach: str | None, raga: str, bpm: int, alap: bool = False) -> Note:
     gesture = gesture_for(raga, n.swara, approach, alap=alap)
+    if _sways_slowly(n, raga, bpm):
+        return n                                   # keeps its counted sway (`with_andolan` stamped it)
     if (gesture is None or n.gesture is not None or n.grace or n.chord or n.meend_swara is not None
             or n.technique is not None
             or n.dur * 60000.0 / bpm < gesture.length_ms + SETTLE_MS):

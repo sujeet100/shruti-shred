@@ -225,10 +225,15 @@ def stroke_line_attacks(token: str) -> int | None:
     return len(BOL_WORDS[token]) if token in BOL_WORDS else None
 
 
+def is_vilambit(bpm: float) -> bool:
+    """Whether a piece at this tempo is slow (vilambit) — below the laya boundary."""
+    return bpm < _VILAMBIT_MAX_BPM
+
+
 def frame_for_bpm(bpm: float) -> str:
     """Which gat frame a piece at this tempo composes under — masitkhani below the laya
     boundary (doom), razakhani above it (everything else)."""
-    return "masitkhani" if bpm < _VILAMBIT_MAX_BPM else "razakhani"
+    return "masitkhani" if is_vilambit(bpm) else "razakhani"
 
 
 def check_gat_frame_consistency() -> list[str]:
