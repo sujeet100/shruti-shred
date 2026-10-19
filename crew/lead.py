@@ -80,9 +80,10 @@ from crew.contracts import (
     motif_illegal_in_raga,
 )
 from crew.expression import express_section
-from crew.hearing import HEAR_MAX_USES, hearing_brief, wants_hearing
+from crew.hearing import hearing_brief, wants_hearing
 from crew.head_brief import core_idea_header, motif_line, motif_value
 from crew.head_revision import HeadReviser, LLMHeadReviser, revise_head_once
+from crew.agentic_composer import agentic_brief, check_tools, checking, checking_gat, gat_check_tools
 from crew.gat_verifier import (
     CellChecks,
     check_amad,
@@ -488,6 +489,36 @@ def intro_phrase_grid(arr: Arrangement, start: float, window: float) -> tuple[fl
         grid += [bar + v - start for v in starts if 0 <= bar + v - start < window]
         bar += cycle
     return tuple(grid)
+
+
+_JOD_SHARE: Final = 0.25           # the jod takes about the last quarter of the alap's window...
+_JOD_MIN_ALAP_SHARE: Final = 0.5   # ...and the unmetred alap keeps at least half of it
+_ALAP_HOLD_S: Final = (2.0, 4.0)   # the alap holds a characteristic swara this many SECONDS
+
+
+def intro_jod_at(arr: Arrangement, gen_span: SectionSpan) -> float | None:
+    """The beat, from the alap's first beat, where the JOD enters — or None when the window is too
+    short for both (the whole intro is then an alap).
+
+    Alap, then jod: the order a sitar performance opens in (2026-10-19). Sujit asked for a jod's
+    pulse; the research (ALAP_RESEARCH.md) says the alap itself is unmetred and mostly held. So the
+    pulse arrives at the END, on a vibhag about a quarter of the window from the end — at least one
+    vibhag long, at most one avartan, leaving the alap at least half. The prompt, `check_intro` and
+    the Producer's alap report all read this one beat. Pure."""
+    length = gen_span.length
+    vibhag = first_vibhag_beats(arr)
+    want = length - max(vibhag, min(arr.beats_per_bar, length * _JOD_SHARE))
+    fits = [g for g in intro_phrase_grid(arr, gen_span.start, length)
+            if length * _JOD_MIN_ALAP_SHARE <= g <= length - vibhag]
+    return min(fits, key=lambda g: (abs(g - want), -g)) if fits else None
+
+
+def intro_jod_window(arr: Arrangement, span: SectionSpan) -> tuple[float, float | None]:
+    """The intro's alap start and jod entry in ABSOLUTE beats (the jod None when there is none) —
+    for reading a placed composition. Pure."""
+    gen_span = _intro_gen_span(span, arr.beats_per_bar, first_vibhag_beats(arr), arr.bpm)
+    jod = intro_jod_at(arr, gen_span)
+    return gen_span.start, (None if jod is None else gen_span.start + jod)
 
 
 def first_vibhag_beats(arr: Arrangement) -> float:
@@ -1062,13 +1093,14 @@ def _render_mukhada_head(memory: list[LeadMemo], *, tease: bool = False) -> str:
     if memo is None:
         return "  (no mukhada stated yet — not applicable to this section)"
     tokens = " ".join(_local_token(n) for n in memo.phrase.notes)
+    sounding = [n for n in memo.phrase.notes if not n.rest]
+    first = ("S" if sounding[0].bol == "chikari" else sounding[0].swara) if sounding else "S"
     if tease:
         return (f"  the head (ALREADY COMPOSED — it enters right after your closing held Sa):\n"
                 f"  {tokens}\n"
-                f"  derive your recurring motif (phrase_plan.seed) from its swaras and reveal it "
-                f"phrase by phrase, so the mukhada arrives as the natural culmination of your idea.")
-    sounding = [n for n in memo.phrase.notes if not n.rest]
-    first = ("S" if sounding[0].bol == "chikari" else sounding[0].swara) if sounding else "S"
+                f"  PREPARE it, don't quote it: its first swara is {first} — let your last phrases "
+                f"rest on {first} and the swaras the head stands on, so it arrives as news the alap "
+                f"made ready. Do not play its tune; your motif comes from the raga's pakad/chalan.")
     return (f"  the head: {tokens}\n"
             f"  its FIRST note is {first} — the head re-enters on the sam right after you, so "
             f"shape your FINAL notes as a stepwise lead-in that flows into {first}.")
@@ -1094,17 +1126,27 @@ def _render_tala_position(span: SectionSpan, cycle_beats: float) -> str:
             f"silence after your final note, so end on the held resolution and let it ring.")
 
 
-def _render_phrase_room(span: SectionSpan) -> str:
-    """How many alap phrases this window holds — the floor `check_intro` reports (craft)."""
+def _render_phrase_room(span: SectionSpan, arr: Arrangement) -> str:
+    """The alap's length line: its phrase room (the floor `check_intro` reports), its holds in
+    seconds converted to beats at this tempo, and where the jod enters (`intro_jod_at`)."""
     n = intro_min_phrases(span.length)
-    return f" — room for {n}-{n + 1} short phrases with real silence between them"
+    beat_s = 60.0 / arr.bpm
+    lo, hi = (round(sec / beat_s * 2) / 2 for sec in _ALAP_HOLD_S)
+    line = (f" — room for {n}-{n + 1} phrases with real silence between them. At {arr.bpm:g} bpm a "
+            f"beat is {beat_s:.2g} s, so an alap hold of {_ALAP_HOLD_S[0]:g}-{_ALAP_HOLD_S[1]:g} s "
+            f"is {lo:g}-{hi:g} beats")
+    jod = intro_jod_at(arr, span)
+    if jod is None:
+        return line + ". The window is too short for a jod: the whole intro is the alap, closing on the held Sa"
+    return (line + f". THE ALAP runs from beat 0 to beat {jod:g}; THE JOD enters exactly ON beat "
+            f"{jod:g} and runs to the end")
 
 
-def _render_room(span: SectionSpan) -> str:
+def _render_room(span: SectionSpan, arr: Arrangement | None = None) -> str:
     """The length line's tail: the alap's phrase room, or — for the taan, which `check_taan`
     holds to its window exactly — that its phrases and notes fill the window with no slack."""
-    if is_intro(span.section):
-        return _render_phrase_room(span)
+    if is_intro(span.section) and arr is not None:
+        return _render_phrase_room(span, arr)
     if is_taan_long(span.section):
         return (f" — EXACTLY {span.length:g}: a taan runs without a break to the sam, so your "
                 f"taan_phrases sum to {span.length:g} beats and your notes fill them")
@@ -1286,6 +1328,7 @@ class _LeadContext:
         from subgenres import SUBGENRES
         from talas import TALAS
         self._cycle_beats: float = arr.beats_per_bar
+        self._arr: Arrangement = arr
         self._frame_block: str = _render_bol_frame(frame_for_bpm(arr.bpm))
         self._static: dict[str, Any] = {
             "raga_block": _render_raga_facts(arr.raga, arr.bpm),
@@ -1312,7 +1355,7 @@ class _LeadContext:
             "section_intent": section.intent or "(none given — use your judgment for this kind)",
             "section_transition": section.transition or "(none given)",
             "window_beats": f"{span.length:g}",
-            "phrase_room": _render_room(span),
+            "phrase_room": _render_room(span, self._arr),
             "tala_position": _render_tala_position(span, self._cycle_beats),
             "previous": _render_previous(memory),
             "mukhada_head": _render_mukhada_head(memory, tease=is_intro(section)),
@@ -1441,7 +1484,7 @@ class _LeadCrew:
         `llm` replaces the configured model (a scripted test double)."""
         agent = Agent(config=self._agent_config, llm=llm or _lead_llm(inputs.get("form_role")),
                       tools=tools or [], allow_delegation=False,
-                      max_iter=GENERATOR_MAX_ITER + (HEAR_MAX_USES if tools else 0),
+                      max_iter=GENERATOR_MAX_ITER + sum(t.max_usage_count or 0 for t in tools or []),
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._task_config, agent=agent, **structured_output(LeadPhrase),
                     guardrail=_lead_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
@@ -1473,8 +1516,18 @@ class _LLMLead:
                  feedback: list[str] | None = None) -> LeadPhrase:
         inputs = self._context.inputs_for(span, memory, feedback=feedback)
         tools = _hearing_tools(span, arr)
-        inputs["hearing"] = hearing_brief(span.section, bool(tools))
-        return self._crew.run(arr.raga, inputs, tools)
+        checks = check_tools(lambda c: _plain_checks(c, span, arr.raga))
+        inputs["hearing"] = "\n".join(t for t in (hearing_brief(span.section, bool(tools)), agentic_brief(checks)) if t)
+        return self._crew.run(arr.raga, inputs, tools + checks)
+
+
+def _plain_checks(cell: LeadPhrase, span: SectionSpan, raga: str) -> CellChecks:
+    """What code holds a section with no verifier of its own to: the raga's grammar and its window."""
+    hard = [e for e in (_phrase_grammar_error(cell, raga),) if e]
+    total = sum(n.dur for n in cell.notes)
+    if total > span.length + 1e-6:
+        hard.append(f"the phrase runs {total:g} beats; its section has {span.length:g}")
+    return CellChecks(tuple(hard), ())
 
 
 def _hearing_tools(span: SectionSpan, arr: Arrangement) -> list[Any]:
@@ -1533,6 +1586,7 @@ class _GatContext:
             "song_seed": render_song_seed(arr),
             "riff_source": render_gat_source(arr, riff),
             "gat_output_schema": _GAT_OUTPUT_SCHEMA,
+            "agentic": "",                       # the agentic Composer's brief, when its tool is attached
         }
         self._windows = gat_part_windows(arr)
 
@@ -1607,8 +1661,10 @@ class _GatCrew:
 
     def run(self, raga: str, inputs: dict[str, Any]) -> Gat:
         # the gat is CONCEIVED here (head, bridge and answer in one call) — the conception tier
-        agent = Agent(config=self._agent_config, llm=composer_llm(),
-                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER,
+        tools = gat_check_tools()
+        inputs = {**inputs, "agentic": agentic_brief(tools)} if tools else inputs
+        agent = Agent(config=self._agent_config, llm=composer_llm(), tools=tools,
+                      allow_delegation=False, max_iter=GENERATOR_MAX_ITER + sum(t.max_usage_count or 0 for t in tools),
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._task_config, agent=agent, **structured_output(Gat),
                     guardrail=_gat_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
@@ -1799,7 +1855,8 @@ def _generate_verified_cell(gen_span: SectionSpan, arr: Arrangement, memory: lis
             beat("Lead", f"re-rolling the {cell_name} — flagged: {flags(feedback)}",
                  data={"violations": feedback, "cell": cell_name, "attempt": attempt + 1})
         try:
-            cell = gen_fn(gen_span, arr, list(memory), feedback=feedback)
+            with checking(verify):                           # the agentic Composer's tool sees these checks
+                cell = gen_fn(gen_span, arr, list(memory), feedback=feedback)
         except Exception as exc:  # noqa: BLE001 — LIVE SAFETY: a dead LLM call must not kill the run
             # (2026-07-20 live failure): a structured-output crash surfaces HERE, past every
             # retry the crew itself owns. With an earlier attempt in hand, keep the best-of-N
@@ -1915,8 +1972,10 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
                if riff_source is not None and arr.anchor == "riff_first" else [])
 
     beat("Lead", "composing the whole gat (mukhada + manjha + antara + amad) in one call…")
-    gat = gat_fn(arr, needs_manjha=manjha_span is not None, needs_antara=antara_span is not None,
-                 needs_amad=needs_amad)
+    with checking_gat(lambda g: _gat_draft_checks(g, arr, cycle, raga, frame, accents, manjha_span, antara_span,
+                                                  needs_amad)):
+        gat = gat_fn(arr, needs_manjha=manjha_span is not None, needs_antara=antara_span is not None,
+                     needs_amad=needs_amad)
     parts = ("mukhada" + (" + manjha" if manjha_span else "")
              + (" + antara" if antara_span else "") + (" + amad" if needs_amad else ""))
     events.append(DebateEvent(
@@ -1974,6 +2033,28 @@ def _compose_gat(arr: Arrangement, *, gat_fn: GatFn, gen_fn: LeadFn,
                 gen_fn=gen_fn, events=events)
 
     return Gat(anchor=gat.anchor, mukhada=mukhada, manjha=manjha, antara=antara, amad=amad)
+
+
+def _gat_draft_checks(gat: Gat, arr: Arrangement, cycle: float, raga: str, frame: str,
+                      accents: list, manjha_span: SectionSpan | None, antara_span: SectionSpan | None,
+                      needs_amad: bool) -> dict[str, CellChecks]:
+    """Each part of a DRAFT gat against the verifier `_compose_gat` will apply to it — the agentic
+    Composer's `check_gat` tool (crew/agentic_composer.py). Parts are checked against the draft's own
+    mukhada, as they will be once it is accepted. Pure."""
+    head = gat.mukhada
+    out = {"mukhada": (check_mukhada(head, cycle_beats=cycle, raga=raga)
+                       + _head_checks(head, cycle_beats=cycle, frame=frame, raga=raga)
+                       + check_head_idea(head, arr.seed_head) + hard_only(verify_riff_quote(head, accents)))}
+    if manjha_span is not None and gat.manjha is not None:
+        out["manjha"] = check_manjha(gat.manjha, mukhada=head, window_beats=_manjha_gen_span(manjha_span, cycle).length,
+                                     raga=raga)
+    if antara_span is not None and gat.antara is not None:
+        window = antara_span.length - cycle if needs_amad else antara_span.length
+        out["antara"] = check_antara(gat.antara, mukhada=head, window_beats=window, raga=raga, with_amad=needs_amad)
+        if needs_amad and gat.amad is not None:
+            out["amad"] = check_amad(gat.amad, mukhada=head, window_beats=cycle, raga=raga,
+                                     antara_last=_last_sounding_swara(gat.antara))
+    return out
 
 
 def _fill_gen_span(span: SectionSpan, cut: float, reentry: str) -> SectionSpan:
@@ -2129,9 +2210,76 @@ def _fill_slot_count(arr: Arrangement) -> int:
     return sum(len(_fill_bars(s)) for s in arr.sections if _LEAD_ROLE in s.layers)
 
 
+# The three sections composed AFTER the gat, each from the gat alone — the same recipe whether they run in
+# sequence or in parallel (Sujit, 2026-10-19: "run alap taan outro in parallel"), so the checks can't drift.
+type CellJob = tuple[SectionSpan, list[LeadMemo], CellVerifier]
+_PARALLEL_ROLES: Final = ("intro", "taan_long", "outro")
+
+
+def _intro_job(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], head_memo: LeadMemo | None,
+               head: LeadPhrase | None) -> CellJob:
+    gen_span = _intro_gen_span(span, arr.beats_per_bar, first_vibhag_beats(arr), arr.bpm)
+    window = _intro_place_end(span) - gen_span.start   # it may eat code's pause, not the breath
+    jod = intro_jod_at(arr, gen_span)                    # the beat the prompt names
+    grid = None if jod is None else intro_phrase_grid(arr, gen_span.start, window)
+    mem = memory + [head_memo] if head_memo is not None else memory
+    return gen_span, mem, lambda c: check_intro(c, window_beats=window, raga=arr.raga, mukhada=head,
+                                                phrase_grid=grid, jod_at=jod, bpm=arr.bpm)
+
+
+def _taan_job(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], head: LeadPhrase | None) -> CellJob:
+    reentry = _returning_swara(span, arr, head)
+    return (_taan_span(span, reentry), memory,
+            lambda c: check_taan(c, motif=arr.motif, window_beats=span.length, raga=arr.raga, reentry=reentry))
+
+
+def _outro_job(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], head: LeadPhrase | None) -> CellJob:
+    return span, memory, lambda c: check_outro(c, mukhada=head, raga=arr.raga)
+
+
+def _gat_memory(arr: Arrangement, gat: Gat, head_memo: LeadMemo | None) -> list[LeadMemo]:
+    """What the parallel sections remember: the gat as composed (head, manjha, antara + amad)."""
+    spans = section_spans(arr)
+    kind = lambda pred: next((sp.section.kind.value for sp in spans if pred(sp.section)), "melody")  # noqa: E731
+    mem = [head_memo] if head_memo is not None else []
+    if gat.manjha is not None:
+        mem.append(LeadMemo(kind(is_manjha), gat.manjha, _MANJHA))
+    if gat.antara is not None:
+        mem.append(LeadMemo(kind(is_antara), gat.antara, _ANTARA))
+    return mem
+
+
+def _prefetch_sections(arr: Arrangement, gat: Gat, head_memo: LeadMemo | None, gen_fn: LeadFn) -> dict[int, VerifiedCell]:
+    """The alap, the long taan(s) and the outro, composed AT ONCE from the gat: each its own verified call
+    (and its own bounded re-roll), run in threads carrying this run's context. They no longer see each other
+    (the taan does not hear the alap, the outro not the taan) — the gat is what all three answer to."""
+    import contextvars
+    from concurrent.futures import ThreadPoolExecutor
+    memory, head = _gat_memory(arr, gat, head_memo), gat.mukhada
+    jobs: dict[int, CellJob] = {}
+    for span in section_spans(arr):
+        if _LEAD_ROLE not in span.section.layers:
+            continue
+        if is_intro(span.section):
+            jobs[span.index] = _intro_job(span, arr, memory, None, head)
+        elif is_taan_long(span.section):
+            jobs[span.index] = _taan_job(span, arr, memory, head)
+        elif is_outro(span.section):
+            jobs[span.index] = _outro_job(span, arr, memory, head)
+    if not jobs:
+        return {}
+    beat("Lead", f"composing {len(jobs)} sections at once (alap, taan, outro)…")
+    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+        futures = {i: pool.submit(contextvars.copy_context().run, _generate_verified_cell, gen_span, arr, mem,
+                                  gen_fn=gen_fn, verify=verify)
+                   for i, (gen_span, mem, verify) in jobs.items()}
+        return {i: f.result() for i, f in futures.items()}
+
+
 def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = None,
                   riff_source: RiffPattern | None = None, keep: KeptLead | None = None,
-                  head_reviser: HeadReviser | None = None) -> tuple[list[Layer], list[DebateEvent]]:
+                  head_reviser: HeadReviser | None = None,
+                  parallel: bool = False) -> tuple[list[Layer], list[DebateEvent]]:
     """Fill the lead across the arrangement's lead-active sections, VOICED.
 
     `keep` (a REVISE): the sections it holds are REPLAYED, not regenerated — their phrases go
@@ -2190,6 +2338,9 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = No
         mukhada_kind = next((s.section.kind.value for s in section_spans(arr)
                              if is_mukhada(s.section) or is_song_hook(s.section, arr)), "mukhada")
         head_memo = LeadMemo(mukhada_kind, head_phrase, _MUKHADA)
+    # PARALLEL (live runs): once the gat exists, the alap, taan and outro need only the gat
+    prefetched = (_prefetch_sections(arr, gat, head_memo, gen_fn)
+                  if parallel and gat is not None and keep is None else {})
     for span in section_spans(arr):
         section = span.section
         if _LEAD_ROLE not in section.layers:
@@ -2235,14 +2386,9 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = No
             fill_cells = _generate_fills(span, arr, memory, mukhada_cell,
                                          gen_fn=gen_fn, events=events)
         elif is_intro(section):                     # the alap — verified, with a code-reserved pause
-            gen_span = _intro_gen_span(span, cycle_beats, first_vibhag_beats(arr), arr.bpm)
-            window = _intro_place_end(span) - gen_span.start   # it may eat code's pause, not the breath
-            head = head_phrase
-            intro_memory = memory + [head_memo] if head_memo is not None else memory
-            phrase, tries, viol, craft = _generate_verified_cell(
-                gen_span, arr, intro_memory, gen_fn=gen_fn,
-                verify=lambda c: check_intro(c, window_beats=window, raga=raga, mukhada=head,
-                                             phrase_grid=intro_phrase_grid(arr, gen_span.start, window)))
+            intro_span, intro_memory, intro_verify = _intro_job(span, arr, memory, head_memo, head_phrase)
+            phrase, tries, viol, craft = prefetched.pop(span.index, None) or _generate_verified_cell(
+                intro_span, arr, intro_memory, gen_fn=gen_fn, verify=intro_verify)
             # In time from the window's start, the LLM's own rests and durations kept — a jod-like
             # pulse (Sujit, 2026-10-12: the vibhag snap comes off; "the alap still needs to follow
             # the pulse, more like jod than free flowing").
@@ -2288,10 +2434,9 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = No
                 events.append(_gat_repair_event(_ANTARA, tries, viol))
         elif is_taan_long(section):                 # the developed peak — motif-grown, arced, flowing
             reentry = _returning_swara(span, arr, mukhada_cell)
-            phrase, tries, viol, craft = _generate_verified_cell(
-                _taan_span(span, reentry), arr, memory, gen_fn=gen_fn,
-                verify=lambda c: check_taan(c, motif=arr.motif, window_beats=span.length,
-                                            raga=raga, reentry=reentry))
+            taan_span, taan_memory, taan_verify = _taan_job(span, arr, memory, mukhada_cell)
+            phrase, tries, viol, craft = prefetched.pop(span.index, None) or _generate_verified_cell(
+                taan_span, arr, taan_memory, gen_fn=gen_fn, verify=taan_verify)
             # A hold past the pluck limit is SILENCE on a sitar — it becomes jhala on its own
             # swara first, so the climax drives into the sam (see the _PLUCK_* block). It runs
             # HERE, before placement, because the tihai below needs the jhala in the cell;
@@ -2316,10 +2461,9 @@ def generate_lead(arr: Arrangement, *, gen_fn: LeadFn, gat_fn: GatFn | None = No
             if tries > 1:
                 events.append(_gat_repair_event(_TAAN_LONG, tries, viol))
         elif is_outro(section):                     # the close — it must RESOLVE the raga
-            head = head_phrase
-            phrase, tries, viol, craft = _generate_verified_cell(
-                span, arr, memory, gen_fn=gen_fn,
-                verify=lambda c: check_outro(c, mukhada=head, raga=raga))
+            outro_span, outro_memory, outro_verify = _outro_job(span, arr, memory, head_phrase)
+            phrase, tries, viol, craft = prefetched.pop(span.index, None) or _generate_verified_cell(
+                outro_span, arr, outro_memory, gen_fn=gen_fn, verify=outro_verify)
             line = _place_lead_section(phrase.notes, span=span, register=register,
                                        cycle_beats=cycle_beats)
             events.append(_lead_event(span, phrase, line, _voicing_for(section)))
@@ -2632,7 +2776,7 @@ def compose_lead(arr: Arrangement,
     still quotes the riff instead of being handed nothing."""
     riff = riff or riff_seed_for_lead(arr)
     return generate_lead(arr, gen_fn=_LLMLead(arr), gat_fn=_LLMGat(arr, riff), riff_source=riff,
-                         head_reviser=_head_reviser("lead"))
+                         head_reviser=_head_reviser("lead"), parallel=_parallel())
 
 
 class _SeededGat:
@@ -2671,7 +2815,12 @@ def compose_seeded_lead(arr: Arrangement, *,
     else:
         gat_fn = None
     return generate_lead(arr, gen_fn=_LLMLead(arr, agent_key), gat_fn=gat_fn,
-                         riff_source=riff_seed_for_lead(arr), head_reviser=reviser)
+                         riff_source=riff_seed_for_lead(arr), head_reviser=reviser, parallel=_parallel())
+
+
+def _parallel() -> bool:
+    from crew.config import parallel_sections_enabled
+    return parallel_sections_enabled()
 
 
 def _head_reviser(agent_key: str) -> HeadReviser | None:

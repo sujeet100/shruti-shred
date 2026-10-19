@@ -242,6 +242,21 @@ def hearing_enabled() -> bool:
     return _env_flag("RMA_HEAR")
 
 
+def parallel_sections_enabled() -> bool:
+    """Whether the alap, the long taan and the outro are composed AT ONCE after the gat (crew/lead.py,
+    `_prefetch_sections`; Sujit 2026-10-19) instead of one after another. Each still answers to its own
+    checks and re-roll; they no longer hear each other, only the gat. Env `RMA_PARALLEL_SECTIONS`, default ON
+    (saves ~1 minute a song in the live runs measured); 0 restores the timeline order."""
+    return _env_flag_on("RMA_PARALLEL_SECTIONS")
+
+
+def agentic_composer_enabled() -> bool:
+    """Whether the Composer's sitar calls run as a real AGENT: given the checks code will apply as a
+    tool (`check_draft` / `check_gat`), deciding when to check, what to fix and when it is done
+    (crew/agentic_composer.py, 2026-10-19 experiment); env `RMA_AGENTIC_COMPOSER`, default OFF."""
+    return _env_flag("RMA_AGENTIC_COMPOSER")
+
+
 def studio_enabled() -> bool:
     """True iff the COOPERATIVE studio session is the generation path; env `RMA_STUDIO`.
 

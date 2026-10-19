@@ -1185,3 +1185,49 @@ record after two songs: 2 better (Darbari antara riff, Bhairav head), 1 sidegrad
 (Bhairav outro — the last 8 s, already ringing out), 0 worse — the first debate design with a winning record
 against the human ear. What changed from the four parked designs: notes not knobs, each player owns a real
 part, two different models read each other, arguments rest on sourced raga facts, code checks every rewrite.
+
+### The real agent, measured (2026-10-19, agentic Composer, fusion_20261019_164127_agentic_bhairav)
+
+After "which of ours are real agents?" (by Anthropic's definition: none — it's a workflow), we made the
+Composer a real one: the checks code applies became tools (`check_draft`, `check_gat`) and the model
+decided when to check, what to fix, and when it was done (crew/agentic_composer.py, RMA_AGENTIC_COMPOSER).
+Same request as the morning's workflow song (Bhairav, trace fb08fb641163 vs 25f862b73ad8):
+composing 4.1 min → 11.8 min (≈3×), Composer calls 9 → 20. CORRECTED (first count was wrong — it
+counted only CrewAI's format retries): code's music re-rolls went 3 → 0; the agent caught and fixed 6 hard
+faults itself with its tool (head 1, alap 2, taan 3), plus 1 format retry tool mode costs (no native schema).
+So the tool did deliver cleaner drafts — at 11 extra calls and ~3× the time. Total run
+17.5 min, of which ~5 min is the notes debate every run now pays. Ear verdict pending
+(pre_debate.wav vs fusion_20261019_100727_bhairav.wav). Also: the sitarist argued from a false premise
+again ("the head dropped a matra" — counted: 16 beats). The third data point for "autonomy over process
+has to be earned", now with the strongest version of the idea.
+**Sujit's ear:** "the agentic one sounds better — I can't explain why." Candidates from the notes: its
+head skips Pa rising and lands on G m r r (Bhairav's sourced grammar; the workflow head climbs m P d);
+a guitar TAKEOVER section (from the chart, not the agent — he approved takeovers 10-13); antara and taan
+sweep into the mandra. Confounded (a different draw, a different chart): the isolating test replays
+the agentic run's brief + chart from its trace and lets the workflow Composer write the sitar live.
+
+## 2026-10-19 (evening) — the rule that gave the alap a pulse took its breath away
+
+Sujit's ear: "ours is more of an intro than an alap". A research pass (ALAP_RESEARCH.md; Clarke,
+*Rāgs Around the Clock* ch. 3, plus Raja, Parrikar, Tanarang) says an alap is unmetred and mostly
+HELD notes, reveals the raga one frontier at a time, peaks about three quarters through (Clarke's 14
+short alaps: 77% on average), and PREPARES the composition's notes without quoting its tune.
+
+Measured before changing anything, across 26 saved renders: our alaps held 50-70% of their sound on
+notes a second or longer — until the morning's brief put a jod's pulse on the WHOLE alap (phrases on
+the vibhag, nothing held past two beats). The three runs since: 44%, 38%, 31%. At 120 bpm "two
+beats" is one second, so a rule written to add a pulse banned exactly the long notes that make an
+alap an alap. Nobody asked the model to be busy; the rule did, in beats, at a tempo where a beat is
+half a second.
+
+Fix, in the order a sitar performance opens: an unmetred ALAP (holds told in SECONDS, converted to
+beats by code at the piece's tempo), then a short JOD that carries the pulse and walks the band in.
+Code names the one beat where the jod enters; the prompt, the checker and the Producer's new alap
+report all read it. The pulse rules hold only in the jod; the alap's held share, held phrase notes
+and one-frontier reveal are measurements (one strong source, so never rejections); the motif comes
+from the raga's pakad/chalan instead of the gat head, and the alap must rest on the head's first
+swara without playing its tune.
+
+Lesson for the talk: a constraint stated in the wrong UNIT (beats, when the music lives in seconds)
+quietly rewrites the output. Replaying the measurement over past runs found the regression in
+minutes and dated it to the commit that caused it.

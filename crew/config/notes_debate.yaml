@@ -33,9 +33,11 @@ common: |
   {piece}
 
   HOW TO READ IT. Sitar: swara(octave):bol[beats] — (Re)g a kan from Re, g~ an andolan, g>m a meend
-  to m, g<>m a gamak with m, -[2] a silence. Guitar: swara(octave)+chord[beats]flags — pm palm
-  mute, sl slide, ls long slide, ps pick scrape, bd bend, ho hammer-on, po pull-off, ! a single
-  note never voiced as a power chord, @110 the velocity; -[1] a silence; one string per avartan.
+  to m, g<>m a gamak with m, -[2] a silence. Guitar: swara(octave)+chord[beats]flags — the octave
+  mark belongs to the ROOT only; chord tones are bare swaras stacked above it (S(-1)+P[2], never
+  S(-1)+P(-1)[2]); pm palm mute, sl slide, ls long slide, ps pick scrape, bd bend, ho hammer-on,
+  po pull-off, ! a single note never voiced as a power chord, @110 the velocity; -[1] a silence;
+  one string per avartan.
 
   ARGUE ABOUT THE MUSIC: which swara, which rhythm, which landing, how the riff and the sitar
   phrase meet on the sam. Volume, who sits out and the mix are NOT on the table — the notes are.

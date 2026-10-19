@@ -66,6 +66,16 @@ def test_the_guardrail_sends_an_unreadable_cycle_back_by_name():
     assert not ok and "section 1 guitar cycle 1" in message and "'d2'" in message
 
 
+def test_an_octave_on_a_chord_tone_is_refused_with_the_rule_that_fixes_it():
+    # the notes debate's guitarist wrote S(-1)+P(-1) twice (2026-10-19) on an error that named no rule
+    try:
+        parse_cycle("S(-1)+P(-1)[2]")
+        raise AssertionError("an octave on a chord tone should not read")
+    except NotationError as exc:
+        assert "root only" in str(exc)
+    assert parse_cycle("S(-1)+P[2]")[0].chord == ["P"]
+
+
 def test_the_compact_cycle_is_a_fraction_of_the_json():
     # the 074703 answer spelled every field of every note (~110 characters a note)
     notes = parse_cycle("d[2]@115 d[.5]pm! d[.5]pm! P[.5]pm! d[.5]pm! -[1] m[2] S[1]")

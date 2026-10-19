@@ -1129,6 +1129,18 @@ and build order.
   Ga from Ma never sways in a gat). **Sujit's ear: A is better.** Verdict: ReAct works mechanically
   (B changes exactly what it is shown) but this tool is the wrong target — sway duration is a minor,
   code-stamped property, and the report pulls attention off the line's grammar. `RMA_HEAR` stays OFF.
+- **ALAP, THEN JOD (2026-10-19 evening;** TALK.md "the rule that gave the alap a pulse"**, research:
+  `ALAP_RESEARCH.md`):** Sujit: "more of an intro than an alap". Replay over 26 renders: alaps held 50-70%
+  of their sound on notes >=1 s until the morning's whole-alap jod pulse; the three runs since 44/38/31%.
+  Now the intro = an unmetred ALAP then a short JOD: `lead.intro_jod_at` names the jod's entry (a vibhag
+  ~3/4 through, 1 vibhag..1 avartan, alap keeps >=half; None = all alap), read by the prompt's length line
+  (`_render_phrase_room`: holds 2-4 s in beats at this tempo + the jod beat), `check_intro(jod_at=, bpm=)`
+  (pulse rules only from `jod_at`; the jod must ENTER on it, hard; alap held share >=50% by seconds, each
+  phrase on a held note, <=2 new swaras a phrase — craft) and `crew/alap_report.py` (Producer block:
+  held share, phrases, frontier, reach, jod, head prepared/quoted). Motif from the raga's pakad/chalan,
+  not the head; the alap rests on the head's first swara and never plays its opening figure (craft).
+  Brief rewritten (`lead_roles.yaml` intro). Also: notes-debate guitar notation now says chord tones
+  take no octave mark (prompt + parser error). 1364 pure tests. Live-untested.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

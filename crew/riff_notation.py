@@ -62,7 +62,8 @@ def _parse_token(token: str) -> RiffNote:
     match = _TOKEN.match(token)
     if match is None:
         raise NotationError(f"'{token}' is not a note — write swara(octave)+chord[beats]flags, "
-                            f"e.g. d[.5]pm or S(+1)+P[1], or -[beats] for a silence")
+                            f"e.g. d[.5]pm or S(+1)+P[1] (the octave mark goes on the root only; "
+                            f"chord tones are bare swaras), or -[beats] for a silence")
     dur = float(match["dur"])
     if dur <= 0:
         raise NotationError(f"'{token}' has no length — [beats] must be more than 0")

@@ -144,46 +144,52 @@ roles:
         rest. Do not end with a phrase repeated three times; no tihai is added. A
         brilliant, continuous arrival matters more than maximum speed.
   intro: |
-    The ALAP — open the piece by making THIS raga unmistakable in a few CONNECTED phrases: one
-    musical argument the gat will answer, not a scale and not a demonstration.
+    The ALAP, THEN A SHORT JOD — the way a sitar performance opens. The alap makes THIS raga
+    unmistakable, unhurried and unmetred; then the jod's pulse walks the band in. One musical
+    argument the gat will answer, not a scale, not a demonstration, and not a preview of the
+    gat's tune. The length line says where the jod enters.
+    THE ALAP (beat 0 up to the jod's beat) BREATHES INSTEAD OF COUNTING. It is mostly HELD notes,
+    measured in SECONDS (the length line converts them to beats at this tempo), with rests a
+    breath long between phrases. Vary the lengths — 3, 5.5, 2.5 — so nothing falls into a beat.
+    Take your time; do not make it busy.
+    EACH PHRASE STANDS ON ONE HELD SWARA, held for seconds. Its other notes approach and decorate
+    that swara the raga's way (its kan, its turns) and pass in quick steps. Each phrase starts back
+    inside the ground already opened.
     IT IS A CONVERSATION — CALL AND ANSWER. A call reaches out and pauses, unresolved; the answer
     brings it home. Tension is built and then released, again and again, each time from further
-    away. PLAN IT FIRST — phrase_plan.badhat_plan names each phrase's JOB and what it takes from
-    the one before (3-5 phrases; fewer if the length line says so):
-      1. ESTABLISH — a short phrase near Sa, in the register the raga lives in (raga facts:
-         register — for a low raga, mandra Ni, Sa, Re), that comes to rest ON SA: home first.
+    away. PLAN IT FIRST — phrase_plan.badhat_plan names each phrase's JOB and the swara it stands
+    on (3-5 phrases; fewer if the length line says so):
+      1. ESTABLISH — sustain Sa; touch a little above and come back, a little below (in the
+         register the raga lives in — raga facts: register) and come back: home first.
       2. CALL — bring in the raga's signature as the raga treats it: its characteristic swara
          approached the raga's way (its kan), turned the way the pakad/chalan turn. A call does
-         NOT rest: it STOPS SHORT of the raga's main resting swaras (the first ones the raga facts'
-         nyas line names), ending on a note that builds tension and leans toward home — a held
-         andolit swara (code sways it), or a swara that pulls onward. Answers rest on those main
-         nyas; a call stops on purpose somewhere else.
-      3. ANSWER — resolve that tension onto a main nyas, the raga's way: through
-         its own cadence, FALLING or TURNING onto the resting swara (g m R lands on Re; m P g m R
-         S lands on Sa), never climbing into it. Any nyas may answer; Sa is the deepest home.
-      4. CALL, FROM FURTHER AWAY — the same idea grown: the register's widest reach, or a new
-         swara reached, stopping again on a tension note.
-      5. LEAD IN — the final answer, turning toward the gat (the head's first swaras are shown
-         below), coming home to a HELD Sa (2-4 beats).
+         NOT rest: its held swara STOPS SHORT of the raga's main resting swaras (the first ones
+         the raga facts' nyas line names) — a held andolit swara (code sways it), or a swara that
+         pulls onward. Answers rest on those main nyas; a call stops on purpose somewhere else.
+      3. ANSWER — resolve that tension onto a main nyas, the raga's way: through its own
+         cadence, FALLING or TURNING onto the resting swara (g m R lands on Re; m P g m R S
+         lands on Sa), never climbing into it. Any nyas may answer; Sa is the deepest home.
+      4. CALL, FROM FURTHER AWAY — ONE new frontier: reach one swara past the ground opened so
+         far and hold it. Do not open several new swaras in one phrase.
     Tension can PILE UP before it is released: a longer call, or two or three calls in a row
-    each reaching a little further, make the answer land harder. Shape the calls and answers
+    each reaching one swara further, make the answer land harder. Shape the calls and answers
     the way the music wants — the plan above is the usual course, not a fixed count.
     THE ARC FOLLOWS THE RAGA'S REGISTER: a raga that lives in the mandra reaches DOWN at its
     widest — mandra Dha, Pa — and leaves the taar alone; a raga that lives high climbs into the
-    taar. The widest reach comes late, in phrase 3.
-    THE MOTIF: phrase_plan.seed is 2-5 swaras drawn from the mukhada head shown below (or the
-    pakad when no head is shown); the phrases develop it.
-    THE PULSE IS A JOD'S: this alap opens a band piece, so it walks on a steady pulse you can
-    tap. Every phrase starts at the START OF A VIBHAG (the tala's own measure, counted from the
-    alap's first beat — in teentaal every 4 beats), and a call and its answer each fill one or
-    two vibhags with their breath. Every note of a beat or longer starts ON a beat; half-beat
-    notes are passing steps between beats. Do not sustain a swara past two beats except an
-    andolit swara (it needs the length to sway) and the closing Sa: re-strike a long swara on
-    the pulse (da, ra, da) the way a jod keeps time. The silence between phrases (about a
-    quarter of the alap) ends on the next vibhag.
-    HOLD WHAT MATTERS, MOVE THROUGH THE REST: let the raga's characteristic swaras sit long
-    (1-3 beats) and pass through the others in 0.5-beat steps — the contrast between held and
-    moving notes keeps an alap alive; a run of notes all 1-2 beats long is a machine.
+    taar. The widest reach comes about three quarters of the way through the alap; the way back
+    is shorter.
+    THE JOD (from its beat to the end): now the pulse arrives — the band is about to enter. Its
+    first note strikes exactly ON the jod's beat (let a rest carry the alap up to it). It walks on
+    a steady pulse: every phrase starts at the START OF A VIBHAG (the tala's own measure — in
+    teentaal every 4 beats), every note of a beat or longer starts ON a beat, half-beat notes are
+    passing steps, and a long swara is re-struck on the pulse (da, ra, da) rather than sustained
+    past two beats. The jod is the LEAD IN: it PREPARES the gat — it rests on the swara the head
+    enters on and the swaras the head stands on (the head is shown below) and turns through the
+    raga's cadence onto a HELD Sa (2-4 beats). It never plays the head's tune: the gat's entry
+    should be news the alap made ready.
+    If the length line says there is no jod, the whole intro is the alap, closing on the held Sa.
+    THE MOTIF: phrase_plan.seed is 2-5 swaras from the raga's pakad or chalan; the phrases
+    develop it.
     Chikari rare and SHORT (0.25-0.5): a struck string in an empty matra, never a held tone.
     ORNAMENT IS SLOW HERE: kan, a meend gliding INTO a landing (sparingly — a meend is heard at
     its target), and the sway code gives an andolit swara you hold. No gamak cells in the alap;

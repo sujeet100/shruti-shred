@@ -409,12 +409,13 @@ def test_intro_motif_drawn_from_the_head_passes():
                         mukhada=_GAT_HEAD) == []
 
 
-def test_intro_motif_not_in_the_head_is_flagged():
-    # m d n never appears in the head (in order) — the intro would tease a DIFFERENT tune
-    cell = LeadPhrase(phrase_plan=_INTRO_PLAN.model_copy(update={"seed": ["m", "d", "n"]}),
+def test_intro_motif_not_from_the_ragas_phrases_is_flagged():
+    # S d g is in none of Malkauns' pakad or chalan phrases — the alap's idea comes from the raga,
+    # the gat brings its own tune (2026-10-19: drawn from the head, it previewed the gat)
+    cell = LeadPhrase(phrase_plan=_INTRO_PLAN.model_copy(update={"seed": ["S", "d", "g"]}),
                       notes=_good_intro().notes)
     viol = _craft(check_intro, cell, window_beats=18.0, raga="malkauns", mukhada=_GAT_HEAD)
-    assert any("not drawn from the mukhada head" in v for v in viol)
+    assert any("not drawn from the raga's pakad or chalan" in v for v in viol)
 
 
 def test_intro_every_phrase_must_touch_the_motif():

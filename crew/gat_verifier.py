@@ -161,7 +161,7 @@ _CHIKARI_MAX_DUR: Final = 0.5
 # diagnosed failure of the first Malkauns render — the prompt's badhat rules were PROSE and the
 # model ignored them (taar Sa four seconds in; episodic phrases quoting different pakad material).
 # So the aochar's remembered-because-one-idea shape is now checkable: the declared `seed` IS the
-# intro's recurring motif (drawn from the mukhada head, so the gat arrives as its culmination),
+# intro's recurring motif (from the raga's pakad/chalan since 2026-10-19; the head is prepared, not quoted),
 # every phrase but the final settle carries its opening, the full motif is stated somewhere, the
 # opening phrase stays a narrow fragment, and the intro's widest reach arrives past the midpoint.
 _INTRO_MOTIF_MIN: Final = 2         # the declared motif is at least this many swaras...
@@ -169,6 +169,18 @@ _INTRO_MOTIF_MAX: Final = 5         # ...and at most this many (a kernel, not a 
 _INTRO_ANCHOR_LEN: Final = 2        # each phrase carries at least this opening fragment of the motif
 _INTRO_OPEN_SPAN: Final = 7         # semitones: the FIRST phrase stays a narrow fragment around home
 _INTRO_PEAK_MIN_POS: Final = 0.5    # the intro's highest note arrives past this fraction (badhat)
+_INTRO_HEAD_QUOTE: Final = 4        # the head's opening this many swaras, heard in the alap, is a QUOTE
+# ALAP, THEN JOD (2026-10-19, Sujit's "ours is more of an intro than an alap" + ALAP_RESEARCH.md).
+# The day's jod pulse covered the whole alap: every phrase on a vibhag, nothing held past two
+# beats — at a doom 120 bpm two beats is one second, and the measured Darbari alap played 30 notes
+# in ~26 s with only 39% of its sound on notes held a second or longer. Every source describes an
+# alap as unmetred and mostly held (Clarke, *Rags Around the Clock* ch. 3; Deepak Raja). So the
+# pulse moves to a JOD at the end (the order of a sitar performance) and the alap part is measured
+# in SECONDS. One strong source, so these are CRAFT notes, never rejections.
+_ALAP_HELD_S: Final = 1.0            # a note held this many seconds or more is a HELD note...
+_ALAP_HELD_SHARE: Final = 0.5        # ...and held notes carry at least this share of the alap's sound
+_ALAP_MAX_NEW_SWARAS: Final = 2      # a phrase opens at most this many swaras beyond the ground so far
+_ALAP_MAX_NOTE_S: Final = 4.0        # a hold of up to this many seconds is never "one note being the alap"
 # ORNAMENT DENSITY — ornaments speak by CONTRAST against plain notes. A meend is an ornament,
 # and the render anchors it on its TARGET, so a meend note is HEARD at the target, not the
 # written swara: the 2026-07-16 render put a meend on ~100% of alap notes (all toward Sa) and
@@ -896,13 +908,15 @@ def _height(note: LeadNote) -> int:
     return SWARAS[_landing_swara(note)] + 12 * _landing_oct(note)
 
 
-def _intro_pulse_violations(notes: list[LeadNote], phrase_grid: tuple[float, ...]) -> list[str]:
-    """The alap walks on a jod's pulse: each phrase starts on a vibhag (a beat in `phrase_grid`,
-    counted from the window's start) and every note of a beat or more starts on a beat. Pure."""
+def _intro_pulse_violations(notes: list[LeadNote], phrase_grid: tuple[float, ...],
+                            from_beat: float = 0.0) -> list[str]:
+    """The JOD walks on the pulse: from `from_beat` on, each phrase starts on a vibhag (a beat in
+    `phrase_grid`, counted from the window's start) and every note of a beat or more starts on a
+    beat. The unmetred alap before it is free. Pure."""
     viol: list[str] = []
     t, prev_rest, starts, off_beat = 0.0, True, [], []
     for n in notes:
-        if not n.rest:
+        if not n.rest and t >= from_beat - 1e-6:
             if prev_rest:
                 starts.append(t)
             if n.dur >= 1.0 and abs(t - round(t)) > 1e-6:
@@ -921,6 +935,69 @@ def _intro_pulse_violations(notes: list[LeadNote], phrase_grid: tuple[float, ...
                     f"{off_beat[0]:g}) — on a jod's pulse a long note lands ON a beat; only half-beat "
                     f"passing notes sit between")
     return viol
+
+
+def _onsets(notes: list[LeadNote]) -> dict[int, float]:
+    """Each note's start in beats from the line's first beat, keyed by the note's identity."""
+    out: dict[int, float] = {}
+    t = 0.0
+    for n in notes:
+        out[id(n)] = t
+        t += n.dur
+    return out
+
+
+def _jod_entry_violations(notes: list[LeadNote], jod_at: float) -> list[str]:
+    """The JOD enters ON its beat: a sounding note starts exactly at `jod_at`, and no alap note
+    rings across it (the pulse must arrive, not blur in). Pure."""
+    t = 0.0
+    for n in notes:
+        if t > jod_at + 1e-6:
+            break
+        if not n.rest and abs(t - jod_at) < 1e-6:
+            return []
+        if not n.rest and t < jod_at < t + n.dur - 1e-6:
+            return [f"a note starting at beat {t:g} rings across beat {jod_at:g}, where the JOD must "
+                    f"enter — end the alap's last phrase (a rest is fine) and strike the jod's first "
+                    f"note exactly ON beat {jod_at:g}"]
+        t += n.dur
+    return [f"no note starts on beat {jod_at:g} — the JOD enters exactly there: let a rest carry the "
+            f"alap up to beat {jod_at:g}, then strike the jod's first note on it"]
+
+
+def _alap_hold_notes(notes: list[LeadNote], phrases: list[list[LeadNote]], jod_at: float | None,
+                     bpm: float) -> list[str]:
+    """The ALAP part (before the jod) is mostly HELD notes, each phrase standing on one held
+    swara, and it opens the raga ONE FRONTIER AT A TIME (Clarke ch. 3; ALAP_RESEARCH.md).
+    Measured in seconds, since a beat at a doom tempo is half a second. Craft notes. Pure."""
+    start = _onsets(notes)
+    alap = [ph for ph in phrases if ph and (jod_at is None or start[id(ph[0])] < jod_at - 1e-6)]
+    melody = [n for ph in alap for n in _melodic(ph)]
+    if not melody:
+        return []
+    held_beats = _ALAP_HELD_S * bpm / 60.0
+    out: list[str] = []
+    sound = sum(n.dur for n in melody)
+    held = sum(n.dur for n in melody if n.dur >= held_beats - 1e-6)
+    if held < _ALAP_HELD_SHARE * sound:
+        out.append(f"only {held / sound:.0%} of the alap's sound is on notes held {_ALAP_HELD_S:g} s "
+                   f"({held_beats:g} beats) or longer — an alap is mostly HELD notes: let each phrase "
+                   f"stand on its swara for seconds and pass through the others")
+    bare = [i + 1 for i, ph in enumerate(alap) if max((n.dur for n in _melodic(ph)), default=0.0) < held_beats - 1e-6]
+    if bare:
+        out.append(f"alap phrase(s) {', '.join(map(str, bare))} hold no note for {_ALAP_HELD_S:g} s — "
+                   f"build each phrase around ONE held swara, the note it stands on")
+    seen: set[int] = set()
+    for i, ph in enumerate(alap):
+        heights = {_landing_pitch(n) for n in _melodic(ph)}
+        if seen:
+            lo, hi = min(seen), max(seen)
+            new = {h for h in heights if h < lo or h > hi}
+            if len(new) > _ALAP_MAX_NEW_SWARAS:
+                out.append(f"alap phrase {i + 1} opens {len(new)} new swaras at once — reveal the raga "
+                           f"ONE frontier at a time: reach one swara past the ground so far and hold it")
+        seen |= heights
+    return out
 
 
 def _intro_rhythm_violations(notes: list[LeadNote]) -> list[str]:
@@ -948,8 +1025,17 @@ def _intro_rhythm_violations(notes: list[LeadNote]) -> list[str]:
 
 def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
                  mukhada: LeadPhrase | None = None,
-                 phrase_grid: tuple[float, ...] | None = None) -> CellChecks:
+                 phrase_grid: tuple[float, ...] | None = None,
+                 jod_at: float | None = None, bpm: float = 60.0) -> CellChecks:
     """Return the intro/alap's structural violations (empty == a grounded alap). Pure.
+
+    ALAP, THEN JOD (2026-10-19, second pass): the intro is an unmetred ALAP — mostly held notes,
+    measured in seconds at `bpm` — and then, from `jod_at` (beats from the window's start), a short
+    JOD on the pulse that walks the band in. The pulse rules below apply from `jod_at` only (from
+    the first beat when `jod_at` is None and a `phrase_grid` is given — the whole line a jod), and
+    the jod must ENTER on `jod_at` (hard). The alap's held share, held phrase notes and one-frontier
+    reveal are craft notes. The motif comes from the raga's pakad/chalan; the head is PREPARED (its
+    first swara rests near the close), never quoted.
 
     The shape is CALL AND ANSWER ON A JOD'S PULSE (Sujit's ear, 2026-10-19). The July design held
     every phrase's tension and let a code-plucked low Sa (the jod string) supply home between
@@ -967,8 +1053,8 @@ def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
       * SA-ANCHORED — Sa (the plucks + the close) still carries real duration and recurs;
       * REAL SILENCE — at least two true rests of a beat or more.
     Plus the ONE-MOTIF discipline (`_motif_violations`): the intro develops a single declared
-    motif — drawn from the mukhada head when `mukhada` is given, so the gat enters as the
-    culmination of the intro's idea — and reveals it progressively (badhat) instead of
+    motif — drawn from the raga's pakad/chalan, the mukhada head prepared but never quoted —
+    and reveals it progressively (badhat) instead of
     inventing independent phrases. Badhat here means the ENVELOPE widens (narrow opening,
     widest reach past the midpoint) — individual phrases may ascend or descend freely.
     The long pause between the alap's last Sa and the mukhada is NOT checked here — that gap is
@@ -1026,7 +1112,7 @@ def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
                     f"use at least {_INTRO_MIN_RESTS}; an alap breathes in real silence, not in "
                     f"wall-to-wall notes")
 
-    craft += _intro_breath_violations(notes)
+    craft += _intro_breath_violations(notes, bpm)
     craft += _intro_rhythm_violations(notes)
 
     # PHRASE GRAMMAR — short sentences separated by real silence, in CALL AND ANSWER: calls pause
@@ -1046,7 +1132,10 @@ def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
     hard += calls
     craft += answers
     if phrase_grid is not None:
-        hard += _intro_pulse_violations(notes, phrase_grid)
+        hard += _intro_pulse_violations(notes, phrase_grid, from_beat=jod_at or 0.0)
+    if jod_at is not None:
+        hard += _jod_entry_violations(notes, jod_at)
+    craft += _alap_hold_notes(notes, phrases, jod_at, bpm)
     held = [n for n in notes if n.bol == "chikari" and n.dur > _CHIKARI_MAX_DUR]
     if held:
         hard.append(f"{len(held)} chikari stroke(s) written longer than {_CHIKARI_MAX_DUR:g} "
@@ -1077,21 +1166,22 @@ def check_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
     # cause, so the judges see the disease, not only each symptom.
     craft.extend(_ornament_density_notes(notes, "alap"))
 
-    craft.extend(_motif_violations(cell, phrases, mukhada, reach_down=lives_low(raga)))
+    craft.extend(_motif_violations(cell, phrases, mukhada, raga, reach_down=lives_low(raga)))
 
     return CellChecks(tuple(hard), tuple(craft))
 
 
 def verify_intro(cell: LeadPhrase, *, window_beats: float, raga: str,
                  mukhada: LeadPhrase | None = None,
-                 phrase_grid: tuple[float, ...] | None = None) -> list[str]:
+                 phrase_grid: tuple[float, ...] | None = None,
+                 jod_at: float | None = None, bpm: float = 60.0) -> list[str]:
     """The intro's HARD faults only — what drives a re-roll. `check_intro` adds the
     reported craft notes."""
     return list(check_intro(cell, window_beats=window_beats, raga=raga, mukhada=mukhada,
-                            phrase_grid=phrase_grid).hard)
+                            phrase_grid=phrase_grid, jod_at=jod_at, bpm=bpm).hard)
 
 
-def _intro_breath_violations(notes: list[LeadNote]) -> list[str]:
+def _intro_breath_violations(notes: list[LeadNote], bpm: float = 60.0) -> list[str]:
     """How much of the alap is SILENCE, and whether any one note swallows it.
 
     Both are shares rather than counts: a count of rests is satisfiable by writing the
@@ -1106,7 +1196,7 @@ def _intro_breath_violations(notes: list[LeadNote]) -> list[str]:
         viol.append(f"only {silence / total:.0%} of the alap is silence (need >= "
                     f"{_INTRO_REST_SHARE:.0%}) — the space between phrases is part of the "
                     f"music, not leftover time; let each phrase end and BREATHE before the next")
-    ceiling = max(_INTRO_MAX_NOTE_BEATS, _INTRO_MAX_NOTE_SHARE * total)
+    ceiling = max(_INTRO_MAX_NOTE_BEATS, _ALAP_MAX_NOTE_S * bpm / 60.0, _INTRO_MAX_NOTE_SHARE * total)
     longest = max((n.dur for n in notes if not n.rest), default=0.0)
     if longest > ceiling:
         viol.append(f"one note is held {longest:g} beats — {longest / total:.0%} of the whole "
@@ -1216,12 +1306,16 @@ def lives_low(raga: str) -> bool:
 
 
 def _motif_violations(cell: LeadPhrase, phrases: list[list[LeadNote]],
-                      mukhada: LeadPhrase | None, *, reach_down: bool = False) -> list[str]:
+                      mukhada: LeadPhrase | None, raga: str, *, reach_down: bool = False) -> list[str]:
     """The intro's ONE-MOTIF + BADHAT violations — the aochar develops a single recurring idea
     and reveals it progressively (see the `_INTRO_MOTIF_*` block for the diagnosed failure):
       * A REAL MOTIF IS DECLARED — `phrase_plan.seed` names the 2-5 swara kernel;
-      * DRAWN FROM THE HEAD — when the mukhada is known, the motif appears (in order, small
-        gaps, any octave) in the head, so the gat enters as the intro's culmination;
+      * DRAWN FROM THE RAGA — the motif appears (in order, small gaps) in one of the raga's
+        pakad/chalan phrases. Until 2026-10-19 it was drawn from the mukhada head, which made the
+        alap a preview of the gat's tune — the pop way; a Hindustani alap PREPARES the head's
+        swaras without quoting it (Clarke ch. 3, ALAP_RESEARCH.md). So, when the head is known:
+      * PREPARED, NOT QUOTED — the head's first swara rests in one of the last two phrases, and
+        the head's opening figure is not heard in the alap;
       * EVERY PHRASE CARRIES IT — each phrase except the final settle touches the motif's
         opening fragment (develop ONE thought, don't invent a new phrase each time);
       * REVEALED COMPLETELY — the full motif is stated somewhere before the held Sa;
@@ -1235,15 +1329,13 @@ def _motif_violations(cell: LeadPhrase, phrases: list[list[LeadNote]],
     if not (_INTRO_MOTIF_MIN <= len(seed) <= _INTRO_MOTIF_MAX):
         viol.append(f"the intro declares no usable motif (seed = {' '.join(seed) or 'empty'}) — "
                     f"phrase_plan.seed must name the ONE recurring idea, "
-                    f"{_INTRO_MOTIF_MIN}-{_INTRO_MOTIF_MAX} swaras drawn from the mukhada head "
-                    f"(or the pakad), that every phrase develops")
+                    f"{_INTRO_MOTIF_MIN}-{_INTRO_MOTIF_MAX} swaras from the raga's pakad or chalan, "
+                    f"that every phrase develops")
     else:
-        if mukhada is not None:
-            head_swaras = [_landing_swara(n) for n in _sounding(mukhada.notes)]
-            if head_swaras and not _quote_present(head_swaras, seed, _QUOTE_MAX_GAP):
-                viol.append(f"the motif ({' '.join(seed)}) is not drawn from the mukhada head "
-                            f"({' '.join(head_swaras)}) — derive it from the head's swaras so "
-                            f"the mukhada arrives as the culmination of the intro's idea")
+        sources = [list(ph) for key in ("pakad", "chalan") for ph in RAGAS[raga].get(key, [])]
+        if sources and not any(_quote_present(src, seed, _QUOTE_MAX_GAP) for src in sources):
+            viol.append(f"the motif ({' '.join(seed)}) is not drawn from the raga's pakad or chalan — "
+                        f"take the alap's idea from the raga's own phrases; the gat brings its own tune")
         anchor = seed[:_INTRO_ANCHOR_LEN]
         for i, ph in enumerate(phrases[:-1]):       # the final phrase only SETTLES — exempt
             if not _quote_present([_landing_swara(n) for n in _melodic(ph)], anchor, _QUOTE_MAX_GAP):
@@ -1274,7 +1366,29 @@ def _motif_violations(cell: LeadPhrase, phrases: list[list[LeadNote]],
             viol.append(f"the intro's {where} note arrives too early — badhat: reveal the raga "
                         f"gradually and let the widest reach land past the midpoint, in the "
                         f"later phrases")
+    if mukhada is not None:
+        viol += _head_preparation_notes(phrases, mukhada)
     return viol
+
+
+def _head_preparation_notes(phrases: list[list[LeadNote]], mukhada: LeadPhrase) -> list[str]:
+    """The alap PREPARES the gat head without quoting it: the head's first swara (it sounds on
+    every sam) rests near the close, and the head's opening figure is not heard. Craft. Pure."""
+    head = [_landing_swara(n) for n in _sounding(mukhada.notes) if n.bol != "chikari"]
+    if not head:
+        return []
+    notes: list[str] = []
+    endings = [_phrase_end(ph) for ph in phrases[-2:]]
+    if not any(e is not None and _landing_swara(e) == head[0] for e in endings):
+        notes.append(f"the alap's last phrases never rest on {head[0]}, the head's first swara — "
+                     f"prepare the gat: let the lead-in stand on the swara the head enters on")
+    figure = head[:_INTRO_HEAD_QUOTE]
+    line = [_landing_swara(n) for ph in phrases for n in _melodic(ph)]
+    if len(figure) == _INTRO_HEAD_QUOTE and any(line[i:i + len(figure)] == figure
+                                                 for i in range(len(line) - len(figure) + 1)):
+        notes.append(f"the alap plays the head's opening figure ({' '.join(figure)}) — prepare the "
+                     f"head's swaras, don't quote its tune: the gat's entry should be news")
+    return notes
 
 
 def _intro_groups(notes: list[LeadNote]) -> list[list[LeadNote]]:
@@ -1319,6 +1433,8 @@ def _longest_mid_sa_run(notes: list[LeadNote]) -> float:
     sounding = _sounding(notes)
     if runs and sounding and _landing_swara(sounding[-1]) == "S":
         runs.pop()          # the final run is the held-Sa close — exempt
+    if runs and sounding and sounding[0] is notes[0] and _landing_swara(sounding[0]) == "S":
+        runs.pop(0)         # the opening sustained Sa is the establishing phase — exempt
     return max(runs, default=0.0)
 
 

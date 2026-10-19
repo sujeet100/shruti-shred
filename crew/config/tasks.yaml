@@ -677,6 +677,7 @@ generate_gat:
         down through the madhya without ever climbing above your opening, and end at or below home
         as a stepwise lead-in to the mukhada's first swara — the head re-enters the moment you land.
 
+    {agentic}
     Fill each part's `phrase_plan` FIRST, then its `notes`. Return ONE Gat JSON:
     {gat_output_schema}
 

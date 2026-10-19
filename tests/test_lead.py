@@ -1144,24 +1144,26 @@ def test_noop_meends_are_stripped_at_placement():
 # --- the intro/alap: verified, generated into a SHORTENED window ------------------
 
 def _good_intro() -> LeadPhrase:
-    # passes verify_intro — CALL AND ANSWER on a jod's pulse (Sujit, 2026-10-19): a call that
-    # pauses on d, an answer that takes the ONE motif (n S) home, a call from further away that
-    # turns onto g, and the final answer onto a held Sa. Every phrase starts on a 4-beat vibhag,
-    # every note of a beat or more on a beat; opens on Sa, dips into the mandra, states the pakad
-    # (g m g ... S). The final Sa starts at beat 13.0 and the cell is 16 beats, so the
-    # shortened-window / ring-out tests hold.
+    # passes verify_intro — an ALAP, THEN A JOD (2026-10-19): four unmetred phrases, mostly HELD
+    # (at 72 bpm a second is 1.2 beats), in call and answer — home first (S n, S), a call that
+    # stops on mandra d, an answer that falls onto Sa (g m g S, the pakad), a call from further
+    # (m d) — then the jod enters ON beat 20 (the jod beat of a 2-avartan intro at 72 bpm) and walks
+    # the raga's cadence n d m g onto a held Sa. The final Sa starts at beat 24 and the cell is 26
+    # beats, so the shortened-window / ring-out tests hold.
     return LeadPhrase(phrase_plan=_plan("n", "S"),
-                      notes=[LeadNote(swara="S", dur=1.0), LeadNote(swara="n", dur=0.5, oct=-1),   # 0 call
-                             LeadNote(swara="S", dur=0.5), LeadNote(swara="d", dur=1.0, oct=-1),
+                      notes=[LeadNote(swara="S", dur=2.5), LeadNote(swara="n", dur=0.5, oct=-1),   # 0 home
+                             LeadNote(swara="S", dur=1.5),
+                             LeadNote(swara="S", dur=2.0, rest=True),
+                             LeadNote(swara="S", dur=0.5), LeadNote(swara="d", dur=3.0, oct=-1),  # 6.5 call
                              LeadNote(swara="S", dur=1.0, rest=True),
-                             LeadNote(swara="d", dur=0.5, oct=-1), LeadNote(swara="n", dur=0.5, oct=-1),  # 4 answer
-                             LeadNote(swara="S", dur=2.0),
+                             LeadNote(swara="g", dur=0.5), LeadNote(swara="m", dur=2.0),          # 11 answer
+                             LeadNote(swara="g", dur=0.5), LeadNote(swara="S", dur=1.5),
                              LeadNote(swara="S", dur=1.0, rest=True),
-                             LeadNote(swara="g", dur=1.0), LeadNote(swara="m", dur=1.0),   # 8 call
-                             LeadNote(swara="g", dur=1.0),
+                             LeadNote(swara="m", dur=0.5), LeadNote(swara="d", dur=2.0),          # 16.5 call
                              LeadNote(swara="S", dur=1.0, rest=True),
-                             LeadNote(swara="g", dur=0.5), LeadNote(swara="m", dur=0.5),   # 12 final answer
-                             LeadNote(swara="S", dur=3.0)])
+                             LeadNote(swara="n", dur=1.0), LeadNote(swara="d", dur=1.0),          # 20 the jod
+                             LeadNote(swara="m", dur=1.0), LeadNote(swara="g", dur=1.0),
+                             LeadNote(swara="S", dur=2.0)])
 
 
 def test_intro_is_generated_into_a_shortened_window():
@@ -1182,9 +1184,9 @@ def test_intro_final_sa_rings_through_the_reserved_gap():
     layers, _ = generate_lead(arr, gen_fn=fn)
     notes = sorted(layers[0].notes, key=lambda n: n.start)
     last = notes[-1]
-    assert last.swara == "S" and last.start == 13.0
+    assert last.swara == "S" and last.start == 24.0
     assert last.start + last.dur == 32.0 and last.fade is True   # rings to the section edge
-    assert all(n.start + n.dur <= 16.0 for n in notes[:-1])      # the rest end in the window
+    assert all(n.start + n.dur <= 26.0 for n in notes[:-1])      # the rest end in the window
 
 
 def _overlong_intro() -> LeadPhrase:
@@ -1227,7 +1229,7 @@ def test_intro_is_verified_and_rerolled_with_feedback():
 def test_a_taste_only_weak_alap_is_reported_not_rerolled():
     # never resolves to Sa (ends on a legal Malkauns rest), no rests, no mandra dip — all CRAFT
     # now: one take, no paid re-roll, and the notes ride the intro's event for the judges
-    wandering = _phrase("g", "m", "d", "m", dur=2.0)
+    wandering = _phrase("g", "m", "d", "m", "g", "m", "d", "m", "g", "m", "d", dur=2.0)  # reaches the jod (beat 20)
     arr = _gat_arr((SectionKind.ALAAP, 2, "intro"))
     fn, calls = _fake([wandering])
     _, events = generate_lead(arr, gen_fn=fn)
@@ -1488,26 +1490,19 @@ def test_intro_sees_the_head_it_must_tease():
     assert any(m.form_role == "mukhada" for m in fn.seen_memory[0])   # the intro SAW the head
 
 
-def test_intro_motif_not_drawn_from_the_head_is_reported_not_rerolled():
-    # the head never sounds "n S" as a phrase (its n sits four notes from its closing S), so
-    # _good_intro's motif (n S) teases the WRONG tune — motif discipline is CRAFT now: one take,
-    # and the note rides the intro's event for the judges
+def test_an_intro_that_quotes_the_head_is_reported_not_rerolled():
+    # the alap PREPARES the head, never plays its tune (2026-10-19): this jod opens with the head's
+    # own S m g d — a craft note for the judges, one take, no paid re-roll
     arr = _gat_arr((SectionKind.ALAAP, 2, "intro"), (SectionKind.ALAAP, 1, "mukhada"))
     gfn, _ = _fake_gat(Gat(mukhada=_good_head()))
-    teasing = LeadPhrase(
-        phrase_plan=_plan("g", "S"),
-        notes=[LeadNote(swara="S", dur=1.0), LeadNote(swara="g", dur=1.0), LeadNote(swara="S", dur=1.5),
-               LeadNote(swara="S", dur=1.5, rest=True),
-               LeadNote(swara="d", dur=1.0, oct=-1), LeadNote(swara="n", dur=1.0, oct=-1),
-               LeadNote(swara="g", dur=1.0), LeadNote(swara="S", dur=1.5),
-               LeadNote(swara="m", dur=1.5, rest=True),
-               LeadNote(swara="g", dur=1.0), LeadNote(swara="m", dur=1.0),
-               LeadNote(swara="g", dur=0.5), LeadNote(swara="S", dur=2.5)])
-    fn, calls = _fake([_good_intro(), teasing])
+    alap = _good_intro().notes[:15]                                   # the four alap phrases, to beat 20
+    quoting = LeadPhrase(phrase_plan=_plan("n", "S"), notes=alap + [
+        LeadNote(swara=sw, dur=1.0) for sw in ("S", "m", "g", "d", "m", "g")] + [LeadNote(swara="S", dur=2.0)])
+    fn, calls = _fake([quoting])
     _, events = generate_lead(arr, gen_fn=fn, gat_fn=gfn)
     assert len(calls) == 1
     notes = [v for e in events for v in e.data.get("craft_notes", [])]
-    assert any("not drawn from the mukhada head" in v for v in notes)
+    assert any("head's opening figure" in v for v in notes)
 
 
 # --- the antara: verified arc (quote -> climb -> late peak -> descend to Sa) -----
