@@ -49,6 +49,7 @@ _OUTPUT_SCHEMA: Final = """{
   "reasoning": "the arrangement plan, FIRST: the home chord and where it holds; the head's chord pattern (it recurs with every mukhada); how the manjha and antara move, and the antara's climb; where the guitar rings under the sitar and where it answers",
   "parts": [
     {"section": <section index>, "role": "<what the guitar does here, and why>",
+     "drum_feel": "verse" | "drive" | "climax" | "half",
      "guitar": ["<one avartan, in the note notation below>", "<the next avartan>"],
      "bass": ["<one avartan of single notes>"]},
     {"section": <section index>, "role": "<what the guitar does here, and why>",

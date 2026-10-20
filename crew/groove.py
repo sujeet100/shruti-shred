@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Final, Optional
 
 from crew.contracts import Arrangement, DrumHit, Layer, Section, SectionKind
+from crew.drum_feel import drum_feels
 from crew.drum_patterns import (
     PATTERNS,
     TURNAROUND_KICKS,
@@ -105,9 +106,13 @@ _ENERGY_BY_ROLE: Final[dict[str, GrooveEnergy]] = {
 }
 
 
-def _energy_for(section: Section) -> Optional[GrooveEnergy]:
+def _energy_for(section: Section, feel: Optional[str] = None) -> Optional[GrooveEnergy]:
+    """The section's groove energy: none in an alaap; else the rhythm section's chosen `feel`
+    (crew/drum_feel.py) when it named one; else code's default by gat role, then by kind."""
     if section.kind is SectionKind.ALAAP:
         return None
+    if feel is not None:
+        return GrooveEnergy(feel)
     if section.form_role in _ENERGY_BY_ROLE:
         return _ENERGY_BY_ROLE[section.form_role]
     return _ENERGY_BY_KIND.get(section.kind, GrooveEnergy.DRIVE)
@@ -442,15 +447,16 @@ def groove_layer(arr: Arrangement, rhythm: Layer | None) -> Layer | None:
     """The metal-kit drums layer for the whole piece. Deterministic, no LLM.
 
     Fills the drums for each section that lists `drums`, choosing the groove from
-    the section's energy (kind + gat form_role: an alaap gets no kit, the antara
-    rides half-time). The kick locks to `rhythm` (the riff) where present; fills
+    the section's energy (the rhythm section's chosen feel where it named one, else kind + gat
+    form_role: an alaap gets no kit, the antara rides half-time). The kick locks to `rhythm` (the riff) where present; fills
     mark the phrase and section boundaries; when the kit ENTERS after a kit-less
     section it plays a pickup snare roll into an everything-at-127 downbeat (or
     matched stop hits when the riff opens with spaced accents). Returns None when
     no section uses the kit.
     """
     spans = section_spans(arr)
-    energies = [_energy_for(s.section) if _DRUMS_ROLE in s.section.layers else None
+    feels = drum_feels(arr)
+    energies = [_energy_for(s.section, feels.get(s.index)) if _DRUMS_ROLE in s.section.layers else None
                 for s in spans]
     hits: list[DrumHit] = []
     prev_kit: Optional[int] = None            # index of the previous kit section (skips alaap gaps)

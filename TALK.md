@@ -1231,3 +1231,24 @@ swara without playing its tune.
 Lesson for the talk: a constraint stated in the wrong UNIT (beats, when the music lives in seconds)
 quietly rewrites the output. Replaying the measurement over past runs found the regression in
 minutes and dated it to the commit that caused it.
+
+### One prompt per job (2026-10-20) — mixed concerns cost tokens and clarity
+
+An outside review read the alap's real prompt (trace a8b711f667eb) and found it arguing with itself:
+"the alap runs unmetred from beat 0 to 44" sat a page away from "TALA POSITION — LAND ON THE SAM: the
+sam falls at beats 0, 16, 32, 48", and "craft is never a rejection" sat beside an intro whose
+call-and-answer rules DO reject. The taan's prompt asked for rests, held arrivals and compound strokes
+its own brief forbids. Nobody wrote a contradiction on purpose: every section shared one lead template,
+each new rule landed in it, and every section inherited every other section's rules — plus the whole
+5,500-character answer format, head and taan fields included.
+
+Giving the alap and the taan their own templates (same agent, same output contract) cut their prompts
+roughly in half on real charts — intro ~5.2k → ~2.8k tokens, taan ~4.7k → ~2.1k — before any model
+call. Sujit's point is the other half: a model handed several jobs' rules has to work out which apply
+before it can compose, so mixing concerns should cost thinking time and blur the output. The thinking
+tokens and the music are measured on the next live run, not assumed.
+
+*The lesson:* **a shared prompt template is a shared dependency — every rule added for one job leaks
+into every other.** Separate the contract per job even when the agent and the call stay the same; a
+shorter, consistent prompt is cheaper to read, for the model and for the person debugging it.
+

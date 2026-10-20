@@ -30,6 +30,7 @@ Entry point (a bounded live run: fixed small chart, real generate/critique/decid
 from __future__ import annotations
 
 import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,7 +40,17 @@ from crewai.flow.flow import Flow, listen, or_, router, start
 from pydantic import BaseModel, Field
 
 from crew.anchor import with_realized_seeds
-from crew.config import MAX_JUDGE_ROUNDS, MAX_ROUNDS, listening_enabled, load_env, notes_debate_enabled
+from crew.config import (
+    DEBATE_RESERVE_S,
+    LISTEN_RESERVE_S,
+    MAX_JUDGE_ROUNDS,
+    MAX_ROUNDS,
+    REVISE_RESERVE_S,
+    listening_enabled,
+    load_env,
+    notes_debate_enabled,
+    run_budget_s,
+)
 from crew.contracts import (
     Arrangement,
     Composition,
@@ -56,7 +67,7 @@ from crew.contracts import (
     plan_layer,
 )
 from crew.live import publish, publish_all
-from crew.realized import KeptLead, realized_lead
+from crew.realized import KeptLead, latest_realized_events, realized_lead
 from crew.rhythm_section import with_rhythm_section
 from crew.revision import (
     is_stalled,
@@ -106,9 +117,27 @@ type Listen = Callable[[str, Arrangement], list[DebateEvent]]
 # events). Asked after a revision made on the JUDGE's plan; None = keep every revision (the old loop).
 type Compare = Callable[[Composition, Composition, Arrangement], tuple[bool, list[DebateEvent]]]
 # THE NOTES DEBATE (crew/notes_debate.py): (chart, realised lead material, the band's other voices, the
-# accepted composition) -> (the composition to render, its chart, events). None = off.
-type NotesDebate = Callable[[Arrangement, KeptLead, Optional[Layer], list[Layer], Composition],
+# accepted composition, the concern that called it) -> (the composition to render, its chart, events).
+# None = off.
+type NotesDebate = Callable[[Arrangement, KeptLead, Optional[Layer], list[Layer], Composition, str],
                             tuple[Composition, Arrangement, list[DebateEvent]]]
+# WHAT CALLS THE DEBATE (crew/debate_trigger.py): the reviews of the shipped take -> its concerns
+# (empty = no debate).
+type Concerns = Callable[[Optional[ProducerVerdict], Optional[RasikVerdict]], list[str]]
+
+
+def _debate_concerns(producer: Optional[ProducerVerdict], rasik: Optional[RasikVerdict]) -> list[str]:
+    from crew.debate_trigger import debate_concerns
+    return debate_concerns(producer, rasik)
+# THE FINAL CHECK: does this composition pass the deterministic gate (raga legality)? Run on what
+# is about to ship, after every change, including the notes debate.
+type Validate = Callable[[Composition], bool]
+
+
+def _passes_code_check(comp: Composition) -> bool:
+    """The deterministic gate: Ustad's code verdict (`raga.validate_composition`). Pure."""
+    from crew.ustad import assess
+    return assess(comp)[0].verdict == "legal"
 
 
 @dataclass(frozen=True)
@@ -125,6 +154,9 @@ class Stages:
     listen: Optional[Listen] = None      # the advisory listening pass (None = off)
     compare: Optional[Compare] = None    # draft or revision? (None = the revision always stands)
     debate: Optional[NotesDebate] = None  # the notes debate on the accepted song (None = off)
+    validate: Validate = _passes_code_check   # the final gate on what ships (code, no LLM)
+    concerns: Concerns = _debate_concerns      # what (if anything) calls the notes debate
+    clock: Callable[[], float] = time.monotonic   # the live budget's clock (injected for tests)
 
 
 # The real adapters (lazy imports keep crewai off the light path until a stage runs).
@@ -232,28 +264,35 @@ def _assemble(arr: Arrangement, lead_layers: list[Layer], rhythm: Optional[Layer
 
 def _critique(comp: Composition,
               arr: Arrangement) -> tuple[UstadVerdict, RasikVerdict, ProducerVerdict, list[DebateEvent]]:
-    """Three dimensions, in order: Ustad (legality — code, instant), Rasik (raga authenticity,
-    consulting with lead edits), then the Producer (song craft — the judge with the final say,
-    who reads the chart AND Rasik's consultation)."""
+    """Fan-out, fan-in: Ustad (legality — code, instant); then Rasik (the raga) and the Producer
+    (the song) judge the SAME frozen piece in parallel, neither seeing the other; then the second
+    look (`crew/second_look.py`) — only when the Producer accepts and Rasik flags a raga problem
+    does the Producer read Rasik's notes and decide whether a listener would hear it."""
+    from concurrent.futures import ThreadPoolExecutor
+
     from crew.producer import critique_composition
     from crew.rasik import critique_taste
+    from crew.second_look import second_look
     from crew.ustad import critique_legality
     ustad, e1 = critique_legality(comp)
     publish_all(e1)
     publish(_running("Rasik", "consulting on the raga…", role="critic"))
-    rasik, e2 = critique_taste(comp, arr.request, arr)
-    publish_all(e2)
     publish(_running("Producer", "judging the song craft…", role="critic"))
-    producer, e3 = critique_composition(comp, arr, rasik)
-    publish_all(e3)
-    return ustad, rasik, producer, [*e1, *e2, *e3]
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        taste = pool.submit(critique_taste, comp, arr.request, arr)
+        craft = pool.submit(critique_composition, comp, arr)
+        (rasik, e2), (producer, e3) = taste.result(), craft.result()
+    publish_all([*e2, *e3])
+    producer, e4 = second_look(comp, arr, producer, rasik)
+    publish_all(e4)
+    return ustad, rasik, producer, [*e1, *e2, *e3, *e4]
 
 
 def _decide(ustad: UstadVerdict, rasik: RasikVerdict, producer: ProducerVerdict,
             comp: Composition, arr: Arrangement) -> tuple[Optional[RevisionPlan], list[DebateEvent]]:
     """The final call — code triage (legality forces a revise) then the Producer's decision.
-    Rasik's consultation already reached the Producer; the composition and chart are part of
-    the stage signature so an injected decider can read them."""
+    Rasik's flagged problems already reached the Producer through its second look; the
+    composition and chart are part of the stage signature so an injected decider can read them."""
     from crew.triage import decide
     return decide(ustad, producer, comp, arr)
 
@@ -394,6 +433,10 @@ class Version(BaseModel):
     orchestra_layers: list[Layer] = Field(default_factory=list)
     canvases: list[SectionCanvas] = Field(default_factory=list)
     composition: Optional[Composition] = None
+    # The realized lead/riff material this take was built from (the latest such events when it was
+    # taken). Restoring the take re-appends them, so nothing downstream that reads the history (a
+    # later revise, the notes debate) can pick up a rejected revision's material.
+    realized: list[DebateEvent] = Field(default_factory=list)
 
 
 class ComposeState(BaseModel):
@@ -416,6 +459,12 @@ class ComposeState(BaseModel):
     events: list[DebateEvent] = Field(default_factory=list)
     wav_path: Optional[str] = None
     champion: Optional[Version] = None                # the best take so far (the first draft until beaten)
+    last_valid: Optional[Version] = None              # the newest take that passed the code check
+    # How the run ended: "accepted" (the judge accepted, or the better take was kept), "budget_exhausted"
+    # (the round cap stopped it), "validation_failed" (nothing that passed the code check could ship).
+    outcome: str = ""
+    started: float = 0.0                              # the clock when the run began (the live budget)
+    judged: Optional[Composition] = None              # the take the critics last judged
     judge_rounds: int = 0                             # rounds spent on the JUDGE's own plans
     judge_revising: bool = False                      # the revise in progress follows the judge's plan
 
@@ -452,22 +501,42 @@ class ComposeFlow(Flow[ComposeState]):
     """
 
     def __init__(self, stages: Stages, *, max_rounds: int = MAX_ROUNDS,
-                 max_judge_rounds: int = MAX_JUDGE_ROUNDS) -> None:
+                 max_judge_rounds: int = MAX_JUDGE_ROUNDS, budget_s: Optional[float] = None) -> None:
         super().__init__()
         self._stages = stages
         self._max_rounds = max_rounds
         self._max_judge_rounds = max_judge_rounds
+        self._budget_s = budget_s                     # None = the studio: no time limit
+
+    def remaining(self) -> float:
+        """Seconds left in the run's budget (infinite in the studio)."""
+        if self._budget_s is None:
+            return float("inf")
+        return self._budget_s - (self._stages.clock() - self.state.started)
+
+    def _fits(self, reserve_s: float, what: str) -> bool:
+        """Does an optional stage still fit the live budget? Says so on the stream when it doesn't."""
+        left = self.remaining()
+        if left >= reserve_s:
+            return True
+        note = _flow_event(f"Time budget: {max(left, 0):.0f} s left — no room for {what}.")
+        self.state.events.append(note)
+        publish(note)
+        return False
 
     def _take(self) -> Version:
         st = self.state
         return Version(arrangement=st.arrangement, lead_layers=st.lead_layers, rhythm=st.rhythm,
                        orchestra_layers=st.orchestra_layers, canvases=st.canvases,
-                       composition=st.composition)
+                       composition=st.composition, realized=latest_realized_events(st.events))
 
     def _restore(self, take: Version) -> None:
+        """Put a saved take back, ALL of it: its layers, its chart, and its realized material (re-
+        appended to the history, which stays the audit trail of everything that was tried)."""
         st = self.state
         st.arrangement, st.lead_layers, st.rhythm = take.arrangement, take.lead_layers, take.rhythm
         st.orchestra_layers, st.canvases, st.composition = take.orchestra_layers, take.canvases, take.composition
+        st.events.extend(take.realized)
 
     def _keep_the_better(self) -> None:
         """After a revision on the JUDGE's plan: the judge compares it with the champion in both
@@ -485,10 +554,31 @@ class ComposeFlow(Flow[ComposeState]):
                 return
         st.champion = self._take()
 
+    def _final_gate(self) -> None:
+        """Stopping is not accepting: before anything ships, the composition must pass the code check.
+        A failure falls back to the newest take that passed; with none, the run is marked
+        `validation_failed` and the last version still renders (live safety: the stage gets audio,
+        and the failure is reported, never called an acceptance)."""
+        st = self.state
+        assert st.composition is not None
+        if self._stages.validate(st.composition):
+            return
+        if st.last_valid is not None and st.last_valid.composition is not None:
+            self._restore(st.last_valid)
+            note = _flow_event("The final version failed the code check — shipping the last version "
+                               "that passed it.")
+        else:
+            st.outcome = "validation_failed"
+            note = _flow_event("No version passed the code check — rendering the last one and reporting "
+                               "the failure.")
+        st.events.append(note)
+        publish(note)
+
     @start()
     def begin(self) -> None:
         """interpret the query, arrange the chart, generate the creative voices, assemble."""
         st = self.state
+        st.started = self._stages.clock()
         publish(_running("Interpreter", "reading your request…", role="system"))
         brief, e1 = self._stages.interpret(st.query)
         publish_all(e1)                               # stream each phase as it completes
@@ -505,8 +595,8 @@ class ComposeFlow(Flow[ComposeState]):
         st.orchestra_layers = orchestra_layers
         st.canvases = canvases
         st.composition = self._stages.assemble(st.arrangement, lead_layers, rhythm, orchestra_layers)
+        st.events.extend([*e1, *e2, *e3])             # first, so the champion carries its realized material
         st.champion = self._take()
-        st.events.extend([*e1, *e2, *e3])
 
     @router("revise")
     def revise_layer(self) -> str:
@@ -537,6 +627,7 @@ class ComposeFlow(Flow[ComposeState]):
                                 "finishing with the better take.")
             st.events.append(spent)
             publish(spent)
+            st.outcome = "accepted"
             return "done"
         return "recritique"
 
@@ -553,6 +644,9 @@ class ComposeFlow(Flow[ComposeState]):
         st.rasik = rasik
         st.producer = producer
         st.events.extend(events)
+        st.judged = st.composition
+        if ustad.verdict == "legal":
+            st.last_valid = self._take()
 
     @listen(critique)
     def decide(self) -> None:
@@ -573,17 +667,24 @@ class ComposeFlow(Flow[ComposeState]):
         """The terminator: accept, or revise until the round cap — then done, always."""
         st = self.state
         if st.plan is None:
+            st.outcome = "accepted"
             return "done"
         if self._stalled():
             stalled = _flow_event("The judge asked for the same edit again and the last one did not "
                                   "raise its scores — accepting rather than paying for the same answer.")
             st.events.append(stalled)
             publish(stalled)
+            st.outcome = "accepted"
             return "done"
         if st.round >= self._max_rounds:
-            capped = _flow_event(f"Revise cap ({self._max_rounds}) reached — accepting the last version.")
+            capped = _flow_event(f"Revise cap ({self._max_rounds}) reached — stopping here; the final "
+                                 "check decides what ships.")
             st.events.append(capped)
             publish(capped)
+            st.outcome = "budget_exhausted"
+            return "done"
+        if not self._fits(REVISE_RESERVE_S, "another revision"):
+            st.outcome = "budget_exhausted"
             return "done"
         st.round += 1
         st.judge_revising = self._judges_plan()
@@ -623,11 +724,13 @@ class ComposeFlow(Flow[ComposeState]):
         """
         st = self.state
         assert st.composition is not None
+        self._final_gate()
         _flow_notes_debate(self)
         publish(_running("System", "rendering the audio…", role="system"))
         st.wav_path = self._stages.render(st.composition)
         _save_arrangement(st.wav_path, st.arrangement)
-        if self._stages.listen and st.wav_path and st.arrangement is not None:
+        if self._stages.listen and st.wav_path and st.arrangement is not None \
+                and self._fits(LISTEN_RESERVE_S, "the listening pass"):
             publish(_running("Listener", "listening to the render…", role="critic"))
             heard = self._stages.listen(st.wav_path, st.arrangement)
             publish_all(heard)
@@ -635,25 +738,40 @@ class ComposeFlow(Flow[ComposeState]):
 
 
 def _flow_notes_debate(flow: "ComposeFlow") -> None:
-    """Run the notes debate on the accepted song, when the stage is on and the song has what it
-    needs (the realised lead and a composed guitar part). Never fatal: the accepted song stands."""
+    """Run the notes debate on the accepted song — only when a reviewer of THIS take named a concern
+    the debate can fix (`crew/debate_trigger.py`), only while it fits the live budget, and only when
+    the song has what it needs (the realised lead and a composed guitar part). Never fatal: the
+    accepted song stands. Its result must pass the same code check as everything else that ships."""
     st = flow.state
     kept = realized_lead(st.events)
     if flow._stages.debate is None or st.arrangement is None or kept is None \
             or st.arrangement.rhythm_section is None or st.composition is None:
         return
+    judged = st.judged is not None and st.judged == st.composition
+    concerns = flow._stages.concerns(st.producer, st.rasik) if judged else []
+    if not concerns:
+        note = _flow_event("Notes debate not needed: no reviewer of this take raised a concern it could fix.")
+        st.events.append(note)
+        publish(note)
+        return
+    if not flow._fits(DEBATE_RESERVE_S, "the notes debate"):
+        return
     publish(_running("Band", "the sitarist and the guitarist argue the notes…", role="composer"))
+    before = st.composition, st.arrangement
     try:
         st.composition, st.arrangement, events = flow._stages.debate(
-            st.arrangement, kept, st.rhythm, st.orchestra_layers, st.composition)
+            st.arrangement, kept, st.rhythm, st.orchestra_layers, st.composition, "\n".join(concerns))
     except Exception as exc:  # noqa: BLE001 — LIVE SAFETY: a failed debate keeps the accepted song
         events = [_flow_event(f"notes debate skipped ({exc}) — the accepted song stands")]
+    if st.composition is not before[0] and not flow._stages.validate(st.composition):
+        st.composition, st.arrangement = before
+        events = [*events, _flow_event("the notes debate's result failed the code check — the accepted song stands")]
     publish_all(events)
     st.events.extend(events)
 
 
 def _notes_debate(arr: Arrangement, kept: KeptLead, rhythm: Optional[Layer], orchestra: list[Layer],
-                  composition: Composition) -> tuple[Composition, Arrangement, list[DebateEvent]]:
+                  composition: Composition, concern: str) -> tuple[Composition, Arrangement, list[DebateEvent]]:
     """The live notes debate: Gemini sitarist vs gpt-6-luna guitarist, judged blind (crew/compare.py)."""
     from crew.lead import lead_layers_from
     from crew.notes_debate import debate_stage
@@ -663,7 +781,8 @@ def _notes_debate(arr: Arrangement, kept: KeptLead, rhythm: Optional[Layer], orc
         return _assemble(song.arr, lead_layers_from(song.phrases, song.arr, song.fills), song.rhythm,
                          song.orchestra)
     comp, arr2, events, _, _ = debate_stage(arr, kept.phrases, kept.fills, rhythm, orchestra, composition,
-                                            players=players, assemble=assemble, compare=_compare)
+                                            players=players, assemble=assemble, compare=_compare,
+                                            concern=concern)
     return comp, arr2, events
 
 
@@ -718,12 +837,14 @@ def _save_arrangement(wav_path: Optional[str], arrangement: Optional[Arrangement
 
 
 def compose_flow(query: str, *, stages: Optional[Stages] = None, max_rounds: int = MAX_ROUNDS,
-                 max_judge_rounds: int = MAX_JUDGE_ROUNDS) -> ComposeState:
+                 max_judge_rounds: int = MAX_JUDGE_ROUNDS, budget_s: Optional[float] = None) -> ComposeState:
     """Run the full pipeline as a Flow and return its final state (composition, the
     event stream, the final decision, the rendered WAV path). `stages` is injectable —
-    defaults to the real adapters."""
+    defaults to the real adapters. `budget_s` (default: env `RMA_BUDGET_S`, unset = no limit) is
+    the live time budget."""
     flow = ComposeFlow(stages or production_stages(), max_rounds=max_rounds,
-                       max_judge_rounds=max_judge_rounds)
+                       max_judge_rounds=max_judge_rounds,
+                       budget_s=budget_s if budget_s is not None else run_budget_s())
     flow.kickoff(inputs={"query": query})
     return flow.state
 

@@ -313,6 +313,71 @@ space: set rest:true with any swara (ignored) to rest on the sam or leave room f
 or "khatka" (sharper); only some ragas use them (see the raga facts), and code builds the cluster
 from the raga's own neighbour swaras. Durations are in beats and must be positive."""
 
+# The answer format PER SECTION (2026-10-20, GPT's prompt review): every section used to be shown all
+# of the above — the head's stroke plan, the taan's phrases and the intro's reveal alike. The intro
+# and the developed taan now see only the fields their own task fills; everything else (the joint
+# gat, a head on its own, the song-form sections, the notes debate) keeps `_OUTPUT_SCHEMA`.
+_CORE_PLAN: Final = """    "seed": ["<the few raga swaras this phrase grows from>"],
+    "contour": "<one of the contours below>",
+    "transformations": ["<in the order they happen, from the list below>"],
+    "climax_and_sam": "<where the line peaks, and how it lands>","""
+
+_CORE_NOTES: Final = """Decide "phrase_plan" FIRST, then write "notes" that REALIZE it. "contour" is one of
+ascending / descending / arch / wave / landing / explosion. "transformations" (in the order they
+happen) are drawn from repeat, answer, fragment, rhythmic_compression, accelerate, octave_shift,
+resolve — and sequence_up / sequence_down only where the raga's chalan itself moves that way.
+In the notes: "oct" is your octave (0 = home; -1 mandra/lower, +1 taar/upper); durations are in
+beats and must be positive."""
+
+_INTRO_SCHEMA: Final = """{
+  "phrase_plan": {
+""" + _CORE_PLAN + """
+    "badhat_plan": "<each phrase in order: its job, the swara it dwells on, the swara it ENDS on>"
+  },
+  "notes": [
+    {"swara": "<raga swara>", "oct": <octave>, "dur": <beats>, "bol": "da"},
+    {"swara": "<raga swara>", "oct": <octave>, "dur": <beats>, "grace": ["<kan swara>"], "bol": "ra"},
+    {"rest": true, "swara": "S", "dur": <beats>}
+  ]
+}
+(Format only — every musical choice is yours: a filled-in example gets copied.)
+""" + _CORE_NOTES + """ Each note is ONE stroke: "bol" is "da" (strong) or "ra" (softer); "chikari" is a
+struck drone string, rare and SHORT (0.25-0.5), in an empty matra. Optional per note: "vel"; "grace"
+(kan swaras flicked just before the note); "meend_swara" (a glide INTO the note, which is heard at
+its target — sparingly), with "meend_oct" only to glide across octaves; "rest": true for a silence
+(any swara, ignored). No gamak cells and no murki/khatka in the alap."""
+
+_TAAN_SCHEMA: Final = """{
+  "phrase_plan": {
+""" + _CORE_PLAN + """
+    "taan_style": "<koot / gamak / alankarik / chhoot / sapat / mishra>",
+    "register_plan": "<where you start, where the single peak lands, how the cadence arrives>",
+    "taan_phrases": [{"role": "<statement / build / climax / cadence>", "beats": <whole matras>,
+                      "subdivision": <notes per matra>, "reach": "<highest swara>", "reach_oct": <octave>}]
+  },
+  "notes": [
+    {"swara": "<raga swara>", "oct": <octave>, "dur": 0.25, "bol": "da"},
+    {"swara": "<raga swara>", "oct": <octave>, "dur": 0.25, "bol": "ra"}
+  ]
+}
+(Format only — every musical choice is yours: a filled-in example gets copied.)
+""" + _CORE_NOTES + """ "taan_phrases" are the run's phrases in order: each phrase's beats are whole matras
+and together sum exactly to the window; "subdivision" is its ONE pulse in notes per matra — 4
+(chaugun, 0.25-beat notes) from the first phrase, 6 (chhagun) only to quicken near the climax,
+never slower; "reach"/"reach_oct" the highest swara the phrase climbs to. Each note is ONE stroke,
+"da" or "ra", alternating — never a compound bol. Optional per note: "vel"; "grace" (a kan);
+"gamak_with" (the ADJACENT raga swara a gamak note swings with — the gamak style's cells)."""
+
+
+def output_schema_for(section) -> str:
+    """The answer format this section's task fills: the intro's, the developed taan's, or the full
+    phrase format. Pure."""
+    if is_intro(section):
+        return _INTRO_SCHEMA
+    if is_taan_long(section):
+        return _TAAN_SCHEMA
+    return _OUTPUT_SCHEMA
+
 
 # --------------------------------------------------------------------------- #
 # Placement: LLM phrase -> notes on the section's window. Pure.                #
@@ -1080,6 +1145,26 @@ def _render_previous(memory: list[LeadMemo]) -> str:
         for memo in memory)
 
 
+def _render_handoff(memory: list[LeadMemo]) -> str:
+    """What the intro hands over to: the gat head's FIRST swara and the swaras it holds — not its
+    tune (the intro prepares the head, never quotes it; the full head stays with the checker).
+    Authoritative over the chart's seam prose, which can name a different note. Pure."""
+    memo = next((m for m in memory if m.form_role == _MUKHADA), None)
+    if memo is None:
+        return ("  the piece's first theme follows your closing held Sa — close home and leave it room")
+    sounding = [n for n in memo.phrase.notes if not n.rest and n.bol != "chikari"]
+    if not sounding:
+        return "  the gat follows your closing held Sa"
+    first = sounding[0]
+    held = list(dict.fromkeys(n.swara for n in sounding if n.dur >= 1.0 and n.swara != first.swara))
+    octave = {0: "home", -1: "low (mandra)", 1: "high (taar)"}.get(first.oct, f"octave {first.oct:+d}")
+    line = f"  the gat enters on {first.swara}, {octave} octave, on the sam right after your breath"
+    if held:
+        line += f"; the head stands on {' '.join(held)}"
+    return (line + ". Let your last phrases rest on these swaras so the head arrives as news the alap "
+            "made ready — do not play its tune.")
+
+
 def _render_mukhada_head(memory: list[LeadMemo], *, tease: bool = False) -> str:
     """The cached gat HEAD, rendered for a cell that must RETURN to it (manjha / taan fill) —
     or, with `tease`, for the INTRO that must FORESHADOW it.
@@ -1170,6 +1255,26 @@ def _sams_within(span: SectionSpan, cycle_beats: float) -> list[float]:
     return out
 
 
+class RetryFeedback(list[str]):
+    """The hard faults of a rejected take — and the take itself (`draft`), so the re-roll REPAIRS it
+    instead of composing from nothing (2026-10-20, GPT's prompt review: the prompt said "keep everything
+    that already worked" while showing none of it). A list of the faults wherever a list is expected,
+    so every injected phrase provider keeps its signature."""
+
+    def __init__(self, faults: list[str], draft: LeadPhrase | None = None) -> None:
+        super().__init__(faults)
+        self.draft = draft
+
+
+def _render_draft(draft: LeadPhrase) -> str:
+    """The rejected take as the composer wrote it, in the memory notation. Pure."""
+    plan = draft.phrase_plan
+    lines = [f"    notes: {' '.join(_local_token(n) for n in draft.notes)}"]
+    if plan.badhat_plan:
+        lines.insert(0, f"    its plan: {plan.badhat_plan}")
+    return "\n".join(lines)
+
+
 def _render_repair(feedback: list[str] | None) -> str:
     """The gat verifier's violations from a FAILED prior attempt, rendered so a re-roll fixes
     exactly those. Serves every VERIFIED cell (mukhada, intro, manjha, taan fill); on the first
@@ -1178,8 +1283,12 @@ def _render_repair(feedback: list[str] | None) -> str:
     if not feedback:
         return "  (first attempt — compose freely within the rules above)"
     issues = "\n".join(f"    - {v}" for v in feedback)
-    return ("  YOUR PREVIOUS ATTEMPT FAILED the gat structure check. Keep everything that already "
-            "worked, and FIX EXACTLY these:\n" + issues)
+    draft = getattr(feedback, "draft", None)
+    if draft is None:
+        return ("  YOUR PREVIOUS ATTEMPT FAILED the gat structure check. Keep everything that already "
+                "worked, and FIX EXACTLY these:\n" + issues)
+    return ("  YOUR PREVIOUS ATTEMPT (rejected) — repair it, don't start over: keep the phrases these "
+            "faults do not touch, and FIX EXACTLY these:\n" + issues + "\n" + _render_draft(draft))
 
 
 def _riff_line_token(note: RiffNote) -> str:
@@ -1365,6 +1474,48 @@ class _LeadContext:
             "hearing": "",
         }
 
+    def intro_inputs_for(self, span: SectionSpan, memory: list[LeadMemo], *,
+                         feedback: list[str] | None = None) -> dict[str, Any]:
+        """The generate_intro inputs: only what an alap needs — the raga, the phases in time, the
+        handoff to the gat, the section's own words and the repair. No sam targets, no song seed to
+        develop, no stroke frame, no canvas, no full head (2026-10-20, GPT's prompt review)."""
+        section = span.section
+        st = self._static
+        return {
+            "output_schema": _INTRO_SCHEMA, "raga_block": st["raga_block"], "bpm": st["bpm"],
+            "user_request": st["user_request"],
+            "form_role": section.form_role,          # not in the template: it picks the thinking tier (_lead_llm)
+            "role_brief": _render_role_brief(section),
+            "section_intent": section.intent or "(none given — use your judgment)",
+            "section_transition": section.transition or "(none given)",
+            "window_beats": f"{span.length:g}",
+            "phrase_room": _render_room(span, self._arr),
+            "handoff": _render_handoff(memory),
+            "repair": _render_repair(feedback),
+            "hearing": "",
+        }
+
+    def taan_inputs_for(self, span: SectionSpan, memory: list[LeadMemo], *,
+                        feedback: list[str] | None = None) -> dict[str, Any]:
+        """The generate_taan inputs: the continuous run's own contract — the motif it grows from, the
+        exact window, the returning head it runs into, what the lead already played, the repair. No
+        stroke frame, no sam-landing block, no canvas (2026-10-20, GPT's prompt review)."""
+        section = span.section
+        st = self._static
+        return {
+            "output_schema": _TAAN_SCHEMA, "raga_block": st["raga_block"], "bpm": st["bpm"],
+            "user_request": st["user_request"], "motif": st["motif"],
+            "form_role": section.form_role,          # not in the template: it picks the thinking tier (_lead_llm)
+            "role_brief": _render_role_brief(section),
+            "section_intent": section.intent or "(none given — use your judgment)",
+            "window_beats": f"{span.length:g}",
+            "phrase_room": _render_room(span, self._arr),
+            "mukhada_head": _render_mukhada_head(memory),
+            "previous": _render_previous(memory),
+            "repair": _render_repair(feedback),
+            "hearing": "",
+        }
+
 
 # --------------------------------------------------------------------------- #
 # Boundary parsing + the legality guardrail (the hard line). Imperative-ish.   #
@@ -1476,17 +1627,19 @@ class _LeadCrew:
     def __init__(self, agent_key: str = "lead") -> None:
         config_dir = Path(__file__).parent / "config"
         self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())[agent_key]
-        self._task_config = yaml.safe_load((config_dir / "tasks.yaml").read_text())["generate_lead"]
+        tasks = yaml.safe_load((config_dir / "tasks.yaml").read_text())
+        self._task_configs = {name: tasks[name] for name in ("generate_lead", "generate_intro", "generate_taan")}
 
     def run(self, raga: str, inputs: dict[str, Any], tools: list[Any] | None = None, *,
-            llm: Any = None) -> LeadPhrase:
-        """One section's call. `tools` (the listening tool) turn on CrewAI's native tool loop;
-        `llm` replaces the configured model (a scripted test double)."""
+            llm: Any = None, task_name: str = "generate_lead") -> LeadPhrase:
+        """One section's call, on the `task_name` template (the intro has its own). `tools` (the
+        listening tool) turn on CrewAI's native tool loop; `llm` replaces the configured model (a
+        scripted test double)."""
         agent = Agent(config=self._agent_config, llm=llm or _lead_llm(inputs.get("form_role")),
                       tools=tools or [], allow_delegation=False,
                       max_iter=GENERATOR_MAX_ITER + sum(t.max_usage_count or 0 for t in tools or []),
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
-        task = Task(config=self._task_config, agent=agent, **structured_output(LeadPhrase),
+        task = Task(config=self._task_configs[task_name], agent=agent, **structured_output(LeadPhrase),
                     guardrail=_lead_guardrail(raga), guardrail_max_retries=GENERATOR_RETRIES)
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
         phrase = _phrase_from_output(crew.kickoff(inputs=inputs))
@@ -1514,11 +1667,21 @@ class _LLMLead:
 
     def __call__(self, span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], *,
                  feedback: list[str] | None = None) -> LeadPhrase:
-        inputs = self._context.inputs_for(span, memory, feedback=feedback)
+        task_name, inputs = self._task_for(span, memory, feedback)
         tools = _hearing_tools(span, arr)
         checks = check_tools(lambda c: _plain_checks(c, span, arr.raga))
         inputs["hearing"] = "\n".join(t for t in (hearing_brief(span.section, bool(tools)), agentic_brief(checks)) if t)
-        return self._crew.run(arr.raga, inputs, tools + checks)
+        return self._crew.run(arr.raga, inputs, tools + checks, task_name=task_name)
+
+    def _task_for(self, span: SectionSpan, memory: list[LeadMemo],
+                  feedback: list[str] | None) -> tuple[str, dict[str, Any]]:
+        """Which template this section takes, with its inputs: the intro and the developed taan have
+        their own contracts; every other section the shared lead task."""
+        if is_intro(span.section):
+            return "generate_intro", self._context.intro_inputs_for(span, memory, feedback=feedback)
+        if is_taan_long(span.section):
+            return "generate_taan", self._context.taan_inputs_for(span, memory, feedback=feedback)
+        return "generate_lead", self._context.inputs_for(span, memory, feedback=feedback)
 
 
 def _plain_checks(cell: LeadPhrase, span: SectionSpan, raga: str) -> CellChecks:
@@ -1870,7 +2033,7 @@ def _generate_verified_cell(gen_span: SectionSpan, arr: Arrangement, memory: lis
         viol, craft = list(checks.hard), list(checks.craft)
         if not viol:
             return VerifiedCell(cell, attempt + 1, [], craft)
-        feedback = viol                                      # the re-roll sees EXACTLY what failed
+        feedback = RetryFeedback(viol, draft=cell)           # the re-roll sees EXACTLY what failed, and the take
         severity = take_severity(cell, gen_span.length, viol)
         # on a TIE the later take wins: it answered the feedback (2026-10-12: the re-roll fixed
         # "must resolve to Sa" but ran long, tied on one fault, and the unresolved take shipped)

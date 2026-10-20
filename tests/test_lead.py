@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
 
@@ -45,7 +46,11 @@ from crew.lead import (  # noqa: E402
     LeadMemo,
     Voicing,
     _intro_gen_span,
+    RetryFeedback,
     _LeadContext,
+    _lead_llm,
+    _render_handoff,
+    _render_repair,
     _lead_guardrail,
     _doubled_hook,
     _GatContext,
@@ -1922,6 +1927,95 @@ def test_by_default_the_sitar_carries_every_lead_section_alone():
     layers = lead_layers_from(phrases, arr)
     assert [ly.instrument for ly in layers] == [VOICES["sitar"].instrument]
     assert len(layers[0].notes) == 12                       # the whole line, every section
+
+
+# --- the intro's own prompt; retries carry the rejected take (2026-10-20, GPT's prompt review) ----
+
+def _intro_task() -> dict:
+    import yaml
+    return yaml.safe_load((Path(__file__).resolve().parents[1] / "crew/config/tasks.yaml").read_text())["generate_intro"]
+
+
+def test_the_intro_prompt_has_no_sam_targets_no_canvas_and_no_song_seed():
+    import re
+    task = _intro_task()
+    text = task["description"]
+    for gone in ("LAND ON THE SAM", "{tala_position}", "STUDIO SESSION", "{canvas}", "{song_seed}",
+                 "{bol_frame}", "never a rejection"):
+        assert gone not in text, gone
+    arr = _intro_arr(clean=False, bars=4)
+    span = section_spans(arr)[0]
+    inputs = _LeadContext(arr).intro_inputs_for(span, [])
+    wanted = set(re.findall(r"\{(\w+)\}", text + task["expected_output"]))
+    assert wanted <= set(inputs), wanted - set(inputs)
+    assert inputs["form_role"] == "intro" and _lead_llm(inputs["form_role"]) is not None   # the alap's tier
+
+
+def test_the_handoff_names_the_heads_entry_and_its_held_swaras_not_its_tune():
+    head = LeadPhrase(phrase_plan=_plan("S"), notes=[LeadNote(swara="S", dur=2.0), LeadNote(swara="g", dur=0.5),
+                                                     LeadNote(swara="m", dur=1.5), LeadNote(swara="d", dur=0.5)])
+    text = _render_handoff([LeadMemo("melody", head, form_role="mukhada")])
+    assert "enters on S" in text and "stands on m" in text
+    assert "S:2" not in text and "g" not in text.split("stands on")[1].split(".")[0]   # no note tokens, no passing g
+    assert "first theme" in _render_handoff([])
+
+
+def test_a_retry_shows_the_rejected_take_and_its_faults():
+    draft = LeadPhrase(phrase_plan=_plan("S").model_copy(update={"badhat_plan": "1 establish on S; 2 call on g"}),
+                       notes=[LeadNote(swara="S", dur=2.0), LeadNote(swara="g", dur=1.0)])
+    text = _render_repair(RetryFeedback(["phrase 2 climbs into R"], draft=draft))
+    assert "repair it, don't start over" in text and "climbs into R" in text
+    assert "S:2 g:1" in text and "2 call on g" in text
+    assert "Keep everything" in _render_repair(["a plain list still works"])
+
+
+def test_the_reroll_loop_hands_the_rejected_take_back():
+    from crew.gat_verifier import CellChecks
+    from crew.lead import _generate_verified_cell
+    arr = _intro_arr(clean=False, bars=2)
+    span = section_spans(arr)[0]
+    takes = iter([_phrase("S", "g"), _phrase("S", "m")])
+    seen = []
+
+    def gen(span_, arr_, memory, *, feedback=None):
+        seen.append(feedback)
+        return next(takes)
+
+    def verify(cell):
+        return CellChecks(hard=("bad",) if cell.notes[-1].swara == "g" else ())
+    out = _generate_verified_cell(span, arr, [], gen_fn=gen, verify=verify)
+    assert out.cell.notes[-1].swara == "m"
+    assert seen[0] is None and isinstance(seen[1], RetryFeedback) and seen[1].draft.notes[-1].swara == "g"
+
+
+def test_the_taan_prompt_drops_rests_holds_compound_strokes_and_the_sam_block():
+    import re
+
+    import yaml
+    from crew.lead import _LLMLead
+    task = yaml.safe_load((Path(__file__).resolve().parents[1] / "crew/config/tasks.yaml").read_text())["generate_taan"]
+    text = task["description"]
+    for gone in ("LAND THE SAM", "true RESTS", "FAST RUNS LAND", "dadir", "never a rejection", "STUDIO SESSION",
+                 "{bol_frame}", "{canvas}", "{tala_position}"):
+        assert gone not in text, gone
+    arr = _gat_arr((SectionKind.MELODY, 1, "mukhada"), (SectionKind.TAAN, 2, "taan_long"))
+    span = section_spans(arr)[1]
+    name, inputs = _LLMLead(arr)._task_for(span, [], None)
+    assert name == "generate_taan"
+    wanted = set(re.findall(r"\{(\w+)\}", text + task["expected_output"]))
+    assert wanted <= set(inputs), wanted - set(inputs)
+    assert inputs["form_role"] == "taan_long"
+
+
+def test_each_section_sees_only_its_own_answer_fields():
+    from crew.lead import _OUTPUT_SCHEMA, output_schema_for
+    intro = Section(kind=SectionKind.ALAAP, bars=1, layers=["lead"], foreground="lead", form_role="intro")
+    taan = Section(kind=SectionKind.TAAN, bars=1, layers=["lead"], foreground="lead", form_role="taan_long")
+    melody = Section(kind=SectionKind.MELODY, bars=1, layers=["lead"], foreground="lead")
+    i, t = output_schema_for(intro), output_schema_for(taan)
+    assert "badhat_plan" in i and not any(k in i for k in ("stroke_line", "head_shape", "taan_phrases", "gamak_with"))
+    assert "taan_phrases" in t and not any(k in t for k in ("stroke_line", "head_shape", "badhat_plan", '"rest"', "dadir"))
+    assert output_schema_for(melody) is _OUTPUT_SCHEMA and len(i) < len(_OUTPUT_SCHEMA) / 2
 
 
 if __name__ == "__main__":

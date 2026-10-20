@@ -76,42 +76,48 @@ def _run(player: str, task_key: str, model: type, check, inputs: dict[str, Any])
     return answer
 
 
-def _inputs(song: Song, piece: str) -> dict[str, Any]:
+_NO_CONCERN: Final = "(no specific concern was raised — find where the music is weakest)"
+
+
+def _inputs(song: Song, piece: str, concern: str = "") -> dict[str, Any]:
     from crew.lead import _render_raga_facts, phrase_schema
     from crew.user_request import render_request
     from talas import TALAS
     arr = song.arr
     return {"raga_block": _render_raga_facts(arr.raga, arr.bpm), "bpm": arr.bpm, "tala": TALAS[arr.tala]["display"],
             "cycle_beats": f"{arr.beats_per_bar:g}", "user_request": render_request(arr.request), "piece": piece,
-            "phrase_schema": phrase_schema(),
+            "phrase_schema": phrase_schema(), "concern": concern or _NO_CONCERN,
             "riff_sections": ", ".join(str(s) for s in riff_sections(arr.rhythm_section))}
 
 
-def players(song: Song) -> Players:
-    """The live players for `song`, each answer held to the debate's checks."""
+
+def players(song: Song, concern: str = "") -> Players:
+    """The live players for `song`, each answer held to the debate's checks; `concern` is the
+    reviewers' words that called the debate (empty for a standalone run)."""
+
     def propose_sitar(piece: str) -> SitarRewrite:
         return _run("sitarist", "propose_sitar", SitarRewrite,
-                    lambda a: sitar_errors(song, a.part, a.phrase), _inputs(song, piece))
+                    lambda a: sitar_errors(song, a.part, a.phrase), _inputs(song, piece, concern))
 
     def propose_riff(piece: str) -> RiffRewrite:
         return _run("guitarist", "propose_riff", RiffRewrite,
-                    lambda a: riff_errors(song, a.section, a.cycles)[1], _inputs(song, piece))
+                    lambda a: riff_errors(song, a.section, a.cycles)[1], _inputs(song, piece, concern))
 
     def critique(critic: str, piece: str, rewrite: str) -> Critique:
         return _run(critic, "critique", Critique, lambda a: [],
-                    {**_inputs(song, piece), "critic": critic, "rewrite": rewrite})
+                    {**_inputs(song, piece, concern), "critic": critic, "rewrite": rewrite})
 
     def revise_sitar(piece: str, rewrite: str, said: str) -> SitarRevision:
         part = _part_of(rewrite)
         return _run("sitarist", "revise_sitar", SitarRevision,
                     lambda a: _revision_errors(a.decision, a.phrase, lambda p: sitar_errors(song, part, p)),
-                    {**_inputs(song, piece), "rewrite": rewrite, "critique": said})
+                    {**_inputs(song, piece, concern), "rewrite": rewrite, "critique": said})
 
     def revise_riff(piece: str, rewrite: str, said: str) -> RiffRevision:
         section = _section_of(rewrite)
         return _run("guitarist", "revise_riff", RiffRevision,
                     lambda a: _revision_errors(a.decision, a.cycles, lambda c: riff_errors(song, section, c)[1]),
-                    {**_inputs(song, piece), "rewrite": rewrite, "critique": said})
+                    {**_inputs(song, piece, concern), "rewrite": rewrite, "critique": said})
 
     return Players(propose_sitar, propose_riff, critique, revise_sitar, revise_riff)
 

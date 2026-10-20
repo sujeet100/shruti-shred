@@ -18,9 +18,9 @@ spine:
      it is a single note spanning the whole piece (a constant tonal anchor), not a voice that
      swells section to section.
 
-Gated on `form_role`: a section without a declared gat form is left at its authored levels
-(gain 1.0), so a form-less demo/fixture — and the entire existing test-suite — is unchanged,
-exactly as the riff family gates. Pure: velocities in, velocities out; fully unit-tested.
+Gated on `form_role`, or — for a song-form section with no gat role — on the drum feel the rhythm
+section chose for it (`crew/drum_feel.py`, 2026-10-20). A section with neither is left at its
+authored levels (gain 1.0). Pure: velocities in, velocities out; fully unit-tested.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from bisect import bisect_right
 from typing import Callable, Optional
 
 from crew.contracts import Arrangement, Layer, Section
+from crew.drum_feel import FEEL_ENERGY, drum_feels
 from crew.generators import section_spans
 
 # Per-form-role target energy in [0, 1] — the arc's explicit spine. intro/outro sit low; the
@@ -79,12 +80,13 @@ def _clamp_vel(v: float) -> int:
     return max(1, min(127, round(v)))
 
 
-def section_energy(section: Section, *, is_final: bool) -> Optional[float]:
-    """The section's target energy in [0, 1], or None when it declares no gat form (leave its
-    levels untouched). The final non-outro section is floored high so the piece lands strong."""
-    if section.form_role is None:
+def section_energy(section: Section, *, is_final: bool, feel: Optional[str] = None) -> Optional[float]:
+    """The section's target energy in [0, 1]: by its gat form_role; else by the drum `feel` the
+    rhythm section chose (a song-form section, crew/drum_feel.py); else None (leave its levels
+    untouched). The final non-outro section is floored high so the piece lands strong."""
+    if section.form_role is None and feel is None:
         return None
-    energy = _ENERGY[section.form_role]
+    energy = _ENERGY[section.form_role] if section.form_role is not None else FEEL_ENERGY[feel]
     if is_final and section.form_role != "outro":
         energy = max(energy, _FINAL_FLOOR)
     return energy
@@ -115,10 +117,10 @@ def _role_gain(role: str, section: Section) -> float:
     return _BED.get(role, _BED_DEFAULT)
 
 
-def _gain_for(section: Section, role: str, *, is_final: bool) -> float:
+def _gain_for(section: Section, role: str, *, is_final: bool, feel: Optional[str] = None) -> float:
     """The combined velocity gain for `role` in `section`: energy arc x layer balance. 1.0 when
-    the section declares no gat form (untouched)."""
-    energy = section_energy(section, is_final=is_final)
+    the section declares neither a gat form nor a drum feel (untouched)."""
+    energy = section_energy(section, is_final=is_final, feel=feel)
     if energy is None:
         return 1.0
     return _energy_gain(energy) * _role_gain(role, section)
@@ -148,10 +150,12 @@ def apply_dynamics(layers: list[Layer], arr: Arrangement) -> list[Layer]:
     spans = section_spans(arr)
     starts = [s.start for s in spans]
     final_index = spans[-1].index if spans else None
+    feels = drum_feels(arr)
 
     def gain_at(start: float, role: str) -> float:
         span = spans[max(0, bisect_right(starts, start) - 1)]   # the section this event sits in
-        return _gain_for(span.section, role, is_final=(span.index == final_index))
+        return _gain_for(span.section, role, is_final=(span.index == final_index),
+                         feel=feels.get(span.index))
 
     return [_balance_layer(layer, gain_at) for layer in layers]
 

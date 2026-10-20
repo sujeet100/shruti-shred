@@ -6,11 +6,12 @@ There are three questions about a piece of music: is it LEGAL (code — crew/ust
 sound like the RAGA (Rasik, a consultant), does it WORK AS A SONG (the Producer). The Producer
 owns the last and decides: it reads the whole symbolic score, the code-computed metrics
 (`crew/metrics.py` — "code measures, the LLM evaluates"), the riff/melody friction counts
-(`crew/coexistence.py`, information, not faults), and Rasik's consultation, scores a fixed
-10-criterion 1-5 rubric (`ProducerScores`), and returns `decision` + at most ONE `RevisionPlan`
-(voice, sections, instruction, preserve). It may adopt one of Rasik's lead edits when the raga
-is the weakest link. There is no debate and no referee: `crew/triage.py` lets its decision
-stand unless the piece is illegal.
+(`crew/coexistence.py`, information, not faults), scores a fixed 10-criterion 1-5 rubric
+(`ProducerScores`), and returns `decision` + at most ONE `RevisionPlan` (voice, sections,
+instruction, preserve). It judges ON ITS OWN, in parallel with Rasik (2026-10-20: reading Rasik
+first, it copied Rasik in 30 of 36 plans); the two meet afterwards in `crew/second_look.py`, only
+when Rasik flags a raga problem. There is no debate and no referee: `crew/triage.py` lets its
+decision stand unless the piece is illegal.
 
 Layering follows the repo's pure-core / imperative-shell split:
   * pure       — `assess` over an injected `judge_fn`; the `_render_*` helpers.
@@ -38,7 +39,6 @@ from crew.contracts import (
     DebateEvent,
     EventType,
     ProducerVerdict,
-    RasikVerdict,
 )
 from crew.coexistence import coexistence_report, render_friction
 from crew.density import render_density
@@ -165,23 +165,11 @@ def _verdict_from_output(output: Any) -> ProducerVerdict | None:
         return None
 
 
-def _render_consultation(rasik: RasikVerdict | None) -> str:
-    """Rasik's raga consultation as the Producer reads it: the scores and the lead edits."""
-    if rasik is None:
-        return "  (no raga consultation for this piece)"
-    s = rasik.scores
-    lines = [f"  scores: pakad {s.pakad}, idiom {s.idiom}, rasa {s.rasa} (1-5) — {rasik.notes}"]
-    lines += [f"  suggestion: section {x.section}: {x.change} ({x.why})" for x in rasik.suggestions]
-    if not rasik.suggestions:
-        lines.append("  (no lead edits suggested — the line already sounds like the raga)")
-    return "\n".join(lines)
-
-
-def judge_inputs(comp: Composition, arr: Arrangement,
-                 rasik: RasikVerdict | None = None) -> dict[str, Any]:
+def judge_inputs(comp: Composition, arr: Arrangement) -> dict[str, Any]:
     """The assess_composition prompt inputs — the whole symbolic score, the measured facts
-    (riff/melody friction included, as information), Rasik's raga consultation, and the user's
-    request the song is judged against."""
+    (riff/melody friction included, as information), and the user's request the song is judged
+    against. Rasik's notes are NOT here: the Producer judges first, on its own
+    (`crew/second_look.py` is where the two meet)."""
     return {
         "subgenre": SUBGENRES[arr.subgenre]["display"],
         "subgenre_facts": _render_subgenre(arr),
@@ -196,7 +184,6 @@ def judge_inputs(comp: Composition, arr: Arrangement,
                                             render_taan(comp, arr),
                                             render_alap(comp, arr)))),
         "friction": render_friction(coexistence_report(comp, arr)),
-        "consultation": _render_consultation(rasik),
         "user_request": render_request(arr.request),
         "output_schema": _RUBRIC_SCHEMA,
     }
@@ -212,14 +199,13 @@ class _ProducerCrew:
         self._agent_config = yaml.safe_load((config_dir / "agents.yaml").read_text())["producer"]
         self._task_config = yaml.safe_load((config_dir / "tasks.yaml").read_text())["assess_composition"]
 
-    def run(self, comp: Composition, arr: Arrangement,
-            rasik: RasikVerdict | None = None) -> ProducerVerdict:
+    def run(self, comp: Composition, arr: Arrangement) -> ProducerVerdict:
         agent = Agent(config=self._agent_config, llm=critic_llm(),
                       allow_delegation=False, max_iter=CRITIC_MAX_ITER,
                       max_retry_limit=AGENT_RETRY_LIMIT, verbose=False)
         task = Task(config=self._task_config, agent=agent, **structured_output(ProducerVerdict))
         crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
-        result = crew.kickoff(inputs=judge_inputs(comp, arr, rasik))
+        result = crew.kickoff(inputs=judge_inputs(comp, arr))
         verdict = _verdict_from_output(result)
         if verdict is None:
             raise ValueError("Producer returned no parseable ProducerVerdict")
@@ -228,7 +214,7 @@ class _ProducerCrew:
 
 # A judge provider: given the composition + its chart, return the Producer's verdict.
 # Injected so `assess` is tested with no LLM.
-type JudgeFn = Callable[[Composition, Arrangement, RasikVerdict | None], ProducerVerdict]
+type JudgeFn = Callable[[Composition, Arrangement], ProducerVerdict]
 
 
 class _LLMDirector:
@@ -237,9 +223,8 @@ class _LLMDirector:
     def __init__(self) -> None:
         self._crew = _ProducerCrew()
 
-    def __call__(self, comp: Composition, arr: Arrangement,
-                 rasik: RasikVerdict | None = None) -> ProducerVerdict:
-        return self._crew.run(comp, arr, rasik)
+    def __call__(self, comp: Composition, arr: Arrangement) -> ProducerVerdict:
+        return self._crew.run(comp, arr)
 
 
 # --------------------------------------------------------------------------- #
@@ -263,22 +248,21 @@ def _verdict_event(verdict: ProducerVerdict) -> DebateEvent:
               "plan": verdict.plan.model_dump() if verdict.plan else None})
 
 
-def assess(comp: Composition, arr: Arrangement, *, judge_fn: JudgeFn,
-           rasik: RasikVerdict | None = None) -> tuple[ProducerVerdict, list[DebateEvent]]:
+def assess(comp: Composition, arr: Arrangement, *, judge_fn: JudgeFn
+           ) -> tuple[ProducerVerdict, list[DebateEvent]]:
     """Judge a composition's craft on the fixed rubric and stream it as one CRITIQUE.
 
     The verdict IS the model's (songwriting quality is not checkable) — the shell only
     renders the score, wraps the result, and emits the event. `judge_fn` is injected so
     this plumbing is tested with no LLM."""
-    verdict = judge_fn(comp, arr, rasik)
+    verdict = judge_fn(comp, arr)
     return verdict, [_verdict_event(verdict)]
 
 
-def critique_composition(comp: Composition, arr: Arrangement, rasik: RasikVerdict | None = None
-                         ) -> tuple[ProducerVerdict, list[DebateEvent]]:
-    """Run the real (LLM-backed) Producer — the one judge with authority — on a composition,
-    its chart, and Rasik's raga consultation."""
-    return assess(comp, arr, judge_fn=_LLMDirector(), rasik=rasik)
+def critique_composition(comp: Composition, arr: Arrangement) -> tuple[ProducerVerdict, list[DebateEvent]]:
+    """Run the real (LLM-backed) Producer — the one judge with authority — on a composition and
+    its chart, on its own (Rasik's notes reach it afterwards, only if Rasik flags a problem)."""
+    return assess(comp, arr, judge_fn=_LLMDirector())
 
 
 # --------------------------------------------------------------------------- #

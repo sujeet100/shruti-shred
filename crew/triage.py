@@ -108,7 +108,8 @@ def _forced_physical(comp: Optional[Composition], arr: Optional[Arrangement]) ->
 def _producer_call(ustad: UstadVerdict, producer: ProducerVerdict) -> Call:
     if ustad.verdict == "illegal":                 # illegal, but only in a code-derived voice
         return None, [_decision_event(
-            "Ustad", None, "Illegal notes in a code-derived voice; nothing to regenerate — accepting.")]
+            "Ustad", None, "Illegal notes in a code-derived voice that no agent can rewrite — stopping; the "
+            "final check decides what ships.")]
     plan = producer.plan if producer.decision == "revise" else None
     text = (f"Revise the {plan.voice}: {plan.instruction}" if plan
             else "The Producer accepts the piece.")

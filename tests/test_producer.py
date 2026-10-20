@@ -27,16 +27,12 @@ from crew.contracts import (  # noqa: E402
     Note,
     ProducerScores,
     ProducerVerdict,
-    RasikScores,
-    RasikSuggestion,
-    RasikVerdict,
     RevisionPlan,
     Section,
     SectionKind,
     build_arrangement,
 )
 from crew.producer import (  # noqa: E402
-    _render_consultation,
     _render_ensemble,
     _render_riff_line,
     _render_sections,
@@ -158,18 +154,12 @@ def test_scores_are_bounded_1_to_5():
 
 
 
-def test_the_producer_reads_rasiks_consultation_and_the_friction():
-    # the one judge with authority sees the raga consultant's scores AND lead edits, and the
-    # riff/melody friction counts as information
-    rasik = RasikVerdict(scores=RasikScores(pakad=2, idiom=3, rasa=4), notes="pakad missing",
-                         suggestions=[RasikSuggestion(section=1, change="state the pakad",
-                                                      why="the raga's signature")])
-    block = _render_consultation(rasik)
-    assert "pakad 2" in block and "section 1: state the pakad" in block
-    inputs = judge_inputs(_comp(), _arr(), rasik)
-    assert inputs["consultation"] == block
+def test_the_producer_judges_without_rasik_and_reads_the_friction():
+    # the first pass is independent: no raga consultation in its inputs (it had been copying
+    # Rasik); the riff/melody friction counts arrive as information
+    inputs = judge_inputs(_comp(), _arr())
+    assert "consultation" not in inputs
     assert "friction" in inputs["friction"] and "section 0" in inputs["friction"]
-    assert "no raga consultation" in _render_consultation(None)
 
 
 def test_the_decision_and_plan_ride_the_critique_event():

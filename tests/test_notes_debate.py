@@ -134,6 +134,30 @@ def test_settle_keeps_only_the_rewrites_that_win_the_blind_comparison():
     assert settle(song, d, original, assemble, broken).composition is original   # the accepted song stands
 
 
+def test_two_winning_rewrites_are_heard_together_before_they_ship():
+    """The guitar rewrite is judged against the song WITH the sitar rewrite already in it, so the
+    combination that ships is one the comparison heard."""
+    from crew.contracts import Composition
+    from crew.notes_debate import settle
+    song = _song()
+    d = notes_debate(song, _players("revise", "keep", []), lambda s, name: name)
+    original = Composition(raga="original", bpm=120, tala={"name": "teentaal", "beats_per_bar": 16}, layers=[])
+    built = []
+
+    def assemble(s):
+        built.append(s)
+        return original.model_copy(update={"raga": f"v{len(built)}"})
+    drafts = []
+
+    def compare(draft, revision, arr):                     # every rewrite wins
+        drafts.append(draft.raga)
+        return True, []
+    settled = settle(song, d, original, assemble, compare)
+    assert settled.kept == {"sitar": True, "riff": True}
+    assert drafts == ["original", "v1"]                    # the guitar rewrite was judged against the sitar's
+    assert settled.composition.raga == "v2"                # and what ships is exactly what was heard
+
+
 def test_every_prompt_is_filled():
     import yaml
     config = yaml.safe_load((Path(__file__).resolve().parents[1] / "crew/config/notes_debate.yaml").read_text())

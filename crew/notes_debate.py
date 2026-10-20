@@ -19,7 +19,8 @@ guitar down" and the song went hollow. Here each player argues about notes, phra
     audio judges could not hear (TALK.md "The rehearsal's ears were not listening").
 
 In the PIPELINE (`debate_stage`, wired into the Flow's `finish` behind `RMA_NOTES_DEBATE`): the
-debate runs on the accepted song, and each final rewrite is kept only if it beats that song in the
+debate runs on the accepted song only when a reviewer named a concern it can fix
+(`crew/debate_trigger.py`, 2026-10-20), that concern is the players' brief, and each final rewrite is kept only if it beats that song in the
 blind both-orders comparison (`crew/compare.py`) — the Producer's champion rule. Its record against
 Sujit's ear before it went in: 2 better, 1 sidegrade, 1 neutral, 0 worse (TALK.md 2026-10-19).
 
@@ -345,29 +346,32 @@ class Settled:
 
 def settle(song: Song, d: Debate, original: Composition, assemble: Callable[[Song], Composition],
            compare: Compare) -> Settled:
-    """Each final rewrite against the accepted song, blind and in both orders (`compare`); the ones
-    that win are played together. A failed comparison keeps the original."""
-    candidates = {}
+    """The final rewrites are accepted ONE AT A TIME against the current champion — the sitar's
+    first, then the guitar's — each blind and in both orders (`compare`). A rewrite that wins
+    becomes the champion the next must beat, so the song that ships is always one the comparison
+    actually heard (two rewrites that each beat the original were never heard together before).
+    A failed comparison keeps the champion."""
+    steps: list[tuple[str, Callable[[Song], Song]]] = []
     if d.final_sitar is not None:
-        candidates["sitar"] = apply_sitar(song, d.sitar.part, d.final_sitar)
+        steps.append(("sitar", lambda s: apply_sitar(s, d.sitar.part, d.final_sitar)))
     if d.final_riff is not None:
-        candidates["riff"] = _with_riff(song, d.riff.section, d.final_riff)
+        steps.append(("riff", lambda s: _with_riff(s, d.riff.section, d.final_riff)))
+    champion, heard = song, original
     kept: dict[str, bool] = {}
     events: list[DebateEvent] = []
-    for name, candidate in candidates.items():
+    for name, rewrite in steps:
+        candidate = rewrite(champion)
         try:
-            kept[name], said = compare(original, assemble(candidate), song.arr)
-        except Exception as exc:  # noqa: BLE001 — LIVE SAFETY: the accepted song stands
+            candidate_heard = assemble(candidate)
+            kept[name], said = compare(heard, candidate_heard, song.arr)
+        except Exception as exc:  # noqa: BLE001 — LIVE SAFETY: the champion stands
             kept[name], said = False, [_event(EventType.INFO, "Band", f"the {name} comparison failed ({exc})")]
         events += said
-    final = song
-    if kept.get("sitar"):
-        final = apply_sitar(final, d.sitar.part, d.final_sitar)
-    if kept.get("riff"):
-        final = _with_riff(final, d.riff.section, d.final_riff)
+        if kept[name]:
+            champion, heard = candidate, candidate_heard
     verdict = ", ".join(f"the {k} rewrite {'kept' if v else 'not kept'}" for k, v in kept.items()) or "nothing to judge"
     events.append(_event(EventType.VERDICT, "Band", f"notes debate settled: {verdict}", {"notes_debate": kept}))
-    return Settled(final, original if final is song else assemble(final), kept, events)
+    return Settled(champion, heard, kept, events)
 
 
 def debate_events(song: Song, d: Debate) -> list[DebateEvent]:
@@ -391,11 +395,12 @@ def debate_events(song: Song, d: Debate) -> list[DebateEvent]:
 
 def debate_stage(arr: Arrangement, phrases: dict[int, LeadPhrase], fills: list[LeadPhrase],
                  rhythm: Optional[Layer], orchestra: list[Layer], composition: Composition, *,
-                 players: Callable[[Song], Players], assemble: Callable[[Song], Composition],
-                 compare: Compare) -> tuple[Composition, Arrangement, list[DebateEvent], Debate, Settled]:
-    """The Flow's notes-debate step: debate the accepted song, keep only the rewrites that beat it."""
+                 players: Callable[[Song, str], Players], assemble: Callable[[Song], Composition],
+                 compare: Compare, concern: str = "") -> tuple[Composition, Arrangement, list[DebateEvent], Debate, Settled]:
+    """The Flow's notes-debate step: debate the accepted song ABOUT `concern` (the reviewers' words
+    that called it), keep only the rewrites that beat it."""
     song = Song(arr, phrases, fills, rhythm, orchestra)
-    d = notes_debate(song, players(song), lambda s, name: None)        # no renders inside the pipeline
+    d = notes_debate(song, players(song, concern), lambda s, name: None)   # no renders inside the pipeline
     settled = settle(song, d, composition, assemble, compare)
     return settled.composition, settled.song.arr, debate_events(song, d) + settled.events, d, settled
 

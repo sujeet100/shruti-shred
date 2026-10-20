@@ -29,6 +29,9 @@ common: |
   Tempo {bpm} bpm, {tala}: one avartan = {cycle_beats} beats.
   WHAT THE USER ASKED FOR: {user_request}
 
+  WHY THIS DEBATE — what the reviewers heard in the song as it stands:
+  {concern}
+
   THE SONG AS IT STANDS — every section, the sitar's notes and the guitar's cycles:
   {piece}
 
@@ -46,8 +49,9 @@ tasks:
   propose_sitar:
     description: |
       You are the sitarist. {common}
-      Rewrite ONE part of YOUR sitar line where the music is weakest: the head (it returns at every
-      mukhada), the manjha, the antara or the outro. Write the new notes in full. The rewrite must
+      Rewrite ONE part of YOUR sitar line: where it answers the concern above, if the concern is about
+      the sitar; otherwise where the music is weakest. Choose the head (it returns at every mukhada),
+      the manjha, the antara or the outro. Write the new notes in full. The rewrite must
       fill exactly the same number of beats as the part it replaces, use only the raga's swaras in
       their legal direction, and come to rest where the raga rests. A new head keeps its first note
       (it sounds on every sam), stays one continuous sentence with no rest or chikari inside it, and
@@ -60,8 +64,9 @@ tasks:
   propose_riff:
     description: |
       You are the guitarist. {common}
-      Rewrite the riff of ONE section of YOUR guitar part where the music is weakest — choose from
-      sections {riff_sections} (a section marked "the same riff as" replays another and changes
+      Rewrite the riff of ONE section of YOUR guitar part: where it answers the concern above, if the
+      concern is about the guitar or how the two parts meet; otherwise where the music is weakest —
+      choose from sections {riff_sections} (a section marked "the same riff as" replays another and changes
       with it). Write the new cycles in full in the guitar notation, exactly as many cycles as the
       section has now, each filling exactly one avartan ({cycle_beats} beats), every root and chord
       tone legal in the raga, physically playable.

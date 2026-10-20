@@ -47,8 +47,10 @@ agents compose, critique, and revise live; the result renders to audio.
   Pandit⇄Riffsmith composers + per-voice generators.
 - **Critics:** **Ustad = CODE** (`validate_composition`; no LLM); **Rasik = raga consultant**
   (pakad/idiom/rasa scores + ≤3 lead-only suggestions); **Producer = the ONE judge with
-  authority** — reads the score, metrics, coexistence friction and Rasik's notes, then accepts or
-  returns ONE `RevisionPlan` (voice, sections, instruction, PRESERVE list). No debate, no
+  authority** — reads the score, metrics and coexistence friction, then accepts or returns ONE
+  `RevisionPlan` (voice, sections, instruction, PRESERVE list). Rasik and the Producer judge in
+  PARALLEL, blind to each other (2026-10-20: reading Rasik first, it copied Rasik in 30/36 plans);
+  they meet in `crew/second_look.py` only when the Producer accepts and Rasik flags a score ≤2. No debate, no
   Conductor, no Arranger (grinds between riff and sitar are KEPT — Sujit's ear).
 - **Triage + revise (`crew/triage.py`, `crew/revision.py`, pure):** an ILLEGAL piece is a forced
   revise of the offending voice; otherwise the Producer's plan stands. The revise is edit-based:
@@ -1141,6 +1143,32 @@ and build order.
   not the head; the alap rests on the head's first swara and never plays its opening figure (craft).
   Brief rewritten (`lead_roles.yaml` intro). Also: notes-debate guitar notation now says chord tones
   take no octave mark (prompt + parser error). 1364 pure tests. Live-untested.
+- **2026-10-20 — ACCEPTANCE IS A CHECK + INDEPENDENT REVIEWS (GPT's code review, verified):** (1) a
+  saved take (`Version`) carries its realized lead/riff material and restoring re-appends it, so a
+  rejected revision can't re-enter via the history (the notes debate read it); (2) the notes debate
+  accepts rewrites ONE AT A TIME against the current champion (`settle`), so the shipped combination
+  was heard; (3) stopping ≠ accepting: `state.outcome` = accepted | budget_exhausted |
+  validation_failed, and a final code gate (`Stages.validate`, Ustad's check) runs before render and
+  after the debate, falling back to the newest take that passed (none passed → render + report).
+  Rasik ∥ Producer fan-out, fan-in in `crew/second_look.py` (task `reconsider_with_rasik`). The notes
+  debate runs ONLY for a concern (`crew/debate_trigger.py`: the Producer scored independence/balance/
+  performance/hook ≤3 on the accepted take, or Rasik flagged the raga) and that concern is the
+  players' brief (`{concern}`); measured grinds are NOT a trigger (in every song; Sujit keeps them).
+  LIVE TIME BUDGET: env `RMA_BUDGET_S` (unset = studio, no limit); a revise round, the debate and the
+  listening pass start only while their reserve (`*_RESERVE_S` in config, estimates) fits. Blind
+  mukhada test (`talk/audio/mukhada_ab.py`): the Rhythm section's guitar beat Pandit's seed riff 3–2.
+  DRUM FEEL: the rhythm-section call names a `drum_feel` per section (verse/drive/climax/half,
+  `SectionPart.drum_feel`); `crew/groove.py` plays it over code's default, and `crew/dynamics.py`
+  takes a song-form section's energy from it (`crew/drum_feel.py`). INTRO PROMPT: the alap has its
+  own template `generate_intro` (no sam targets, song seed, stroke frame or canvas; phases in time;
+  an authoritative HANDOFF — the head's entry swara + held swaras, not its tune; rule status stated
+  as `check_intro` applies it; `form_role` still picks the medium tier). Every verified cell's RETRY
+  now carries the rejected take (`RetryFeedback`, its notes + badhat plan) beside the faults.
+  TAAN PROMPT: the long taan has its own template `generate_taan` (no rests/held arrivals/compound
+  strokes/sam block; exact window; rule status as `check_taan` applies it), and each section sees only
+  its own answer fields (`output_schema_for`: intro / taan / the full format for everything else).
+  Measured on real charts: intro prompt ~5.2k -> ~2.8k tokens, taan ~4.7k -> ~2.1k (TALK.md "One prompt
+  per job"). 1396 pure tests. Live-untested.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

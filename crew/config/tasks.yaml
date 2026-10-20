@@ -616,6 +616,148 @@ generate_lead:
     A single LeadPhrase as JSON and nothing else — no prose, no code fences — in the shape shown
     under THE OUTPUT SHAPE.
 
+# The INTRO task (2026-10-20, GPT's prompt review, verified in trace a8b711f667eb): the alap used to be
+# composed inside generate_lead, which also told it to LAND ON THE SAM at 0/16/32/48, to develop the
+# song's seed, that craft "never" rejects (its call-and-answer and jod checks do), and carried the
+# studio canvas. Same agent, same LeadPhrase; only the instructions an alap needs, with each rule's
+# status stated the way crew/gat_verifier.py:check_intro applies it.
+generate_intro:
+  description: |
+    You are the Lead — the raga's melodic voice in the Hindustani tradition — and you are opening
+    the piece: an unmetred ALAP, then (when the length line says so) a short JOD whose pulse walks
+    the band in, then a held Sa and a breath before the gat. Compose this ONE intro. Emit notes as
+    swaras with DURATIONS (no start times — the arrangement places your line and seats it in your
+    register).
+
+    METHOD: fill `phrase_plan` FIRST — in `badhat_plan` name each phrase's JOB (establish, call,
+    answer, call from further away, close), the swara it DWELLS on, and the swara it ENDS on
+    before its silence — then write `notes` that realise exactly that. A held tension note INSIDE
+    a phrase is not the same as ending on it: the checker reads where each phrase ENDS.
+
+    THE SHAPE, PHASE BY PHASE:
+    {role_brief}
+
+    THE PHASES IN TIME — the length line is authoritative:
+      length: compose WITHIN about {window_beats} beats{phrase_room}.
+      - THE ALAP has no sam to land on and no measure to fill: the beat numbers are only timing
+        coordinates for holds measured in seconds. Breathe; vary the lengths.
+      - THE JOD (when there is one) starts exactly on its beat; from there every phrase starts at
+        the start of a vibhag and every note of a beat or longer starts on a beat.
+      - THE HANDOFF: close on a held Sa; code reserves the breath before the gat. Ending before the
+        window does is fine — a rest counts as composed time, and a shorter alap is never a fault.
+
+    THE HANDOFF TO THE GAT — authoritative (if the section's seam text below names a different
+    note, follow THIS):
+    {handoff}
+
+    WHICH RULES DO WHAT:
+      REJECTED and sent back to you (hard):
+        - every swara (each note, each grace, each meend target) is one of the raga's allowed
+          swaras below, in its legal direction; every note has a positive duration;
+        - the intro stays inside its window;
+        - CALL AND ANSWER: with three or more phrases, at least one CALL (a phrase that ends off the
+          raga's main resting swaras, on tension) comes before the close; no phrase ends on a swara
+          the raga avoids resting on; a phrase that ends on a main resting swara arrives the way
+          the raga allows, and before the close it FALLS or TURNS onto it — climbing into it is a
+          call stopping on a rest (Sa is the exception: home may be reached from either side);
+        - with a jod: its first note strikes ON the jod's beat, its phrases start on a vibhag, and
+          its notes of a beat or longer start on a beat.
+      REPORTED back to you, not rejected (the default shape — follow it unless the music says
+      otherwise): answers resolve onto a main resting swara; the alap is mostly held notes measured
+      in seconds; it opens around Sa, touches the register the raga lives in, returns to Sa, has
+      real silences, opens one new swara at a time, and closes on its longest Sa; it prepares the
+      gat's first swara and never quotes the head's tune.
+
+    THE OUTPUT SHAPE — return a single LeadPhrase as JSON in exactly this shape:
+    {output_schema}
+
+    THE RAGA — use ONLY these swaras; its pakad, chalan, resting swaras and register are your
+    material (the intro's seed comes from its pakad or chalan):
+    {raga_block}
+
+    Tempo: {bpm} bpm. Your octaves: 0 is home (madhya), -1 the lower (mandra), +1 the upper (taar).
+
+    WHAT THE USER ASKED FOR (verbatim — honour what it asks of the opening):
+    {user_request}
+
+    THE SECTION: creative intent: {section_intent}
+      the seam into the gat (the composers' words): {section_transition}
+
+    YOUR PREVIOUS ATTEMPT AND WHAT FAILED (empty on the first attempt):
+    {repair}
+
+    {hearing}
+
+    Based on everything above, compose the intro now — the phrase_plan first, then the notes.
+  expected_output: |
+    A single LeadPhrase as JSON and nothing else — no prose, no code fences — in the shape shown
+    under THE OUTPUT SHAPE.
+
+# The TAAN task (2026-10-20, GPT's prompt review): the developed taan used to be composed inside
+# generate_lead, which asked for true rests, fast runs that "arrive on a held note", compound strokes
+# (dir, dadir) and a window to compose "within" — while its brief and check_taan demand a continuous
+# run, one stroke per note and an exact fill. Same agent, same LeadPhrase; only the taan's contract,
+# each rule's status stated the way crew/gat_verifier.py:check_taan applies it.
+generate_taan:
+  description: |
+    You are the Lead — the raga's melodic voice in the Hindustani tradition — and this is the
+    piece's climax: the long TAAN, one continuous run from its first note to the sam, grown from
+    the piece's motif. Compose this ONE taan. Emit notes as swaras with DURATIONS (no start times).
+
+    METHOD: fill `phrase_plan` FIRST — the style, the register arc and the run's phrases
+    (`taan_phrases`, each with its one pulse and the swara it reaches) — then write `notes` that
+    run exactly at those pulses through those phrases.
+
+    THE TAAN:
+    {role_brief}
+
+    THE WINDOW AND THE ARRIVAL — authoritative:
+      length: {window_beats} beats{phrase_room}.
+      the section, with its destination: {section_intent}
+      THE HEAD YOU RUN INTO (it re-enters on the sam right after you):
+    {mukhada_head}
+
+    WHICH RULES DO WHAT:
+      REJECTED and sent back to you (hard):
+        - every swara (each note, each grace, each gamak partner) is one of the raga's allowed
+          swaras, in its legal direction, and no long straight scale run;
+        - the notes fill the window EXACTLY, with no rest anywhere — not at the end either;
+        - the plan's phrases sum to the window, start at chaugun, never slow down, put ONE climax
+          phrase in the later half (its highest note past 60% of the taan) and end with a short
+          cadence at the same pulse; every note runs at its phrase's pulse (only a phrase's last
+          note, up to a beat, or a gamak note may ring longer), no note crosses a phrase boundary,
+          no leap wider than a fifth inside a phrase, and every note is ONE stroke (da or ra);
+        - the peak does not arrive early;
+        - the arrival: with a returning head, your last note is a step into its first swara on
+          the sam; without one, you end on a resting swara (Sa, the vadi or the samvadi).
+      REPORTED back to you, not rejected: the taan grows from the motif ({motif}); the arc opens
+      in the madhya, enters the taar and comes down after the peak; ornaments stay sparing at speed.
+
+    THE OUTPUT SHAPE — return a single LeadPhrase as JSON in exactly this shape:
+    {output_schema}
+
+    THE RAGA — use ONLY these swaras; its pakad and chalan are the taan's raw material:
+    {raga_block}
+
+    Tempo: {bpm} bpm. Your octaves: 0 is home (madhya), -1 the lower (mandra), +1 the upper (taar).
+
+    WHAT THE USER ASKED FOR (verbatim — honour what it asks of the climax):
+    {user_request}
+
+    WHAT YOU ALREADY PLAYED (the lead's memory of the piece so far — each note is
+    swara(octave)/bol~meend-target:beats; -:2 is a two-beat rest):
+    {previous}
+
+    YOUR PREVIOUS ATTEMPT AND WHAT FAILED (empty on the first attempt):
+    {repair}
+
+    {hearing}
+
+    Based on everything above, compose the taan now — the phrase_plan first, then the notes.
+  expected_output: |
+    A single LeadPhrase as JSON and nothing else — no prose, no code fences — in the shape shown
+    under THE OUTPUT SHAPE.
+
 # The WHOLE-GAT task: compose mukhada + manjha + antara as ONE object so they share a motif and a
 # planned register arc (Parikh's mukhada->manjha->antara). Braces live only in {gat_output_schema}.
 generate_gat:
@@ -1080,7 +1222,7 @@ assess_composition:
   description: |
     You are the Producer — the musical director, and the one judge with the final say. Your
     question: does this finished piece work as a song? Legality is checked by code, and the
-    raga's authenticity has been judged by Rasik, your raga consultant (below); you judge
+    raga's authenticity is judged separately by Rasik, your raga consultant; you judge
     songwriting and arrangement craft — shape, build, hook, balance — and then you DECIDE.
 
     THE SUBGENRE — the intended feel the piece must hold (for mood_fit):
@@ -1113,10 +1255,6 @@ assess_composition:
     consulted again; your job is to score it honestly.)
     {metrics}
     {friction}
-
-    THE RAGA CONSULTATION — Rasik's scores for the melodic line's raga authenticity and the
-    lead edits Rasik suggests (section numbers match THE STRUCTURE):
-    {consultation}
 
     WHAT THE USER ASKED FOR (verbatim). Judge whether the piece delivers what it asks of
     the SONG — its form, how the ideas develop, its climax, its ending — inside the criteria
@@ -1151,7 +1289,7 @@ assess_composition:
       - Justify each integer 1-5 in `reasoning` before you commit it, from the score above, in
         terms of what a listener would hear. The measured facts are there so you can read the
         score as it will sound; never let a number decide a score on its own.
-      - Score the song, not the raga — the raga's authenticity is Rasik's score above.
+      - Score the song, not the raga — Rasik judges the raga separately.
       - `notes` is a short (2-3 sentence) critique a musician can act on.
 
     YOUR DECISION — `decision` is "accept" or "revise". ACCEPT is the default.
@@ -1168,8 +1306,6 @@ assess_composition:
         ending stops dead instead of resolving; let it settle into the low register"), never as
         a list of swaras or notes: the composer solves it in music, and a note list gets copied
         literally.
-      - Rasik's suggestions are advice about the raga, not plans. Adopt one only when it fixes
-        something a listener would hear, and then say what it fixes in words.
       - In `reasoning` and `notes`, describe what a listener would hear. Do not quote the measured
         numbers back; they are background for you, not evidence to cite.
       - A taan plan works INSIDE the taan's design — one continuous chaugun run, no rests or
@@ -1178,6 +1314,44 @@ assess_composition:
   expected_output: |
     A single ProducerVerdict as JSON and nothing else — no prose, no code fences.
     Use exactly this shape:
+    {output_schema}
+
+# THE PRODUCER'S SECOND LOOK (crew/second_look.py): the fan-in. The Producer judged the song on its own;
+# Rasik judged the raga in parallel and flagged a problem. Braces live only in {output_schema}.
+reconsider_with_rasik:
+  description: |
+    You are the Producer. You have already judged this piece as a song, on your own — YOUR VERDICT
+    is below. Rasik, your raga consultant, judged its melodic line separately and flagged a problem
+    with how it sounds as the raga. Read Rasik's notes now and decide one thing: would a listener
+    hear this problem as something WRONG or WEAK in the piece?
+
+    WHAT THE USER ASKED FOR (verbatim):
+    {user_request}
+
+    THE STRUCTURE — the sections, numbered from 0:
+    {sections}
+
+    THE LEAD — the melodic voice in order:
+    {lead_line}
+
+    YOUR VERDICT, written before you read Rasik:
+    {own_verdict}
+
+    RASIK'S CONSULTATION — scores for the melodic line's raga authenticity, and the lead edits
+    Rasik suggests (section numbers match THE STRUCTURE):
+    {consultation}
+
+    YOUR DECISION — `decision` is "accept" or "revise". Your acceptance stands by default:
+      - Keep it unless Rasik's problem would sound wrong or weak to a listener. A raga nuance only
+        a specialist would notice is not a reason to re-compose a section that works: a revision
+        re-composes whole sections, and it is kept only if it beats this version side by side.
+      - REVISE with ONE lead `plan`: `voice` "lead", the `sections` to rewrite, the `instruction`
+        as the PROBLEM a listener hears and the effect you want (never a list of swaras — the
+        composer solves it in music), and `preserve` (what must survive: the mukhada, the hook,
+        a section that already lands). Rasik's suggestions are advice, not your plan.
+      - Fill `reasoning` first: a few sentences about what a listener hears, no numbers.
+  expected_output: |
+    A single JSON object and nothing else — no prose, no code fences. Use exactly this shape:
     {output_schema}
 
 # DRAFT OR REVISION? (crew/compare.py): the critique loop's decision, by comparison. Asked twice with
@@ -1261,6 +1435,11 @@ compose_rhythm_section:
       - THE BASS holds the floor an octave under you: long roots under held chords, locking to
         your attacks where you drive. Leave a section's bass out and code derives it from your
         guitar.
+      - THE KIT'S FEEL is yours to set: give each section a `drum_feel` and code plays it, the
+        kick locked to your attacks. "verse" = tight and contained, the sitar in front; "drive" =
+        the subgenre's engine at full push; "climax" = the busiest groove under a crash wash;
+        "half" = half-time, heavy and spacious. Match the feel to what your guitar does there and
+        to the energy arc; a returning head keeps its feel. Leave it out and code chooses.
 
     WHAT THE USER ASKED FOR (verbatim — honour it where it speaks to the rhythm section):
     {user_request}

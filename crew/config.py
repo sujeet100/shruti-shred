@@ -35,6 +35,25 @@ MAX_ROUNDS: int = 2
 # only if it wins a both-orders comparison (crew/compare.py). Code-forced fixes keep MAX_ROUNDS.
 MAX_JUDGE_ROUNDS: int = 1
 
+# THE LIVE TIME BUDGET (2026-10-20, GPT's code review): the round cap counts revise rounds only —
+# retries, comparisons, the second look and the notes debate all run outside it. With a budget set
+# (`run_budget_s`), each optional stage starts only while its reserve still fits in the time left.
+# The reserves are ESTIMATES of each stage's wall-clock; calibrate them from traces.
+REVISE_RESERVE_S: float = 240.0     # one revise round: regenerate + re-critique (+ a comparison)
+DEBATE_RESERVE_S: float = 360.0     # the notes debate: ~8-12 calls across two models + comparisons
+LISTEN_RESERVE_S: float = 120.0     # the advisory listening pass
+
+
+def run_budget_s() -> float | None:
+    """The whole run's wall-clock budget in seconds; env `RMA_BUDGET_S`. Unset (or not a positive
+    number) = the STUDIO configuration, no limit; set it for a LIVE slot (e.g. 720)."""
+    try:
+        value = float(os.getenv("RMA_BUDGET_S", ""))
+    except ValueError:
+        return None
+    return value if value > 0 else None
+
+
 # The composer dialogue's clock: how many turn-by-turn exchanges Pandit and
 # Riffsmith get before we stop (they may stop earlier by agreeing). The bounded
 # loop — not organic consensus — is what guarantees termination on stage.
@@ -296,7 +315,8 @@ def notes_debate_enabled() -> bool:
     critique each other, revise; a rewrite is kept only if it wins the blind both-orders comparison
     (crew/notes_debate.py). Env `RMA_NOTES_DEBATE`, default ON (Sujit, 2026-10-19: "run it in
     pipeline" after 2 better / 1 sidegrade / 1 neutral / 0 worse by ear). Costs ~8-12 calls; 0 turns
-    it off (e.g. for a live demo's latency)."""
+    it off (e.g. for a live demo's latency). Since 2026-10-20 it runs only when a reviewer raised a
+    concern it can fix (crew/debate_trigger.py) and while the live budget allows."""
     return _env_flag_on("RMA_NOTES_DEBATE")
 
 

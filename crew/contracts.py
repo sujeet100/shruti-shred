@@ -1439,6 +1439,12 @@ class RiffPattern(BaseModel):
     notes: list[RiffNote] = Field(min_length=1)
 
 
+# The kit's FEEL for a section, chosen by the rhythm-section call and played by code (crew/groove.py):
+# verse = tight and contained under the sitar; drive = the subgenre's engine at full push; climax =
+# the busiest groove under a crash wash; half = half-time, heavy and spacious. (2026-10-20.)
+DrumFeel = Literal["verse", "drive", "climax", "half"]
+
+
 class SectionPart(BaseModel):
     """The rhythm section's part for ONE section of the chart — written by the rhythm-section call
     AFTER the sitar line exists, seeing it note by note (`crew/rhythm_section.py`).
@@ -1454,6 +1460,7 @@ class SectionPart(BaseModel):
     same_as: Optional[int] = None
     guitar: list[list[RiffNote]] = Field(default_factory=list)
     bass: list[list[RiffNote]] = Field(default_factory=list)
+    drum_feel: Optional[DrumFeel] = None     # the kit's feel here (None = code's default for the section)
 
 
 class RhythmSection(BaseModel):
@@ -1476,6 +1483,7 @@ class SectionPartDraft(BaseModel):
     same_as: Optional[int] = None
     guitar: list[str] = Field(default_factory=list)
     bass: list[str] = Field(default_factory=list)
+    drum_feel: Optional[DrumFeel] = None
 
 
 class RhythmSectionDraft(BaseModel):
@@ -1806,6 +1814,16 @@ class ProducerVerdict(BaseModel):
     reasoning: str = ""
     scores: ProducerScores
     notes: str = ""
+    decision: Literal["accept", "revise"] = "accept"
+    plan: Optional[RevisionPlan] = None
+
+
+class ProducerSecondLook(BaseModel):
+    """The Producer's SECOND look — the fan-in (2026-10-20). It judges the song first WITHOUT Rasik's
+    notes (it had been copying them: 30 of 36 plans), and reads them only when Rasik flags a raga
+    problem, to decide whether a listener would hear it. `reasoning` first; `decision` and `plan`
+    replace the first pass's, the first pass's scores stand."""
+    reasoning: str = ""
     decision: Literal["accept", "revise"] = "accept"
     plan: Optional[RevisionPlan] = None
 

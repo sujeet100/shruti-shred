@@ -65,6 +65,15 @@ def realized_lead(events: list[DebateEvent]) -> KeptLead | None:
                     fills=[LeadPhrase.model_validate(f) for f in data.get("fills", [])])
 
 
+def latest_realized_events(events: list[DebateEvent]) -> list[DebateEvent]:
+    """The events holding the LATEST realized lead and riff material, in that order (absent ones
+    skipped). A saved take keeps these, and restoring the take re-appends them, so the newest
+    realized material in the history is always the take that is actually playing. Pure."""
+    latest = (next((e for e in reversed(events) if (e.data or {}).get(key) is not None), None)
+              for key in (REALIZED_LEAD_KEY, REALIZED_RIFF_KEY))
+    return [e for e in latest if e is not None]
+
+
 def realized_riffs(events: list[DebateEvent]) -> dict[str, RiffPattern] | None:
     """The LATEST riff pass's slot library, or None when no pass has published one. Pure."""
     data = _latest(events, REALIZED_RIFF_KEY)

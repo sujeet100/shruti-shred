@@ -173,18 +173,19 @@ def test_the_notes_debate_runs_before_the_render_and_its_song_is_rendered():
     arr = _arr().model_copy(update={"rhythm_section": rs})
     head = LeadPhrase(phrase_plan=PhrasePlan(seed=["S"], contour="arch", transformations=["repeat"],
                                              climax_and_sam="Sa"), notes=[LeadNote(swara="S", dur=16.0)])
-    debated = _comp().model_copy(update={"raga": "debated"})
+    debated = _comp().model_copy(update={"bpm": 121})          # a real raga: the final code check runs on it
 
-    def debate(arr_, kept, rhythm, orchestra, comp):
-        seen["phrases"] = sorted(kept.phrases)
+    def debate(arr_, kept, rhythm, orchestra, comp, concern):
+        seen["phrases"], seen["concern"] = sorted(kept.phrases), concern
         return debated, arr_, [_ev("debate")]
     stages = dataclasses.replace(
         stages, compose=lambda brief: (arr, [_ev("compose")]),
         generate=lambda a: ([Layer(role="lead")], Layer(role="rhythm"), [],
                             [lead_realized_event({0: head}, [])], []),
-        render=lambda comp: rendered.append(comp.raga) or "out/fake.wav", debate=debate)
+        render=lambda comp: rendered.append(comp.bpm) or "out/fake.wav", debate=debate)
     state = compose_flow("q", stages=stages)
-    assert seen["phrases"] == [0] and rendered == ["debated"] and any(e.agent == "debate" for e in state.events)
+    assert seen["phrases"] == [0] and rendered == [121] and any(e.agent == "debate" for e in state.events)
+    assert "independence" in seen["concern"]          # the fakes' Producer scores 3: the concern is the brief
 
 
 def test_query_is_seeded_into_state():
@@ -489,6 +490,146 @@ def test_every_compare_placeholder_is_supplied():
     task = yaml.safe_load((Path(__file__).resolve().parents[1] / "crew" / "config" / "tasks.yaml").read_text())["compare_versions"]
     wanted = set(re.findall(r"\{([a-z_]+)\}", task["description"] + task["expected_output"]))
     assert wanted <= set(compare_inputs(_comp(), _comp(), _arr()))
+
+
+# --- the accepted take is the whole truth; stopping is not accepting (2026-10-20, GPT's code review) -----
+
+def _phrase(swara: str):
+    from crew.contracts import LeadNote, LeadPhrase, PhrasePlan
+    return LeadPhrase(phrase_plan=PhrasePlan(seed=[swara], contour="arch", transformations=["repeat"],
+                                             climax_and_sam="sam"), notes=[LeadNote(swara=swara, dur=1.0)])
+
+
+def test_a_losing_revision_takes_its_realized_material_with_it():
+    """The notes debate (and any later revise) reads the newest realized lead from the history; after
+    a revision loses, that must be the champion's, not the rejected one's."""
+    from crew.realized import lead_realized_event, realized_lead
+    counts: dict = {}
+    stages = _judged_stages(counts, keep=False)
+    draft, rejected = lead_realized_event({0: _phrase("S")}, []), lead_realized_event({0: _phrase("g")}, [])
+
+    def generate(arr):
+        return [Layer(role="lead")], Layer(role="rhythm"), [], [_ev("generate"), draft], []
+
+    def regenerate(_arr, lead, rhythm, orchestra, plan, canvases, history=()):
+        counts["regenerate"] = counts.get("regenerate", 0) + 1
+        return lead, rhythm, orchestra, [rejected], canvases
+    state = compose_flow("q", stages=dataclasses.replace(stages, generate=generate, regenerate=regenerate))
+    assert counts["rendered_take"] == 0.0                                    # the draft ships...
+    assert realized_lead(state.events).phrases[0].notes[0].swara == "S"      # ...and its material is the latest
+    assert any(e is rejected for e in state.events)                          # the rejected one stays in the audit trail
+
+
+def _illegal_after_draft(counts: dict, *, valid):
+    """Every take after the draft is illegal; code keeps forcing a revise until the cap."""
+    stages = _judged_stages(counts, keep=None, forced=True)
+
+    def critique(comp, _arr):
+        legal = comp.layers[0].notes[0].start == 0.0
+        return (UstadVerdict(verdict="legal" if legal else "illegal", explanation="x"),
+                RasikVerdict(scores=RasikScores(pakad=3, idiom=3, rasa=3)),
+                ProducerVerdict(scores=ProducerScores(structure=3, dynamics=3, climax=3, motif=3, hook=3, balance=3,
+                                                      independence=3, mood_fit=3, repetition=3, performance=3)),
+                [_ev("critique")])
+    return dataclasses.replace(stages, critique=critique, validate=valid)
+
+
+def test_the_cap_never_ships_a_version_that_fails_the_code_check():
+    counts: dict = {}
+    stages = _illegal_after_draft(counts, valid=lambda comp: comp.layers[0].notes[0].start == 0.0)
+    state = compose_flow("q", stages=stages, max_rounds=2)
+    assert counts["regenerate"] == 2                                         # the cap still stops it
+    assert counts["rendered_take"] == 0.0                                    # the last take that passed ships
+    assert state.outcome == "budget_exhausted"
+    assert any("failed the code check" in e.text for e in state.events)
+
+
+def test_with_nothing_valid_the_run_reports_failure_and_still_renders():
+    counts: dict = {}
+    stages = _illegal_after_draft(counts, valid=lambda comp: False)
+    stages = dataclasses.replace(stages, critique=lambda c, a: (
+        UstadVerdict(verdict="illegal", explanation="x"), RasikVerdict(scores=RasikScores(pakad=3, idiom=3, rasa=3)),
+        ProducerVerdict(scores=ProducerScores(structure=3, dynamics=3, climax=3, motif=3, hook=3, balance=3,
+                                              independence=3, mood_fit=3, repetition=3, performance=3)), []))
+    state = compose_flow("q", stages=stages, max_rounds=1)
+    assert state.outcome == "validation_failed" and "rendered_take" in counts     # reported, and the stage has audio
+
+
+def test_an_accept_is_reported_as_accepted():
+    state = compose_flow("q", stages=_fake_stages([_accept()], counts={}), max_rounds=2)
+    assert state.outcome == "accepted"
+
+
+def test_a_debate_result_that_fails_the_code_check_is_reverted():
+    from crew.contracts import RhythmSection, SectionPart
+    from crew.realized import lead_realized_event
+    counts: dict = {}
+    stages = _fake_stages([_accept()], counts=counts)
+    arr = _arr().model_copy(update={"rhythm_section": RhythmSection(parts=[SectionPart(section=0)])})
+    accepted = _comp()
+    bad = accepted.model_copy(update={"bpm": 99})
+
+    def debate(arr, kept, rhythm, orchestra, comp, concern):
+        return bad, arr, [_ev("debate")]
+
+    def render(comp):
+        counts["rendered"] = comp
+        return "out/fake.wav"
+    stages = dataclasses.replace(
+        stages, compose=lambda brief: (arr, [_ev("compose")]),
+        generate=lambda a: ([Layer(role="lead")], Layer(role="rhythm"), [],
+                            [lead_realized_event({0: _phrase("S")}, [])], []),
+        debate=debate, render=render, validate=lambda comp: comp.bpm != 99)
+    state = compose_flow("q", stages=stages)
+    assert counts["rendered"].bpm == 120                                     # the accepted song stands
+    assert any("notes debate's result failed" in e.text for e in state.events)
+
+
+# --- the notes debate needs a concern; the live run has a time budget (2026-10-20) -----------------
+
+def _debate_ready(counts: dict, **extra):
+    """An accepting run whose song has everything the notes debate needs."""
+    from crew.contracts import RhythmSection, SectionPart
+    from crew.realized import lead_realized_event
+    stages = _fake_stages([_accept()], counts=counts)
+    arr = _arr().model_copy(update={"rhythm_section": RhythmSection(parts=[SectionPart(section=0)])})
+
+    def debate(*args):
+        counts["debated"] = counts.get("debated", 0) + 1
+        return args[4], args[0], [_ev("debate")]
+    return dataclasses.replace(
+        stages, compose=lambda brief: (arr, [_ev("compose")]),
+        generate=lambda a: ([Layer(role="lead")], Layer(role="rhythm"), [],
+                            [lead_realized_event({0: _phrase("S")}, [])], []),
+        debate=debate, **extra)
+
+
+def test_without_a_concern_the_notes_debate_does_not_run():
+    counts: dict = {}
+    state = compose_flow("q", stages=_debate_ready(counts, concerns=lambda p, r: []))
+    assert "debated" not in counts and counts["render"] == 1
+    assert any("Notes debate not needed" in e.text for e in state.events)
+
+
+def test_the_time_budget_stops_revising_and_skips_the_debate():
+    from crew.config import DEBATE_RESERVE_S, REVISE_RESERVE_S
+    counts: dict = {}
+    ticks = iter([0.0, *([REVISE_RESERVE_S] * 50)])                 # the run starts, then most of it is spent
+    budget = REVISE_RESERVE_S + min(REVISE_RESERVE_S, DEBATE_RESERVE_S) - 1
+    stages = _debate_ready(counts, clock=lambda: next(ticks))
+    stages = dataclasses.replace(stages, decide=lambda *a: (_revise(), [_ev("decide")]))
+    state = compose_flow("q", stages=stages, max_rounds=3, budget_s=budget)
+    assert counts.get("regenerate", 0) == 0                          # no time for a revision...
+    assert "debated" not in counts                                   # ...or the debate
+    assert state.outcome == "budget_exhausted" and counts["render"] == 1
+    assert any("Time budget" in e.text for e in state.events)
+
+
+def test_the_studio_has_no_time_limit():
+    counts: dict = {}
+    clock = iter(float(t) for t in range(0, 10**6, 10**4))          # time races; nothing is skipped
+    compose_flow("q", stages=_debate_ready(counts, clock=lambda: next(clock)))
+    assert counts.get("debated") == 1
 
 
 if __name__ == "__main__":

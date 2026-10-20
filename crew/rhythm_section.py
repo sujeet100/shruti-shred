@@ -159,7 +159,7 @@ def from_draft(draft: RhythmSectionDraft) -> tuple[RhythmSection | None, list[st
                     faults.append(f"section {draft_part.section} {voice} cycle {i}: {exc}")
             voices[voice] = cycles
         parts.append(SectionPart(section=draft_part.section, role=draft_part.role,
-                                 same_as=draft_part.same_as, **voices))
+                                 same_as=draft_part.same_as, drum_feel=draft_part.drum_feel, **voices))
     if faults:
         return None, faults
     return RhythmSection(reasoning=draft.reasoning, parts=parts), []
