@@ -66,10 +66,11 @@ def test_a_short_komal_ga_is_reported_too_short_to_sway():
     assert "0 sway" in report
 
 
-def test_a_held_komal_dha_after_ni_takes_its_kan_and_sways():
+def test_a_held_komal_dha_after_ni_sways_without_a_kan_into_it():
     arr = _arr()
     report = hear(_notes(("S", 1), ("n", 1), ("d", 2), ("P", 2)), section_spans(arr)[0], arr)
-    assert _line_for(report, 2.0).endswith("kan from n, then sways toward P")
+    line = _line_for(report, 2.0)
+    assert line.endswith("sways toward P") and "kan" not in line     # no kan into a sway (Sujit, 2026-10-20)
     assert "1 sway" in report
 
 

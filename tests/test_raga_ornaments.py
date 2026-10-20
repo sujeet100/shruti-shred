@@ -110,10 +110,11 @@ def test_the_old_bageshree_sway_is_caught_dwelling_on_shuddha_ga():
     assert "foreign_dwell" in _audit("bageshree", [old])
 
 
-def test_a_semitone_neighbour_keeps_its_periphery_sway():
-    # Darbari was approved by ear: nothing lies between its g/d and the neighbour below
+def test_darbari_sways_25_cents_toward_its_semitone_neighbour():
+    # Sujit's blind A/B (2026-10-20) chose 25 cents over the 50 the code drew; van der Meer & Rao's
+    # measured dha region is ~25 cents
     for raga, sw in (("darbari", "g"), ("darbari", "d")):
-        assert andolan_turn_st(raga, sw) == -0.5, (raga, sw)
+        assert andolan_turn_st(raga, sw) == -0.25, (raga, sw)
 
 
 # --- Bhairav (2026-10-18): the sway lives inside the swara, approached from above, in descent ----
@@ -166,7 +167,7 @@ def test_bageshree_ga_where_the_phrase_rests_keeps_a_shallow_sway():
     line = _alap([_n("S", 0, 2), _n("g", 2, 3, andolan=True), _n("R", 6, 1), _n("S", 7, 2)],
                  "bageshree")
     assert line[1].andolan and line[1].andolan_st == ANDOLAN_SHALLOW_ST
-    assert line[1].grace == ["m"]                 # "(m)g": coloured from Ma above
+    assert line[1].grace is None                  # no kan into a sway (Sujit, 2026-10-20) — FLAG in raga.py
 
 
 def test_the_corrected_bageshree_alap_passes_the_audit():
@@ -195,10 +196,28 @@ def test_a_slow_meend_crosses_foreign_pitches_without_dwelling():
 def test_darbari_alap_keeps_its_sway_and_the_gat_keeps_guruji_gestures():
     alap = _alap([_n("R", 0, 1), _n("g", 1, 3, andolan=True), _n("R", 4, 1), _n("S", 5, 2)],
                  "darbari")
-    assert alap[1].andolan and alap[1].andolan_st == -0.5 and alap[1].pitch_path is None
+    assert alap[1].andolan and alap[1].andolan_st == -0.25 and alap[1].pitch_path is None
     gat = _gat([_n("S", 0, 1), _n("g", 1, 2, andolan=True)], "darbari")
     assert gat[1].gesture == GA_MA_LOOP.name     # measured in a gat, played only in one
     assert gesture_for("darbari", "g", "S", alap=True) is None
+
+
+# --- no kan into a sway; a kan on its own stays (Sujit, 2026-10-20) --------------------------------
+
+def test_a_kan_stays_on_a_note_that_does_not_sway():
+    line = _alap([_n("S", 0, 1), _n("m", 1, 2), _n("g", 3, 0.5), _n("R", 3.5, 2)], "darbari")
+    swaying = [n for n in line if n.andolan]
+    assert not any(n.grace for n in swaying)
+    from crew.expression import without_kan_into_sway
+    plain = _n("m", 0, 2).model_copy(update={"grace": ["P"]})
+    assert without_kan_into_sway([plain], "darbari", 64)[0].grace == ["P"]
+
+
+def test_bhairav_keeps_the_kan_its_sources_put_into_the_sway():
+    from crew.expression import without_kan_into_sway
+    held = _n("r", 0, 3, andolan=True).model_copy(update={"grace": ["G"], "andolan_st": 0.2})
+    assert without_kan_into_sway([held], "bhairav", 64)[0].grace == ["G"]
+    assert without_kan_into_sway([held], "darbari", 64)[0].grace is None
 
 
 # --- ragas with other ornament traditions stay plain where they have no sway ---------------

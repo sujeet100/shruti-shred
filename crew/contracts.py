@@ -1233,7 +1233,7 @@ class HeadStage(BaseModel):
 
 
 TAAN_PHRASE_ROLES: Final = ("statement", "build", "climax", "cadence")
-TAAN_SUBDIVISIONS: Final = (2, 3, 4, 6)   # notes per matra: dugun, tigun, chaugun, chhagun
+TAAN_SUBDIVISIONS: Final = (2, 3, 4, 6, 8)   # notes per matra: dugun, tigun, chaugun, chhagun, athgun
 
 
 class TaanPhrase(BaseModel):
@@ -1241,12 +1241,13 @@ class TaanPhrase(BaseModel):
     alternated fast clusters with held notes at random, so it read as disconnected phrases). A
     taan flows at ONE pulse per phrase and changes speed deliberately, at a phrase boundary — so
     the plan names each phrase's job, its length, its pulse and how high it reaches, in order:
-    a statement of the motif launched straight at chaugun, builds that widen the range, ONE climax
+    a statement of the motif launched straight at the tempo's base pulse (`gat_verifier.taan_pulse`),
+    builds that widen the range, ONE climax
     in the later part, and a cadence that keeps the momentum into the sam. `gat_verifier.check_taan` holds the notes to
     it. Lenient like the rest of the plan: a stray role or pulse is kept and reported there."""
     role: str                                 # statement / build / climax / cadence
     beats: float                              # the phrase's length, in whole matras
-    subdivision: int                          # its pulse, notes per matra (4 chaugun, 6 chhagun)
+    subdivision: int                          # its pulse, notes per matra (4 chaugun, 6 chhagun, 8 athgun)
     reach: Optional[str] = None               # the highest swara it climbs to...
     reach_oct: Optional[int] = None           # ...and that swara's octave (0 madhya, +1 taar)
 

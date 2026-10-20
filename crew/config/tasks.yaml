@@ -722,7 +722,7 @@ generate_taan:
         - every swara (each note, each grace, each gamak partner) is one of the raga's allowed
           swaras, in its legal direction, and no long straight scale run;
         - the notes fill the window EXACTLY, with no rest anywhere — not at the end either;
-        - the plan's phrases sum to the window, start at chaugun, never slow down, put ONE climax
+        - the plan's phrases sum to the window, start at the base pulse, never slow down, put ONE climax
           phrase in the later half (its highest note past 60% of the taan) and end with a short
           cadence at the same pulse; every note runs at its phrase's pulse (only a phrase's last
           note, up to a beat, or a gamak note may ring longer), no note crosses a phrase boundary,

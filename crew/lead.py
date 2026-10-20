@@ -85,6 +85,7 @@ from crew.head_brief import core_idea_header, motif_line, motif_value
 from crew.head_revision import HeadReviser, LLMHeadReviser, revise_head_once
 from crew.agentic_composer import agentic_brief, check_tools, checking, checking_gat, gat_check_tools
 from crew.gat_verifier import (
+    taan_pulse,
     CellChecks,
     check_amad,
     check_antara,
@@ -363,8 +364,8 @@ _TAAN_SCHEMA: Final = """{
 (Format only — every musical choice is yours: a filled-in example gets copied.)
 """ + _CORE_NOTES + """ "taan_phrases" are the run's phrases in order: each phrase's beats are whole matras
 and together sum exactly to the window; "subdivision" is its ONE pulse in notes per matra — 4
-(chaugun, 0.25-beat notes) from the first phrase, 6 (chhagun) only to quicken near the climax,
-never slower; "reach"/"reach_oct" the highest swara the phrase climbs to. Each note is ONE stroke,
+the base pulse the length line names, from the first phrase; one step faster only near the
+climax, never slower; "reach"/"reach_oct" the highest swara the phrase climbs to. Each note is ONE stroke,
 "da" or "ra", alternating — never a compound bol. Optional per note: "vel"; "grace" (a kan);
 "gamak_with" (the ADJACENT raga swara a gamak note swings with — the gamak style's cells)."""
 
@@ -1233,8 +1234,13 @@ def _render_room(span: SectionSpan, arr: Arrangement | None = None) -> str:
     if is_intro(span.section) and arr is not None:
         return _render_phrase_room(span, arr)
     if is_taan_long(span.section):
+        bpm = arr.bpm if arr is not None else 120
+        pulse = taan_pulse(bpm)
         return (f" — EXACTLY {span.length:g}: a taan runs without a break to the sam, so your "
-                f"taan_phrases sum to {span.length:g} beats and your notes fill them")
+                f"taan_phrases sum to {span.length:g} beats and your notes fill them. THE BASE PULSE at "
+                f"{bpm:g} bpm is {_PULSE_NAMES[pulse]}: {pulse} notes per matra, every note {1 / pulse:g} "
+                f"beats (about {pulse * bpm / 60:.0f} notes a second) — from the first note; quicken at "
+                f"most one step, near the climax")
     return ""
 
 
@@ -1425,6 +1431,7 @@ def _render_bol_frame(frame: str) -> str:
     return "\n".join(lines)
 
 
+_PULSE_NAMES: Final[dict[int, str]] = {4: "chaugun", 6: "chhagun", 8: "athgun"}
 _NO_FRAME: Final = "  (not the gat head — no stroke frame applies to this section)"
 
 
@@ -2393,7 +2400,8 @@ def _intro_job(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], head
 def _taan_job(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], head: LeadPhrase | None) -> CellJob:
     reentry = _returning_swara(span, arr, head)
     return (_taan_span(span, reentry), memory,
-            lambda c: check_taan(c, motif=arr.motif, window_beats=span.length, raga=arr.raga, reentry=reentry))
+            lambda c: check_taan(c, motif=arr.motif, window_beats=span.length, raga=arr.raga, reentry=reentry,
+                                 bpm=arr.bpm))
 
 
 def _outro_job(span: SectionSpan, arr: Arrangement, memory: list[LeadMemo], head: LeadPhrase | None) -> CellJob:

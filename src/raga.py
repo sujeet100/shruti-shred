@@ -967,7 +967,22 @@ ANDOLAN_TOWARD: dict[str, dict[str, str]] = {
 # How far an andolit swara's sway turns, in semitones, where a source measured it (otherwise the
 # expression pass derives it from the neighbour: half way to a semitone, 0.3 toward a whole tone).
 # Bhairav: van der Meer & Rao's measured dha spans ~32 cents, so the turn is ~20 c above the landing.
-ANDOLAN_DEPTH_ST: dict[str, float] = {"bhairav": 0.2}
+# Darbari (2026-10-20): van der Meer & Rao measured its komal dha's sway at ~25 cents (one vocalist), and
+# Sujit, a sitarist, chose 25 cents over the 50 cents (half way to the semitone neighbour) the code drew,
+# blind, on the same alap ("25 cents sound better"; out/andolan_taan_20261020_150233). FLAG (research,
+# 2026-10-20): two sources put Darbari's GA andol ABOVE a low base, swinging UP — Levy 1982's strobotuner
+# readings of Vilayat Khan on sitar (low ~270-295 c, high ~345 c, swings ~50-75 c, once 130 c; quoted in
+# van der Meer 2015, "Gandhara in Darbari Kanada") and Arnold, Bor & van der Meer 1985 (ISTAR Newsletter
+# 3-4: "andols are made on top of the base pitch", "the lowest point [is] the intended pitch"). Our sway
+# DIPS toward Re; direction undecided, pending Sujit's ear. Dha's sway depth and direction: unsourced.
+ANDOLAN_DEPTH_ST: dict[str, float] = {"bhairav": 0.2, "darbari": 0.25}
+
+# A note that SWAYS carries no kan before it (Sujit, 2026-10-20: "remove kan before every bend; kan on
+# its own can remain as an ornament" — the kan flick then the swing heard as an unsettled bend). The
+# exception is a raga whose sources put the kan INTO its sway: Bhairav's "(G)r S", "(N)d P" (Parrikar),
+# the touch from above that opens the descent's andolan. FLAG: Bageshree's (m)g kan and its shallow sway
+# are both sourced, but no source says whether they meet on one note — left to the default.
+KAN_INTO_ANDOLAN: frozenset[str] = frozenset({"bhairav"})
 
 # Where in the melodic direction a raga's andolan belongs. Bhairav: on held r/d in DESCENT
 # (Parrikar "(G)r S", "(N)d P"; r is "alpa and often omitted in arohi phrases"); a re or dha the

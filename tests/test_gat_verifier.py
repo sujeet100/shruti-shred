@@ -1382,6 +1382,17 @@ def test_the_plan_is_measured_against_the_notes():
                    ("approach", 4.0, "S"))
     assert any("holds no note" in c for c in check_head_plan(late, cycle_beats=16.0).craft)
 
+def test_the_taans_base_pulse_follows_the_tempo():
+    from crew.gat_verifier import taan_pulse
+    assert [taan_pulse(b) for b in (64, 72, 90, 100, 120)] == [8, 6, 6, 4, 4]   # ~8 notes a second
+
+
+def test_a_chaugun_taan_is_too_slow_at_64_bpm():
+    # chaugun at 64 bpm is ~4 notes a second — Sujit: "sounds like dugun"; the base pulse there is athgun
+    assert not _hard(_good_taan(), bpm=120)
+    assert any("launch it straight at athgun" in v for v in _hard(_good_taan(), bpm=64))
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

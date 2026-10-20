@@ -1248,7 +1248,125 @@ call. Sujit's point is the other half: a model handed several jobs' rules has to
 before it can compose, so mixing concerns should cost thinking time and blur the output. The thinking
 tokens and the music are measured on the next live run, not assumed.
 
+The live run (`fusion_20261020_144218_darbari_symph`, trace fce06eb8e70b) answered half of it. The prompts
+did shrink in practice — the alap 6.4k -> 3.5k tokens, the taan 6.2k -> 3.5-4.8k even with the rejected
+draft now riding every retry — and the alap passed on its first try where the previous one needed a
+retry. But the taan's output and time did not move (25-33 s, as before), and it took more attempts.
+One run, n=1: shorter prompts, yes; faster or clearer output, not yet shown.
+
 *The lesson:* **a shared prompt template is a shared dependency — every rule added for one job leaks
 into every other.** Separate the contract per job even when the agent and the call stay the same; a
 shorter, consistent prompt is cheaper to read, for the model and for the person debugging it.
 
+### The plain model knows the raga's words, not its emphasis (2026-10-20, seven bare-prompt songs)
+
+Sujit's ear on the plain-prompt songs: Bhairav had real riffing and melody; elsewhere the riff followed
+the melody, the melodies noodled, and Malkauns "sounds more like Chinese music than Malkauns". Reading
+the seven scores note by note (not the metrics, which disagreed with the ear) showed one pattern. The
+model QUOTES a raga correctly — Bageshree's opening is its pakad almost exactly — but it does not know
+where a phrase comes to REST or which note to DWELL on: nearly every phrase ends on Sa, the vadi is rarely
+held, Todi runs Pa up the scale its aroha forbids, and Malkauns keeps resting on komal dha until its five
+notes sound like a major pentatonic built on dha — the Chinese gong mode. Form was missing the same way:
+only one of seven brought its opening back, because a model writing left to right is never asked to plan
+a return. And Bhairav worked because its scale is the one metal already owns (Phrygian dominant), so the
+model had a riff idiom to reach for; for the others it played the melody again, lower.
+
+*The lesson:* **the model brings the knowledge; the design decides what matters.** Nyas, vadi, a planned
+return and a guitar with its own job are not facts the model lacks — they are decisions nobody asked it to
+make. (Slide `knew`.)
+
+### We changed two things at once and credited the one we liked (2026-10-20, a blind test)
+
+The October redesign said our riffs lost to a plain prompt because "the idea was split" across agents,
+and merged the composers. Sujit's challenge: the song that lost was written under a rule forcing 55% of
+every driving riff into palm-muted chugs on Sa — and its riff was measured at 71% single chugs on Sa,
+15% chords. The redesign deleted that rule IN THE SAME STEP as the merge, so the credit was never
+separated. And the song that lost came from the studio session, where the sitar and the riff DID see each
+other's drafts — the split was ownership, not blindness.
+
+A free blind test separated one cause: five recent songs, the first mukhada rendered twice — Pandit's
+seed riff under the head vs the Rhythm section's guitar (written after hearing the finished sitar),
+everything else identical. Sujit picked the Rhythm section's guitar 3-2; Pandit's riff lost by being too
+busy or clashing, because it is written before the sitar exists. So a separate agent was not the problem;
+an outdated rule and a writer that could not hear the sitar were.
+
+*The lesson:* **when you change two things at once, you only know that something worked — not what.**
+Keep one unconstrained control, change one thing, and when you can't, say so on the slide.
+
+### Stopping is not accepting (2026-10-20, an outside code review, every claim verified first)
+
+GPT read the Flow and found three bugs no test had: (1) a revision that LOST its comparison was restored
+in the layers but left its material as the newest entry in the history — and the notes debate read the
+history, so rejected music could come back; (2) the notes debate kept a sitar rewrite and a guitar
+rewrite that each beat the original, then shipped them together without ever hearing them together;
+(3) at the round cap the router logged "accepting the last version" even when the legality check said
+illegal. Fixes: a saved take carries ALL of itself; rewrites are accepted one at a time against the
+current champion; and a final code check stands between "we stopped" and "this ships", with an honest
+outcome (accepted / budget_exhausted / validation_failed).
+
+*The lesson:* **a round limit bounds effort, not quality.** Keep the best version whole, judge every
+combination you ship, and put a gate between stopping and shipping.
+
+### The judge was an echo (2026-10-20)
+
+The Producer read Rasik's notes before judging, and 30 of its 36 plans copied Rasik almost word for word —
+two critics, one opinion. Now they judge the same take in parallel, blind to each other, and the Producer
+reads Rasik only when Rasik flags the raga (a "second look"). The notes debate, which ran on every song,
+now runs only when a reviewer names a concern — and that concern is the players' brief. Measured friction
+was tried as the trigger first and rejected: grinds appear in every song, and Sujit keeps them.
+
+*The lesson:* **control what each judge sees before it decides.** Independent first passes, combined only
+where they disagree, give you a second opinion instead of an echo.
+
+### A constant written at one tempo (2026-10-20, Sujit's ear on the live run)
+
+The taan rule said "chaugun from the first note" — written at 120 bpm, where four notes a beat is ~8 a
+second. The symphonic doom piece ran at 64 bpm, so the same rule gave ~4 a second: "it sounds like dugun".
+The pulse now follows the tempo (~8 notes a second: athgun at 64, chhagun around 80-90, chaugun at 100+).
+The same listen settled the alap: the render followed the MIDI to 7 cents, so the "out of tune" bends were
+our instruction — a 50-cent sway with a kan flick before it. Blind, Sujit chose a 25-cent sway with no kan
+into it. A research pass then found two sources saying Darbari's ga sways UP from a low base, not down:
+the direction is still open.
+
+*The lesson:* **a rule tuned at one setting is a guess at every other.** State rules in the unit the
+music lives in (notes per second, not per beat), and let the ear decide what the data can't.
+
+
+## Four questions before you add an agent (2026-10-20)
+
+Sujit's framing: decomposition depends on responsibility (related vs unrelated work), latency, cost, and the
+quality of the output. And the candid part: the first band reached eleven agents because he wanted to try the
+patterns, so every problem got an agent. Each agent fixed something real; together they were more machinery
+than the music needed.
+
+Checking the latency claim against the traces corrected an assumption. The eleven-agent opener (trace
+480f18b59298, a 65-second Bhairav piece at low thinking) made 21 model calls in about 3 minutes. Tonight's
+five-agent band (fce06eb8e70b, the symphonic Darbari) made 18 calls in about 10 minutes. So removing agents did
+not buy speed. The clock is set by how hard each call thinks (the composing calls run at medium) and by what has
+to wait for what (most section calls wait on the gat). What did help was running independent work side by side:
+the alap, taan and outro at once, and Rasik and the Producer at once. Responsibility decides where to split; the
+other three decide whether a split pays. Deck: slide `factors`, before `redesign`.
+
+### Your decomposition has an expiry date (2026-10-20, Sujit)
+
+Much of the first band was built to cover for the model of the day: in July it wrote busy low melodies
+and called them riffs, so we added a chug rule and more machinery. By October a newer Flash wrote, once,
+a better riff in one plain call, and the July rule would have rejected it twice. A week later, on
+gemini-3.8, the plain call that had played 92 forbidden notes in Bhairav played none. *The lesson:*
+**re-evaluate the decomposition whenever a stronger model ships** — keep one plain call as the control,
+re-run it on every release, and ask of every agent and rule whether it still covers for a weakness the
+model has outgrown. Rechecking slide 15 against the losing song's trace also corrected us: the studio's
+riff did hear the sitar, but only a draft (the sitar rewrote its line after hearing the riff), and in
+guitar-led sections no sitar at all. Deck: `l8`, `why`.
+
+### The hook nobody owned, and what we can actually claim (2026-10-20)
+
+Reading the opening song's trace (480f18b59298) call by call: the old band wrote the sitar in 7 calls, one section
+each, and the hook was never an object. Each mukhada section wrote it inside its own call; for the second one the
+prompt said "no mukhada stated yet", so it was written again, and a note went missing. The studio's "refine after
+hearing the riff" pass returned an identical line all three times, and 4 of the 6 riff takes were rejected by the
+chug rule. GPT's review sharpened what this proves: a state-propagation and handoff problem, not that merging
+agents made better music. The redesign changed the split, removed the chug rule and moved 3.5 → 3.8 Flash on the
+same day, and the one clean test (the guitar written against the finished sitar won 3–2 blind) favours the handoff,
+not a separate agent as such. *The lesson:* **exact recurrence should be reuse, not another generation task — and
+give dependent work the committed material it needs.** Deck: the split chapter (own-before, own-now, own-test).

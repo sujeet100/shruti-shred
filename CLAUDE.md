@@ -1168,7 +1168,18 @@ and build order.
   strokes/sam block; exact window; rule status as `check_taan` applies it), and each section sees only
   its own answer fields (`output_schema_for`: intro / taan / the full format for everything else).
   Measured on real charts: intro prompt ~5.2k -> ~2.8k tokens, taan ~4.7k -> ~2.1k (TALK.md "One prompt
-  per job"). 1396 pure tests. Live-untested.
+  per job"). 1396 pure tests. LIVE RUN `fusion_20261020_144218_darbari_symph` (trace fce06eb8e70b,
+  "doom symphonic metal in Darbari", 10.5 min): outcome accepted, final check passed; Rasik 5/4/5 so no
+  second look; the Producer revised the taan (its draft peaked at 57%, a hard miss its two tries never
+  fixed — best-of-N shipped it) and the revision (peak 62%) won both orders; no debate (the shipped
+  take was the unjudged revision); drum feels half/verse/half/half/climax/half. Intro prompt 6.4k ->
+  3.5k tok and passed first try; taan prompts 3.5-4.8k vs 6.2k but output/time unchanged (n=1).
+  Stage times: seed 135 s, generate 361 s, critique 27 s, revise 58 s, compare 28 s.
+  AFTER SUJIT'S EAR (2026-10-20): Darbari's sway 25 c (`raga.ANDOLAN_DEPTH_ST`, his blind A/B over 50 c);
+  no kan on a note that sways (`expression.without_kan_into_sway`, the render's own gate; Bhairav keeps its
+  sourced kan, `raga.KAN_INTO_ANDOLAN`); the taan's base pulse follows the tempo (`gat_verifier.taan_pulse`:
+  ~8 notes/s — athgun at 64 bpm, chhagun ~72-90, chaugun at 100+; athgun added to `TAAN_SUBDIVISIONS`).
+  OPEN: two sources put Darbari's ga andol swinging UP from a low base (ours dips) — needs his ear. 1400 tests.
 - **Deferred (optional):** foreground leader/follower LLM-seeding (lead ⇄ riff) + the
   Conductor's composer tie-break; a Producer `harmony_flow` criterion. **Then Phase 3** — the
   live UI/SSE over the `DebateEvent` stream.

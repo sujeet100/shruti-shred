@@ -59,9 +59,9 @@ from gestures import (
     gesture_path,
 )
 from gats import is_vilambit
-from render import counted_hold_ms
-from raga import (ANDOLAN_DEPTH_ST, ANDOLAN_ONLY_IN, ANDOLAN_SWINGS, INTONATION, KHADA_RAGAS, RAGAS, SWARAS, andolan_neighbour_st,
-                  ascent_step)
+from render import counted_hold_ms, sways
+from raga import (ANDOLAN_DEPTH_ST, ANDOLAN_ONLY_IN, ANDOLAN_SWINGS, INTONATION, KAN_INTO_ANDOLAN, KHADA_RAGAS, RAGAS, SWARAS,
+                  andolan_neighbour_st, ascent_step)
 
 ANDOLAN_REACH: Final = 0.5       # a semitone neighbour: the sway turns half way, at its periphery
 # A whole-tone neighbour: the sway turns inside its own swara, ~30 cents out — the shallow sway
@@ -91,7 +91,7 @@ def express_section(sitar: list[Note], guitar: list[Note], section: Section,
         line = [n.model_copy(update={"gamak_with": None}) if n.gamak_with else n for n in line]
     composed_gamak = any(n.gesture == GAMAK_GESTURE for n in line)
     line = with_gestures(line, arr.raga, arr.bpm, alap=slow)
-    line = with_kan(line, arr.raga, arr.bpm)
+    line = without_kan_into_sway(with_kan(line, arr.raga, arr.bpm), arr.raga, arr.bpm)
     if slow:
         line = [_slow_meend(n) for n in line]
     if section.form_role in _GAMAK_ROLES and arr.raga not in KHADA_RAGAS and not composed_gamak:
@@ -197,6 +197,18 @@ def with_kan(line: list[Note], raga: str, bpm: int) -> list[Note]:
         out.append(_kan_for(n, prev, rules.get(n.swara), bpm))
         prev = _resting_pitch(n)
     return out
+
+
+def without_kan_into_sway(line: list[Note], raga: str, bpm: int) -> list[Note]:
+    """Take the kan off every note that will audibly SWAY (the renderer's own gate, `render.sways`),
+    whoever wrote it — the data or the composer: the flick then the swing read as an unsettled bend
+    (Sujit, 2026-10-20). A kan on a note that does not sway stays an ornament, and a raga whose
+    sources put the kan into its sway (`raga.KAN_INTO_ANDOLAN`, Bhairav) keeps it. Pure."""
+    if raga in KAN_INTO_ANDOLAN:
+        return line
+    return [n.model_copy(update={"grace": None})
+            if n.andolan and n.grace and sways(n.dur, bpm, swings=n.andolan_swings) else n
+            for n in line]
 
 
 def _resting_pitch(n: Note) -> int:

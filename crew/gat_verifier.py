@@ -273,12 +273,24 @@ _TAAN_PULSES: Final = TAAN_SUBDIVISIONS
 _TAAN_PHRASE_END_MAX: Final = 1.0   # a phrase's final note may ring up to a matra
 _TAAN_GAMAK_MAX: Final = 1.0        # a gamak note (re-struck every ~quarter second) up to a matra
 _TAAN_FINAL_INTO_SAM_MAX: Final = 0.5  # the note that runs into the returning head stays in flight
-_TAAN_OPENING_PULSE: Final = 4     # chaugun from the first note (and so, never slowing, throughout)
+# THE TAAN'S BASE PULSE FOLLOWS THE TEMPO (Sujit, 2026-10-20: "chaugun at 64 bpm sounds like dugun"; 8 a
+# beat at 64 bpm sounded right, and chaugun at 120 always had). The run aims at ~8 notes a second:
+# chaugun (4 a matra) at 120 bpm, chhagun (6) around 80-90, athgun (8) at a slow 64. It launches at that
+# pulse from the first note (no warm-up — Sujit, 2026-10-13) and may quicken one step near the climax.
+TAAN_NOTE_RATE: Final = 8.0        # notes per second the taan's base pulse aims at
+_TAAN_BASE_PULSES: Final = (4, 6, 8)
+
+
+def taan_pulse(bpm: float) -> int:
+    """The taan's base pulse at `bpm`, in notes per matra: the one of chaugun / chhagun / athgun whose
+    note rate sits nearest `TAAN_NOTE_RATE`. Pure."""
+    return min(_TAAN_BASE_PULSES, key=lambda sub: abs(sub * bpm / 60.0 - TAAN_NOTE_RATE))
+
+
 _TAAN_CLIMAX_FROM: Final = 0.5      # the climax phrase starts in the later half...
 _TAAN_PEAK_FROM: Final = 0.6        # ...and its top note sounds past this share of the taan (the
                                     # first live take peaked at 52%, then cascaded 15 beats down)
 _TAAN_AFTER_CLIMAX_MAX: Final = 0.25  # ...and what follows it is at most a quarter (no long descent)
-_TAAN_CADENCE_PULSE_FLOOR: Final = 4  # the cadence keeps chaugun (or the climax's own, if slower)
 _TAAN_LEAP_MAX: Final = 7           # semitones inside a phrase — wider is a jump, not a run
 _TAAN_EPS: Final = 1e-3
 # END-ANCHORED cells (manjha / antara / taan — their cadence IS the last note) must fill their
@@ -1758,7 +1770,7 @@ def verify_outro(cell: LeadPhrase, *, mukhada: LeadPhrase | None, raga: str) -> 
 
 
 def check_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
-                raga: str, reentry: str | None = None) -> CellChecks:
+                raga: str, reentry: str | None = None, bpm: float = 120.0) -> CellChecks:
     """Return the developed taan's (taan_long/solo) structural violations. Pure.
 
     A taan is the composition's PEAK, not "the scale, quickly". The checkable core of a
@@ -1819,7 +1831,7 @@ def check_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
                         f"({' '.join(sorted(resting))}) — the final phrase must resolve to the "
                         f"sam so the landing feels inevitable, not abrupt")
 
-    plan_hard, plan_craft = _taan_plan_checks(cell, window_beats, reentry is not None)
+    plan_hard, plan_craft = _taan_plan_checks(cell, window_beats, reentry is not None, taan_pulse(bpm))
     hard += plan_hard
     craft += plan_craft
     hard += nyas_violations(cell.notes, raga)
@@ -1828,15 +1840,15 @@ def check_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
 
 
 def verify_taan(cell: LeadPhrase, *, motif: list[str], window_beats: float,
-                raga: str, reentry: str | None = None) -> list[str]:
+                raga: str, reentry: str | None = None, bpm: float = 120.0) -> list[str]:
     """The taan's HARD faults only — what drives a re-roll. `check_taan` adds the
     reported craft notes."""
     return list(check_taan(cell, motif=motif, window_beats=window_beats, raga=raga,
-                           reentry=reentry).hard)
+                           reentry=reentry, bpm=bpm).hard)
 
 
 def _taan_plan_checks(cell: LeadPhrase, window_beats: float,
-                      into_head: bool) -> tuple[list[str], list[str]]:
+                      into_head: bool, opening: int = 4) -> tuple[list[str], list[str]]:
     """The taan's FLOW: its phrase plan is sound, and its notes follow it. Pure.
 
     HARD (re-rolled) — the plan and the notes disagreeing is a broken taan, whatever the taste:
@@ -1848,9 +1860,9 @@ def _taan_plan_checks(cell: LeadPhrase, window_beats: float,
     if not phrases:
         return ([f"the taan has no phrase plan — fill phrase_plan.taan_phrases: its phrases in "
                  f"order (statement, builds, ONE climax, cadence), each with its beats and its "
-                 f"pulse (subdivision: 4 = chaugun, 6 = chhagun notes per matra), summing to "
-                 f"{window_beats:g}"], [])
-    shape = _taan_plan_shape(phrases, window_beats)
+                 f"pulse (subdivision, notes per matra: {opening} = {_pulse_name(opening)} at this "
+                 f"tempo), summing to {window_beats:g}"], [])
+    shape = _taan_plan_shape(phrases, window_beats, opening)
     if shape:
         return shape, []
     groups = _notes_by_phrase(cell.notes, phrases)
@@ -1870,10 +1882,10 @@ def _phrase_bounds(phrases: list[TaanPhrase]) -> list[tuple[float, float]]:
 
 
 def _pulse_name(subdivision: int) -> str:
-    return {2: "dugun", 3: "tigun", 4: "chaugun", 6: "chhagun"}.get(subdivision, f"{subdivision}/matra")
+    return {2: "dugun", 3: "tigun", 4: "chaugun", 6: "chhagun", 8: "athgun"}.get(subdivision, f"{subdivision}/matra")
 
 
-def _taan_plan_shape(phrases: list[TaanPhrase], window_beats: float) -> list[str]:
+def _taan_plan_shape(phrases: list[TaanPhrase], window_beats: float, opening: int = 4) -> list[str]:
     """What is wrong with the PLAN itself, before any note is read. Pure."""
     bad = [f"phrase {i + 1}: " + (f"role '{ph.role}'" if ph.role not in _TAAN_ROLES else
                                   f"subdivision {ph.subdivision}")
@@ -1898,17 +1910,17 @@ def _taan_plan_shape(phrases: list[TaanPhrase], window_beats: float) -> list[str
     if phrases[-1].role != "cadence":
         viol.append("the taan's last phrase is the cadence — after the climax, a phrase that "
                     "keeps the momentum and runs into the sam")
-    return viol + _taan_build_faults(phrases, climaxes[0], window_beats)
+    return viol + _taan_build_faults(phrases, climaxes[0], window_beats, opening)
 
 
-def _taan_build_faults(phrases: list[TaanPhrase], peak: int, window_beats: float) -> list[str]:
+def _taan_build_faults(phrases: list[TaanPhrase], peak: int, window_beats: float, opening: int = 4) -> list[str]:
     """Does the plan BUILD — the pulse never slows on the way up, the climax lands in the later
     half, and what follows it is short and keeps moving? Pure."""
     viol: list[str] = []
-    if phrases[0].subdivision < _TAAN_OPENING_PULSE:
+    if phrases[0].subdivision < opening:
         viol.append(f"the taan opens at {_pulse_name(phrases[0].subdivision)} — launch it straight "
-                    f"at chaugun ({_TAAN_OPENING_PULSE} notes per matra, every note "
-                    f"{1 / _TAAN_OPENING_PULSE:g}) and keep that pulse; quicken only to chhagun")
+                    f"at {_pulse_name(opening)} ({opening} notes per matra, every note {1 / opening:g}, "
+                    f"the base pulse at this tempo) and keep that pulse; quicken at most one step")
     rising = [ph.subdivision for ph in phrases[:peak + 1]]
     if any(b < a for a, b in zip(rising, rising[1:])):
         viol.append(f"the taan's pulse slows on the way to its climax ({' -> '.join(map(str, rising))}"
@@ -1922,7 +1934,7 @@ def _taan_build_faults(phrases: list[TaanPhrase], peak: int, window_beats: float
     if sum(ph.beats for ph in after) > _TAAN_AFTER_CLIMAX_MAX * window_beats + _TAAN_EPS:
         viol.append(f"{sum(ph.beats for ph in after):g} beats follow the climax — at most "
                     f"{_TAAN_AFTER_CLIMAX_MAX * window_beats:g}: a short cadence, not a long descent")
-    floor = min(phrases[peak].subdivision, _TAAN_CADENCE_PULSE_FLOOR)
+    floor = min(phrases[peak].subdivision, opening)
     if any(ph.subdivision < floor for ph in after):
         viol.append(f"the cadence slows below {floor} notes per matra — keep the climax's momentum "
                     f"all the way into the sam")

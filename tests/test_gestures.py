@@ -199,7 +199,7 @@ def test_the_alap_keeps_its_ornament_slow():
     arr = build_arrangement(draft, CompositionBrief())
     sitar, _ = express_section(line, [], arr.sections[0], arr)
     assert all(n.pitch_path is None for n in sitar)           # no gesture, no gamak strokes
-    assert sitar[1].andolan and sitar[1].grace == ["R"]       # the slow sway and its kan
+    assert sitar[1].andolan and sitar[1].grace is None        # the slow sway, no kan into it (Sujit, 2026-10-20)
     assert len(sitar) == 3
 
 
