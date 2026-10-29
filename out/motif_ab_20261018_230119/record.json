@@ -1,0 +1,1199 @@
+[
+ {
+  "label": "B",
+  "arm": "guided",
+  "motif": [
+   "g",
+   "m",
+   "R",
+   "S"
+  ],
+  "stroke_line": [
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "-",
+   "da",
+   "ra",
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "ra"
+  ],
+  "contour": "arch",
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 2.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "d",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "gamak_with": "n"
+   },
+   {
+    "swara": "n",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   }
+  ]
+ },
+ {
+  "label": "D",
+  "arm": "free",
+  "motif": [
+   "S",
+   "R",
+   "g",
+   "m",
+   "R",
+   "S"
+  ],
+  "stroke_line": [
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "-",
+   "-",
+   "ra",
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "ra"
+  ],
+  "contour": "wave",
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 3.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "ornament": "murki"
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "n",
+    "oct": -1,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   }
+  ]
+ },
+ {
+  "label": "F",
+  "arm": "guided",
+  "motif": [
+   "g",
+   "m",
+   "R",
+   "S"
+  ],
+  "stroke_line": [
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "da",
+   "ra",
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "ra"
+  ],
+  "contour": "wave",
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "gamak_with": "R"
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false,
+    "ornament": "murki"
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 2.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "d",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "n",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false,
+    "ornament": "khatka"
+   }
+  ]
+ },
+ {
+  "label": "H",
+  "arm": "free",
+  "motif": [
+   "S",
+   "R",
+   "g",
+   "m",
+   "P"
+  ],
+  "stroke_line": [
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "-",
+   "-",
+   "ra",
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "ra"
+  ],
+  "contour": "arch",
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 3.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "d",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "n",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "ornament": "khatka"
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   }
+  ]
+ },
+ {
+  "label": "G",
+  "arm": "guided",
+  "motif": [
+   "g",
+   "m",
+   "R",
+   "S"
+  ],
+  "stroke_line": [
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "-",
+   "-",
+   "ra",
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "ra"
+  ],
+  "contour": "wave",
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 3.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "ornament": "murki",
+    "gamak_with": "m"
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "n",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   }
+  ]
+ },
+ {
+  "label": "A",
+  "arm": "free",
+  "motif": [
+   "S",
+   "m",
+   "g",
+   "R"
+  ],
+  "stroke_line": [
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "-",
+   "da",
+   "ra",
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "ra"
+  ],
+  "contour": "wave",
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "gamak_with": "g"
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 2.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "n",
+    "oct": -1,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   }
+  ]
+ },
+ {
+  "label": "E",
+  "arm": "guided",
+  "motif": [
+   "g",
+   "m",
+   "R",
+   "S"
+  ],
+  "stroke_line": [
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "-",
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "ra"
+  ],
+  "contour": "wave",
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 2.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "d",
+    "oct": -1,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "n",
+    "oct": -1,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": -1,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "gamak_with": "g"
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   }
+  ]
+ },
+ {
+  "label": "C",
+  "arm": "free",
+  "motif": [
+   "S",
+   "R",
+   "g",
+   "m",
+   "P"
+  ],
+  "stroke_line": [
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "-",
+   "da",
+   "da",
+   "ra",
+   "dir",
+   "da",
+   "dir",
+   "da",
+   "ra"
+  ],
+  "contour": "wave",
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 2.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "n",
+    "oct": -1,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": -1,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   }
+  ]
+ }
+]

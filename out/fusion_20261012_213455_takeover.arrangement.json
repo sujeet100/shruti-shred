@@ -1,0 +1,711 @@
+{
+  "raga": "darbari",
+  "subgenre": "doom",
+  "tala": "teentaal",
+  "sa": 62,
+  "bpm": 120,
+  "anchor": "gat_first",
+  "ending": "ring_out",
+  "form": "gat",
+  "playable_rhythm": false,
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "alaap",
+      "bars": 4,
+      "layers": [
+        "lead",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Slow brooding exposition of Darbari in the mandra saptak over the low D drone",
+      "transition": "Sitar meend descends into low Sa as drums and heavy rhythm guitars enter on sam",
+      "riff_slot": "none",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "drone",
+        "roots": [],
+        "chords": []
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Statement of the heavy doom mukhada in madhya and mandra octaves",
+      "transition": "Cadential stroke on Sa opening into the lower mandra reflection",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ],
+        "chords": []
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Manjha descends deeply into the mandra saptak dwelling on mandra n and d",
+      "transition": "Ascending pull from mandra n through R into the returning mukhada sam",
+      "riff_slot": "main",
+      "form_role": "manjha",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "d",
+          "P"
+        ],
+        "chords": []
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Return of the mukhada with crushed rhythm guitars reinforcing the sam",
+      "transition": "Band locks into a crushing half-time breakdown groove",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ],
+        "chords": []
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "riff",
+      "bars": 2,
+      "layers": [
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "rhythm",
+      "intent": "Monolithic doom breakdown crunching on low D with heavy palm-muted chugs",
+      "transition": "Massive pick scrape as sitar cuts back in for the antara",
+      "riff_slot": "breakdown",
+      "form_role": "takeover",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "S"
+        ],
+        "chords": []
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Antara ascends through madhya Pa and komal dha into taar Sa",
+      "transition": "Sitar accelerates into rapid gamak flourishes driving toward the climax",
+      "riff_slot": "main",
+      "form_role": "antara",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "m",
+          "P"
+        ],
+        "chords": []
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "taan",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone",
+        "clean"
+      ],
+      "foreground": "lead",
+      "intent": "Furious virtuosic Darbari taan with heavy gamak cascades over driven double-kick doom groove",
+      "transition": "Triple tihai figure locking rhythm and lead onto the final mukhada",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ],
+        "chords": []
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Final crushing statement of the mukhada, theme fully realized",
+      "transition": "Final heavy chord rings out as lead trails into low Sa",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "S"
+        ],
+        "chords": []
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "outro",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Decaying doom chords, oscillating komal ga and dha fading into the eternal tanpura drone",
+      "transition": "All instruments fade into deep silence",
+      "riff_slot": "main",
+      "form_role": "outro",
+      "harmony": {
+        "mode": "drone",
+        "roots": [],
+        "chords": []
+      },
+      "climax_style": "driven",
+      "tihai": false
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "g",
+    "m",
+    "R",
+    "S"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -3,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "a dark doom fusion in Darbari, key of D, teental, 120 bpm",
+  "seed_riff": {
+    "reasoning": "A 16-matra doom cycle built on Darbari's roots: low Sa sustain with palm-muted chugs, moving through g, R, m, P, and komal d-n turnaround sliding back into sam.",
+    "notes": [
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 2.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "R",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -2,
+        "dur": 1.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -2,
+        "dur": 1.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 1.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -2,
+        "dur": 1.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -2,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -2,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "slide",
+        "rest": false
+      }
+    ]
+  },
+  "seed_hook": {
+    "phrase_plan": {
+      "seed": [
+        "g",
+        "m",
+        "R",
+        "S"
+      ],
+      "contour": "arch",
+      "transformations": [
+        "repeat",
+        "sequence_up",
+        "answer",
+        "resolve"
+      ],
+      "climax_and_sam": "peaks on komal dha and ni at matras 9-10 before resolving to home Sa and landing on vadi Re at the sam",
+      "stroke_line": [
+        "da",
+        "da",
+        "ra",
+        "dir",
+        "da",
+        "-",
+        "ra",
+        "dir",
+        "da",
+        "ra",
+        "dir",
+        "da",
+        "dar",
+        "da",
+        "ra",
+        "dir"
+      ],
+      "head_shape": [
+        {
+          "stage": "figure",
+          "beats": 4.0,
+          "target": "P",
+          "ornament": "plain"
+        },
+        {
+          "stage": "breather",
+          "beats": 2.0,
+          "target": "g",
+          "ornament": "andolan"
+        },
+        {
+          "stage": "response",
+          "beats": 5.0,
+          "target": "P",
+          "ornament": "plain"
+        },
+        {
+          "stage": "approach",
+          "beats": 5.0,
+          "target": "R",
+          "ornament": "plain"
+        }
+      ]
+    },
+    "notes": [
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 95,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 85,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 95,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 2.0,
+        "vel": 100,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 85,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 95,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 95,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 95,
+        "bol": "dar",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 100,
+        "bol": "da",
+        "rest": false,
+        "gamak_with": "m"
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 85,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 95,
+        "bol": "dir",
+        "rest": false
+      }
+    ]
+  },
+  "seed_head": {
+    "idea": "A dark, slow-breathing Darbari mukhada leaning heavily on oscillating komal ga and landing solemnly on vadi Re",
+    "sam_swara": "R",
+    "cell": [
+      "g",
+      "m",
+      "R",
+      "S"
+    ],
+    "stroke_line": [
+      "da",
+      "da",
+      "ra",
+      "dir",
+      "da",
+      "da",
+      "ra",
+      "dir",
+      "da",
+      "ra",
+      "dir",
+      "da",
+      "dar",
+      "da",
+      "ra",
+      "dir"
+    ]
+  },
+  "energy_arc": "alaap: Spooky, atmospheric unmetered exposition over the low D drone.\nmukhada: Heavy mid-tempo doom entrance with monolithic power chords and singing sitar.\nmanjha: Somber, cavernous pull down into the mandra register.\nmukhada: Re-establishment of the heavy groove with increased drum intensity.\nbreakdown: Crushing, low-end rhythmic pulverization with lead resting.\nantara: High-register ascent lifting the emotional weight into taar Sa.\ntaan_long: Maximum virtuosic peak driven by relentless double-kick doom rhythm.\nmukhada: Triumphant, weighted return of the central hook at full band power.\noutro: Slow decaying doom chords trailing into the eternal tanpura."
+}

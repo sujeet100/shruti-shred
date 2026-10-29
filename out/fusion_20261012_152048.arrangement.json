@@ -1,0 +1,638 @@
+{
+  "raga": "darbari",
+  "subgenre": "progressive",
+  "tala": "teentaal",
+  "sa": 62,
+  "bpm": 120,
+  "anchor": "riff_first",
+  "ending": "ring_out",
+  "form": "gat",
+  "playable_rhythm": false,
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "alaap",
+      "bars": 4,
+      "layers": [
+        "drone",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "Mandra exposition of Darbari revealing komal ga and vadi Re over tanpura",
+      "transition": "tabla and drums enter on sam to begin the groove",
+      "riff_slot": "main",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "exposed"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "Gat head statement with syncopated progressive rhythm guitar foundation",
+      "transition": "seamless descent into the lower-register bridge",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "Calm bridge descent into mandra saptak exploring komal dha and ni",
+      "transition": "resolving upward toward the sam to reintroduce the mukhada",
+      "riff_slot": "main",
+      "form_role": "manjha",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "d",
+          "n"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "Return of the mukhada reaffirming the primary thematic hook with driving rhythm",
+      "transition": "rhythm swells and opens up as melody leaps higher",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "Antara lifts into madhya and taar boundary with bold gamaks and soaring meends",
+      "transition": "accelerating double-kick roll directly into the virtuosic taan",
+      "riff_slot": "main",
+      "form_role": "antara",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "P",
+          "S"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "taan",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead",
+        "clean"
+      ],
+      "foreground": "lead",
+      "intent": "Spiraling Darbari sapat taans reaching the technical peak over driving rhythm",
+      "transition": "heavy cadential crash landing on the final sam",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "outro",
+      "bars": 1,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "Final resolution onto low tonic Sa with decaying cymbals and ringing tanpura",
+      "transition": "reverberant fade to silence",
+      "riff_slot": "main",
+      "form_role": "outro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "g",
+    "m",
+    "R",
+    "S",
+    "d",
+    "n",
+    "P"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -2,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "fusion in Darbari, key of D, 120bpm, teental, lets not do doom this time",
+  "seed_riff": {
+    "reasoning": "The riff grounds Darbari's descending chalan in low dropped power chords over 16 matras of Teentaal. It punches sam with tonic Sa, moves through komal ga and ma, accents tali with Pa, and rests deliberately on beat 4 of each vibhag to give the sitar space to articulate.",
+    "notes": [
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.75,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "technique": "hammer_on",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "technique": "slide",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "d",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 0.75,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "hammer_on",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      }
+    ]
+  },
+  "seed_hook": {
+    "phrase_plan": {
+      "seed": [
+        "g",
+        "m",
+        "R",
+        "S",
+        "d",
+        "n",
+        "P"
+      ],
+      "contour": "wave",
+      "transformations": [
+        "repeat",
+        "fragment",
+        "resolve"
+      ],
+      "climax_and_sam": "Lands firmly on madhya Sa on beat 1 with an assertive da stroke, peaks at madhya Pa before cadencing through g-m-R-S.",
+      "stroke_line": [
+        "da",
+        "ra",
+        "dir",
+        "chikari",
+        "da",
+        "ra",
+        "dir",
+        "chikari",
+        "da",
+        "ra",
+        "dir",
+        "chikari",
+        "da",
+        "dir",
+        "dara",
+        "chikari"
+      ]
+    },
+    "notes": [
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false,
+        "gamak_with": "R"
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false,
+        "gamak_with": "m"
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "chikari",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false,
+        "gamak_with": "m"
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "chikari",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false,
+        "gamak_with": "n"
+      },
+      {
+        "swara": "n",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "chikari",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false,
+        "gamak_with": "m"
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dara",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "chikari",
+        "rest": false
+      }
+    ]
+  },
+  "seed_head": {
+    "idea": "Darbari vilambit/madhya gat head circling g-m-R-S with characteristic andolan and heavy sam landing on Sa",
+    "sam_swara": "S",
+    "cell": [
+      "g",
+      "m",
+      "R",
+      "S"
+    ],
+    "stroke_line": [
+      "da",
+      "ra",
+      "dir",
+      "chikari",
+      "da",
+      "ra",
+      "dir",
+      "chikari",
+      "da",
+      "ra",
+      "dir",
+      "chikari",
+      "da",
+      "dir",
+      "dara",
+      "chikari"
+    ]
+  },
+  "energy_arc": "intro: contemplative and deep in the mandra register over tanpura drone (low intensity); mukhada: assertive mid-tempo progressive groove locks in (medium intensity); manjha: introspective dip into the lower octave (medium-low intensity); mukhada return: intensified groove driving forward (medium-high intensity); antara: melodic expansion reaching into the higher register (high intensity); taan_long: furious, accelerating melodic climax driven by the band (peak intensity); outro: authoritative cadential landing fading into resonance (low intensity)."
+}

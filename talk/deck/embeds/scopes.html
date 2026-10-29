@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{width:1664px;height:260px;image-rendering:pixelated;display:block}</style></head><body><canvas id="c" width="416" height="65"></canvas><script>
+const c=document.getElementById("c"),g=c.getContext("2d"),beat=60000/128,t0=performance.now();
+function box(x,col){g.fillStyle="#120f1d";g.fillRect(x,0,204,65);g.fillStyle=col;g.fillRect(x,0,204,1);g.fillRect(x,64,204,1);g.fillRect(x,0,1,65);g.fillRect(x+203,0,1,65);
+g.fillStyle="#1f1830";for(let y=8;y<65;y+=10)g.fillRect(x+1,y,202,1)}
+function env(kind,tt){if(kind===0){const p=(tt%(beat*2))/(beat*2);return Math.exp(-p*1.6)}const p=(tt%(beat/2))/(beat/2);return p<0.35?Math.exp(-p*9):0}
+function scope(x,kind,col){box(x,col);let prev=null;
+for(let i=0;i<200;i++){const tt=1200+i*5,e=env(kind,tt),w=kind===0?Math.sin(tt/7)+0.6*Math.sin(tt/4.6):Math.sin(tt/5)+0.8*Math.sin(tt/2.3)*Math.sin(tt/11);
+const y=Math.round(32-w*e*17);g.fillStyle=col;if(prev===null)g.fillRect(x+2+i,y,1,1);else{const a=Math.min(prev,y),b=Math.max(prev,y);g.fillRect(x+2+i,a,1,b-a+1)}prev=y}}
+g.clearRect(0,0,416,65);scope(2,0,"#f2b53c");scope(210,1,"#ff2e88");
+</script></body></html>

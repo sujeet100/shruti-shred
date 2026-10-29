@@ -1,0 +1,300 @@
+{
+ "approaches": {
+  "A": "Start from WEIGHT: open low (the mandra or the lower madhya), give komal Ga and komal Dha long holds where they rest so they sway, and let the head move slowly and gravely, like an alap set in time; the metal weight comes from the band underneath.",
+  "B": "Start from RHYTHM: make the head a figure the right hand drives — strokes and short notes that lock to the metal groove, a riff the sitar sings — with one held note as its breather; the raga's phrases ride the rhythm."
+ },
+ "versions": [
+  {
+   "composer": "A",
+   "round": 0,
+   "changed": false,
+   "argument": "",
+   "motif": [
+    "S",
+    "R",
+    "g",
+    "R"
+   ],
+   "stroke_line": [
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "-",
+    "-",
+    "ra",
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dir",
+    "da",
+    "ra"
+   ],
+   "notes": "S:da(1) R:da(1) g:ra(1) R:dir(1) g:da(3) m:ra(1) P:da(1) n:da(1) P:ra(1) m:dir(1) P:da(1) g:dir(1) m:da(1) R:ra(1)",
+   "measures": {
+    "g m R S": 1,
+    "d n P": 0,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.0
+   }
+  },
+  {
+   "composer": "B",
+   "round": 0,
+   "changed": false,
+   "argument": "",
+   "motif": [
+    "S",
+    "m",
+    "P",
+    "g",
+    "R"
+   ],
+   "stroke_line": [
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dir",
+    "da",
+    "-",
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dir",
+    "da",
+    "ra"
+   ],
+   "notes": "S:da(1) m:da(1) g:ra(1) m:dir(1) P:da(1) P:dir(1) g:da(2) m:da(1) R:da(1) S:ra(1) P:dir(1) m:da(1) g:dir(1) m:da(1) R:ra(1)",
+   "measures": {
+    "g m R S": 2,
+    "d n P": 0,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.0
+   }
+  },
+  {
+   "composer": "A",
+   "round": 1,
+   "changed": true,
+   "argument": "The other composer's head captured the driving rhythmic momentum of the Masitkhani frame, but like my previous draft, it committed the cardinal sin in Darbari Kanada of staying entirely in the madhya saptak and registering zero presence below home Sa. Darbari's true gravitational pull lives in the mandra saptak; without the deep vakra descent of S d n P and the heavy, oscillating weight of an andolan on komal Dha or Ga, the piece sounds like generic Asavari rather than a brooding doom gat. I have revised my head to root the opening avartan firmly in the mandra octave, holding mandra komal Dha for two full beats so it sways with deliberate weight before rising into the madhya. The head then drives relentlessly through the required Masitkhani mukhada approach—dir da dir da ra—executing the signature g m R S descent to resolve immovably on sam Sa.",
+   "motif": [
+    "S",
+    "d",
+    "n",
+    "P"
+   ],
+   "stroke_line": [
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "-",
+    "da",
+    "ra",
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dir",
+    "da",
+    "ra"
+   ],
+   "notes": "S:da(1) d-1:da(1) n-1:ra(1) P-1:dir(1) d-1:da(2) n-1:da(1) P-1:ra(1) S:da(1) R:da(1) g:ra(1) m:dir(1) P:da(1) g:dir(1) m:da(1) R:ra(1)",
+   "measures": {
+    "g m R S": 1,
+    "d n P": 2,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.44
+   }
+  },
+  {
+   "composer": "B",
+   "round": 1,
+   "changed": true,
+   "argument": "The other composer's head captured a spacious breather on komal gandhar that gave the raga room to breathe, which was a stronger realization of slow tempo than my somewhat crowded middle bar. However, both of our initial heads suffered from the exact same critical deficiency: zero dwell time in the mandra saptak (0.0 beats below Sa) and a complete absence of the foundational vakra d n P cell that gives Darbari Kanada its profound doom-laden gravitas. I have revised my head to plunge deeply into the mandra register over the five-beat mukhada approach, taking S into mandra d, n, and P before rising to the sam. Driven relentlessly by the Masitkhani stroke frame, this anchors the sitar's right-hand attack directly to the metal groove while honoring Darbari's true home.",
+   "motif": [
+    "S",
+    "R",
+    "g",
+    "m",
+    "P"
+   ],
+   "stroke_line": [
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dir",
+    "da",
+    "-",
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dir",
+    "da",
+    "ra"
+   ],
+   "notes": "S:da(1) R:da(1) g:ra(1) m:dir(1) P:da(1) m:dir(1) g:da(2) m:da(1) R:da(1) S:ra(1) d-1:dir(1) n-1:da(1) P-1:dir(1) P-1:da(1) n-1:ra(1)",
+   "measures": {
+    "g m R S": 1,
+    "d n P": 1,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.31
+   }
+  },
+  {
+   "composer": "A",
+   "round": 2,
+   "changed": false,
+   "argument": "The other head's hold on madhya Ga gives an immediate vocal sweetness, but sacrificing the definitive melodic descent into the sam weakens the head's gravitational pull. My head anchors the composition firmly where Darbari truly breathes—deep in the mandra saptak—giving komal Dha a sustained two-beat andolan that establishes real doom metal weight. Furthermore, my head integrates both essential motifs of the raga: the vakra d-n-P contour twice in the lower register, followed by the classic m-P-g-m-R descent surging straight into the sam on home Sa. It achieves the dark, deliberate majesty of Darbari Kanada without diluting either raga grammar or rhythmic authority, so I retain my head unchanged.",
+   "motif": [
+    "S",
+    "d",
+    "n",
+    "P"
+   ],
+   "stroke_line": [
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "-",
+    "da",
+    "ra",
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dir",
+    "da",
+    "ra"
+   ],
+   "notes": "S:da(1) d-1:da(1) n-1:ra(1) P-1:dir(1) d-1:da(2) n-1:da(1) P-1:ra(1) S:da(1) R:da(1) g:ra(1) m:dir(1) P:da(1) g:dir(1) m:da(1) R:ra(1)",
+   "measures": {
+    "g m R S": 1,
+    "d n P": 2,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.44
+   }
+  },
+  {
+   "composer": "B",
+   "round": 2,
+   "changed": false,
+   "argument": "The other composer's head commendably prioritizes the mandra register with 0.44 dwell time and emphasizes two d-n-P cells, producing an undeniably somber atmosphere. However, my head is musically and structurally far superior as a true Masitkhani gat: it anchors Darbari's grief with a dedicated two-beat andolan on komal Ga (matras 7-8) and settles cleanly on Sa at matra 11 on the soft 'ra' stroke right before the mukhada launches. Furthermore, my mukhada (matras 12-16: dir da dir da ra) surges through the mandra register (d-1 n-1 P-1 P-1 n-1) to hook decisively into the sam on Sa from below, whereas the other head breaks the stroke tradition and lands weakly on Re. Because my head balances heavy doom riffing with authentic shastriya grammar, I keep my head unchanged.",
+   "motif": [
+    "S",
+    "R",
+    "g",
+    "m",
+    "P"
+   ],
+   "stroke_line": [
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dir",
+    "da",
+    "-",
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dir",
+    "da",
+    "ra"
+   ],
+   "notes": "S:da(1) R:da(1) g:ra(1) m:dir(1) P:da(1) m:dir(1) g:da(2) m:da(1) R:da(1) S:ra(1) d-1:dir(1) n-1:da(1) P-1:dir(1) P-1:da(1) n-1:ra(1)",
+   "measures": {
+    "g m R S": 1,
+    "d n P": 1,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.31
+   }
+  }
+ ],
+ "convergence": {
+  "0": {
+   "swaras": 0.55,
+   "rhythm": 0.83
+  },
+  "1": {
+   "swaras": 0.53,
+   "rhythm": 0.87
+  },
+  "2": {
+   "swaras": 0.53,
+   "rhythm": 0.87
+  }
+ },
+ "drift_from_proposal": {
+  "A": {
+   "0": {
+    "swaras": 1.0,
+    "rhythm": 1.0
+   },
+   "1": {
+    "swaras": 0.55,
+    "rhythm": 0.9
+   },
+   "2": {
+    "swaras": 0.55,
+    "rhythm": 0.9
+   }
+  },
+  "B": {
+   "0": {
+    "swaras": 1.0,
+    "rhythm": 1.0
+   },
+   "1": {
+    "swaras": 0.53,
+    "rhythm": 1.0
+   },
+   "2": {
+    "swaras": 0.53,
+    "rhythm": 1.0
+   }
+  }
+ },
+ "judge": {
+  "winner": "A",
+  "final_round": 2,
+  "events": [
+   {
+    "type": "info",
+    "agent": "Selector",
+    "role": "composer",
+    "text": "the two orders disagreed ([0, 1]) — code broke the tie: seed 1, fewest measured problems",
+    "verdict": null,
+    "scores": null,
+    "round": null,
+    "data": {
+     "chosen": 0,
+     "votes": [
+      0,
+      1
+     ],
+     "tie": true
+    }
+   }
+  ]
+ }
+}

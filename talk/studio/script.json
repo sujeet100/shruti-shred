@@ -1,0 +1,173 @@
+{
+  "about": "Slide 10: how a song really gets made. One idea, answered part by part, a correction, the band again. Times in seconds; the music runs in avartans (16 beats = 8 s at 120 bpm) after a 2 s lead-in. Read by session_music.py (audio) and studio.js (motion, bubbles).",
+  "bpm": 120,
+  "avartan_beats": 16,
+  "lead_in_beats": 4,
+  "source": {
+    "composition": "out/fusion_20261012_213455_shruti.json",
+    "arrangement": "out/fusion_20261012_213455_shruti.arrangement.json",
+    "head_from_beat": 64,
+    "why": "Darbari, teentaal, 120 bpm, Sa = D; the first mukhada's first avartan. 'written' = the Composer's seed_riff as written (it strikes Re at beat 5.5 under the sitar's held komal Ga, beats 4-6); 'articulated' = the same riff after crew/articulation.py lets it ring through the sitar's held and ornamented notes."
+  },
+  "avartans": [
+    {
+      "parts": [
+        "sitar"
+      ]
+    },
+    {
+      "parts": [
+        "sitar",
+        "guitar"
+      ],
+      "riff": "written"
+    },
+    {
+      "parts": [
+        "sitar",
+        "guitar",
+        "bass"
+      ],
+      "riff": "written",
+      "count_in": true
+    },
+    {
+      "parts": [
+        "sitar",
+        "guitar",
+        "bass",
+        "drums"
+      ],
+      "riff": "written"
+    },
+    {
+      "parts": [
+        "sitar",
+        "guitar",
+        "bass",
+        "drums"
+      ],
+      "riff": "written",
+      "stop_at_beat": 8
+    },
+    {
+      "parts": [],
+      "count_in": true
+    },
+    {
+      "parts": [
+        "sitar",
+        "guitar",
+        "bass",
+        "drums"
+      ],
+      "riff": "articulated"
+    },
+    {
+      "parts": [
+        "sitar",
+        "guitar",
+        "bass",
+        "drums"
+      ],
+      "riff": "articulated"
+    }
+  ],
+  "tail_s": 2.5,
+  "steps": [
+    {
+      "at": 0.0,
+      "n": "1",
+      "label": "One idea",
+      "term": "the mukhada: the gat's hook"
+    },
+    {
+      "at": 8.0,
+      "n": "2",
+      "label": "An answer",
+      "term": "the riff"
+    },
+    {
+      "at": 16.2,
+      "n": "3",
+      "label": "The bass locks in",
+      "term": "on the riff's roots"
+    },
+    {
+      "at": 23.9,
+      "n": "4",
+      "label": "The drums lock to them",
+      "term": "the groove, on the tala's cycle"
+    },
+    {
+      "at": 37.4,
+      "n": "5",
+      "label": "A correction",
+      "term": "the producer hears the whole"
+    },
+    {
+      "at": 47.9,
+      "n": "6",
+      "label": "Together, refined"
+    }
+  ],
+  "lines": [
+    {
+      "who": "sitar",
+      "at": 0.2,
+      "text": "Here's an idea for the hook."
+    },
+    {
+      "who": "guitar",
+      "at": 8.0,
+      "text": "Nice. I hear a riff under that."
+    },
+    {
+      "who": "bass",
+      "at": 16.2,
+      "text": "I'll lock onto your roots."
+    },
+    {
+      "who": "drums",
+      "at": 24.0,
+      "text": "One, two, three, four!",
+      "on_beats": [
+        24.0,
+        24.5,
+        25.0,
+        25.5
+      ]
+    },
+    {
+      "who": "producer",
+      "at": 37.4,
+      "text": "Hold on. Stop."
+    },
+    {
+      "who": "producer",
+      "at": 38.7,
+      "text": "The riff hits Re right under the sitar's Ga. Let that note breathe."
+    },
+    {
+      "who": "guitar",
+      "at": 44.5,
+      "text": "Got it. I'll hold the chord and let it ring."
+    },
+    {
+      "who": "drums",
+      "at": 48.0,
+      "text": "One, two, three, four!",
+      "on_beats": [
+        48.0,
+        48.5,
+        49.0,
+        49.5
+      ]
+    },
+    {
+      "who": "producer",
+      "at": 60.5,
+      "text": "That's the one. Again, from the top!"
+    }
+  ]
+}

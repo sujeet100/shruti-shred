@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{width:1664px;height:300px;image-rendering:pixelated;display:block}</style></head><body><canvas id="c" width="416" height="75"></canvas><script>
+const c=document.getElementById("c"),g=c.getContext("2d");
+const DEV="'Kohinoor Devanagari','Devanagari Sangam MN','Noto Sans Devanagari','Nirmala UI','Mangal',sans-serif",LAT="Menlo,Consolas,monospace";
+const cache={};
+function px(text,size,color,font,weight){const k=text+size+color+font;if(cache[k])return cache[k];
+const o=document.createElement("canvas"),oc=o.getContext("2d");oc.font=(weight||600)+" "+size+"px "+font;const w=Math.ceil(oc.measureText(text).width)+4,h=Math.ceil(size*1.6);
+o.width=w;o.height=h;oc.font=(weight||600)+" "+size+"px "+font;oc.textBaseline="middle";oc.fillStyle="#fff";oc.fillText(text,2,h/2);
+const d=oc.getImageData(0,0,w,h),r=parseInt(color.slice(1,3),16),gg=parseInt(color.slice(3,5),16),b=parseInt(color.slice(5,7),16);
+for(let i=0;i<d.data.length;i+=4){const a=d.data[i+3]>110;d.data[i]=r;d.data[i+1]=gg;d.data[i+2]=b;d.data[i+3]=a?255:0}
+oc.putImageData(d,0,0);return cache[k]=o}
+function draw(img,cx,cy){g.drawImage(img,Math.round(cx-img.width/2),Math.round(cy-img.height/2))}
+const N=[["स","Sa",0],["रे","re",1],["ग","Ga",0],["म","ma",0],["प","Pa",0],["ध","dha",1],["नि","Ni",0],["सां","Sa'",0]];
+const seq=[0,1,2,3,4,5,6,7,7,7,6,5,4,3,2,1,0,0,0],step=60000/128,TW=46,GAP=6,X0=3,t0=performance.now();
+function frame(now){const t=now-t0,si=Math.floor(t/step)%seq.length,cur=seq[si],asc=si<9;g.clearRect(0,0,416,75);
+N.forEach(([dv,lat,komal],i)=>{const x=X0+i*(TW+GAP),on=i===cur,y=4;
+g.fillStyle=on?(komal?"#ff2e88":"#f2b53c"):"#191426";g.fillRect(x,y,TW,50);
+g.fillStyle=on?"#ece5d3":(komal?"#ff2e88":"#2a2138");g.fillRect(x,y,TW,1);g.fillRect(x,y+49,TW,1);g.fillRect(x,y,1,50);g.fillRect(x+TW-1,y,1,50);
+const wob=on&&komal?Math.round(Math.sin(t/90)*1.6):0;
+draw(px(dv,22,on?"#08070d":"#ece5d3",DEV),x+TW/2,y+20+wob);
+if(komal)g.fillStyle=on?"#08070d":"#ff2e88",g.fillRect(x+TW/2-7,y+34,14,1);
+draw(px(lat,8,on?"#08070d":(komal?"#ff2e88":"#8c8399"),LAT,700),x+TW/2,y+42)});
+const ax=X0+cur*(TW+GAP)+TW/2;g.fillStyle="#38e0cf";g.fillRect(ax-2,62,5,1);g.fillRect(ax-1,61,3,1);g.fillRect(ax,60,1,1);
+draw(px(asc?"AROHA  ascent":"AVAROHA  descent",8,"#38e0cf",LAT,700),208,70);
+requestAnimationFrame(frame)}requestAnimationFrame(frame);
+</script></body></html>

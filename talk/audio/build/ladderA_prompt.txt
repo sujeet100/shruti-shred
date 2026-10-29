@@ -1,0 +1,1 @@
+Compose a lead melody for a metal song in raga Bhairav, played on sitar, at 128 BPM, in the key of E (Sa = E4). Make it about 30 seconds long (about 64 beats). Return ONLY a JSON list of notes, each {"note": "<scientific pitch like E4 or F#4, or rest>", "beats": <duration in beats>}.

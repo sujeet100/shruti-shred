@@ -126,13 +126,20 @@ agent did; read its trace. `crew/tracing.py` subscribes to CrewAI's event bus an
 captures each crew/agent/LLM/guardrail step (full prompt, response, token usage,
 timing, and guardrail retries). `crew/evals.py` and `crew/composers.py` enable it
 automatically via `tracing_enabled()`; **opt out only with `RMA_TRACE=0`**. Each run
-writes `traces/<name>.jsonl` (+ a standalone HTML) and streams a readable tree to the
-console. Browse all runs in the local portal:
-`uv run python -m crew.trace_portal` → http://127.0.0.1:8420 (dependency-free stdlib
-server; `traces/` is gitignored). When diagnosing a misbehaving agent, open its trace
+writes `traces/<id>.json` and streams a readable tree to the console. Browse all runs in the
+local portal: `uv run python -m crew.trace_portal` → http://127.0.0.1:8420 (dependency-free
+stdlib server). When diagnosing a misbehaving agent, open its trace
 and read the actual prompt + reasoning + output *before* changing anything — pair this
 with the reasoning-first extraction rule. (CrewAI event paths verified for 1.15.2;
 re-check on upgrade.)
+
+**The run history is committed (since 2026-10-29)** so the system's evolution stays readable:
+every trace (`traces/`), every render's composition JSON / MIDI / chart / listening report and
+every experiment directory (`out/`), and the talk clips' source data (`talk/audio/build/`).
+WAV/MP4 stay out (they re-render free). Each has a catalogue — `out/README.md`,
+`traces/README.md`, `talk/audio/README.md` — with one row per run: what it was for, what it
+showed (Sujit's ear verdict when given), its trace, where the docs discuss it. **When you make a
+run or an experiment, add its row** (never invent a purpose — say "not discussed" instead).
 
 ## CrewAI & agentic implementation rules (Phase 2)
 

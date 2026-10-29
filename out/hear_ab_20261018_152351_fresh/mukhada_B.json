@@ -1,0 +1,531 @@
+{
+  "raga": "darbari",
+  "sa": 64,
+  "bpm": 128,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 44,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 0.0,
+          "dur": 1.0,
+          "vel": 112
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 1.0,
+          "dur": 1.0,
+          "vel": 70,
+          "cents": 3.91
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 2.0,
+          "dur": 0.5,
+          "vel": 100,
+          "gamak_with": "g",
+          "gesture": "gamak",
+          "pitch_path": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              77.4,
+              0.0
+            ],
+            [
+              102.4,
+              -2.0
+            ],
+            [
+              179.7,
+              -2.0
+            ],
+            [
+              204.7,
+              0.0
+            ]
+          ],
+          "cents": -1.96
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 2.5,
+          "dur": 0.5,
+          "vel": 76,
+          "gamak_with": "g",
+          "gesture": "gamak",
+          "pitch_path": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              64.2,
+              0.0
+            ],
+            [
+              89.2,
+              -2.0
+            ],
+            [
+              153.5,
+              -2.0
+            ],
+            [
+              178.5,
+              0.0
+            ]
+          ],
+          "cents": -1.96
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 3.0,
+          "dur": 3.0,
+          "vel": 106,
+          "gesture": "ga_re_dip",
+          "pitch_path": [
+            [
+              0.0,
+              -0.0
+            ],
+            [
+              40.0,
+              -0.0
+            ],
+            [
+              60.0,
+              -1.0
+            ],
+            [
+              100.2,
+              -1.0
+            ],
+            [
+              125.2,
+              -0.0
+            ]
+          ],
+          "cents": -5.87
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 6.0,
+          "dur": 1.0,
+          "vel": 101,
+          "cents": -1.96
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 7.0,
+          "dur": 0.5,
+          "vel": 94,
+          "cents": 1.96
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 7.5,
+          "dur": 0.5,
+          "vel": 72,
+          "cents": 1.96
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 8.0,
+          "dur": 0.5,
+          "vel": 95,
+          "cents": -7.82
+        },
+        {
+          "swara": "n",
+          "oct": 0,
+          "start": 8.5,
+          "dur": 0.5,
+          "vel": 70,
+          "cents": -3.91
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 9.0,
+          "dur": 1.0,
+          "vel": 106,
+          "cents": 1.96
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 10.0,
+          "dur": 1.0,
+          "vel": 70,
+          "cents": -1.96
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 11.0,
+          "dur": 0.5,
+          "vel": 94,
+          "gesture": "ga_re_dip",
+          "pitch_path": [
+            [
+              0.0,
+              -0.0
+            ],
+            [
+              40.0,
+              -0.0
+            ],
+            [
+              60.0,
+              -1.0
+            ],
+            [
+              102.4,
+              -1.0
+            ],
+            [
+              127.4,
+              -0.0
+            ]
+          ],
+          "cents": -5.87
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 11.5,
+          "dur": 0.5,
+          "vel": 72,
+          "cents": -5.87
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 12.0,
+          "dur": 1.0,
+          "vel": 106
+        },
+        {
+          "swara": "d",
+          "oct": -1,
+          "start": 13.0,
+          "dur": 0.5,
+          "vel": 95,
+          "cents": -7.82
+        },
+        {
+          "swara": "n",
+          "oct": -1,
+          "start": 13.5,
+          "dur": 0.5,
+          "vel": 70,
+          "cents": -3.91
+        },
+        {
+          "swara": "P",
+          "oct": -1,
+          "start": 14.0,
+          "dur": 1.0,
+          "vel": 106,
+          "cents": 1.96
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 15.0,
+          "dur": 1.0,
+          "vel": 74,
+          "cents": 3.91
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 16.0,
+          "dur": 1.0,
+          "vel": 112
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 17.0,
+          "dur": 1.0,
+          "vel": 70,
+          "cents": 3.91
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 18.0,
+          "dur": 0.5,
+          "vel": 100,
+          "gamak_with": "g",
+          "gesture": "gamak",
+          "pitch_path": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              81.0,
+              0.0
+            ],
+            [
+              105.5,
+              -2.0
+            ],
+            [
+              186.4,
+              -2.0
+            ],
+            [
+              210.9,
+              0.0
+            ]
+          ],
+          "cents": -1.96
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 18.5,
+          "dur": 0.5,
+          "vel": 76,
+          "gamak_with": "g",
+          "gesture": "gamak",
+          "pitch_path": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              69.6,
+              0.0
+            ],
+            [
+              94.6,
+              -2.0
+            ],
+            [
+              164.1,
+              -2.0
+            ],
+            [
+              189.1,
+              0.0
+            ]
+          ],
+          "cents": -1.96
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 19.0,
+          "dur": 3.0,
+          "vel": 106,
+          "gesture": "ga_re_dip",
+          "pitch_path": [
+            [
+              0.0,
+              -0.0
+            ],
+            [
+              40.0,
+              -0.0
+            ],
+            [
+              60.0,
+              -1.0
+            ],
+            [
+              104.6,
+              -1.0
+            ],
+            [
+              129.6,
+              -0.0
+            ]
+          ],
+          "cents": -5.87
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 22.0,
+          "dur": 1.0,
+          "vel": 101,
+          "cents": -1.96
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 23.0,
+          "dur": 0.5,
+          "vel": 94,
+          "cents": 1.96
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 23.5,
+          "dur": 0.5,
+          "vel": 72,
+          "cents": 1.96
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 24.0,
+          "dur": 0.5,
+          "vel": 95,
+          "cents": -7.82
+        },
+        {
+          "swara": "n",
+          "oct": 0,
+          "start": 24.5,
+          "dur": 0.5,
+          "vel": 70,
+          "cents": -3.91
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 25.0,
+          "dur": 1.0,
+          "vel": 106,
+          "cents": 1.96
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 26.0,
+          "dur": 1.0,
+          "vel": 70,
+          "cents": -1.96
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 27.0,
+          "dur": 0.5,
+          "vel": 94,
+          "gesture": "ga_re_dip",
+          "pitch_path": [
+            [
+              0.0,
+              -0.0
+            ],
+            [
+              40.0,
+              -0.0
+            ],
+            [
+              60.0,
+              -1.0
+            ],
+            [
+              106.8,
+              -1.0
+            ],
+            [
+              131.8,
+              -0.0
+            ]
+          ],
+          "cents": -5.87
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 27.5,
+          "dur": 0.5,
+          "vel": 72,
+          "cents": -5.87
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 28.0,
+          "dur": 1.0,
+          "vel": 106
+        },
+        {
+          "swara": "d",
+          "oct": -1,
+          "start": 29.0,
+          "dur": 0.5,
+          "vel": 95,
+          "cents": -7.82
+        },
+        {
+          "swara": "n",
+          "oct": -1,
+          "start": 29.5,
+          "dur": 0.5,
+          "vel": 70,
+          "cents": -3.91
+        },
+        {
+          "swara": "P",
+          "oct": -1,
+          "start": 30.0,
+          "dur": 1.0,
+          "vel": 106,
+          "cents": 1.96
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 31.0,
+          "dur": 1.0,
+          "vel": 74,
+          "cents": 3.91
+        }
+      ]
+    },
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -1,
+          "start": 0.0,
+          "dur": 32.0,
+          "vel": 55
+        },
+        {
+          "swara": "P",
+          "oct": -1,
+          "start": 0.0,
+          "dur": 32.0,
+          "vel": 45
+        }
+      ]
+    }
+  ]
+}

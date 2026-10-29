@@ -1,0 +1,431 @@
+{
+ "variant": "B",
+ "fresh": true,
+ "trace": "56c3138779a9",
+ "phrase": {
+  "phrase_plan": {
+   "seed": [
+    "g",
+    "m",
+    "R",
+    "S",
+    "d",
+    "n",
+    "P"
+   ],
+   "contour": "wave",
+   "transformations": [
+    "repeat",
+    "answer",
+    "octave_shift",
+    "resolve"
+   ],
+   "climax_and_sam": "Peaks on madhya Pa and komal Ni during the response, and lands powerfully on madhya Sa on the sam",
+   "stroke_line": [
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "-",
+    "-",
+    "da",
+    "dir",
+    "dara",
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "dara",
+    "da",
+    "ra"
+   ],
+   "head_shape": [
+    {
+     "stage": "figure",
+     "beats": 3.0,
+     "target": "m",
+     "ornament": "gamak"
+    },
+    {
+     "stage": "breather",
+     "beats": 3.0,
+     "target": "g",
+     "ornament": "andolan"
+    },
+    {
+     "stage": "response",
+     "beats": 5.0,
+     "target": "P",
+     "ornament": "plain"
+    },
+    {
+     "stage": "approach",
+     "beats": 5.0,
+     "target": "R",
+     "ornament": "plain"
+    }
+   ]
+  },
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 100,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 85,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 95,
+    "bol": "dir",
+    "rest": false,
+    "gamak_with": "g"
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 3.0,
+    "vel": 95,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "d",
+    "oct": 0,
+    "dur": 0.5,
+    "vel": 85,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "n",
+    "oct": 0,
+    "dur": 0.5,
+    "vel": 85,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 95,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 85,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 95,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "d",
+    "oct": -1,
+    "dur": 0.5,
+    "vel": 85,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "n",
+    "oct": -1,
+    "dur": 0.5,
+    "vel": 85,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": -1,
+    "dur": 1.0,
+    "vel": 95,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   }
+  ]
+ },
+ "listens": [
+  {
+   "draft": [
+    {
+     "swara": "S",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 85,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "g",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 95,
+     "bol": "dir",
+     "rest": false,
+     "gamak_with": "m"
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "P",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 95,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 85,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "P",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 85,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "g",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 85,
+     "bol": "dir",
+     "rest": false
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 85,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 95,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "S",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 90,
+     "bol": "ra",
+     "rest": false
+    }
+   ],
+   "report": "WHAT THE SITAR WILL PLAY (128 bpm; beat, swara, beats, what happens):\nbeat   0.00  S           2  plain\nbeat   2.00  R           2  plain\nbeat   4.00  g           2  gamak with m: 4 strokes\nbeat   6.00  m           2  plain\nbeat   8.00  P           2  plain\nbeat  10.00  m           1  plain\nbeat  11.00  P           1  plain\nbeat  12.00  g         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)\nbeat  12.50  g         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)\nbeat  13.00  m           1  plain\nbeat  14.00  R           2  plain\n\nyour draft runs 18 beats but this statement's window ends at beat 16, so the last 2 beats are cut\ng and d (the swaras Darbari Kanada sways): 2 note(s) \u2014 0 sway, 0 take a measured gesture, 2 plain\nno silence inside the phrase\nornament check: every bend comes home in tune"
+  },
+  {
+   "draft": [
+    {
+     "swara": "S",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 100,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 85,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 95,
+     "bol": "dir",
+     "rest": false,
+     "gamak_with": "g"
+    },
+    {
+     "swara": "g",
+     "oct": 0,
+     "dur": 3.0,
+     "vel": 95,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "P",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "dir",
+     "rest": false
+    },
+    {
+     "swara": "d",
+     "oct": 0,
+     "dur": 0.5,
+     "vel": 85,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "n",
+     "oct": 0,
+     "dur": 0.5,
+     "vel": 85,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "P",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 95,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 85,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "g",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "dir",
+     "rest": false
+    },
+    {
+     "swara": "S",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 95,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "d",
+     "oct": -1,
+     "dur": 0.5,
+     "vel": 85,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "n",
+     "oct": -1,
+     "dur": 0.5,
+     "vel": 85,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "P",
+     "oct": -1,
+     "dur": 1.0,
+     "vel": 95,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "ra",
+     "rest": false
+    }
+   ],
+   "report": "WHAT THE SITAR WILL PLAY (128 bpm; beat, swara, beats, what happens):\nbeat   0.00  S           1  plain\nbeat   1.00  R           1  plain\nbeat   2.00  m           1  gamak with g: 2 strokes\nbeat   3.00  g           3  dips to R and back, then holds\nbeat   6.00  m           1  plain\nbeat   7.00  P         0.5  plain\nbeat   7.50  P         0.5  plain\nbeat   8.00  d         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)\nbeat   8.50  n         0.5  plain\nbeat   9.00  P           1  plain\nbeat  10.00  m           1  plain\nbeat  11.00  g         0.5  dips to R and back, then holds\nbeat  11.50  g         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)\nbeat  12.00  S           1  plain\nbeat  13.00  d(-1)     0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)\nbeat  13.50  n(-1)     0.5  plain\nbeat  14.00  P(-1)       1  plain\nbeat  15.00  R           1  plain\n\ng and d (the swaras Darbari Kanada sways): 5 note(s) \u2014 0 sway, 2 take a measured gesture, 3 plain\nno silence inside the phrase\nornament check: every bend comes home in tune"
+  }
+ ]
+}

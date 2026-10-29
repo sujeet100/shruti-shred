@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{width:480px;height:480px;image-rendering:pixelated;display:block}</style></head><body><canvas id="c" width="120" height="120"></canvas><script>
+const c=document.getElementById("c"),g=c.getContext("2d");
+const F={R:"110101110101101",O:"111101101101111",U:"101101101101111",N:"101111111111101",D:"110101101101110",I:"111010010010111",L:"100100100100111",G:"011100101101011","1":"010110010010111","2":"111001111100111","3":"111001111001111",F:"111100110100100"};
+function txt(s,x,y,sc,col){g.fillStyle=col;const w=s.length*4*sc-sc;let ox=Math.round(x-w/2);for(const ch of s){const b=F[ch];if(b)for(let i=0;i<15;i++)if(b[i]==="1")g.fillRect(ox+(i%3)*sc,y+Math.floor(i/3)*sc,sc,sc);ox+=4*sc}}
+const RD=1500,cx=60,cy=60,R0=40,R1=50,t0=performance.now();
+function seg(i,frac,col){const span=Math.PI*2/3,gp=0.16,a0=-Math.PI/2+i*span+gp/2,a1=a0+(span-gp)*frac;
+for(let y=0;y<120;y++)for(let x=0;x<120;x++){const dx=x+0.5-cx,dy=y+0.5-cy,r=Math.hypot(dx,dy);if(r<R0||r>R1)continue;let a=Math.atan2(dy,dx);while(a<a0)a+=Math.PI*2;if(a<=a1){g.fillStyle=col;g.fillRect(x,y,1,1)}}}
+function frame(now){const t=now-t0;g.clearRect(0,0,120,120);
+for(let i=0;i<3;i++)seg(i,1,"#a34f17");
+for(let i=0;i<3;i++){const f=Math.max(0,Math.min(1,(t-i*RD)/RD));if(f>0)seg(i,f,"#08070d")}
+if(t>=RD*3){txt("RULING",cx,52,2,"#08070d")}else{const r=Math.floor(t/RD)+1;txt("ROUND",cx,38,2,"#08070d");txt(String(r),cx,54,4,"#08070d")}
+if(t<RD*3+100)requestAnimationFrame(frame)}requestAnimationFrame(frame);
+</script></body></html>

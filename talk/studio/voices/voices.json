@@ -1,0 +1,101 @@
+[
+ {
+  "who": "sitar",
+  "at": 0.2,
+  "text": "Here's an idea for the hook.",
+  "file": "00_sitar.wav",
+  "dur": 1.491,
+  "engine": "gemini",
+  "model": "gemini-3.8-flash-tts",
+  "model_version": "gemini-3.8-flash-tts",
+  "voice": "Sulafat"
+ },
+ {
+  "who": "guitar",
+  "at": 8.0,
+  "text": "Nice. I hear a riff under that.",
+  "file": "01_guitar.wav",
+  "dur": 2.74,
+  "engine": "gemini",
+  "model": "gemini-3.8-flash-tts",
+  "model_version": "gemini-3.8-flash-tts",
+  "voice": "Puck"
+ },
+ {
+  "who": "bass",
+  "at": 16.2,
+  "text": "I'll lock onto your roots.",
+  "file": "02_bass.wav",
+  "dur": 1.488,
+  "engine": "gemini",
+  "model": "gemini-3.8-flash-tts",
+  "model_version": "gemini-3.8-flash-tts",
+  "voice": "Algenib"
+ },
+ {
+  "who": "drums",
+  "at": 23.9,
+  "text": "One, two, three, four!",
+  "file": "03_drums.wav",
+  "dur": 2.46,
+  "engine": "gemini",
+  "model": "gemini-3.8-flash-tts",
+  "model_version": "gemini-3.8-flash-tts",
+  "voice": "Fenrir"
+ },
+ {
+  "who": "producer",
+  "at": 37.4,
+  "text": "Hold on. Stop.",
+  "file": "04_producer.wav",
+  "dur": 0.672,
+  "engine": "gemini",
+  "model": "gemini-3.8-flash-tts",
+  "model_version": "gemini-3.8-flash-tts",
+  "voice": "Kore"
+ },
+ {
+  "who": "producer",
+  "at": 39.0,
+  "text": "The riff hits Re right under the sitar's Ga. Let that note breathe.",
+  "file": "05_producer.wav",
+  "dur": 4.83,
+  "engine": "gemini",
+  "model": "gemini-3.8-flash-tts",
+  "model_version": "gemini-3.8-flash-tts",
+  "voice": "Kore"
+ },
+ {
+  "who": "guitar",
+  "at": 44.2,
+  "text": "Got it. I'll hold the chord and let it ring.",
+  "file": "06_guitar.wav",
+  "dur": 2.631,
+  "engine": "gemini",
+  "model": "gemini-3.8-flash-tts",
+  "model_version": "gemini-3.8-flash-tts",
+  "voice": "Puck"
+ },
+ {
+  "who": "drums",
+  "at": 47.9,
+  "text": "One, two, three, four!",
+  "file": "07_drums.wav",
+  "dur": 3.487,
+  "engine": "gemini",
+  "model": "gemini-3.8-flash-tts",
+  "model_version": "gemini-3.8-flash-tts",
+  "voice": "Fenrir"
+ },
+ {
+  "who": "producer",
+  "at": 60.5,
+  "text": "That's the one. Again, from the top!",
+  "file": "08_producer.wav",
+  "dur": 2.983,
+  "engine": "gemini",
+  "model": "gemini-3.8-flash-tts",
+  "model_version": "gemini-3.8-flash-tts",
+  "voice": "Kore"
+ }
+]

@@ -1,0 +1,221 @@
+{
+  "raga": "bhairav",
+  "sa": 64,
+  "bpm": 128,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 28.5,
+          "vel": 55
+        },
+        {
+          "swara": "P",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 28.5,
+          "vel": 45
+        }
+      ]
+    },
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 8.5,
+          "dur": 1.0,
+          "vel": 90
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 9.5,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 10.25,
+          "dur": 3.25,
+          "vel": 90,
+          "andolan": true
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 13.5,
+          "dur": 2.0,
+          "vel": 90
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 16.0,
+          "dur": 0.5,
+          "vel": 90
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 16.5,
+          "dur": 0.5,
+          "vel": 90
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 17.0,
+          "dur": 3.0,
+          "vel": 90,
+          "andolan": true
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 20.0,
+          "dur": 6.5,
+          "vel": 90
+        }
+      ]
+    },
+    {
+      "role": "tabla",
+      "channel": 9,
+      "hits": [
+        {
+          "drum": "tabla_lo",
+          "start": 17.0,
+          "dur": 0.2,
+          "vel": 92
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 17.0,
+          "dur": 0.2,
+          "vel": 92
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 18.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 18.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 19.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 19.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 20.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 20.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 21.0,
+          "dur": 0.2,
+          "vel": 82
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 21.0,
+          "dur": 0.2,
+          "vel": 82
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 22.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 22.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 23.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 23.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 24.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 24.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 25.0,
+          "dur": 0.2,
+          "vel": 58
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 25.0,
+          "dur": 0.2,
+          "vel": 58
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 26.0,
+          "dur": 0.2,
+          "vel": 66
+        }
+      ]
+    }
+  ]
+}

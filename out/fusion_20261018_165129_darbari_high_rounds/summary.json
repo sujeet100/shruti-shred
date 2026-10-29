@@ -1,0 +1,43 @@
+{
+ "trace": "57af304fd1ad",
+ "final": "revise",
+ "revise_rounds": 1,
+ "rounds": [
+  {
+   "round": 0,
+   "decision": "revise",
+   "scores": {
+    "structure": 5,
+    "dynamics": 4,
+    "climax": 5,
+    "motif": 4,
+    "hook": 4,
+    "balance": 4,
+    "independence": 4,
+    "mood_fit": 5,
+    "repetition": 4,
+    "performance": 4,
+    "handoff": 5
+   },
+   "plan": "Change the final cadential phrase in section 4 to dip into the mandra saptak with g m R S n(-1) d(-1) n(-1) S before settling on home Sa, grounding the song with Darbari's characteristic lower-octave gravity."
+  },
+  {
+   "round": 1,
+   "decision": "revise",
+   "scores": {
+    "structure": 5,
+    "dynamics": 4,
+    "climax": 5,
+    "motif": 4,
+    "hook": 4,
+    "balance": 4,
+    "independence": 4,
+    "mood_fit": 5,
+    "repetition": 3,
+    "performance": 4,
+    "handoff": 5
+   },
+   "plan": "Replace the mechanical triple repetition of 'g m R S n(-1) d(-1) n(-1) S' with a heavy, grounding Darbari mandra descent that sinks to mandra Pa before resolving firmly onto home Sa: 'g m R S d(-1) n(-1) P(-1) n(-1) S'."
+  }
+ ]
+}

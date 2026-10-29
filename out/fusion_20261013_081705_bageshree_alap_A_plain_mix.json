@@ -1,0 +1,434 @@
+{
+  "raga": "bageshree",
+  "sa": 62,
+  "bpm": 120,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 68.0,
+          "vel": 55
+        },
+        {
+          "swara": "m",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 68.0,
+          "vel": 45
+        }
+      ]
+    },
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 44,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 2.0,
+          "dur": 2.0,
+          "vel": 86
+        },
+        {
+          "swara": "n",
+          "oct": -1,
+          "start": 4.0,
+          "dur": 1.0,
+          "vel": 63
+        },
+        {
+          "swara": "D",
+          "oct": -1,
+          "start": 5.0,
+          "dur": 2.0,
+          "vel": 86
+        },
+        {
+          "swara": "n",
+          "oct": -1,
+          "start": 7.0,
+          "dur": 1.0,
+          "vel": 63
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 8.0,
+          "dur": 3.0,
+          "vel": 86
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 13.0,
+          "dur": 2.0,
+          "vel": 86
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 15.0,
+          "dur": 4.0,
+          "vel": 86
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 19.0,
+          "dur": 1.0,
+          "vel": 63
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 20.0,
+          "dur": 2.0,
+          "vel": 86
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 22.0,
+          "dur": 1.0,
+          "vel": 63
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 23.0,
+          "dur": 3.0,
+          "vel": 86
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 28.0,
+          "dur": 1.0,
+          "vel": 86
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 29.0,
+          "dur": 1.0,
+          "vel": 63
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 30.0,
+          "dur": 2.0,
+          "vel": 86
+        },
+        {
+          "swara": "D",
+          "oct": 0,
+          "start": 32.0,
+          "dur": 1.5,
+          "vel": 86
+        },
+        {
+          "swara": "n",
+          "oct": 0,
+          "start": 33.5,
+          "dur": 1.5,
+          "vel": 63
+        },
+        {
+          "swara": "D",
+          "oct": 0,
+          "start": 35.0,
+          "dur": 2.0,
+          "vel": 86
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 37.0,
+          "dur": 2.0,
+          "vel": 86
+        },
+        {
+          "swara": "D",
+          "oct": 0,
+          "start": 39.0,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 39.5,
+          "dur": 0.5,
+          "vel": 63
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 40.0,
+          "dur": 1.0,
+          "vel": 86
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 41.0,
+          "dur": 2.0,
+          "vel": 63
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 45.0,
+          "dur": 1.5,
+          "vel": 86
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 46.5,
+          "dur": 1.5,
+          "vel": 63
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 48.0,
+          "dur": 1.0,
+          "vel": 86
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 49.0,
+          "dur": 1.0,
+          "vel": 63
+        },
+        {
+          "swara": "n",
+          "oct": -1,
+          "start": 50.0,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "D",
+          "oct": -1,
+          "start": 50.5,
+          "dur": 0.5,
+          "vel": 63
+        },
+        {
+          "swara": "m",
+          "oct": -1,
+          "start": 51.0,
+          "dur": 1.0,
+          "vel": 86
+        },
+        {
+          "swara": "g",
+          "oct": -1,
+          "start": 52.0,
+          "dur": 1.0,
+          "vel": 63
+        },
+        {
+          "swara": "R",
+          "oct": -1,
+          "start": 53.0,
+          "dur": 1.0,
+          "vel": 86
+        },
+        {
+          "swara": "S",
+          "oct": -1,
+          "start": 54.0,
+          "dur": 4.0,
+          "vel": 86,
+          "fade": true
+        }
+      ]
+    },
+    {
+      "role": "chikari",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 14,
+      "pan": 44,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": 2,
+          "start": 12.0,
+          "dur": 9.0,
+          "vel": 66
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 12.012,
+          "dur": 9.0,
+          "vel": 60
+        },
+        {
+          "swara": "S",
+          "oct": 2,
+          "start": 27.0,
+          "dur": 9.0,
+          "vel": 66
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 27.012,
+          "dur": 9.0,
+          "vel": 60
+        },
+        {
+          "swara": "S",
+          "oct": 2,
+          "start": 44.0,
+          "dur": 9.0,
+          "vel": 66
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 44.012,
+          "dur": 9.0,
+          "vel": 60
+        },
+        {
+          "swara": "S",
+          "oct": 2,
+          "start": 59.0,
+          "dur": 9.0,
+          "vel": 66
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 59.012,
+          "dur": 8.988,
+          "vel": 60
+        }
+      ]
+    },
+    {
+      "role": "rhythm",
+      "instrument": "overdrive_guitar",
+      "program": 29,
+      "channel": 0,
+      "pan": 20,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 64.0,
+          "dur": 2.0,
+          "vel": 93,
+          "chord": [
+            "m",
+            "S"
+          ]
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 66.0,
+          "dur": 0.5,
+          "vel": 83,
+          "chord": [
+            "S"
+          ],
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 66.5,
+          "dur": 0.5,
+          "vel": 83,
+          "chord": [
+            "S"
+          ],
+          "technique": "palm_mute"
+        }
+      ]
+    },
+    {
+      "role": "rhythm",
+      "instrument": "dist_guitar",
+      "program": 30,
+      "channel": 5,
+      "pan": 108,
+      "detune_cents": 8,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 64.0293,
+          "dur": 2.194,
+          "vel": 90,
+          "chord": [
+            "m",
+            "S"
+          ]
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 66.0218,
+          "dur": 0.5173,
+          "vel": 78,
+          "chord": [
+            "S"
+          ],
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 66.5183,
+          "dur": 0.5026,
+          "vel": 77,
+          "chord": [
+            "S"
+          ],
+          "technique": "palm_mute"
+        }
+      ]
+    },
+    {
+      "role": "bass",
+      "instrument": "electric_bass",
+      "program": 33,
+      "channel": 3,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 64.0,
+          "dur": 4.0,
+          "vel": 91
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,305 @@
+{
+  "raga": "bhairav",
+  "sa": 64,
+  "bpm": 60,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -1,
+          "start": 0.0,
+          "dur": 76.0,
+          "vel": 50
+        },
+        {
+          "swara": "P",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 76.0,
+          "vel": 42
+        }
+      ]
+    },
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 44,
+      "notes": [
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 0.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 1.0,
+          "dur": 4.0,
+          "vel": 96,
+          "andolan": true,
+          "andolan_st": -0.3
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 5.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 9.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 10.0,
+          "dur": 4.0,
+          "vel": 96,
+          "andolan": true,
+          "andolan_st": -0.5
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 14.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 18.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 19.0,
+          "dur": 4.0,
+          "vel": 96,
+          "andolan": true,
+          "andolan_st": -0.7
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 23.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 27.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 28.0,
+          "dur": 4.0,
+          "vel": 96,
+          "andolan": true,
+          "andolan_st": -0.3
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 32.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 36.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 37.0,
+          "dur": 4.0,
+          "vel": 96,
+          "andolan": true,
+          "andolan_st": -0.5
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 41.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 45.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 46.0,
+          "dur": 4.0,
+          "vel": 96,
+          "andolan": true,
+          "andolan_st": -0.7
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 50.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 54.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 55.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 56.0,
+          "dur": 2.0,
+          "vel": 96,
+          "grace": [
+            "N"
+          ]
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 58.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 59.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 61.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 62.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 63.0,
+          "dur": 2.0,
+          "vel": 96,
+          "grace": [
+            "G"
+          ]
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 65.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 69.0,
+          "dur": 0.5,
+          "vel": 96,
+          "gamak_st": 1
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 69.5,
+          "dur": 0.5,
+          "vel": 96,
+          "gamak_st": 3
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 70.0,
+          "dur": 0.5,
+          "vel": 96,
+          "gamak_st": 1
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 70.5,
+          "dur": 0.5,
+          "vel": 96,
+          "gamak_st": 2
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 71.0,
+          "dur": 0.5,
+          "vel": 96,
+          "gamak_st": 1
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 71.5,
+          "dur": 0.5,
+          "vel": 96,
+          "gamak_st": 3
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 72.0,
+          "dur": 2.0,
+          "vel": 96
+        }
+      ]
+    }
+  ]
+}

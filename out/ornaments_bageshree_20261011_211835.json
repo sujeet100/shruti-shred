@@ -1,0 +1,151 @@
+{
+  "raga": "bageshree",
+  "sa": 64,
+  "bpm": 60,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -1,
+          "start": 0.0,
+          "dur": 40.0,
+          "vel": 50
+        },
+        {
+          "swara": "m",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 40.0,
+          "vel": 42
+        }
+      ]
+    },
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 44,
+      "notes": [
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 0.0,
+          "dur": 4.0,
+          "vel": 96,
+          "meend_swara": "g",
+          "meend_style": "slow"
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 4.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 5.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 9.0,
+          "dur": 4.0,
+          "vel": 96,
+          "meend_swara": "g"
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 13.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 14.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "D",
+          "oct": 0,
+          "start": 18.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 19.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 20.0,
+          "dur": 5.0,
+          "vel": 96,
+          "grace": [
+            "m"
+          ],
+          "andolan": true,
+          "andolan_st": 1.0
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 25.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 26.0,
+          "dur": 2.0,
+          "vel": 96
+        },
+        {
+          "swara": "n",
+          "oct": 0,
+          "start": 30.0,
+          "dur": 1.0,
+          "vel": 96
+        },
+        {
+          "swara": "D",
+          "oct": 0,
+          "start": 31.0,
+          "dur": 5.0,
+          "vel": 96,
+          "meend_swara": "m",
+          "meend_style": "slow"
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 36.0,
+          "dur": 2.0,
+          "vel": 96
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "observations": [
+    {
+      "at": "01:28",
+      "aspect": "climax",
+      "rating": 3,
+      "note": "The track reaches its highest energy level with double-kick drums, but the impact feels slightly restrained."
+    },
+    {
+      "at": "00:24",
+      "aspect": "lead_audibility",
+      "rating": 4,
+      "note": "The sitar sits clearly above the standard rock beat."
+    },
+    {
+      "at": "01:28",
+      "aspect": "lead_audibility",
+      "rating": 3,
+      "note": "The lead line mildly competes with the denser rhythm guitar frequencies."
+    },
+    {
+      "at": "00:24",
+      "aspect": "riff_heaviness",
+      "rating": 2,
+      "note": "The distorted guitars sound somewhat thin and lack authentic bottom-end chunk."
+    },
+    {
+      "at": "01:00",
+      "aspect": "riff_heaviness",
+      "rating": 3,
+      "note": "The syncopated guitar chugs are functional but lack true amp realism."
+    },
+    {
+      "at": "00:24",
+      "aspect": "groove",
+      "rating": 3,
+      "note": "The drum groove is steady but feels highly programmed and rigid."
+    },
+    {
+      "at": "01:28",
+      "aspect": "groove",
+      "rating": 3,
+      "note": "Fast double bass patterns provide forward momentum despite the mechanical feel."
+    },
+    {
+      "at": "01:00",
+      "aspect": "artifacts",
+      "rating": 4,
+      "note": "The sitar phrasing reveals some synthetic, MIDI-like articulation."
+    },
+    {
+      "at": "01:28",
+      "aspect": "artifacts",
+      "rating": 4,
+      "note": "Slight low-midrange muddiness occurs when the arrangement gets dense."
+    },
+    {
+      "at": "00:00",
+      "aspect": "mood",
+      "rating": 4,
+      "note": "The combination of the tanpura drone and distorted guitars successfully establishes the requested fusion atmosphere."
+    }
+  ],
+  "overall_note": "The track delivers on the core fusion concept with a functional arrangement. However, the production relies heavily on programmed-sounding drums and somewhat digital guitar tones."
+}

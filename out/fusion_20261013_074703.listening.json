@@ -1,0 +1,71 @@
+{
+  "observations": [
+    {
+      "at": "02:00",
+      "aspect": "climax",
+      "rating": 4,
+      "note": "The energy noticeably rises as the rhythm section intensifies."
+    },
+    {
+      "at": "02:24",
+      "aspect": "climax",
+      "rating": 4,
+      "note": "Rapid sitar strumming provides a distinct peak before the conclusion."
+    },
+    {
+      "at": "00:31",
+      "aspect": "lead_audibility",
+      "rating": 4,
+      "note": "The sitar remains clearly audible when the heavy guitars enter."
+    },
+    {
+      "at": "01:36",
+      "aspect": "lead_audibility",
+      "rating": 4,
+      "note": "The lead instrument sits comfortably above the dense mix."
+    },
+    {
+      "at": "00:31",
+      "aspect": "riff_heaviness",
+      "rating": 4,
+      "note": "The guitar tone is thick and adequately fits the doom metal style."
+    },
+    {
+      "at": "01:00",
+      "aspect": "riff_heaviness",
+      "rating": 3,
+      "note": "The rhythm guitars are competent but slightly static in texture."
+    },
+    {
+      "at": "00:45",
+      "aspect": "groove",
+      "rating": 3,
+      "note": "The rhythm section provides a steady, somewhat mechanical foundation."
+    },
+    {
+      "at": "01:20",
+      "aspect": "groove",
+      "rating": 3,
+      "note": "Drums and bass are locked but lack organic rhythmic push."
+    },
+    {
+      "at": "02:41",
+      "aspect": "artifacts",
+      "rating": 2,
+      "note": "The track abruptly cuts off near the end."
+    },
+    {
+      "at": "00:15",
+      "aspect": "mood",
+      "rating": 4,
+      "note": "The opening drone and sitar establish a brooding atmosphere."
+    },
+    {
+      "at": "01:05",
+      "aspect": "mood",
+      "rating": 4,
+      "note": "The fusion of the dark raga with doom instrumentation is effective."
+    }
+  ],
+  "overall_note": "The track successfully merges sitar with doom metal, maintaining good lead clarity and a dark atmosphere, though the rhythm section is slightly stiff and the ending is abrupt."
+}

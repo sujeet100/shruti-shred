@@ -1,0 +1,2242 @@
+{
+  "raga": "bageshree",
+  "subgenre": "doom",
+  "tala": "teentaal",
+  "sa": 62,
+  "bpm": 120,
+  "anchor": "gat_first",
+  "ending": "hard_stop",
+  "form": "gat",
+  "playable_rhythm": false,
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "alaap",
+      "bars": 4,
+      "layers": [
+        "lead",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Brood deeply on vadi Ma and komal ga over the eternal drone",
+      "transition": "Sitar lands on low Sa as distorted guitars strike the sam",
+      "riff_slot": "main",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "drone",
+        "roots": [
+          "S"
+        ],
+        "behaviour": "pedal",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 16.0,
+            "voicing": "octave"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "State the gat head with crushing half-time doom weight",
+      "transition": "Clean descent towards mandra octave",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "m",
+          "S"
+        ],
+        "behaviour": "phrase",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 8.0,
+            "voicing": "power"
+          },
+          {
+            "root": "m",
+            "matras": 8.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 1,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Manjha explores the mandra octave with patient dark bends",
+      "transition": "Sudden upward pull into the sam of the returning mukhada",
+      "riff_slot": "main",
+      "form_role": "manjha",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "S"
+        ],
+        "behaviour": "pedal",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 16.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Re-establish the mukhada with doubled palm-mute intensity",
+      "transition": "Drums open up on cymbals leading to the high register",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "m",
+          "S"
+        ],
+        "behaviour": "phrase",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 8.0,
+            "voicing": "power"
+          },
+          {
+            "root": "m",
+            "matras": 8.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Antara reaches taar Sa with sustained wails and heavy power chords",
+      "transition": "Double kick accelerates under the taan preparation",
+      "riff_slot": "main",
+      "form_role": "antara",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "D",
+          "m"
+        ],
+        "behaviour": "phrase",
+        "chords": [
+          {
+            "root": "m",
+            "matras": 8.0,
+            "voicing": "power"
+          },
+          {
+            "root": "D",
+            "matras": 8.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "taan",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Furious chaugun taan cascading across registers to the climax",
+      "transition": "Cadential rush straight into the monolithic sam",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "drone",
+        "roots": [
+          "S"
+        ],
+        "behaviour": "tension",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 16.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "outro",
+      "bars": 1,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Crushing final avartan slamming home on Sa",
+      "transition": "Decisive dead stop on sam",
+      "riff_slot": "main",
+      "form_role": "outro",
+      "harmony": {
+        "mode": "drone",
+        "roots": [
+          "S"
+        ],
+        "behaviour": "pedal",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 16.0,
+            "voicing": "octave"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "m",
+    "D",
+    "n",
+    "D",
+    "m"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -3,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "a dark doom fusion in Bageshree, key of D, teental, 120 bpm",
+  "seed_riff": {
+    "reasoning": "The riff anchors the 16 matras of Teentaal in heavy doom fashion: a ringing Sa power root on sam, palm-muted chugs, shifting to vadi Ma on beat 5, dipping through komal ga, and driving a characteristic Bageshree descending turnaround (D - m - g - R - S) into the next sam.",
+    "notes": [
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 2.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 2.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 2.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "D",
+        "oct": -3,
+        "dur": 1.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      }
+    ]
+  },
+  "seed_hook": {
+    "phrase_plan": {
+      "seed": [
+        "m",
+        "D",
+        "n",
+        "D",
+        "m"
+      ],
+      "contour": "wave",
+      "transformations": [
+        "repeat",
+        "fragment",
+        "resolve"
+      ],
+      "climax_and_sam": "peaks briefly at komal ni before settling on vadi Ma, cadence drives through ga-Re-Sa to re-enter sam on Ma",
+      "stroke_line": [
+        "da",
+        "ra",
+        "dir",
+        "da",
+        "da",
+        "-",
+        "dara",
+        "da",
+        "da",
+        "ra",
+        "dir",
+        "da",
+        "da",
+        "dara",
+        "ra",
+        "da"
+      ],
+      "head_shape": [
+        {
+          "stage": "figure",
+          "beats": 4.0,
+          "target": "D",
+          "ornament": "plain"
+        },
+        {
+          "stage": "breather",
+          "beats": 2.0,
+          "target": "m",
+          "ornament": "plain"
+        },
+        {
+          "stage": "response",
+          "beats": 4.0,
+          "target": "g",
+          "ornament": "andolan"
+        },
+        {
+          "stage": "approach",
+          "beats": 6.0,
+          "target": "S",
+          "ornament": "plain"
+        }
+      ]
+    },
+    "notes": [
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "D",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "D",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 2.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "D",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      }
+    ]
+  },
+  "seed_head": {
+    "idea": "A dark, weighty Bageshree gat head landing on vadi Ma, alternating between the D-m anchor and the descending cadence",
+    "sam_swara": "m",
+    "cell": [
+      "m",
+      "D",
+      "n",
+      "D",
+      "m"
+    ],
+    "stroke_line": [
+      "da",
+      "ra",
+      "dir",
+      "da",
+      "da",
+      "ra",
+      "dara",
+      "da",
+      "da",
+      "ra",
+      "dir",
+      "da",
+      "da",
+      "dara",
+      "ra",
+      "da"
+    ]
+  },
+  "energy_arc": "Intro: Somber, spacious alaap establishing midnight darkness over the Sa-Pa drone.\nMukhada: Heavy half-time doom groove enters; sitar introduces the theme on vadi Ma.\nManjha: Tension simmers as melody descends into the deep mandra register.\nMukhada: Full band re-locks into the primary theme with crushing rhythmic weight.\nAntara: Dynamic lift as sitar soars into the taar octave over churning rhythm.\nTaan Long: Peak intensity driven by virtuosic chaugun runs over pounding drums.\nOutro: Final monumental unison cadence slamming shut on the sam.",
+  "rhythm_section": {
+    "reasoning": "Arrangement for Bageshree Doom Fusion at 120 bpm in Teental (16 beats per avartan). Sitar leads over an ambient drone in Section 0 (no rhythm section). In Section 1 (Mukhada), guitar and bass establish the recurring doom groove across 16 beats: S power chord holds for 8 beats (broken into sustained ring, 8th-note palm-muted chugs, and spaces) followed by m power chord for 8 beats with a 16th-note turnaround back to Sam (2 + 0.5 + 0.5 + 1 + 1 + 1 + 1 + 1 = 8 beats on S, then 2 + 0.5 + 0.5 + 1 + 1 + 1 + 1 + 1 = 8 beats on m = 16 beats total). Section 2 (Manjha) moves to the mandra octave over a deep S pedal, answering sitar's rest at beats 12-16 with a crushing descending doom fill. Section 3 returns to the Mukhada theme using same_as: 1. Section 4 (Antara) climbs an octave (+1) moving through m and D power chords over 16 beats. Section 5 (Taan Long) anchors furious chaugun runs with a full 16-beat driving doom pedal on S (4 vibhags of 4 beats each). Section 6 (Outro) matches the sitar's unison cadence/tihai rhythm and rings out on the final Sa.",
+    "parts": [
+      {
+        "section": 1,
+        "role": "State the gat head with crushing half-time doom weight",
+        "same_as": 0,
+        "guitar": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            }
+          ],
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            }
+          ]
+        ],
+        "bass": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 3.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            }
+          ],
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 3.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ]
+      },
+      {
+        "section": 2,
+        "role": "Manjha explores the mandra octave with patient dark sustains and answers rests",
+        "same_as": 0,
+        "guitar": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ],
+        "bass": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 8.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ]
+      },
+      {
+        "section": 3,
+        "role": "Re-establish the mukhada with identical rhythmic hook",
+        "same_as": 1,
+        "guitar": [],
+        "bass": []
+      },
+      {
+        "section": 4,
+        "role": "Antara dynamic lift climbing an octave on m and D harmony",
+        "same_as": 0,
+        "guitar": [
+          [
+            {
+              "swara": "m",
+              "oct": 1,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 1,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 1,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "m",
+              "oct": 1,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 1,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 1,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 1,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "D",
+              "oct": 1,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 1,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            }
+          ],
+          [
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 3.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ],
+        "bass": [
+          [
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            }
+          ],
+          [
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 3.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ]
+      },
+      {
+        "section": 5,
+        "role": "Taan long rhythmic drive on home pedal under chaugun runs",
+        "same_as": 0,
+        "guitar": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            }
+          ],
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.25,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            }
+          ]
+        ],
+        "bass": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            }
+          ],
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ]
+      },
+      {
+        "section": 6,
+        "role": "Crushing final unison tihai and massive sustained resolution on Sam",
+        "same_as": 0,
+        "guitar": [
+          [
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 5.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ],
+        "bass": [
+          [
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "D",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "m",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "g",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 5.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ]
+      }
+    ]
+  }
+}

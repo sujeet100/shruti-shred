@@ -1,0 +1,510 @@
+{
+  "raga": "darbari",
+  "subgenre": "doom",
+  "tala": "teentaal",
+  "sa": 62,
+  "bpm": 60,
+  "anchor": "gat_first",
+  "ending": "ring_out",
+  "form": "gat",
+  "playable_rhythm": false,
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "riff",
+      "bars": 1,
+      "layers": [
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "rhythm",
+      "intent": "the main riff alone",
+      "transition": "",
+      "riff_slot": "main",
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 3,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "the hook over the main riff",
+      "transition": "",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "climax_style": "driven",
+      "tihai": false
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "g",
+    "m",
+    "R",
+    "S"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -3,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "a slow doom gat in Darbari Kanada, key of C sharp",
+  "seed_riff": {
+    "reasoning": "A crushing half-time doom riff in Teentaal rooted on low Sa (C#). It establishes immediate gravity with sustained power chords on sam and major tali beats, fills the matras with palm-muted eighth-note chugs, leaves beat 7 open to breathe with the tabla, and ends with a 16th-note vakra turnaround (g-m-R-R) hitting the next sam.",
+    "notes": [
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 2.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -2,
+        "dur": 2.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "g",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -2,
+        "dur": 2.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -2,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -2,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -2,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      }
+    ]
+  },
+  "seed_hook": {
+    "phrase_plan": {
+      "seed": [
+        "g",
+        "m",
+        "R",
+        "S"
+      ],
+      "contour": "wave",
+      "transformations": [
+        "repeat",
+        "fragment",
+        "resolve"
+      ],
+      "climax_and_sam": "Peaks at mandra komal ni via vakra d-n-P, resolving through m-P-g-m-R to land on mandra Sa at the closing sam.",
+      "stroke_line": [
+        "da",
+        "da",
+        "ra",
+        "dir",
+        "da ancient/held - ring through matra 6 and 7",
+        "ra",
+        "da",
+        "da",
+        "ra",
+        "dir",
+        "da",
+        "dir",
+        "da",
+        "ra"
+      ],
+      "head_shape": [
+        {
+          "stage": "figure",
+          "beats": 4.0,
+          "target": "S",
+          "ornament": "gamak"
+        },
+        {
+          "stage": "breather",
+          "beats": 3.0,
+          "target": "g",
+          "ornament": "andolan"
+        },
+        {
+          "stage": "response",
+          "beats": 4.0,
+          "target": "P",
+          "ornament": "plain"
+        },
+        {
+          "stage": "approach",
+          "beats": 5.0,
+          "target": "R",
+          "ornament": "plain"
+        }
+      ]
+    },
+    "notes": [
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false,
+        "gamak_with": "g"
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 3.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false,
+        "ornament": "murki",
+        "gamak_with": "d"
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      }
+    ]
+  },
+  "energy_arc": ""
+}

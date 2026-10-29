@@ -1,0 +1,1429 @@
+{
+  "raga": "darbari",
+  "subgenre": "heavy",
+  "tala": "teentaal",
+  "sa": 64,
+  "bpm": 128,
+  "anchor": "gat_first",
+  "ending": "hard_stop",
+  "form": "gat",
+  "playable_rhythm": false,
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "tabla",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "State the heavy Darbari gat head with slow komal ga andolan over tight NWOBHM-style palm-muted gallop",
+      "transition": "Guitar catches the g-m-R-S cadence and locks in as rhythm prepares for takeover",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ],
+        "behaviour": "pedal",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 8.0,
+            "voicing": "power"
+          },
+          {
+            "root": "R",
+            "matras": 4.0,
+            "voicing": "fourths"
+          },
+          {
+            "root": "P",
+            "matras": 4.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "riff",
+      "bars": 2,
+      "layers": [
+        "rhythm",
+        "drums",
+        "tabla",
+        "drone"
+      ],
+      "foreground": "rhythm",
+      "intent": "Crushing guitar takeover: rhythm guitar translates the mukhada into downtuned chugs and heavy double-kick hits",
+      "transition": "Drum fill on matras 15-16 cues the sitar's soaring return",
+      "riff_slot": "main",
+      "form_role": "takeover",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "g",
+          "m"
+        ],
+        "behaviour": "phrase",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 8.0,
+            "voicing": "power"
+          },
+          {
+            "root": "g",
+            "matras": 4.0,
+            "voicing": "power"
+          },
+          {
+            "root": "m",
+            "matras": 4.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "tabla",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Sitar re-enters triumphantly with the mukhada, embellished with aggressive gamaks and doubled strokes",
+      "transition": "Sitar pulls through Pancham and launches straight into the climactic taan",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ],
+        "behaviour": "pedal",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 8.0,
+            "voicing": "power"
+          },
+          {
+            "root": "R",
+            "matras": 4.0,
+            "voicing": "fourths"
+          },
+          {
+            "root": "P",
+            "matras": 4.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "taan",
+      "bars": 1,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "clean",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Virtuosic climax taan: sitar accelerates through chaugun lines toward taar Sa over driven rhythm chords",
+      "transition": "Cascading Darbari avaroha run drives relentlessly into the final sam",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "d",
+          "P"
+        ],
+        "behaviour": "tension",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 8.0,
+            "voicing": "power"
+          },
+          {
+            "root": "d",
+            "matras": 4.0,
+            "voicing": "power"
+          },
+          {
+            "root": "P",
+            "matras": 4.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    },
+    {
+      "kind": "outro",
+      "bars": 1,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Unison cadential descent culminating in a colossal, ringing arrival on home Sa",
+      "transition": "Full band strikes sam on Sa together and cuts to silence",
+      "riff_slot": "main",
+      "form_role": "outro",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "S"
+        ],
+        "behaviour": "pedal",
+        "chords": [
+          {
+            "root": "S",
+            "matras": 16.0,
+            "voicing": "power"
+          }
+        ]
+      },
+      "climax_style": "driven",
+      "tihai": false
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "g",
+    "m",
+    "R",
+    "S"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -2,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "a one-minute heavy metal song in raga Darbari, key of E, 128 bpm",
+  "seed_riff": {
+    "reasoning": "A heavy 16-matra teentaal riff grounded on low Sa and vadi Rishabh, with galloping palm-mutes on S-R-g, a khali accent on komal dha, and a resolving g-m-R slide back to sam.",
+    "notes": [
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "d",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "technique": "slide",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      }
+    ]
+  },
+  "seed_hook": {
+    "phrase_plan": {
+      "seed": [
+        "g",
+        "m",
+        "R",
+        "S"
+      ],
+      "contour": "wave",
+      "transformations": [
+        "fragment",
+        "answer",
+        "rhythmic_compression",
+        "resolve"
+      ],
+      "climax_and_sam": "Peaks on komal dha and ni in the response stage, and descends through the signature Darbari cadence to land on vadi Re at matra 16, resolving into the next sam Sa.",
+      "stroke_line": [
+        "da",
+        "ra",
+        "dir",
+        "dara",
+        "da",
+        "-",
+        "-",
+        "da",
+        "ra",
+        "dir",
+        "dara",
+        "da",
+        "dara",
+        "dara",
+        "da",
+        "ra"
+      ],
+      "head_shape": [
+        {
+          "stage": "figure",
+          "beats": 4.0,
+          "target": "g",
+          "ornament": "gamak"
+        },
+        {
+          "stage": "breather",
+          "beats": 3.0,
+          "target": "g",
+          "ornament": "andolan"
+        },
+        {
+          "stage": "response",
+          "beats": 4.0,
+          "target": "P",
+          "ornament": "plain"
+        },
+        {
+          "stage": "approach",
+          "beats": 5.0,
+          "target": "R",
+          "ornament": "plain"
+        }
+      ]
+    },
+    "notes": [
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false,
+        "gamak_with": "g"
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 3.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      }
+    ]
+  },
+  "seed_head": {
+    "idea": "Razakhani gat head balancing oscillating komal ga and dha with the signature Darbari g-m-R-S cadence landing firmly on Sa",
+    "sam_swara": "S",
+    "cell": [
+      "g",
+      "m",
+      "R",
+      "S"
+    ],
+    "stroke_line": [
+      "da",
+      "da",
+      "ra",
+      "dir",
+      "dara",
+      "da",
+      "ra",
+      "dar",
+      "da",
+      "ra",
+      "dir",
+      "dara",
+      "da",
+      "ra",
+      "da",
+      "ra"
+    ]
+  },
+  "energy_arc": "Section 1 (Mukhada, bars 1-2): Heavy, brooding opening (6/10) establishing the Darbari theme over a mid-tempo gallop.\nSection 2 (Takeover, bars 3-4): Intensity surges to 8/10 as rhythm guitar claims the gat head in low palm-muted power chugs.\nSection 3 (Mukhada, bars 5-6): Sitar returns with fierce authority (8.5/10), charging the hook with deep gamaks.\nSection 4 (Taan Long, bar 7): Climax peaks at 10/10 with an explosive chaugun run cutting across driving rhythm chords to taar Sa.\nSection 5 (Outro, bar 8): Heavy cadential resolution (9/10) consolidating weight into an abrupt, monolithic unison hit on sam.",
+  "rhythm_section": {
+    "reasoning": "The key of E in Darbari Kanada anchors around Sa (S). For the mukhada (section 0), we establish the heavy groove using the slow chord plan S (8 beats), R inverted fourths (4 beats), and P power (4 beats). Under the sitar's sustained komal ga (g{R}[3] from beat 4 to 7), the guitar allows the chord to ring open, then locks into palm-muted gallops during active melodic passages. Section 1 is a takeover, which by rule is arranged by code and omitted here. Section 2 brings back the mukhada with 'same_as': 0. In Section 3 (taan_long), the sitar blazes in chaugun; the rhythm section provides full driving rhythmic momentum on S (8 beats), d (4 beats), and P (4 beats) with driving 8th-note palm mutes. Section 4 (outro) consolidates on colossal unison hits on S, locking with the sitar's cadential tihai descents and ending on a monolithic, ringing home Sa.",
+    "parts": [
+      {
+        "section": 0,
+        "role": "Mukhada groove: establish S pedal with ringing chord under sitar andolan, shifting to R and P to resolve to sam",
+        "same_as": -1,
+        "guitar": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 115,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 115,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ],
+        "bass": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 115,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "R",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 115,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ]
+      },
+      {
+        "section": 2,
+        "role": "Return of the mukhada theme behind embellished sitar lead",
+        "same_as": 0,
+        "guitar": [],
+        "bass": []
+      },
+      {
+        "section": 3,
+        "role": "High-octane driving rhythm behind virtuosic chaugun taan climax",
+        "same_as": -1,
+        "guitar": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 120,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 115,
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 120,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "technique": "palm_mute",
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ],
+        "bass": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 120,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 115,
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "d",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 120,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            },
+            {
+              "swara": "P",
+              "oct": 0,
+              "dur": 1.0,
+              "vel": 110,
+              "rest": false
+            }
+          ]
+        ]
+      },
+      {
+        "section": 4,
+        "role": "Outro: monolithic unison cadential punctuation and final sustained Sa",
+        "same_as": -1,
+        "guitar": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 125,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.5,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 120,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.5,
+              "vel": 120,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 5.0,
+              "vel": 127,
+              "rest": false
+            }
+          ]
+        ],
+        "bass": [
+          [
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 125,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 4.5,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 2.0,
+              "vel": 120,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 1.5,
+              "vel": 120,
+              "rest": false
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 0.5,
+              "vel": 110,
+              "rest": true
+            },
+            {
+              "swara": "S",
+              "oct": 0,
+              "dur": 5.0,
+              "vel": 127,
+              "rest": false
+            }
+          ]
+        ]
+      }
+    ]
+  }
+}

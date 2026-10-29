@@ -1,0 +1,13 @@
+{
+ "candidates_token_count": 12358,
+ "prompt_token_count": 295,
+ "prompt_tokens_details": [
+  {
+   "modality": "TEXT",
+   "token_count": 295
+  }
+ ],
+ "thoughts_token_count": 1245,
+ "total_token_count": 13898,
+ "model_version": "gemini-3.8-flash"
+}

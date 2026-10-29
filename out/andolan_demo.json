@@ -1,0 +1,224 @@
+{
+  "raga": "darbari",
+  "sa": 62,
+  "bpm": 120,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 46.0,
+          "vel": 48
+        }
+      ]
+    },
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 0.0,
+          "dur": 1.0,
+          "vel": 88
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 1.0,
+          "dur": 1.0,
+          "vel": 88
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 2.0,
+          "dur": 4.0,
+          "vel": 92
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 6.0,
+          "dur": 1.0,
+          "vel": 88
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 7.0,
+          "dur": 1.0,
+          "vel": 88
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 8.0,
+          "dur": 4.0,
+          "vel": 92
+        },
+        {
+          "swara": "n",
+          "oct": 0,
+          "start": 12.0,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 12.5,
+          "dur": 1.0,
+          "vel": 86
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 13.5,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 14.0,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 14.5,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 15.0,
+          "dur": 2.0,
+          "vel": 90
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 18.0,
+          "dur": 1.0,
+          "vel": 88
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 19.0,
+          "dur": 1.0,
+          "vel": 88
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 20.0,
+          "dur": 4.0,
+          "vel": 92,
+          "meend_swara": "g",
+          "andolan": true
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 24.0,
+          "dur": 1.0,
+          "vel": 88
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 25.0,
+          "dur": 1.0,
+          "vel": 88
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 26.0,
+          "dur": 4.0,
+          "vel": 92,
+          "meend_swara": "d",
+          "andolan": true
+        },
+        {
+          "swara": "n",
+          "oct": 0,
+          "start": 30.0,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 30.5,
+          "dur": 1.0,
+          "vel": 86
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 31.5,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 32.0,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 32.5,
+          "dur": 0.5,
+          "vel": 86
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 33.0,
+          "dur": 2.0,
+          "vel": 90
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 36.0,
+          "dur": 6.0,
+          "vel": 92,
+          "meend_swara": "g",
+          "andolan": true
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 42.0,
+          "dur": 3.0,
+          "vel": 90
+        }
+      ]
+    }
+  ]
+}

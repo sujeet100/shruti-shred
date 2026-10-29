@@ -1,0 +1,11 @@
+{
+ "p1_X": "single",
+ "p1_Z": "best_of",
+ "p1_Y": "debate",
+ "p2_Y": "single",
+ "p2_Z": "best_of",
+ "p2_X": "debate",
+ "p3_Z": "single",
+ "p3_X": "best_of",
+ "p3_Y": "debate"
+}

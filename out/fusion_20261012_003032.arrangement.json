@@ -1,0 +1,605 @@
+{
+  "raga": "bhairav",
+  "subgenre": "heavy",
+  "tala": "teentaal",
+  "sa": 62,
+  "bpm": 128,
+  "anchor": "gat_first",
+  "ending": "ring_out",
+  "form": "gat",
+  "playable_rhythm": false,
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "alaap",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Unfold Bhairav slowly around the vadi dhaivat and samvadi rishabh over the low D drone",
+      "transition": "Sitar lands on a sustained Sa as the drums count in",
+      "riff_slot": "main",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "State the mukhada hook clearly on sitar while the rhythm guitar locks to the kick with the main riff",
+      "transition": "Drum fill drops sharply into the half-time breakdown groove",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "d",
+          "r"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "breakdown",
+      "bars": 1,
+      "layers": [
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "rhythm",
+      "intent": "Sparse, punishing half-time chug on the low Sa-komal re dyad to clear space",
+      "transition": "Snare roll swells into the taan climax",
+      "riff_slot": "breakdown",
+      "form_role": "breakdown",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "taan",
+      "bars": 1,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Virtuosic sitar taan ascending into the taar saptak driven by driving double kicks",
+      "transition": "Cadential descent slamming right onto the sam of the final mukhada",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "clean",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Reprise the mukhada at maximum intensity with clean guitar arpeggiating harmonic colours",
+      "transition": "Final stroke on the sam rings out with feedback and drone decay",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "progression",
+        "roots": [
+          "S",
+          "r",
+          "d",
+          "S"
+        ]
+      },
+      "climax_style": "driven"
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "G",
+    "m",
+    "d",
+    "d",
+    "P"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -2,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "a metal fusion in Bhairav, key of D 60 seconds long",
+  "seed_riff": {
+    "reasoning": "The riff anchors on low Sa with tight 16th/8th palm-muted chugs, immediately utilizing the half-step komal re (r) grind. In the second vibhag it lifts into Ga and Ma, moves to Pa and dhaivat, breathes with a deliberate rest on beat 9, and finishes with a descending run that sets up the next sam.",
+    "notes": [
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 115,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "r",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 120,
+        "technique": "slide",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 115,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "G",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 118,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 120,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 112,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 112,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "r",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 118,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 115,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 122,
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 120,
+        "technique": "bend",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 115,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 112,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 112,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "G",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 118,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 120,
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 122,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 118,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 115,
+        "rest": false
+      },
+      {
+        "swara": "G",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 115,
+        "rest": false
+      },
+      {
+        "swara": "r",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 120,
+        "technique": "long_slide",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 115,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 112,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "r",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 118,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 125,
+        "rest": false
+      }
+    ]
+  },
+  "seed_hook": {
+    "phrase_plan": {
+      "seed": [
+        "G",
+        "m",
+        "d",
+        "d",
+        "P"
+      ],
+      "contour": "arch",
+      "transformations": [
+        "repeat",
+        "sequence_up",
+        "fragment",
+        "resolve"
+      ],
+      "climax_and_sam": "Ascends steadily through madhya saptak to touch taar Sa on beat 11 before cascading back down to resolve cleanly on Sa on sam"
+    },
+    "notes": [
+      {
+        "swara": "G",
+        "oct": 0,
+        "dur": 1.5,
+        "vel": 85,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 80,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 1.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 85,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 2.0,
+        "vel": 88,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "G",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 80,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 82,
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 86,
+        "meend_swara": "N",
+        "rest": false
+      },
+      {
+        "swara": "N",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 1,
+        "dur": 2.0,
+        "vel": 95,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "N",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 82,
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 80,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 84,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 78,
+        "rest": false
+      },
+      {
+        "swara": "G",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 78,
+        "rest": false
+      },
+      {
+        "swara": "r",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 82,
+        "meend_swara": "S",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      }
+    ]
+  },
+  "energy_arc": "alaap: Atmospheric stillness and meditative tension over the tanpura drone.\nmelody (mukhada): Full band drop-in with heavy mid-tempo drive and anthemic sitar theme.\nbreakdown: Crushing half-time rhythmic stomp emphasizing low komal re.\ntaan: Fierce, driven sitar virtuosity accelerating across high registers over double-kick groove.\nmelody (mukhada reprise): Triumphant, harmonized grand return of the main theme resolving to ring out."
+}

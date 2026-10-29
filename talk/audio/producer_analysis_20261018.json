@@ -1,0 +1,3929 @@
+[
+ {
+  "id": "001b2e83e034",
+  "name": "ui-live",
+  "started_at": "2026-07-20 08:39:50",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 3,
+     "hook": 2,
+     "balance": 5,
+     "independence": 3,
+     "mood_fit": 3,
+     "repetition": 3
+    },
+    "mean": 3.667,
+    "plan": null,
+    "notes": "The dynamic arc and structural build toward the taan climax are outstanding. However, to truly deliver on the symphonic metal promise, you must write an actual heavy rhythm guitar riff instead of leaving that slot empty. This will give the song the driving hook and subgenre weight it currently lacks.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 11,
+    "reasoning_metric_cites": 16,
+    "reasoning_hearing_words": 12,
+    "reasoning_len": 1809
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "04fb97a11a1b",
+  "name": "ui-live",
+  "started_at": "2026-10-12 13:57:24",
+  "query": "ui-live",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "round cap (MAX_ROUNDS=2)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 3,
+     "climax": 3,
+     "motif": 3,
+     "hook": 3,
+     "balance": 3,
+     "independence": 3,
+     "mood_fit": 4,
+     "repetition": 3,
+     "performance": 3
+    },
+    "mean": 3.2,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      5
+     ],
+     "instruction": "Replace the duplicated tihai melody with an accelerated vakra gamak taan driving across both saptaks towards taar Sa: 'S d n P m P g m R S' with dense 16th-note phrasing and meends.",
+     "preserve": [
+      "the rhythm section groove and drum blast beat pattern",
+      "the melodic resolution to home Sa"
+     ]
+    },
+    "notes": "The foundation and arrangement arc are solid, but section 5 drops the ball by repeating the tihai melody verbatim instead of delivering a true climactic taan. Replacing section 5's lead with a rapid vakra descent will elevate the song's energy and give the climax the punch it deserves.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Prepend the intro ascent with a mandra phrase: 'd(-1) n(-1) S R (R)g~[1] R S'",
+      "why": "Darbari must dwell in the mandra register; opening straight into madhya Sa-Re-ga deprives the raga of its foundational low-octave weight."
+     },
+     {
+      "section": 5,
+      "change": "Replace the duplicated tihai melody with an accelerated gamak taan descending vakra: 'S d n P m P g m R S'",
+      "why": "A section designated as taan_long should demonstrate fluent Darbari movement across the tetrachords rather than restating the previous section's mid-tempo motif verbatim."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 15,
+    "reasoning_metric_cites": 18,
+    "reasoning_hearing_words": 6,
+    "reasoning_len": 1983
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 3,
+     "motif": 3,
+     "hook": 4,
+     "balance": 3,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 3,
+     "performance": 3
+    },
+    "mean": 3.5,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      5
+     ],
+     "instruction": "Replace the duplicated section 2 tihai phrase with an ascending virtuosic taan scaling towards taar Sa using 'S R g R g m P' with gamak leaps before cascading through 'm P d n P', ensuring high density and climactic momentum.",
+     "preserve": [
+      "the main riff rhythm",
+      "the section 2 melody",
+      "the outro tihai cadence"
+     ]
+    },
+    "notes": "The foundation and rhythmic momentum are solid, but section 5's taan is currently a verbatim duplicate of section 2's melody rather than an earned climax. Rework the lead in section 5 into an ascending, high-register taan to give the piece its proper peak. Keep the heavy rhythm groove intact.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 5,
+      "change": "Replace the tihai repeat with an ascending phrase 'S R g R g m P' using gamak-laden leaps before descending via 'm P d n P'",
+      "why": "This introduces the missing first half of the Darbari pakad and prevents Section 5 from merely duplicating Section 2."
+     },
+     {
+      "section": 4,
+      "change": "Extend the breakdown lead from a single beat S to a sustained mandra Sa 'S(-1)[4]' preceded by a slow meend from Re",
+      "why": "Darbari's meditative rasa demands deep, resonant sustained rests in the mandra rather than an abrupt cutoff."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 8,
+    "reasoning_metric_cites": 9,
+    "reasoning_hearing_words": 7,
+    "reasoning_len": 1602,
+    "changed": {
+     "dynamics": [
+      3,
+      4
+     ],
+     "hook": [
+      3,
+      4
+     ],
+     "independence": [
+      3,
+      4
+     ]
+    },
+    "abs_total_change": 3,
+    "mean_delta": 0.3,
+    "same_target_as_previous_plan": true
+   },
+   {
+    "round": 2,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 3,
+     "climax": 3,
+     "motif": 3,
+     "hook": 4,
+     "balance": 3,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 3,
+     "performance": 4
+    },
+    "mean": 3.5,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      5
+     ],
+     "instruction": "Replace the duplicated section 2 tihai phrase with a rapid, virtuosic avaroha taan run descending from taar Sa (e.g., 'S d n P m P g m R S[2]') across the driving blast beats to peak the energy before the outro.",
+     "preserve": [
+      "the main Darbari hook and andolan inflections in sections 2 and 3",
+      "the outro unison reprise"
+     ]
+    },
+    "notes": "The groove, progressive transitions, and rhythmic backbone hit hard, but section 5 drops the ball by repeating section 2's melody verbatim instead of tearing into a genuine taan. Replacing this repetition with a fast descending avaroha taan will deliver the earned climax the breakdown sets up. This addresses both musical arc and Rasik's raga critique in one stroke.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Introduce 'S R g R g m P[2]' before turning down to 'm P g m R S'",
+      "why": "Establishes the missing ascending half of the Darbari pakad and settles on samvadi Pa before descending into the mandra."
+     },
+     {
+      "section": 5,
+      "change": "Replace the duplicated tihai gamaks with an avaroha taan run: 'S d n P m P g m R S[2]'",
+      "why": "Section 5 is designated as a taan; a flowing avaroha descent provides dynamic release while reinforcing the core chalan instead of repeating section 2's heavy gamak cluster."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 9,
+    "reasoning_metric_cites": 9,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1752,
+    "changed": {
+     "dynamics": [
+      4,
+      3
+     ],
+     "performance": [
+      3,
+      4
+     ]
+    },
+    "abs_total_change": 2,
+    "mean_delta": 0.0,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "0fd85bdf420b",
+  "name": "ui-live",
+  "started_at": "2026-07-17 14:16:00",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 3,
+     "hook": 4,
+     "balance": 4,
+     "independence": 3,
+     "mood_fit": 5,
+     "repetition": 4
+    },
+    "mean": 4.111,
+    "plan": null,
+    "notes": "The song has an excellent dynamic arc and a brutal, fitting atmosphere for Death metal. To improve, give the lead guitar more independence from the rhythm riff so it doesn't double it 100% of the time. Also, try to develop the melodic motif across more sections rather than concentrating it so heavily in just a few.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 14,
+    "reasoning_metric_cites": 20,
+    "reasoning_hearing_words": 13,
+    "reasoning_len": 1732
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "11601e1a8c1d",
+  "name": "yaman-full-song",
+  "started_at": "2026-10-13 08:17:05",
+  "query": "yaman-full-song",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "round cap (MAX_ROUNDS=2)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 3,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.0,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      0
+     ],
+     "instruction": "Alter the final cadential phrase of the mukhada from 'P P G R R' to resolve downward via meend as 'P M G >R S', providing a definitive Yaman resolution into Sam.",
+     "preserve": [
+      "the initial Razakhani opening phrase",
+      "the main riff rhythm",
+      "the teental rhythmic placements"
+     ]
+    },
+    "notes": "The song structure, riff hook, and guitar takeover work with strong progressive metal energy. The main weakness is melodic: the mukhada ends unresolved on Re instead of settling firmly on the vadi Gandhar or home Sa. Implementing Rasik's cadential fix will anchor the theme every time it returns.",
+    "instruction_class": "notes",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Change the ending notes 'P P G R R[1]' to 'P M G[2] >R[1] S[1]'",
+      "why": "Resting on plain Re leaves the mukhada unresolved; pulling from vadi Ga via meend into Sa provides the definitive Yaman cadence."
+     },
+     {
+      "section": 3,
+      "change": "At the end of the antara, replace the final 'N(-1)[1] R[2]' with 'N(-1)[1] R[1] G[2]'",
+      "why": "Ending the descent on Ga re-establishes the vadi before returning to the mukhada."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 7,
+    "reasoning_metric_cites": 8,
+    "reasoning_hearing_words": 3,
+    "reasoning_len": 1180
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 5,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.364,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      3
+     ],
+     "instruction": "Replace the scalar ascent through Pa (P-D-N-S) with the idiomatic Yaman phrasing M-D-N-S(+1), holding taar Sa with gamak to create proper tension before the taan.",
+     "preserve": [
+      "the initial register climb from madhya Ga and Ma",
+      "the seamless rhythmic drive into the section 4 taan"
+     ]
+    },
+    "notes": "The arrangement and song arc are outstanding, featuring a powerful guitar takeover and great dynamic pacing. To make the melodic peak authentic to Yaman, the antara must skirt Pa in its ascent to taar Sa rather than running straight up the scale.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 3,
+      "change": "change 'P[1] D[1] N[1] S(+1)[2]' to 'M[1] D[1] N[1] S(+1)[3]'",
+      "why": "Yaman characteristically skips or skirts Pa in the ascent to taar Sa (M-D-N-S); playing P-D-N-S directly sounds scalar rather than idiomatic."
+     },
+     {
+      "section": 4,
+      "change": "replace the final 'N(-1) R G R' with 'N(-1) R G R S'",
+      "why": "Ending the taan on Ri leaves the line ungrounded before the mukhada returns; resolving down to Sa provides the proper arrival on sam."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 10,
+    "reasoning_metric_cites": 12,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1901,
+    "changed": {
+     "structure": [
+      4,
+      5
+     ],
+     "climax": [
+      3,
+      4
+     ],
+     "balance": [
+      4,
+      5
+     ],
+     "mood_fit": [
+      4,
+      5
+     ]
+    },
+    "abs_total_change": 4,
+    "mean_delta": 0.364,
+    "same_target_as_previous_plan": false
+   },
+   {
+    "round": 2,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 3,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.0,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      3
+     ],
+     "instruction": "Replace the rapid consecutive taar Sa note repetitions at the phrase ending with a flowing Yaman avaroha descent (such as S' N D P M D N S') that sustains the register climb before resolving cleanly toward the taan.",
+     "preserve": [
+      "the opening ascent reaching taar Ga and Ma",
+      "the dynamic drive leading into section 4"
+     ]
+    },
+    "notes": "The arrangement and groove are dialed in, but the nine consecutive identical taar Sa strokes ending section 3 sound like an exercise rather than an expressive antara climax. Reshaping that bar into a fluid Yaman avaroha descent toward Pa will give the subsequent chaugun taan its earned dramatic impact.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 3,
+      "change": "Replace the repeated S(+1)<>R strokes at the end with a descent like S(+1) N D P[2] M D N S(+1)[2]",
+      "why": "Drilling eight consecutive S-R gamaks sounds like an exercise; resolving via avaroha back to Pa or sustaining taar Sa sustains Yaman's expansive dignity."
+     },
+     {
+      "section": 0,
+      "change": "Change 'R[1] S S N(-1)[1] R[1]' to 'R[1] S N(-1) D(-1) N(-1)[1] R[1]'",
+      "why": "Straight descent across S S to Ni is plain; touching mandra Dha before leaping N-R invokes the quintessential Yaman chalan."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 4,
+    "reasoning_metric_cites": 6,
+    "reasoning_hearing_words": 2,
+    "reasoning_len": 1088,
+    "changed": {
+     "structure": [
+      5,
+      4
+     ],
+     "balance": [
+      5,
+      4
+     ],
+     "mood_fit": [
+      5,
+      4
+     ],
+     "repetition": [
+      4,
+      3
+     ]
+    },
+    "abs_total_change": 4,
+    "mean_delta": -0.364,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "15fbd6571f72",
+  "name": "ui-live",
+  "started_at": "2026-10-11 23:42:42",
+  "query": "ui-live",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "round cap (MAX_ROUNDS=2)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 3,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 4
+    },
+    "mean": 3.9,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      4
+     ],
+     "instruction": "Replace the mechanical scalar run 'S S r r G G m m P P d d N N S(+1)' with the vakra phrase 'S r G m P d P G m P d N S(+1)' to give the taan authentic contour while maintaining velocity into the tihai.",
+     "preserve": [
+      "the concluding tihai rhythm",
+      "the final ascent to taar Sa"
+     ]
+    },
+    "notes": "The song structure, rhythm guitar groove, and overall metal drive are solid. However, the climactic taan in section 4 falls into a mechanical ladder run rather than idiomatic raga phrasing. Adopting vakra turns across Pa and Dha will give the climax genuine musical weight.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 4,
+      "change": "Replace the mechanical scale run 'S S r r G G m m P P d d N N S(+1)' with the vakra phrase 'S r G m P d P G m P d N S(+1)'",
+      "why": "Straight ladder runs expose the Western scale; vakra turns through Pa and Dha preserve Bhairav's idiomatic contour."
+     },
+     {
+      "section": 5,
+      "change": "Replace the repeated 'P d N S(+1)' with 'P d N S(+1) d P G m r r S'",
+      "why": "Ending solely on ascending runs lacks the gravity of Bhairav; resolving downward to Sa via komal Re brings the required nyas and rasa."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 10,
+    "reasoning_metric_cites": 12,
+    "reasoning_hearing_words": 3,
+    "reasoning_len": 1452
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 3,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 3,
+     "performance": 4
+    },
+    "mean": 3.8,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      4
+     ],
+     "instruction": "Replace the repetitive scalar ascending runs with a vakra descent landing heavily on andolan d: 'P d N S(+1) N d(osc) P, G m d(osc) P, G m r(osc) r S' resolving into the final tihai.",
+     "preserve": [
+      "the driving tempo and rhythm sync with the band",
+      "the concluding tihai landing on sam"
+     ]
+    },
+    "notes": "The rhythm foundation and metal drive are solid, but the lead in the taan section devolves into mechanical scalar triplets. Replacing the repetitive run with vakra phrasing and andolan brings out Bhairav's character and gives the climax genuine musical weight.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 4,
+      "change": "Replace the final scalar repeats with a vakra descent landing heavily on andolan d: 'P d N S(+1) N d(osc) P, G m d(osc) P, G m r(osc) r S'",
+      "why": "Bhairav's identity rests on oscillating d and r; scalar runs alone turn the raga into an uninflected Byzantine scale."
+     },
+     {
+      "section": 5,
+      "change": "Change the outro figure from repeating 'P d N S(+1)' to 'd d P G m r r S'",
+      "why": "Ending on an uninflected aroha run robs Bhairav of its grounding; bringing back the second half of the pakad to rest on tonic Sa honors the raga's avaroha weight."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 2,
+     "rasa": 3
+    },
+    "reasoning_numbers": 10,
+    "reasoning_metric_cites": 13,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1514,
+    "changed": {
+     "repetition": [
+      4,
+      3
+     ]
+    },
+    "abs_total_change": 1,
+    "mean_delta": -0.1,
+    "same_target_as_previous_plan": true
+   },
+   {
+    "round": 2,
+    "decision": "revise",
+    "scores": {
+     "structure": 5,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 5
+    },
+    "mean": 4.4,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      4
+     ],
+     "instruction": "In the closing run of section 4, replace the repetitive 'G m r S P d N S(+1) P d N S(+1) P d N S(+1)' with 'G m r r S d d P G m r r S S(+1)' to conclude the taan with a strong Bhairav descent before the final high Sa.",
+     "preserve": [
+      "the opening taan ascent phrases of section 4",
+      "the main riff rhythm and tempo feel underneath"
+     ]
+    },
+    "notes": "Great heavy metal drive and clear structural progression with distinct registers and tight rhythm chugs. The repetitive scalar ascent at the end of the taan section feels mechanical rather than expressive. Revising the final taan phrase into an authentic Bhairav descent before hitting high Sa will elevate the climax.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 2,
+      "change": "Replace the single note 'G' with 'G m r r S' lingering on komal re before resting on Sa",
+      "why": "In Bhairav, Ga is not a primary nyas swara to leave hanging alone; descending through komal re (with andolan) to Sa establishes the foundational morning rasa."
+     },
+     {
+      "section": 4,
+      "change": "In the closing run of section 4, change 'G m r S P d N S(+1) P d N S(+1) P d N S(+1)' to 'G m r r S d d P G m r r S S(+1)'",
+      "why": "The repetitive stepwise 'P d N S(+1)' run feels like a Western scalar run; using the authentic chalan descent 'd d P G m r r S' before striking high Sa grounds the taan in pure Bhairav."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 15,
+    "reasoning_hearing_words": 3,
+    "reasoning_len": 1619,
+    "changed": {
+     "structure": [
+      4,
+      5
+     ],
+     "motif": [
+      3,
+      4
+     ],
+     "balance": [
+      4,
+      5
+     ],
+     "mood_fit": [
+      4,
+      5
+     ],
+     "repetition": [
+      3,
+      4
+     ],
+     "performance": [
+      4,
+      5
+     ]
+    },
+    "abs_total_change": 6,
+    "mean_delta": 0.6,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "17388136e44a",
+  "name": "gat-development-final",
+  "started_at": "2026-07-15 09:22:05",
+  "query": "gat-development-final",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 5,
+     "motif": 3,
+     "hook": 3,
+     "balance": 3,
+     "independence": 3,
+     "mood_fit": 4,
+     "repetition": 3
+    },
+    "mean": 3.556,
+    "plan": null,
+    "notes": "The song has a fantastic dynamic arc peaking at the taan, but the lead voice doubles the rhythm section too closely with an 86% overlap. To make this track truly shine, give the lead more melodic independence and restate the core motif more clearly instead of just using its scale degrees.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 17,
+    "reasoning_hearing_words": 7,
+    "reasoning_len": 1404
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "17e1f12c3251",
+  "name": "single-prompt-c-yaman",
+  "started_at": "2026-10-18 13:16:44",
+  "query": "single-prompt-C-yaman",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "accept",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.182,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      0
+     ],
+     "instruction": "Smooth the opening attack on Sa by sliding from mandra Ni to Re, and conclude the mukhada cycle landing cleanly on Sa at sam rather than leaving it unresolved on mandra Ni.",
+     "preserve": [
+      "the chaugun taan in section 2",
+      "the rhythm guitar takeover in section 1",
+      "the main riff gallop rhythm"
+     ]
+    },
+    "notes": "The piece works well as an anthemic metal track with an excellent guitar takeover and driving taan. To fully lock in the raga's soul, refine the mukhada's opening by approaching Re from mandra Ni instead of attacking Sa directly, and resolve the phrase firmly onto Sa at sam.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Replace opening 'S<>R S<>R' with a graceful slide '(N(-1))>R[1] R[1]'",
+      "why": "Yaman traditionally avoids direct, heavy emphasis on Shuddha Sa on the uptake; approaching from mandra Ni directly to Re immediately invokes the raga's soul."
+     },
+     {
+      "section": 0,
+      "change": "Change the closing notes 'R[1] G G N(-1)[1]' to 'N(-1)[1] R[1] S[2]'",
+      "why": "Landing firmly on home Sa (nyas) completes the avaroha cycle and gives the mukhada an authentic sam landing before looping."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 15,
+    "reasoning_hearing_words": 4,
+    "reasoning_len": 1912
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.182,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      0,
+      3
+     ],
+     "instruction": "Open the mukhada with the canonical Yaman ascent N(-1) R G instead of jumping directly from mandra Ni to Ga, establishing vadi Ga with proper weight and phrasing into tivra Ma.",
+     "preserve": [
+      "the concluding cadence resolving down to Sa",
+      "the rhythmic placement and groove alignment with the drums"
+     ]
+    },
+    "notes": "The song has fantastic energy, a crushing takeover, and an authentic NWOBHM drive. Reworking the opening phrase of the mukhada to incorporate the canonical N-R-G ascent will cement the Yaman character without sacrificing any metal bite.",
+    "instruction_class": "notes",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Change the opening phrase 'N(-1)[1] G[1]' to 'N(-1)[1] R[1] G[2]'",
+      "why": "Yaman canonically approaches vadi Ga through Re from mandra Ni (N-R-G); leaping over Re at the very opening blunts the raga's identity."
+     },
+     {
+      "section": 0,
+      "change": "Introduce a meend from tivra Ma to Ga ('M > G') on the descent from Pa instead of plain discrete steps",
+      "why": "The slow slide from Ma into Ga is the most expressive gesture in Yaman and necessary to invoke its true shanta/shringara rasa."
+     },
+     {
+      "section": 2,
+      "change": "Change the final two notes of the taan from 'N(-1) R' to resolve on 'S[1]'",
+      "why": "A chaugun taan in classical idiom must land decisively on the tonic sam rather than trailing off on an unresolved Re before the mukhada restarts."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 8,
+    "reasoning_metric_cites": 10,
+    "reasoning_hearing_words": 4,
+    "reasoning_len": 1454,
+    "changed": {},
+    "abs_total_change": 0,
+    "mean_delta": 0.0,
+    "same_target_as_previous_plan": true
+   },
+   {
+    "round": 2,
+    "decision": "accept",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.182,
+    "plan": null,
+    "notes": "The arrangement works exceptionally well as an anthemic metal track, especially the guitar takeover in section 1 which translates the sitar's mukhada into crushing chugs. The taan builds late momentum into the final triumphant sam hit, delivering a complete and satisfying song arc.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Change 'P[1] P P M[1] G[1]' to 'P[1] >M[1] G[2]' with a meend connecting Pa through tivra Ma to Ga",
+      "why": "Successive repeated Pa strokes sound percussive; a meend from Pa down to vadi Gandhar captures Yaman's vocal glide."
+     },
+     {
+      "section": 0,
+      "change": "Approach the held Gandhar as '(M)G[2]' or 'R>G[2]' instead of a direct scalar step",
+      "why": "Gandhar is Yaman's vadi; leaning on it via a touch of tivra Ma or a smooth meend from Rishabh deepens the raga's gravity."
+     },
+     {
+      "section": 2,
+      "change": "Replace the final two notes 'N(-1) R' at the end of the taan with 'R S' landing squarely on Sa",
+      "why": "A chaugun taan in Yaman traditionally resolves onto the sam (Sa) to conclude the cyclic drive before the mukhada restarts."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 10,
+    "reasoning_metric_cites": 13,
+    "reasoning_hearing_words": 8,
+    "reasoning_len": 1734,
+    "changed": {},
+    "abs_total_change": 0,
+    "mean_delta": 0.0
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "2ff7403df1e5",
+  "name": "ui-live",
+  "started_at": "2026-07-20 08:48:13",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 4,
+     "hook": 3,
+     "balance": 5,
+     "independence": 3,
+     "mood_fit": 5,
+     "repetition": 4
+    },
+    "mean": 4.222,
+    "plan": null,
+    "notes": "The composition has an excellent cinematic arc and superb orchestral-metal balance. To improve, give the lead melody more independence from the rhythm guitar's pattern, and define a clearer, more distinct main rhythm riff to anchor the hook.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 19,
+    "reasoning_hearing_words": 13,
+    "reasoning_len": 1795
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "36cf7ee56139",
+  "name": "ui-live",
+  "started_at": "2026-07-16 21:37:07",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 3,
+     "independence": 3,
+     "mood_fit": 5,
+     "repetition": 4
+    },
+    "mean": 4.111,
+    "plan": null,
+    "notes": "The dynamic arc and structural build of this progressive piece are excellent, peaking beautifully in the fifth section. To improve the arrangement, reduce the 82% lockstep between drums and tabla to let the percussion voices breathe, and give the lead melody more melodic independence from the rhythm guitar's riff.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 16,
+    "reasoning_metric_cites": 20,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1477
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "3a0f1a49b689",
+  "name": "ui-live",
+  "started_at": "2026-07-19 22:31:18",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 3,
+     "hook": 3,
+     "balance": 5,
+     "independence": 3,
+     "mood_fit": 5,
+     "repetition": 4
+    },
+    "mean": 4.111,
+    "plan": null,
+    "notes": "The arrangement is beautifully balanced with excellent dynamic range and a clear, earned climax in the eighth section. To improve, give the lead melody more independence from the rhythm riff's note choices, and ensure the main motif is structurally restated rather than just heavily shared in the lead fragments..of-in thematically shared.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 14,
+    "reasoning_metric_cites": 21,
+    "reasoning_hearing_words": 3,
+    "reasoning_len": 1966
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "45fbba64235b",
+  "name": "flow-demo",
+  "started_at": "2026-07-13 23:14:47",
+  "query": "flow-demo",
+  "era": "debate",
+  "n_verdicts": 3,
+  "ending": "round cap (Conductor revised each round; 3 critiques)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "conductor:revise",
+    "scores": {
+     "structure": 3,
+     "dynamics": 1,
+     "climax": 1,
+     "motif": 2,
+     "hook": 3,
+     "balance": 1,
+     "independence": 1,
+     "mood_fit": 3,
+     "repetition": 2
+    },
+    "mean": 1.889,
+    "plan": null,
+    "notes": "This piece functions as a 3-bar fragment rather than a song, suffering from a completely flat dynamic arc and choked arrangement density. To fix this, stop the lead from doubling the riff (100% overlap) and drop voices in the first block to let the taan section actually build to a climax.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 5,
+     "rasa": 5
+    },
+    "reasoning_numbers": 10,
+    "reasoning_metric_cites": 15,
+    "reasoning_hearing_words": 7,
+    "reasoning_len": 1414
+   },
+   {
+    "round": 1,
+    "decision": "conductor:revise",
+    "scores": {
+     "structure": 3,
+     "dynamics": 1,
+     "climax": 1,
+     "motif": 2,
+     "hook": 3,
+     "balance": 2,
+     "independence": 2,
+     "mood_fit": 4,
+     "repetition": 3
+    },
+    "mean": 2.333,
+    "plan": null,
+    "notes": "The piece has a solid progressive foundation but suffers from a completely flat dynamic arc and an overcrowded arrangement. To make this work as a song, introduce dynamic contrast by dropping voices in the riff sections to let the lead breathe, and build the energy up to a true peak in the taan. Extend the structure beyond three bars to allow the motif and hook to develop naturally.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 3,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 9,
+    "reasoning_metric_cites": 11,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1340,
+    "changed": {
+     "balance": [
+      1,
+      2
+     ],
+     "independence": [
+      1,
+      2
+     ],
+     "mood_fit": [
+      3,
+      4
+     ],
+     "repetition": [
+      2,
+      3
+     ]
+    },
+    "abs_total_change": 4,
+    "mean_delta": 0.444
+   },
+   {
+    "round": 2,
+    "decision": "conductor:revise",
+    "scores": {
+     "structure": 3,
+     "dynamics": 1,
+     "climax": 1,
+     "motif": 3,
+     "hook": 3,
+     "balance": 2,
+     "independence": 2,
+     "mood_fit": 4,
+     "repetition": 3
+    },
+    "mean": 2.444,
+    "plan": null,
+    "notes": "The piece has a solid progressive metal foundation, but suffers from a completely flat dynamic arc and an overcrowded arrangement where everyone plays constantly. To fix this, drop the rhythm and bass during parts of the taan to let the lead soar, and create a true dynamic build into the final riff. Give the lead more melodic independence instead of mirroring the riff's note pool entirely.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 3,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 10,
+    "reasoning_metric_cites": 16,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1376,
+    "changed": {
+     "motif": [
+      2,
+      3
+     ]
+    },
+    "abs_total_change": 1,
+    "mean_delta": 0.111
+   }
+  ],
+  "conductor": [
+   {
+    "seq": 91,
+    "directive": "revise",
+    "layer": "lead",
+    "reason": "Regenerate the lead layer to break the 100% overlap with the riff, introducing space in the first block and building density toward a clear climax."
+   },
+   {
+    "seq": 153,
+    "directive": "revise",
+    "layer": "lead",
+    "reason": "Regenerate the lead layer to slow the pace, introducing pauses around the vadi Re for breathing room, and applying heavy, deliberate oscillations (andolan) on komal Gandhar (g) and komal Dhaivat (d)."
+   },
+   {
+    "seq": 215,
+    "directive": "revise",
+    "layer": "lead",
+    "reason": "Regenerate the lead layer to introduce spacious phrasing, slow down the oscillations (andolan) on 'g' and 'd', and explicitly state the complete 'd n P m P g m R S' pakad to build a dynamic climax."
+   }
+  ],
+  "debate_turns": [
+   {
+    "agent": "Rasik",
+    "seq": 79,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "While the avaroha is majestic, Darbari's gravity demands we explicitly resolve the opening with the literal 'S R g R g m P' pakad. We must perfect this raga chalan before we let any songwriting adjustments disrupt its steady, meditative flow."
+   },
+   {
+    "agent": "Producer",
+    "seq": 85,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "While you chase the perfect pakad, this track is suffocating under a relentless wall of notes with zero dynamic build or breathing room. We must regenerate the lead layer to break up this constant density, create space, and allow the song to actually build to an earned climax."
+   },
+   {
+    "agent": "Rasik",
+    "seq": 141,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "While grammatically correct, this lead line treats Darbari like a cheap scalar run; without the heavy, deliberate oscillations (andolan) on g and d, and a deep pause on the vadi R, the majestic, grave soul of the raga is entirely lost."
+   },
+   {
+    "agent": "Producer",
+    "seq": 147,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "This lead line is a relentless wall of notes that completely kills the song's dynamic arc and leaves no room for a climax. We must revise the lead to introduce breathing room, develop the motif, and build to an earned peak."
+   },
+   {
+    "agent": "Rasik",
+    "seq": 203,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "While the notes are technically legal, this lead line rushes through Darbari's soul; we must slow down the oscillations on the gandhar and dhaivat to let the heavy andolan breathe. Without that unhurried weight and a fully realized pakad, we have only a scale, not the majestic Darbari Kanada."
+   },
+   {
+    "agent": "Producer",
+    "seq": 209,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "This relentless wall of notes in the lead leaves absolutely no room for the arrangement to breathe, completely flattening our dynamic arc. We must revise the lead to introduce space and phrasing, giving the song a real shape and an earned climax."
+   }
+  ]
+ },
+ {
+  "id": "480f18b59298",
+  "name": "a01-opening-bhairav",
+  "started_at": "2026-10-11 19:40:39",
+  "query": "a01-opening-bhairav",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 3,
+     "motif": 3,
+     "hook": 3,
+     "balance": 4,
+     "independence": 3,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 4
+    },
+    "mean": 3.6,
+    "plan": null,
+    "notes": "The arrangement builds energy effectively towards the final virtuosic taan section, but it needs a short resolving outro rather than an abrupt hard stop. Additionally, giving the lead guitar a bit more melodic variance from the underlying rhythm riff during the melody sections would increase overall voice independence.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 10,
+    "reasoning_metric_cites": 14,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1292
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "49d6cff3e73a",
+  "name": "flow-demo",
+  "started_at": "2026-07-12 12:43:15",
+  "query": "flow-demo",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 3,
+     "dynamics": 4,
+     "climax": 2,
+     "motif": 3,
+     "hook": 4,
+     "balance": 4,
+     "independence": 2,
+     "mood_fit": 4,
+     "repetition": 2
+    },
+    "mean": 3.111,
+    "plan": null,
+    "notes": "The track has a fantastic progressive groove and a solid dynamic build, but at only two bars, it ends abruptly at its peak without resolution. To make this a complete song, extend the structure to allow the taan to resolve back into a modified riff, and give the lead line more melodic independence instead of mirroring the riff's notes entirely.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 9,
+    "reasoning_metric_cites": 11,
+    "reasoning_hearing_words": 4,
+    "reasoning_len": 1306
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "57af304fd1ad",
+  "name": "high-effort-darbari",
+  "started_at": "2026-10-18 16:51:29",
+  "query": "high-effort-darbari",
+  "era": "plan",
+  "n_verdicts": 2,
+  "ending": "stall (inferred: same target, mean not up)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 5,
+     "dynamics": 4,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.364,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      4
+     ],
+     "instruction": "Change the final cadential phrase in section 4 to dip into the mandra saptak with g m R S n(-1) d(-1) n(-1) S before settling on home Sa, grounding the song with Darbari's characteristic lower-octave gravity.",
+     "preserve": [
+      "the mukhada head",
+      "the main riff rhythm",
+      "the section 3 taan climax"
+     ]
+    },
+    "notes": "The arrangement, dynamic drive, and climactic taan work with impressive power and cohesion. To anchor Darbari's signature weight, revise the lead in Section 4 to descend into the mandra saptak (n. d. n. S) rather than climbing out. This grounds the song's ending in the raga's natural home.",
+    "instruction_class": "notes",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Replace the opening 'S[1] m<>g m<>g m m P' with 'S R g R g m P[2]'",
+      "why": "States the missing ascending half of the pakad, establishing Darbari's identity right from the first phrase."
+     },
+     {
+      "section": 0,
+      "change": "Replace 'g{R}[3]' with a slow andolan '(m)g~[3]'",
+      "why": "Darbari's Komal Ga demands a heavy, sustained oscillation (andolan) pulled from Ma rather than a rapid pitch-flick."
+     },
+     {
+      "section": 4,
+      "change": "Change the final resolution from 'g m R S[4.5]' to 'g m R S n(-1) d(-1) n(-1) S[3]'",
+      "why": "Dips into the mandra saptak to conclude the piece, supplying the lower-octave gravity essential to Darbari's character."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 4
+    },
+    "reasoning_numbers": 18,
+    "reasoning_metric_cites": 22,
+    "reasoning_hearing_words": 8,
+    "reasoning_len": 1869
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 5,
+     "dynamics": 4,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 3,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.273,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      4
+     ],
+     "instruction": "Replace the mechanical triple repetition of 'g m R S n(-1) d(-1) n(-1) S' with a heavy, grounding Darbari mandra descent that sinks to mandra Pa before resolving firmly onto home Sa: 'g m R S d(-1) n(-1) P(-1) n(-1) S'.",
+     "preserve": [
+      "the opening g m R S descent",
+      "the final ringing arrival on home Sa"
+     ]
+    },
+    "notes": "The arrangement and climactic build are exceptional, especially the guitar takeover and the peak taan into the sam. However, the outro lead currently stutters with an unnatural three-fold repetition of the same eight-note cell. Reworking the outro lead into a deep Darbari mandra descent will anchor the song with the solemnity it deserves.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Replace 'g{R}[3]' with a slow, swaying andolan 'g~[3]' oscillating towards Re with a kan of Ma",
+      "why": "Komal Ga is Darbari's primary andolan swara; a sustained oscillation creates the solemn late-night mood where a quick flick feels hurried."
+     },
+     {
+      "section": 4,
+      "change": "In the outro, replace the repetitive 'g m R S n(-1) d(-1) n(-1) S' runs with a deep mandra descent and dwell: 'g m R S d(-1) n(-1) P(-1)[1] n(-1) S[2]'",
+      "why": "Darbari lives in the mandra saptak; sinking down to mandra Pa grounds the piece in its proper octave rather than keeping the entire resolution in the madhya."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 15,
+    "reasoning_hearing_words": 3,
+    "reasoning_len": 1707,
+    "changed": {
+     "repetition": [
+      4,
+      3
+     ]
+    },
+    "abs_total_change": 1,
+    "mean_delta": -0.091,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "5da349c337b8",
+  "name": "ui-live",
+  "started_at": "2026-07-19 21:59:24",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 3,
+     "hook": 3,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 3
+    },
+    "mean": 4.111,
+    "plan": null,
+    "notes": "The song has an incredible cinematic arc and excellent dynamic contrast, peaking perfectly in the fifth section. To make it a stronger song, bring back the main rhythm riff in later sections to establish a more memorable hook, and develop the melodic motif more consistently across the timeline.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 17,
+    "reasoning_metric_cites": 23,
+    "reasoning_hearing_words": 12,
+    "reasoning_len": 1737
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "5dd804e9e2f8",
+  "name": "ui-live",
+  "started_at": "2026-07-16 23:33:08",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4
+    },
+    "mean": 4.222,
+    "plan": null,
+    "notes": "The composition works exceptionally well as a song, delivering a brutal death metal energy with a clear, dynamic arc. The breakdown at section 6 serves as an excellent climax, and the complete lack of register overlaps keeps the mix clean. To improve further, consider introducing slightly more melodic independence in the lead to break away from the 100% riff overlap during the main melody sections.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 3,
+     "rasa": 3
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 19,
+    "reasoning_hearing_words": 4,
+    "reasoning_len": 1735
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "67d2a86cc01f",
+  "name": "ui-live",
+  "started_at": "2026-10-12 00:30:32",
+  "query": "ui-live",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "round cap (MAX_ROUNDS=2)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 3,
+     "performance": 4
+    },
+    "mean": 3.9,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      1
+     ],
+     "instruction": "Replace the straight scalar descent 'S(+1) N d P m G r S' with 'S(+1) N d P d d P G m r r S' to incorporate Bhairav's characteristic vakra turn on dhaivat and proper cadence to Sa.",
+     "preserve": [
+      "the opening motif statement G m d d P",
+      "the main riff rhythm and drum fill transition into the breakdown"
+     ]
+    },
+    "notes": "The song arc, heavy metal drive, and arrangement dynamics work well, but the mukhada suffers from an overly plain scalar descent. Adopting Rasik's Bhairav chalan turn in the lead melody will give the hook authentic raga gravitas without losing any metal punch.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 1,
+      "change": "Replace 'S(+1) N d P m G r S' with 'S(+1) N d P d d P G m r r S'",
+      "why": "A straight scalar descent weakens Bhairav's character; returning to d d P before releasing to G m r r S honors the vadi and chalan."
+     },
+     {
+      "section": 3,
+      "change": "Change the final 'r' to 'S' preceded by an andolan on komal re",
+      "why": "Komal re requires descent into Sa rather than being left hanging as an upward terminus without resolution."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 3,
+     "rasa": 4
+    },
+    "reasoning_numbers": 11,
+    "reasoning_metric_cites": 13,
+    "reasoning_hearing_words": 4,
+    "reasoning_len": 1509
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 5,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 5
+    },
+    "mean": 4.4,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      3
+     ],
+     "instruction": "In the section 3 taan, eliminate the awkward leap in 'S(+1) N d P S(+1) m P' by connecting smoothly through Pancham ('S(+1) N d P m P'), and resolve the final cadential descent definitively onto Sa ('G m r r S') rather than leaving komal re hanging unresolved before the sam.",
+     "preserve": [
+      "the mukhada hook in sections 1 and 4",
+      "the main rhythm riff and breakdown groove",
+      "the taan's virtuosic upper-octave ascent"
+     ]
+    },
+    "notes": "The arrangement and rhythmic drive are in great shape, providing an authentic NWOBHM foundation. The only weak link is in the section 3 taan climax, where an awkward octave leap breaks chalan and the cadential landing hangs on komal re. Adopting Rasik's fix to resolve cleanly to Sa will nail the climax and launch the final reprise.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 3,
+      "change": "replace the final trailing note 'r' with 'S' to end definitively on 'G m r r S'",
+      "why": "in Bhairav avaroha, komal re functions as samvadi leading into Sa; hanging unresolved on an isolated re violates nyas grammar"
+     },
+     {
+      "section": 3,
+      "change": "replace 'S(+1) N d P S(+1) m P' with 'S(+1) N d P m P'",
+      "why": "the abrupt octave leap to high Sa followed by a drop directly to madhyam disrupts the chalan; linking through Pancham preserves idiomatic flow"
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 10,
+    "reasoning_metric_cites": 11,
+    "reasoning_hearing_words": 3,
+    "reasoning_len": 1602,
+    "changed": {
+     "structure": [
+      4,
+      5
+     ],
+     "balance": [
+      4,
+      5
+     ],
+     "mood_fit": [
+      4,
+      5
+     ],
+     "repetition": [
+      3,
+      4
+     ],
+     "performance": [
+      4,
+      5
+     ]
+    },
+    "abs_total_change": 5,
+    "mean_delta": 0.5,
+    "same_target_as_previous_plan": false
+   },
+   {
+    "round": 2,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 3,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 4
+    },
+    "mean": 3.9,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      3
+     ],
+     "instruction": "Adjust the ascending phrase in the taan to approach tar Sa through shuddha nishad ('d N S(+1)') instead of jumping directly from komal dha ('d S(+1)').",
+     "preserve": [
+      "the rapid tempo and double-kick lock",
+      "the descending cadential resolution onto the mukhada"
+     ]
+    },
+    "notes": "The song structure and rhythm drive hit the metal fusion brief with punch and clarity. To sharpen the climax, smooth out the lead taan in section 3 by routing the ascent through shuddha Ni to tar Sa rather than leaping from Dha. Preserving the rhythm section's momentum into the reprise will lock this in.",
+    "instruction_class": "notes",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Change the opening 'S r S' to 'S r r S'",
+      "why": "Bhairav's signature opening requires dwelling on komal re with oscillation rather than treating it as a passing step back to Sa."
+     },
+     {
+      "section": 3,
+      "change": "Change 'd S(+1)' to 'd N S(+1)'",
+      "why": "In Bhairav's aroha, approaching tar Sa directly from Dha is unidiomatic; komal dha must lead into shuddha nishad before reaching the upper tonic."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 8,
+    "reasoning_metric_cites": 9,
+    "reasoning_hearing_words": 2,
+    "reasoning_len": 1453,
+    "changed": {
+     "structure": [
+      5,
+      4
+     ],
+     "climax": [
+      4,
+      3
+     ],
+     "balance": [
+      5,
+      4
+     ],
+     "mood_fit": [
+      5,
+      4
+     ],
+     "performance": [
+      5,
+      4
+     ]
+    },
+    "abs_total_change": 5,
+    "mean_delta": -0.5,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "829ac9915888",
+  "name": "conductor-demo",
+  "started_at": "2026-07-11 23:28:01",
+  "query": "conductor-demo",
+  "era": "debate",
+  "n_verdicts": 0,
+  "ending": "round cap (Conductor revised each round; 3 critiques)",
+  "rounds": [],
+  "conductor": [
+   {
+    "seq": 15,
+    "directive": "revise",
+    "layer": "lead",
+    "reason": "Regenerate the lead to incorporate slow, heavy oscillations (andolan) on komal ga and komal dha, avoiding flat linear runs."
+   }
+  ],
+  "debate_turns": [
+   {
+    "agent": "Rasik",
+    "seq": 3,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "While the notes are technically correct, this linear run completely bypasses the heavy, weeping andolan on komal ga and dha that gives Darbari its majestic grief. Without those deep, oscillating pauses, we have a mere scale exercise rather than the soul of the raga."
+   }
+  ]
+ },
+ {
+  "id": "83aff247a1cb",
+  "name": "ui-live",
+  "started_at": "2026-10-12 11:27:14",
+  "query": "ui-live",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "round cap (MAX_ROUNDS=2)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4
+    },
+    "mean": 4.2,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      4
+     ],
+     "instruction": "Replace the straight scalar ascent 'S R g m P' with the vakra Darbari phrasing 'S R g R S m P', emphasizing the Kanada descent through oscillating komal ga.",
+     "preserve": [
+      "the climactic peak dynamics",
+      "the triplet cadence locking into sam"
+     ]
+    },
+    "notes": "The overall doom fusion arc and dynamic swell into the orchestral taan climax are superb. The only weak link is the lead's linear scalar climb in the climax, which robs Darbari of its signature Kanada weight. Adopting the vakra phrasing in section 4 will solidify the song's emotional core.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 4,
+      "change": "Replace the scalar ascent 'S R g m P' with the vakra Darbari phrasing 'S R g R S m P'",
+      "why": "Darbari avoids a direct scalar climb through komal ga; looping back to Re preserves the Kanada anga."
+     },
+     {
+      "section": 1,
+      "change": "Replace the doubled notes 'g g m m g g m R' with a sustained, oscillated komal ga descending into Re ('m P g m R')",
+      "why": "Darbari requires an andolan on komal ga rather than staccato doubling to evoke its solemn weight."
+     },
+     {
+      "section": 0,
+      "change": "End the phrase on vadi Re ('m P m g m R') rather than resolving down to mandra ni",
+      "why": "Vadi Re is Darbari's primary emotional resting point; resolving to n(-1) dilutes the opening statement's authority."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 4
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 15,
+    "reasoning_hearing_words": 8,
+    "reasoning_len": 1728
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 3,
+     "hook": 4,
+     "balance": 4,
+     "independence": 3,
+     "mood_fit": 4,
+     "repetition": 3,
+     "performance": 3
+    },
+    "mean": 3.6,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      1,
+      3
+     ],
+     "instruction": "Replace the mechanical repeated notes 'm P P d P P g g m m g g m R' with the flowing Darbari phrasing 'm P d n P m P g m R', lingering on komal Dha and oscillating komal Ga into the 'g m R S' cadence.",
+     "preserve": [
+      "the main doom rhythm riff and palm-muted groove",
+      "the 'g m R S' cadential resolution to sam",
+      "the climactic taan in section 4"
+     ]
+    },
+    "notes": "The overall doom arc and heavy groove foundation work well, peaking powerfully in the orchestral taan. However, the mukhada in the lead suffers from stiff, machine-gun note doublings that sap the dark weight of Darbari. Replacing those staccato repetitions with authentic sweeping Kanada contours (m P d n P m P g m R) will elevate the entire song.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 1,
+      "change": "Replace 'm P P d P P g g m m g g m R' with 'm P d n P m P g m R', dwelling with an andolan on komal dha and komal ga.",
+      "why": "Darbari's Dha requires the Kanada vakra link through komal Ni ('d n P') and a slow oscillation, rather than jumping straight back to Pa."
+     },
+     {
+      "section": 0,
+      "change": "Resolve the final tail from 'm g m R S n(-1)' to 'm g m R S' or hold vadi Re ('m g m R').",
+      "why": "Dangling on an unresolved mandra komal ni at the end of the intro breaks the resting power of the Darbari descent to Sa or vadi Re."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 3,
+     "idiom": 3,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 14,
+    "reasoning_hearing_words": 9,
+    "reasoning_len": 1896,
+    "changed": {
+     "climax": [
+      5,
+      4
+     ],
+     "motif": [
+      4,
+      3
+     ],
+     "independence": [
+      4,
+      3
+     ],
+     "mood_fit": [
+      5,
+      4
+     ],
+     "repetition": [
+      4,
+      3
+     ],
+     "performance": [
+      4,
+      3
+     ]
+    },
+    "abs_total_change": 6,
+    "mean_delta": -0.6,
+    "same_target_as_previous_plan": false
+   },
+   {
+    "round": 2,
+    "decision": "revise",
+    "scores": {
+     "structure": 5,
+     "dynamics": 5,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4
+    },
+    "mean": 4.4,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      4
+     ],
+     "instruction": "Replace 'P d n n S(+1) n P' with 'm P d n S(+1) d n P' in the section 4 taan, routing the high descent through komal dha to execute authentic Darbari vakra phrasing rather than a straight scalar fall.",
+     "preserve": [
+      "the climactic triplet rhythmic cadence locking with the kick and snare",
+      "the mukhada theme",
+      "the main rhythm riff"
+     ]
+    },
+    "notes": "The arrangement and doom weight are dialed in brilliantly, with an earned dynamic peak in the taan. To make the climax truly transcendent, refine the sitar's avaroha descent in section 4 to preserve Darbari's vakra contour via komal dha.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Replace trailing 'n(-1)' at the end with a sustained 'S' or 'R'",
+      "why": "Leaving Darbari's opening phrase hanging on low nishad without resolving to mandra Sa or resting on vadi Re bleeds the raga of its grounded gravity."
+     },
+     {
+      "section": 4,
+      "change": "Replace 'P d n n S(+1) n P' with 'm P d n S(+1) d n P'",
+      "why": "A straight descent 'S(+1) n P' risks sounding generic; returning through komal dha in the avaroha preserves Darbari's essential vakra contour."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 14,
+    "reasoning_hearing_words": 6,
+    "reasoning_len": 1623,
+    "changed": {
+     "structure": [
+      4,
+      5
+     ],
+     "dynamics": [
+      4,
+      5
+     ],
+     "motif": [
+      3,
+      4
+     ],
+     "balance": [
+      4,
+      5
+     ],
+     "independence": [
+      3,
+      4
+     ],
+     "mood_fit": [
+      4,
+      5
+     ],
+     "repetition": [
+      3,
+      4
+     ],
+     "performance": [
+      3,
+      4
+     ]
+    },
+    "abs_total_change": 8,
+    "mean_delta": 0.8,
+    "same_target_as_previous_plan": false
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "8805efb8eceb",
+  "name": "bageshree-full-song",
+  "started_at": "2026-10-13 08:17:05",
+  "query": "bageshree-full-song",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "round cap (MAX_ROUNDS=2)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 3,
+     "climax": 2,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 1
+    },
+    "mean": 3.455,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      5
+     ],
+     "instruction": "Recompose the chaugun taan so that its melodic apex occurs past the 60% mark in the taar register, maintaining unbroken forward momentum that resolves cleanly on vadi Ma or Sa as it hits sam rather than trailing off on ga.",
+     "preserve": [
+      "the mukhada",
+      "the main riff",
+      "the continuous chaugun pulse"
+     ]
+    },
+    "notes": "The foundation and doom groove work well, but the climax falters because the taan peaks too early and ends hanging awkwardly on komal ga. Rework section 5's taan to reach its peak in the upper octave past the 60% mark and hammer home decisively onto Sa or vadi Ma at sam.",
+    "instruction_class": "problem",
+    "rasik_adoption": "C",
+    "rasik_suggestions": [
+     {
+      "section": 5,
+      "change": "replace the final note 'g' with 'm' (or 'm g R S')",
+      "why": "A chaugun taan in Bageshree must land decisively on sam at the vadi Ma or Sa; finishing hanging on komal ga leaves the entire 32-beat momentum unresolved."
+     },
+     {
+      "section": 1,
+      "change": "change the final note 'g~[1]' to 'S[1]'",
+      "why": "Ending the mukhada cycle on ga before repeating to Ma feels ungrounded; resolving to samvadi Sa establishes a firm sam before re-entering on Ma."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 8,
+    "reasoning_metric_cites": 8,
+    "reasoning_hearing_words": 2,
+    "reasoning_len": 1138
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 1
+    },
+    "mean": 3.818,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      6
+     ],
+     "instruction": "Rework the outro tihai to weave through komal nishad: replace 'm D m g R S' with 'm D n D m g R S' across the three repetitions of the concluding tihai leading to the final sam on Sa.",
+     "preserve": [
+      "the concluding monolithic sam on Sa",
+      "the rhythmic placement of the tihai repetitions"
+     ]
+    },
+    "notes": "The overall doom-Bageshree fusion hits with heavy, deliberate momentum and strong arrangement balance. The outro tihai currently feels slightly clipped on its leaps; incorporating komal nishad across the repetitions will lock in the pakad contour for a monumental final sam.",
+    "instruction_class": "notes",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 6,
+      "change": "replace 'm D m g R S' with 'm D n D m g R S' across the three repetitions of the tihai",
+      "why": "The straight leap from D back to m feels clipped; weaving through komal nishad restores the unmistakable pakad contour to the concluding cadence."
+     },
+     {
+      "section": 1,
+      "change": "replace the final 'g~[1]' at the end of the mukhada with 'S[1]'",
+      "why": "Ending the mukhada cycle on an unresolved komal ga weakens the cadence; resolving to samvadi Sa provides proper grounding before relaunching into Ma."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 8,
+    "reasoning_metric_cites": 9,
+    "reasoning_hearing_words": 7,
+    "reasoning_len": 1502,
+    "changed": {
+     "dynamics": [
+      3,
+      4
+     ],
+     "climax": [
+      2,
+      4
+     ],
+     "mood_fit": [
+      4,
+      5
+     ]
+    },
+    "abs_total_change": 4,
+    "mean_delta": 0.363,
+    "same_target_as_previous_plan": false
+   },
+   {
+    "round": 2,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 3,
+     "climax": 3,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 3,
+     "handoff": 1
+    },
+    "mean": 3.455,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      1
+     ],
+     "instruction": "Replace the final dangling komal ga at the cadence of section 1 with a held vadi Ma to resolve the mukhada firmly into Bageshree's tonal center.",
+     "preserve": [
+      "the opening mukhada theme",
+      "the motif m D n D m",
+      "the rhythm guitar groove"
+     ]
+    },
+    "notes": "The doom arrangement and Bageshree melodic arc are heavy and well-paced, but the mukhada cadence in section 1 currently dangles on an unresolved komal ga. Anchoring the lead's phrase termination on vadi Ma will cement the melodic foundation before the cycle unfolds.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 1,
+      "change": "replace the final g~[1] at the end of the cycle with a held m[2]",
+      "why": "komal ga should not be left unresolved at the mukhada cadence; landing firmly on vadi Ma anchors the theme to Bageshree's center of gravity"
+     },
+     {
+      "section": 2,
+      "change": "end the phrase on a held S[2] instead of jumping up to g~[1]",
+      "why": "the manjha descends naturally through the mandra saptak (n. D. n. S); lingering on Sa creates a clear resting point before the mukhada resumes on Ma"
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 9,
+    "reasoning_metric_cites": 10,
+    "reasoning_hearing_words": 6,
+    "reasoning_len": 1375,
+    "changed": {
+     "dynamics": [
+      4,
+      3
+     ],
+     "climax": [
+      4,
+      3
+     ],
+     "mood_fit": [
+      5,
+      4
+     ],
+     "performance": [
+      4,
+      3
+     ]
+    },
+    "abs_total_change": 4,
+    "mean_delta": -0.363,
+    "same_target_as_previous_plan": false
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "8fbcdb773585",
+  "name": "ui-live",
+  "started_at": "2026-10-11 19:50:34",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 5,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 3,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 3
+    },
+    "mean": 4.0,
+    "plan": null,
+    "notes": "The song structure and energy build are executed well, driving strongly into the final taan climax. Clean up the 32 sustained tone clashes between accompaniment and lead to make the mix sound tighter and more deliberate.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 7,
+    "reasoning_metric_cites": 10,
+    "reasoning_hearing_words": 6,
+    "reasoning_len": 1274
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "97262ddfe346",
+  "name": "ui-live",
+  "started_at": "2026-10-11 19:41:46",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 3,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 3,
+     "mood_fit": 5,
+     "repetition": 3,
+     "performance": 4
+    },
+    "mean": 3.8,
+    "plan": null,
+    "notes": "The piece sets up a great driving metal groove with a strong hook and solid dynamic build. To improve, give the lead guitar line more rhythmic independence from the underlying guitar riff rather than matching swaras directly. Additionally, allow a brief let-down or resolution bar after the high-energy taan climax before landing the final hard-stop tihai.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 10,
+    "reasoning_metric_cites": 12,
+    "reasoning_hearing_words": 4,
+    "reasoning_len": 1231
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "a1f851a1decb",
+  "name": "flow-demo",
+  "started_at": "2026-07-12 13:39:24",
+  "query": "flow-demo",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 3,
+     "dynamics": 4,
+     "climax": 2,
+     "motif": 3,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 2
+    },
+    "mean": 3.444,
+    "plan": null,
+    "notes": "The technical riff and fast taan perfectly capture the progressive metal aesthetic with great frequency balance. However, at only two bars, the song is a mere fragment that ends abruptly at its peak; it needs an outro or a return to the main riff to resolve the tension.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 4
+    },
+    "reasoning_numbers": 6,
+    "reasoning_metric_cites": 6,
+    "reasoning_hearing_words": 2,
+    "reasoning_len": 1304
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "a5cd57c59c1e",
+  "name": "ui-live",
+  "started_at": "2026-07-16 09:46:36",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 3,
+     "climax": 3,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4
+    },
+    "mean": 3.889,
+    "plan": null,
+    "notes": "The song has an excellent spatial balance with zero register overlaps and a powerful recurring hook. However, the dynamic arc peaks too early in section 4 instead of building up to the taan climax in section 6. To fix this, pull back the rhythm section's intensity during the middle riff to let the final virtuosic taan truly explode as the earned climax.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 3
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 15,
+    "reasoning_hearing_words": 10,
+    "reasoning_len": 1775
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "aa16264e989d",
+  "name": "ui-live",
+  "started_at": "2026-07-20 18:34:03",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 3,
+     "hook": 4,
+     "balance": 5,
+     "independence": 3,
+     "mood_fit": 5,
+     "repetition": 4
+    },
+    "mean": 4.222,
+    "plan": null,
+    "notes": "The song has an excellent dynamic arc that builds perfectly to the taan climax. To improve, try to vary the lead melody more so it doesn't overlap as heavily with the rhythm guitar's riff pattern, and develop the core motif further rather than repeating it closely.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 4
+    },
+    "reasoning_numbers": 15,
+    "reasoning_metric_cites": 22,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1548
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "ad6b32188140",
+  "name": "conductor-demo",
+  "started_at": "2026-07-11 23:27:17",
+  "query": "conductor-demo",
+  "era": "debate",
+  "n_verdicts": 0,
+  "ending": "round cap (Conductor revised each round; 3 critiques)",
+  "rounds": [],
+  "conductor": [
+   {
+    "seq": 15,
+    "directive": "revise",
+    "layer": "lead",
+    "reason": "Regenerate the lead to dwell on komal ga and komal dha, emphasizing their characteristic slow, heavy oscillation (andolan) to establish the true Darbari mood."
+   }
+  ],
+  "debate_turns": [
+   {
+    "agent": "Rasik",
+    "seq": 3,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "While the notes are technically legal, this line treats Darbari like a cheap minor scale; without the deep, heavy andolan on komal ga and dha, the majestic darkness of the raga is entirely lost."
+   }
+  ]
+ },
+ {
+  "id": "b6cd6430c1f6",
+  "name": "live-bageshree",
+  "started_at": "2026-09-14 20:48:15",
+  "query": "live-bageshree",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 5,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 5
+    },
+    "mean": 4.6,
+    "plan": null,
+    "notes": "This is a stellar progressive arrangement with an excellent dynamic arc peaking at the taan and resolving beautifully. To push it even further, introduce slightly more melodic independence in the lead to lower the 86% overlap with the rhythm riff.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 5
+    },
+    "reasoning_numbers": 17,
+    "reasoning_metric_cites": 24,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 2238
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "ba68ecc0928a",
+  "name": "ui-live",
+  "started_at": "2026-07-19 17:54:19",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 5,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4
+    },
+    "mean": 4.556,
+    "plan": null,
+    "notes": "This is a brilliantly structured Black Metal track that builds tension perfectly from the cold alaap to a blistering taan climax. The separation of octaves keeps the dense arrangement clean and powerful. To improve, try introducing slightly more independence between the lead melody and the rhythm guitar's chord changes.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 19,
+    "reasoning_metric_cites": 25,
+    "reasoning_hearing_words": 4,
+    "reasoning_len": 1814
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "c5fcc5b3323c",
+  "name": "live-bageshree-teentaal",
+  "started_at": "2026-09-14 22:29:48",
+  "query": "live-bageshree-teentaal",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 5,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 3,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 3
+    },
+    "mean": 4.3,
+    "plan": null,
+    "notes": "The composition has an excellent cinematic arc and a strong recurring hook that fits the symphonic metal subgenre perfectly. To improve the performance feel, vary the velocities of the flat chug runs and resolve the two clashing sustained tones in the accompaniment. Additionally, loosen the 96% lockstep between the drums and tabla to give the percussion more breathing room.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 4
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 20,
+    "reasoning_hearing_words": 3,
+    "reasoning_len": 1569
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "c70161fc1b1c",
+  "name": "gat-development-live",
+  "started_at": "2026-07-15 08:50:11",
+  "query": "gat-development-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 5,
+     "motif": 3,
+     "hook": 4,
+     "balance": 3,
+     "independence": 3,
+     "mood_fit": 4,
+     "repetition": 4
+    },
+    "mean": 3.778,
+    "plan": null,
+    "notes": "To elevate the track, reduce the 86% lead/riff overlap by giving the lead guitar more independent counter-melodies rather than doubling the rhythm. Additionally, break the 100% drums/tabla lockstep during the breakdown to allow the percussion to engage in syncopated, progressive polyrhythms.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 16,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1500
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "c77e54e864fa",
+  "name": "conductor-demo",
+  "started_at": "2026-07-11 23:28:42",
+  "query": "conductor-demo",
+  "era": "debate",
+  "n_verdicts": 0,
+  "ending": "round cap (Conductor revised each round; 3 critiques)",
+  "rounds": [],
+  "conductor": [
+   {
+    "seq": 15,
+    "directive": "revise",
+    "layer": "lead",
+    "reason": "Incorporate slow, heavy oscillations (andolan) on komal ga and komal dha, particularly during sustained notes, while preserving the vakra phrasing."
+   }
+  ],
+  "debate_turns": [
+   {
+    "agent": "Rasik",
+    "seq": 3,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "While the notes are technically legal, this line lacks the heavy, oscillating andolan on komal ga and dha that gives Darbari its majestic, grave soul; without that deep tension, it is merely a flat minor scale."
+   }
+  ]
+ },
+ {
+  "id": "ca1e2de2e139",
+  "name": "flow-demo",
+  "started_at": "2026-07-11 23:53:30",
+  "query": "flow-demo",
+  "era": "debate",
+  "n_verdicts": 0,
+  "ending": "round cap (Conductor revised each round; 3 critiques)",
+  "rounds": [],
+  "conductor": [
+   {
+    "seq": 59,
+    "directive": "revise",
+    "layer": "lead",
+    "reason": "Replace the straight scalar runs in the second half with crooked (vakra) phrasing and introduce slow, heavy oscillations on 'g' and 'd'."
+   }
+  ],
+  "debate_turns": [
+   {
+    "agent": "Rasik",
+    "seq": 47,
+    "stance": "revise",
+    "target": "lead",
+    "argument": "While the notes are technically legal, Darbari's soul is utterly crushed by that straight, rapid scalar climb in the second half; a raga of such grave majesty demands crooked phrasing and lingering, heavy oscillations on 'g' and 'd' rather than a generic metal run."
+   }
+  ]
+ },
+ {
+  "id": "d1d56a353154",
+  "name": "ui-live",
+  "started_at": "2026-10-12 21:34:55",
+  "query": "ui-live",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "round cap (MAX_ROUNDS=2)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4
+    },
+    "mean": 4.1,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      8
+     ],
+     "instruction": "Replace the final abrupt phrase ending 'n(-1) S R' with an ornamented approach through an andolited '(R)g~ m' resolving onto a deeply sustained nyas on madhya Rishabh (R) fading into the low D drone.",
+     "preserve": [
+      "the decaying doom chords",
+      "the oscillating komal ga and dha motif figures"
+     ]
+    },
+    "notes": "The crushing weight and Darbari gravity work remarkably well together across the arc. However, the final resolution in the outro cuts off too casually on an unadorned note. Bring the lead to a sustained, ornamented nyas on vadi Rishabh to let the piece die into the drone with true weight.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 6,
+      "change": "Replace the descending drop 'P P m(-1) R(-1) S' with 'P P m P g m R S' in the madhya saptak.",
+      "why": "Leaping abruptly from madhya Pa to mandra ma disrupts the vocal meend-driven avaroha logic of Darbari."
+     },
+     {
+      "section": 8,
+      "change": "Change the final 'n(-1)[1] S[2] R[1]' to end on a sustained '(R)g~[2] m[1] R[4]'.",
+      "why": "Ending on a short, unadorned R leaves the piece dangling; vadi Rishabh demands an ornamented approach and a deep, sustained nyas to conclude the night."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 5
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 13,
+    "reasoning_hearing_words": 9,
+    "reasoning_len": 1929
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 5,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4
+    },
+    "mean": 4.3,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      6
+     ],
+     "instruction": "In the climactic taan, replace the abrupt octave drop 'P P m(-1) R(-1) S' with the madhya saptak avaroha descent 'P P m P g m R S' to maintain forward melodic momentum.",
+     "preserve": [
+      "the opening gamak cascade",
+      "the rhythmic lock with the double-kick doom groove",
+      "the tihai phrasing leading into the final mukhada"
+     ]
+    },
+    "notes": "The song has an immense, crushing weight and an effective classical-metal arc. The only seam holding back the climax is an unnatural octave drop in the sitar's taan that interrupts the forward drive. Smoothing that line in section 6 will make the climax hit with maximum force.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 6,
+      "change": "Replace 'P P m(-1) R(-1) S' with 'P P m P g m R S' in the madhya saptak",
+      "why": "Leaping an octave down from madhya Pa straight into mandra ma and Re ruptures the avaroha chalan; staying in madhya provides the canonical resolution down to Sa."
+     },
+     {
+      "section": 1,
+      "change": "Change the opening 'R[1] g{m}[1] m[1] P P' to 'R[1] (R)g~[2] m[1] P[2]'",
+      "why": "Komal Gandhar in Darbari requires a slow, heavy andolan rather than a brief left-hand snap; holding it gives the mukhada the authentic majesty of the raga before driving forward."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 5
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 14,
+    "reasoning_hearing_words": 10,
+    "reasoning_len": 1633,
+    "changed": {
+     "structure": [
+      4,
+      5
+     ],
+     "balance": [
+      4,
+      5
+     ]
+    },
+    "abs_total_change": 2,
+    "mean_delta": 0.2,
+    "same_target_as_previous_plan": false
+   },
+   {
+    "round": 2,
+    "decision": "revise",
+    "scores": {
+     "structure": 5,
+     "dynamics": 5,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 5,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 3,
+     "performance": 4
+    },
+    "mean": 4.3,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      6
+     ],
+     "instruction": "Rework the taan climax: replace the bare scalar ascent with vakra phrasing (such as 'S R g R g m P'), and replace the fourfold repetition of 'd n P P m P g m R S' with a structured three-phrase tihai that lands firmly on vadi R before resolving to the mukhada's sam.",
+     "preserve": [
+      "the double-kick rhythm and heavy accompaniment bed",
+      "the peak dynamic intensity of the section"
+     ]
+    },
+    "notes": "The doom weight and Darbari mood are immense, with a dynamic curve that builds naturally to section 6. However, the climax loses dramatic punch because the sitar plays an identical descending loop four times in a row. Reworking the section 6 lead into a vakra ascent and a decisive three-cycle tihai resolving to vadi R will make the climax unforgettable.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 6,
+      "change": "Replace the straight scalar ascent 'S R g m P' with the characteristic vakra cell 'S R g R g m P' or 'R S m P'.",
+      "why": "Darbari avoids bare scalar ladders; weaving through g R g m preserves the heavy vakra gait even at tempo."
+     },
+     {
+      "section": 6,
+      "change": "Condense the fourfold repetition of 'd n P P m P g m R S' into a structured three-phrase tihai resting on vadi R before resolving to S.",
+      "why": "Four identical loop repetitions feel mechanical, whereas a formal tihai landing on R reinforces the raga's vadi and dramatic tension."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 5
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 14,
+    "reasoning_hearing_words": 10,
+    "reasoning_len": 2143,
+    "changed": {
+     "dynamics": [
+      4,
+      5
+     ],
+     "repetition": [
+      4,
+      3
+     ]
+    },
+    "abs_total_change": 2,
+    "mean_delta": 0.0,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "d5a6e178d33c",
+  "name": "gat-development-live-final",
+  "started_at": "2026-07-15 09:08:01",
+  "query": "gat-development-live-final",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 3,
+     "hook": 4,
+     "balance": 4,
+     "independence": 2,
+     "mood_fit": 4,
+     "repetition": 4
+    },
+    "mean": 3.889,
+    "plan": null,
+    "notes": "The song has an incredible dynamic build and a massive breakdown climax, but the lead voice completely doubles the rhythm riff. Give the lead its own independent melodic contour to create a true call-and-response. Additionally, explicitly restate the core motif as a recognizable hook rather than just using its notes as a scale pool.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 13,
+    "reasoning_metric_cites": 18,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1408
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "db86de3eb881",
+  "name": "ui-live",
+  "started_at": "2026-07-15 20:47:29",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 3,
+     "hook": 4,
+     "balance": 4,
+     "independence": 3,
+     "mood_fit": 5,
+     "repetition": 4
+    },
+    "mean": 4.111,
+    "plan": null,
+    "notes": "The song has a fantastic progressive arc, building beautifully from the alaap to a crushing breakdown climax. To elevate the arrangement, introduce more independence in the lead voice so it doesn't 100% double the rhythm riff, and let the bass wander off the root occasionally.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 19,
+    "reasoning_metric_cites": 25,
+    "reasoning_hearing_words": 8,
+    "reasoning_len": 1979
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "e3f7212a9204",
+  "name": "single-prompt-c-bhairav",
+  "started_at": "2026-10-18 14:22:10",
+  "query": "single-prompt-C-bhairav",
+  "era": "plan",
+  "n_verdicts": 2,
+  "ending": "stall (inferred: same target, mean not up)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 3,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 4
+    },
+    "mean": 4.0,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      2
+     ],
+     "instruction": "Re-phrase the continuous 16th-note taan run to peak late in the taar octave (past 65% of the section) and resolve the final cadence cleanly onto Sa at the sam rather than komal re.",
+     "preserve": [
+      "the mukhada in sections 0 and 3",
+      "the main riff groove and tempo"
+     ]
+    },
+    "notes": "The groove and arrangement hit with authentic heavy metal drive, but the taan peaks too early at 54% and ends awkwardly on komal re. Push the peak into the latter third of the section and conclude the run decisively on Sa as Rasik suggested. Preserve the crushing mukhada and the rhythm section chug.",
+    "instruction_class": "problem",
+    "rasik_adoption": "C",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "replace the final 'r r r~[1]' with 'r r S[2]'",
+      "why": "Komal re in Bhairav must resolve downward to Sa at a structural cadence rather than hanging unresolved."
+     },
+     {
+      "section": 2,
+      "change": "change the final three notes from 'N(-1) r r' to 'N(-1) r S'",
+      "why": "A taan should strike sam cleanly on the tonic Sa rather than resting on komal re."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 13,
+    "reasoning_hearing_words": 6,
+    "reasoning_len": 1568
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 3,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 4
+    },
+    "mean": 4.0,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      2
+     ],
+     "instruction": "Reshape the section 2 chaugun taan so its high peak in the taar saptak lands late (past 65% of the section), and replace the ascending 'r r N(-1) r' tail with a descending cadence (such as 'm G r r S') that resolves decisively onto Sa at the sam.",
+     "preserve": [
+      "the continuous 16th-note chaugun drive with zero mid-run pauses",
+      "the mukhada theme in sections 0 and 3",
+      "the main rhythm guitar riff and drum groove"
+     ]
+    },
+    "notes": "The foundation and metal drive are rock solid, and the dynamic build into section 2 works great. However, the taan climax peaks too early at 54% and ends awkwardly on komal re instead of delivering a decisive resolution. Reworking the taan's trajectory to peak late and resolve directly down to Sa will nail the climax.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "change the final 'r r r~[1]' to 'r r S[2]'",
+      "why": "In Bhairav, descending komal re must resolve cleanly onto the primary nyas Sa to conclude the sthayi theme."
+     },
+     {
+      "section": 2,
+      "change": "replace the concluding 'r r N(-1) r' with 'm G r r S'",
+      "why": "The taan ends awkwardly ascending to r; resolving down to Sa provides a definitive pakad cadence landing on the sam."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 11,
+    "reasoning_metric_cites": 14,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1758,
+    "changed": {},
+    "abs_total_change": 0,
+    "mean_delta": 0.0,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "e8efbdfbfe7d",
+  "name": "ui-live",
+  "started_at": "2026-10-12 15:20:48",
+  "query": "ui-live",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "round cap (MAX_ROUNDS=2)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 3,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 3,
+     "performance": 4
+    },
+    "mean": 3.9,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      2
+     ],
+     "instruction": "Extend the mandra saptak phrase through the second half of section 2 to bring audible lead presence above 65%, avoiding trailing silence; resolve upward via mandra ma and pa (m(-1) P(-1) n(-1) S) into the sam rather than leaping abruptly to madhya Re.",
+     "preserve": [
+      "the opening mandra descent on d(-1) and P(-1) in the first half of section 2"
+     ]
+    },
+    "notes": "The arc and climactic taan work brilliantly, but section 2 drops out halfway through, starving the lead spotlight to 38% audibility. Reworking the second half of section 2 to sustain mandra saptak exploration and resolve via mandra Ma/Pa into Sa will eliminate the dead space and strengthen the raga idiom.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 1,
+      "change": "replace 'P<>m P<>m d<>n d<>n n[1] P P' with 'm P (P)d~[1.5] n P[1.5]'",
+      "why": "Darbari forbids a straight scalar climb across Dha to Ni; komal Dha requires oscillation (andolan) and must resolve vakra into Pa (d n P)."
+     },
+     {
+      "section": 2,
+      "change": "replace the final 'R>S[1]' with 'm(-1) P(-1) n(-1) S[1]'",
+      "why": "Following an extended mandra development on d(-1) and P(-1), jumping straight to madhya Re breaks the register flow; Darbari resolves upward from the lower octave via mandra ma and Pa."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 14,
+    "reasoning_hearing_words": 3,
+    "reasoning_len": 1704
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 2,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 3
+    },
+    "mean": 3.8,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      2
+     ],
+     "instruction": "Extend the mandra bridge melody across the second bar with sustained meends and andolan on mandra komal dha and ni resolving to Sa, eliminating the silent drop-out so the lead remains audible throughout the section.",
+     "preserve": [
+      "the opening mandra descent gesture",
+      "the dynamic lull before the mukhada return"
+     ]
+    },
+    "notes": "The piece builds a powerful, earned progressive arc culminating in a fiery taan climax. However, Section 2 stalls because the lead sits completely silent across the second bar, starving the spotlight and leaving the rhythm guitar exposed. Filling that void with low-octave Darbari meends will make the bridge land with the intended weight.",
+    "instruction_class": "problem",
+    "rasik_adoption": "N",
+    "rasik_suggestions": [
+     {
+      "section": 1,
+      "change": "Replace 'd<>n d<>n n[1] P P' with 'm P d n P[1] m P'",
+      "why": "Darbari forbids a blunt upward run across dha into pa; komal dha must resolve vakra via 'd n P' to maintain the Kanada idiom."
+     },
+     {
+      "section": 5,
+      "change": "Alter 'S(+1) d d n n P' to 'S(+1) d~[1] n P'",
+      "why": "Descending from taar Sa into the uttarang requires the characteristic vakra swoop onto oscillated komal dha swinging into n P, rather than straight scalar doubling."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 13,
+    "reasoning_hearing_words": 4,
+    "reasoning_len": 1686,
+    "changed": {
+     "balance": [
+      3,
+      2
+     ],
+     "repetition": [
+      3,
+      4
+     ],
+     "performance": [
+      4,
+      3
+     ]
+    },
+    "abs_total_change": 3,
+    "mean_delta": -0.1,
+    "same_target_as_previous_plan": true
+   },
+   {
+    "round": 2,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 2,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 4
+    },
+    "mean": 3.9,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      2
+     ],
+     "instruction": "Extend the mandra saptak descent through the entire second bar using sustained komal dha and ni phrases resolving towards Sa, eliminating the silent drop-out so the lead remains audibly active throughout the bridge.",
+     "preserve": [
+      "the initial mandra descent contour in bar 1",
+      "the focus on komal dha and ni"
+     ]
+    },
+    "notes": "The overall song arc, riff foundation, and virtuosic taan climax are strong and deliver the progressive Darbari fusion brief. However, the lead abruptly drops out halfway through section 2, leaving a lead spotlight section starved at 38% audible presence. Extending the mandra saptak descent across both bars will bridge smoothly back into the mukhada return.",
+    "instruction_class": "problem",
+    "rasik_adoption": "N",
+    "rasik_suggestions": [
+     {
+      "section": 1,
+      "change": "Rewrite the opening motif to explicitly trace S R (m)g~ R g m P before descending to d n P",
+      "why": "This grounds the composition in Darbari's canonical ascending pakad cell, ensuring the listener identifies the raga immediately without relying only on the avaroha phrase."
+     },
+     {
+      "section": 4,
+      "change": "Replace the rapid S(+1)<>n gamak pulses with a sustained taar Sa descending via a meend >d before resolving to n P",
+      "why": "In Darbari, taar Sa is an emotional peak to be held and descended from with heavy vakra glide (S' d n P), rather than shaken with staccato gamaks."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 13,
+    "reasoning_hearing_words": 3,
+    "reasoning_len": 1639,
+    "changed": {
+     "performance": [
+      3,
+      4
+     ]
+    },
+    "abs_total_change": 1,
+    "mean_delta": 0.1,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "ed5feca8f9c4",
+  "name": "ui-live",
+  "started_at": "2026-07-16 07:23:57",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 3,
+     "hook": 4,
+     "balance": 4,
+     "independence": 2,
+     "mood_fit": 4,
+     "repetition": 3
+    },
+    "mean": 3.778,
+    "plan": null,
+    "notes": "The song has an excellent dynamic arc and a well-placed climax, but the lead voice completely doubles the rhythm riff (100% overlap). To make this work as a song, rewrite the lead parts to have their own independent melodic identity, and weave the core motif more consistently across different sections.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 17,
+    "reasoning_hearing_words": 6,
+    "reasoning_len": 1566
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "f0f79ac55fde",
+  "name": "single-prompt-c-darbari",
+  "started_at": "2026-10-18 13:26:46",
+  "query": "single-prompt-C-darbari",
+  "era": "plan",
+  "n_verdicts": 2,
+  "ending": "accept",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.091,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      0
+     ],
+     "instruction": "Prefix the opening phrase with a mandra glide 'd(-1) n(-1) P(-1) S' before moving to R to establish Darbari's lower-octave gravitas, and resolve the cadence to home Sa.",
+     "preserve": [
+      "the taan run and late peak in section 2",
+      "the main riff rhythm and chug cadence",
+      "the takeover arrangement in section 1"
+     ]
+    },
+    "notes": "The song craft, gallop, and arrangement work cleanly, but Darbari needs its characteristic mandra weight. Implementing Rasik's lower-octave descent at the start of the mukhada will anchor the theme with authentic majesty.",
+    "instruction_class": "notes",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Prefix the opening phrase with a mandra glide 'd(-1) n(-1) P(-1) S[1]' before moving to R",
+      "why": "Darbari lives in the mandra register; an ascent grounded in the lower octave immediately establishes the raga's signature gravitas."
+     },
+     {
+      "section": 0,
+      "change": "Resolve the final phrase from 'm[1] g{R}[1] R[1]' down to 'm[1] g{R}[1] R[1] S[2]'",
+      "why": "Completing the descent to home Sa provides the necessary melodic resolution and nyas for Darbari's avaroha cadence."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 3,
+     "rasa": 4
+    },
+    "reasoning_numbers": 11,
+    "reasoning_metric_cites": 13,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1620
+   },
+   {
+    "round": 1,
+    "decision": "accept",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 5,
+     "handoff": 5
+    },
+    "mean": 4.273,
+    "plan": null,
+    "notes": "A punchy, well-paced Darbari metal track with an authentic heavy gallop and a natural dynamic build. The rhythm guitar takeover bridges the initial mukhada and climactic taan seamlessly, landing hard on the final reprise. Ready for release.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": [
+     {
+      "section": 0,
+      "change": "Replace 'g<>m g<>m' with a slow, wavering andolan on komal ga '(R)g~'",
+      "why": "Darbari's grave identity depends on an oscillating komal Gandhar approached from Rishabh rather than rapid gamak strokes"
+     },
+     {
+      "section": 2,
+      "change": "Change the closing notes from 'm(-1) P(-1) n(-1) S R' to 'm(-1) P(-1) d(-1) n(-1) P(-1) g m R S'",
+      "why": "Finishing the high-speed run through the canonical 'g m R S' cadence provides the definitive resolution to sam on Sa"
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 12,
+    "reasoning_metric_cites": 16,
+    "reasoning_hearing_words": 7,
+    "reasoning_len": 1654,
+    "changed": {
+     "mood_fit": [
+      4,
+      5
+     ],
+     "performance": [
+      4,
+      5
+     ]
+    },
+    "abs_total_change": 2,
+    "mean_delta": 0.182
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "f20b9d65ddcb",
+  "name": "ui-live",
+  "started_at": "2026-07-14 19:30:29",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 5,
+     "climax": 5,
+     "motif": 4,
+     "hook": 4,
+     "balance": 3,
+     "independence": 3,
+     "mood_fit": 5,
+     "repetition": 4
+    },
+    "mean": 4.111,
+    "plan": null,
+    "notes": "The song has an incredible dynamic arc and a crushing doom atmosphere, but the lead voice shadows the rhythm riff too closely (86% overlap). To elevate the arrangement, give the lead more melodic independence during the middle melody sections rather than doubling the heavy rhythm. Additionally, loosening the 100% drums/tabla lockstep would create a more organic, swaying groove.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 21,
+    "reasoning_metric_cites": 24,
+    "reasoning_hearing_words": 9,
+    "reasoning_len": 2234
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "fd42579d559b",
+  "name": "ui-live",
+  "started_at": "2026-07-14 23:06:10",
+  "query": "ui-live",
+  "era": "single",
+  "n_verdicts": 1,
+  "ending": "unknown (no decision field; no 2nd round in trace => code triage accepted or run ended)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": null,
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 5,
+     "motif": 3,
+     "hook": 4,
+     "balance": 3,
+     "independence": 2,
+     "mood_fit": 4,
+     "repetition": 4
+    },
+    "mean": 3.667,
+    "plan": null,
+    "notes": "The song has a fantastic dynamic arc and an earned climax in the taan section, but the lead voice is too dependent on the rhythm section, doubling it 100% of the time. Loosen up the lead's phrasing to give it more melodic independence, and create more sonic space by reducing the 'everyone-playing' density in the middle sections.",
+    "instruction_class": null,
+    "rasik_adoption": null,
+    "rasik_suggestions": null,
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 18,
+    "reasoning_metric_cites": 21,
+    "reasoning_hearing_words": 5,
+    "reasoning_len": 1897
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "fe4020ed4e40",
+  "name": "darbari-takeover-taan",
+  "started_at": "2026-10-12 23:34:35",
+  "query": "darbari-takeover-taan",
+  "era": "plan",
+  "n_verdicts": 2,
+  "ending": "stall (inferred: same target, mean not up)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 2,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 5,
+     "handoff": 3
+    },
+    "mean": 3.909,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      5
+     ],
+     "instruction": "Eliminate the 2-second silence before sam by accelerating taan speed into the second avartan, pushing the peak higher and later into taar saptak, and incorporating Rasik's recommended vakra descent entry 'S(+1) (n)d~[0.5] n P[1.5]' to land squarely on the sam of section 6.",
+     "preserve": [
+      "the opening madhya gamak figures of the taan",
+      "the heavy doom tempo and half-time groove"
+     ]
+    },
+    "notes": "The doom groove and Darbari mood are exceptionally heavy, but section 5 drops the ball as a climax by decelerating and leaving two seconds of silence before the final mukhada. Rebuilding the taan to accelerate into a late taar peak and resolve right onto sam will make the piece hit with full impact.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 1,
+      "change": "Replace opening 'R[2] g<>m g<>m m[1] P[1]' with 'S[1] R[1] (R)g~[1] R[0.5] (R)g~[0.5] m[1] P[2]'",
+      "why": "States the raga's missing aroha pakad cell (S R g R g m P) right at the head of the mukhada instead of jumping straight into gamak oscillation."
+     },
+     {
+      "section": 5,
+      "change": "Change the taan descent entry '(n)d n P[1]' to 'S(+1) (n)d~[0.5] n P[1.5]'",
+      "why": "Reinforces Darbari's signature vakra descent from taar Sa (S' d n P) rather than leaping into dha from below."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 4
+    },
+    "reasoning_numbers": 11,
+    "reasoning_metric_cites": 14,
+    "reasoning_hearing_words": 8,
+    "reasoning_len": 1364
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 2,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 5,
+     "handoff": 1
+    },
+    "mean": 3.636,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      5
+     ],
+     "instruction": "Extend the cascading gamak-taan through the end of the section without the late rest, driving accelerating momentum directly into the sam of section 6.",
+     "preserve": [
+      "the peak on taar ma",
+      "the heavy gamak phrasing"
+     ]
+    },
+    "notes": "The doom groove, Darbari gravity, and overall pacing are heavy and well balanced. However, the climactic taan in section 5 drops out 1.6 seconds before the sam, deflating the peak right before the final mukhada. Carry the line all the way to the downbeat.",
+    "instruction_class": "problem",
+    "rasik_adoption": "N",
+    "rasik_suggestions": [
+     {
+      "section": 1,
+      "change": "Replace the opening 'R[2] g<>m g<>m m[1] P[1]' with 'S[1] R[1] (R)g~[1.5] R[0.5] (R)g~[1] m[1] P[2]'",
+      "why": "This explicitly establishes the canonical opening pakad cell (S R g R g m P) at the head of the mukhada while preserving the heavy gamak feel."
+     },
+     {
+      "section": 4,
+      "change": "Alter the ascent 'm[1] P[1] (P)d~[1] n[1] S(+1)[3]' to 'm[1] P[1] n[1] (n)d~[1] n[1] S(+1)[3]'",
+      "why": "Straight ascent through d to n weakens Darbari's vakra nature; weaving n before oscillating d honors the raga's chalan when approaching taar Sa."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 4,
+     "idiom": 4,
+     "rasa": 5
+    },
+    "reasoning_numbers": 14,
+    "reasoning_metric_cites": 15,
+    "reasoning_hearing_words": 4,
+    "reasoning_len": 1568,
+    "changed": {
+     "mood_fit": [
+      5,
+      4
+     ],
+     "handoff": [
+      3,
+      1
+     ]
+    },
+    "abs_total_change": 3,
+    "mean_delta": -0.273,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ },
+ {
+  "id": "ff7d69298643",
+  "name": "darbari-full-song-213455-head-20261013",
+  "started_at": "2026-10-13 07:47:03",
+  "query": "darbari-full-song-213455-head-20261013",
+  "era": "plan",
+  "n_verdicts": 3,
+  "ending": "round cap (MAX_ROUNDS=2)",
+  "rounds": [
+   {
+    "round": 0,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 2,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 4,
+     "repetition": 4,
+     "performance": 3,
+     "handoff": 4
+    },
+    "mean": 3.727,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      6
+     ],
+     "instruction": "Reshape the section 6 taan using vakra Darbari phrasing (such as m P d n P m P d n S') rather than straight scalar runs, insert a 1-beat resting nyas on Pa at the midpoint to break the 32-beat continuous burst, and delay the highest taar peak toward the latter third before driving cleanly to sam.",
+     "preserve": [
+      "the rhythm section's double-kick doom groove",
+      "the clean arrival into the returning mukhada on sam"
+     ]
+    },
+    "notes": "The overall doom-Darbari arrangement is heavy, well-structured, and dynamic, but the climactic taan runs as an unbroken 32-beat mechanical scalar dash. Introducing vakra contours and a nyas rest will allow the climax to breathe and hit with true emotional weight.",
+    "instruction_class": "both",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 6,
+      "change": "Replace the straight scalar ascent 'm g m P d n S(+1)' with the vakra phrase 'm P d n P m P d n S(+1)', and insert a 1-beat rest or nyas on Pa halfway through the 32-beat run.",
+      "why": "Darbari forbids straight runs across Dha in both ascent and descent; phrasing must turn around Pa (d n P) to avoid collapsing into generic Asavari/Jaunpuri scale runs, and the taan needs breath."
+     },
+     {
+      "section": 2,
+      "change": "Replace the rapid quadruple gamak 'd(-1)<>n d(-1)<>n d(-1)<>n d(-1)<>n' with a slow, heavy andolan '(n)d(-1)~[2]' gliding downward into P(-1)[3].",
+      "why": "In the mandra saptak, komal Dha gains its regal Darbari weight through a slow, sorrowful oscillation from Ni rather than repeated rapid machine-gun gamaks."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 5
+    },
+    "reasoning_numbers": 16,
+    "reasoning_metric_cites": 17,
+    "reasoning_hearing_words": 6,
+    "reasoning_len": 1941
+   },
+   {
+    "round": 1,
+    "decision": "revise",
+    "scores": {
+     "structure": 5,
+     "dynamics": 4,
+     "climax": 4,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 5
+    },
+    "mean": 4.273,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      6
+     ],
+     "instruction": "In the fast taan descent, replace 'n d n P m P m g m' with 'S(+1) d n P m P g m R S' to execute Darbari's authentic vakra avaroha and resolve definitively onto sam.",
+     "preserve": [
+      "the climactic drive up to taar Re",
+      "the continuous 4.0 notes/beat acceleration into sam"
+     ]
+    },
+    "notes": "The arrangement and doom dynamic arc are monolithic, especially the section 4 guitar takeover and the build into the climax. To achieve complete mastery, the climactic taan descent in section 6 needs Darbari's authentic vakra avaroha rather than a scalar loop before resolving into the final mukhada.",
+    "instruction_class": "notes",
+    "rasik_adoption": "A",
+    "rasik_suggestions": [
+     {
+      "section": 5,
+      "change": "Replace 'R(+1)<>S R(+1)<>S S(+1)[1]' with '(R+1)g(+1)~[2] R(+1)[1] S(+1)[1]'",
+      "why": "A classic Darbari antara reaches its emotional climax by leaning into an andolan on the taar saptak komal ga rather than hovering on the upper Sa and Re."
+     },
+     {
+      "section": 6,
+      "change": "In the fast taan descent, replace 'n d n P m P m g m' with 'S(+1) d n P m P g m R S'",
+      "why": "Darbari avaroha requires komal dha to be taken vakra from taar Sa (S' d n P) and resolved definitively through g m R S rather than lingering in a scalar m-g-m loop."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 5
+    },
+    "reasoning_numbers": 17,
+    "reasoning_metric_cites": 21,
+    "reasoning_hearing_words": 10,
+    "reasoning_len": 1994,
+    "changed": {
+     "structure": [
+      4,
+      5
+     ],
+     "climax": [
+      2,
+      4
+     ],
+     "mood_fit": [
+      4,
+      5
+     ],
+     "performance": [
+      3,
+      4
+     ],
+     "handoff": [
+      4,
+      5
+     ]
+    },
+    "abs_total_change": 6,
+    "mean_delta": 0.546,
+    "same_target_as_previous_plan": true
+   },
+   {
+    "round": 2,
+    "decision": "revise",
+    "scores": {
+     "structure": 4,
+     "dynamics": 4,
+     "climax": 2,
+     "motif": 4,
+     "hook": 4,
+     "balance": 4,
+     "independence": 4,
+     "mood_fit": 5,
+     "repetition": 4,
+     "performance": 4,
+     "handoff": 4
+    },
+    "mean": 3.909,
+    "plan": {
+     "voice": "lead",
+     "sections": [
+      6
+     ],
+     "instruction": "Reshape the section 6 taan so its melodic peak in the taar register arrives late (past 60% of the section), incorporating Darbari gamak phrasing with nyas on Pa and Re to provide breath before driving seamlessly into the returning sam.",
+     "preserve": [
+      "the mukhada in section 7",
+      "the main riff breakdown rhythm"
+     ]
+    },
+    "notes": "The doom weight and Darbari atmosphere establish an immense, brooding gravity, but the climax taan falters by peaking prematurely at 46% in an unyielding 32-beat run. Reworking section 6 to peak later in the taar octave and breathe around Pa and Re will give the climax earned majesty and momentum. The surrounding rhythm arrangement and mukhada structure are already locked in and heavy.",
+    "instruction_class": "problem",
+    "rasik_adoption": "C",
+    "rasik_suggestions": [
+     {
+      "section": 6,
+      "change": "Insert a half-beat rest after landing on P at the midpoint of the taan, preceding it with a gamak-laden m P g<>m R S phrase",
+      "why": "Darbari's dignity demands breath and nyas on Pa and Re; an unbroken 32-beat run sounds like generic shredding rather than a heavy Kanada taan."
+     }
+    ],
+    "rasik_scores": {
+     "pakad": 5,
+     "idiom": 4,
+     "rasa": 5
+    },
+    "reasoning_numbers": 16,
+    "reasoning_metric_cites": 17,
+    "reasoning_hearing_words": 7,
+    "reasoning_len": 2051,
+    "changed": {
+     "structure": [
+      5,
+      4
+     ],
+     "climax": [
+      4,
+      2
+     ],
+     "handoff": [
+      5,
+      4
+     ]
+    },
+    "abs_total_change": 4,
+    "mean_delta": -0.364,
+    "same_target_as_previous_plan": true
+   }
+  ],
+  "conductor": [],
+  "debate_turns": []
+ }
+]

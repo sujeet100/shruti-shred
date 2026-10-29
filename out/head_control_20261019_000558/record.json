@@ -1,0 +1,163 @@
+{
+ "versions": [
+  {
+   "composer": "A",
+   "round": 0,
+   "changed": false,
+   "argument": "",
+   "motif": [
+    "S",
+    "R",
+    "g",
+    "R"
+   ],
+   "notes": "S:da(1) R:da(1) g:ra(1) R:dir(1) g:da(3) m:ra(1) P:da(1) n:da(1) P:ra(1) m:dir(1) P:da(1) g:dir(1) m:da(1) R:ra(1)",
+   "measures": {
+    "g m R S": 1,
+    "d n P": 0,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.0
+   }
+  },
+  {
+   "composer": "B",
+   "round": 0,
+   "changed": false,
+   "argument": "",
+   "motif": [
+    "S",
+    "m",
+    "P",
+    "g",
+    "R"
+   ],
+   "notes": "S:da(1) m:da(1) g:ra(1) m:dir(1) P:da(1) P:dir(1) g:da(2) m:da(1) R:da(1) S:ra(1) P:dir(1) m:da(1) g:dir(1) m:da(1) R:ra(1)",
+   "measures": {
+    "g m R S": 2,
+    "d n P": 0,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.0
+   }
+  },
+  {
+   "composer": "A",
+   "round": 1,
+   "changed": true,
+   "argument": "The previous attempt rightly brought Darbari's gravity into the mandra saptak with the d n P vakra descent, but it violated the essential breather requirement by loading the held komal Ga with gamak oscillation and ornamentation instead of letting a single stroke ring and breathe. In slow vilambit Masitkhani playing, especially over the cavernous space of doom metal, the breather must be struck cleanly once on 'da' and held for two full matras so the natural acoustic decay and microtonal andolan can vibrate unimpeded. This revision purges the extraneous ornament from the 2-beat Ga breather, preserving the heavy mandra journey (mandra d n P and m P d n) and landing squarely on sam Sa.",
+   "motif": [
+    "S",
+    "R",
+    "g",
+    "R"
+   ],
+   "notes": "S:da(1) R:da(1) g:ra(1) R:dir(1) g:da(2) m:da(1) R:ra(1) S:da(1) d-1:da(1) n-1:ra(1) P-1:dir(1) m-1:da(1) P-1:dir(1) d-1:da(1) n-1:ra(1)",
+   "measures": {
+    "g m R S": 1,
+    "d n P": 1,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.44
+   }
+  },
+  {
+   "composer": "B",
+   "round": 1,
+   "changed": true,
+   "argument": "The original head locked cleanly into the Masitkhani stroke frame and featured the essential g-m-R-S cadence, but it was musically deficient for slow doom Darbari Kanada by operating entirely in the madhya saptak (below madhya Sa was 0.0) and completely omitting the signature d-n-P cell. Darbari Kanada's solemn majesty and doom character require extensive dwelling in the mandra register and the heavy oscillation of komal ga and dha. By plunging the opening figure down into the mandra saptak via the canonical S' d n P vakra descent and placing the two-beat breather on mandra komal ga with deep andolan, the revised head gains authentic gravitas. The approach retains the driving P-m-g-m-R Masitkhani mukhada in the mandra register, now weighted with genuine low-end doom substance before hammering home onto the sam.",
+   "motif": [
+    "S",
+    "d",
+    "n",
+    "P"
+   ],
+   "notes": "S:da(1) d-1:da(1) n-1:ra(1) P-1:dir(1) m-1:da(1) P-1:dir(1) g-1:da(2) m-1:da(1) R-1:da(1) S-1:ra(1) P-1:dir(1) m-1:da(1) g-1:dir(1) m-1:da(1) R-1:ra(1)",
+   "measures": {
+    "g m R S": 2,
+    "d n P": 1,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.94
+   }
+  },
+  {
+   "composer": "A",
+   "round": 2,
+   "changed": false,
+   "argument": "This gat head already captures the exact brooding gravitas demanded by both Darbari Kanada and slow doom metal, opening deliberately in the lower madhya with the quintessential S R g R motif. Holding komal Ga for two full matras creates the signature slow andolan breather, letting the raga sway with massive sonic weight before releasing into the canonical m R S chalan. The second half plunges fearlessly into the mandra saptak with the vakra d-1 n-1 P-1 cell, anchoring nearly half the avartan in the depths before climbing through m-1 P-1 d-1 n-1 to drive inexorably into the sam. Because every note strictly reinforces the Masitkhani bol architecture without diluting the raga's solemn authority, I retain the composition unchanged.",
+   "motif": [
+    "S",
+    "R",
+    "g",
+    "R"
+   ],
+   "notes": "S:da(1) R:da(1) g:ra(1) R:dir(1) g:da(2) m:da(1) R:ra(1) S:da(1) d-1:da(1) n-1:ra(1) P-1:dir(1) m-1:da(1) P-1:dir(1) d-1:da(1) n-1:ra(1)",
+   "measures": {
+    "g m R S": 1,
+    "d n P": 1,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.44
+   }
+  },
+  {
+   "composer": "B",
+   "round": 2,
+   "changed": false,
+   "argument": "The head establishes an ominous, cavernous doom character immediately by plunging from madhya Sa straight into the mandra saptak with Darbari's quintessential vakra phrase (S d-1 n-1 P-1). It rigorously adheres to the Masitkhani stroke frame, locking heavy right-hand bols into the doom groove while reserving a two-matra breather for mandra komal ga where the signature andolan can expand. The mukhada in matras 12-16 harnesses the dir-da-dir-da-ra drive across the canonical P-m-g-m-R chalan to land decisively on the sam. Because the melody, stroke line, register dwell, and raga grammar are already dialed in without excess or compromise, this head stands completely authoritative as written.",
+   "motif": [
+    "S",
+    "d",
+    "n",
+    "P"
+   ],
+   "notes": "S:da(1) d-1:da(1) n-1:ra(1) P-1:dir(1) m-1:da(1) P-1:dir(1) g-1:da(2) m-1:da(1) R-1:da(1) S-1:ra(1) P-1:dir(1) m-1:da(1) g-1:dir(1) m-1:da(1) R-1:ra(1)",
+   "measures": {
+    "g m R S": 2,
+    "d n P": 1,
+    "held g/d (2+ beats)": 1,
+    "below madhya Sa": 0.94
+   }
+  }
+ ],
+ "convergence": {
+  "0": {
+   "swaras": 0.55,
+   "rhythm": 0.83
+  },
+  "1": {
+   "swaras": 0.4,
+   "rhythm": 0.87
+  },
+  "2": {
+   "swaras": 0.4,
+   "rhythm": 0.87
+  }
+ },
+ "drift_from_proposal": {
+  "A": {
+   "0": {
+    "swaras": 1.0,
+    "rhythm": 1.0
+   },
+   "1": {
+    "swaras": 0.69,
+    "rhythm": 0.9
+   },
+   "2": {
+    "swaras": 0.69,
+    "rhythm": 0.9
+   }
+  },
+  "B": {
+   "0": {
+    "swaras": 1.0,
+    "rhythm": 1.0
+   },
+   "1": {
+    "swaras": 0.8,
+    "rhythm": 1.0
+   },
+   "2": {
+    "swaras": 0.8,
+    "rhythm": 1.0
+   }
+  }
+ }
+}

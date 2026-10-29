@@ -1,0 +1,255 @@
+{
+  "raga": "bhairav",
+  "subgenre": "heavy",
+  "tala": "teentaal",
+  "sa": 64,
+  "bpm": 128,
+  "anchor": "gat_first",
+  "ending": "hard_stop",
+  "playable_rhythm": true,
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "alaap",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "clean",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "unfold Bhairav's komal re and komal dha with oscillating meend over the drone",
+      "transition": "drums and rhythm enter on sam",
+      "riff_slot": "main",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "state the main Bhairav mukhada hook clearly over the driving metal groove",
+      "transition": "move smoothly into the lower register manjha",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "d",
+          "r"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "explore the lower mandra octave in the manjha line before returning home",
+      "transition": "re-enter the head with full band weight",
+      "riff_slot": "main",
+      "form_role": "manjha",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "r",
+          "S"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "return to the mukhada hook with driving rhythm support underneath",
+      "transition": "launch into the fast taan climax",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "d",
+          "r"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "taan",
+      "bars": 3,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "rapid taan phrases accelerating towards the peak over heavy rhythm chords",
+      "transition": "build into the final tihai cadence",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "outro",
+      "bars": 1,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "execute a three-part tihai phrase landing exactly on sam",
+      "transition": "hard stop on upper Sa unison",
+      "riff_slot": "main",
+      "form_role": "tihai",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "G",
+    "m",
+    "d",
+    "d",
+    "P"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -2,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "Compose a 90-second Raag Bhairav × heavy metal piece in the key of E (Sa = E), in teentaal at 128 BPM.  Open with Bhairav, introduce a memorable heavy riff, develop it through lead-and-riff call and response, build into a fast taan climax, and finish with a tihai landing exactly on sam. Reuse and transform one recognisable Bhairav motif so the piece sounds developed rather than assembled. End with a hard stop: the lead lands on upper Sa while guitar, bass and drums strike low Sa underneath it.  I will play the rhythm guitar live, so keep it playable on a standard six-string in E standard: anchor on the open low E, one core riff with a few variations, mostly eighth notes with only short sixteenth-note bursts."
+}

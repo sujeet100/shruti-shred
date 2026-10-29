@@ -1,0 +1,332 @@
+{
+  "raga": "darbari",
+  "sa": 62,
+  "bpm": 64,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 54.0,
+          "vel": 55,
+          "fade_tail": 3.2
+        },
+        {
+          "swara": "P",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 54.0,
+          "vel": 45,
+          "fade_tail": 3.2
+        }
+      ]
+    },
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 44,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 0.0,
+          "dur": 3.5,
+          "vel": 86
+        },
+        {
+          "swara": "n",
+          "oct": -1,
+          "start": 3.5,
+          "dur": 1.0,
+          "vel": 63,
+          "cents": -3.91
+        },
+        {
+          "swara": "d",
+          "oct": -1,
+          "start": 4.5,
+          "dur": 2.5,
+          "vel": 86,
+          "grace": [
+            "n"
+          ],
+          "andolan": true,
+          "andolan_st": -0.5,
+          "andolan_swings": [
+            2,
+            3
+          ],
+          "cents": -7.82
+        },
+        {
+          "swara": "n",
+          "oct": -1,
+          "start": 7.0,
+          "dur": 1.0,
+          "vel": 63,
+          "cents": -3.91
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 8.0,
+          "dur": 3.0,
+          "vel": 86
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 12.5,
+          "dur": 1.0,
+          "vel": 86
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 13.5,
+          "dur": 1.0,
+          "vel": 63,
+          "cents": 3.91
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 14.5,
+          "dur": 3.0,
+          "vel": 86,
+          "grace": [
+            "R"
+          ],
+          "andolan": true,
+          "andolan_st": -0.5,
+          "andolan_swings": [
+            2,
+            3
+          ],
+          "cents": -5.87
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 17.5,
+          "dur": 1.5,
+          "vel": 63,
+          "cents": -1.96
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 19.0,
+          "dur": 2.0,
+          "vel": 86,
+          "grace": [
+            "m"
+          ],
+          "andolan": true,
+          "andolan_st": -0.5,
+          "andolan_swings": [
+            2,
+            3
+          ],
+          "cents": -5.87
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 22.5,
+          "dur": 1.0,
+          "vel": 86,
+          "cents": -1.96
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 23.5,
+          "dur": 1.0,
+          "vel": 63,
+          "cents": 1.96
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 24.5,
+          "dur": 1.5,
+          "vel": 86,
+          "grace": [
+            "m"
+          ],
+          "andolan": true,
+          "andolan_st": -0.5,
+          "andolan_swings": [
+            2,
+            3
+          ],
+          "cents": -5.87
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 26.0,
+          "dur": 1.0,
+          "vel": 63,
+          "cents": -1.96
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 27.0,
+          "dur": 3.5,
+          "vel": 86,
+          "cents": 3.91
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 32.0,
+          "dur": 1.0,
+          "vel": 86
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 33.0,
+          "dur": 1.0,
+          "vel": 63,
+          "cents": 3.91
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 34.0,
+          "dur": 1.0,
+          "vel": 86,
+          "grace": [
+            "R"
+          ],
+          "andolan": true,
+          "andolan_st": -0.5,
+          "andolan_swings": [
+            2,
+            3
+          ],
+          "cents": -5.87
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 35.0,
+          "dur": 1.0,
+          "vel": 63,
+          "cents": 3.91
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 36.0,
+          "dur": 1.0,
+          "vel": 86,
+          "cents": -1.96
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 37.0,
+          "dur": 1.0,
+          "vel": 63,
+          "cents": 1.96
+        },
+        {
+          "swara": "d",
+          "oct": -1,
+          "start": 38.0,
+          "dur": 0.5,
+          "vel": 86,
+          "grace": [
+            "n"
+          ],
+          "cents": -7.82
+        },
+        {
+          "swara": "n",
+          "oct": -1,
+          "start": 38.5,
+          "dur": 0.5,
+          "vel": 63,
+          "cents": -3.91
+        },
+        {
+          "swara": "P",
+          "oct": -1,
+          "start": 39.0,
+          "dur": 1.0,
+          "vel": 86,
+          "cents": 1.96
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 40.0,
+          "dur": 0.5,
+          "vel": 86,
+          "cents": -1.96
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 40.5,
+          "dur": 0.5,
+          "vel": 63,
+          "cents": 1.96
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 41.0,
+          "dur": 0.5,
+          "vel": 86,
+          "grace": [
+            "m"
+          ],
+          "cents": -5.87
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 41.5,
+          "dur": 0.5,
+          "vel": 63,
+          "cents": -1.96
+        },
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 42.0,
+          "dur": 1.0,
+          "vel": 86,
+          "cents": 3.91
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 43.0,
+          "dur": 4.0,
+          "vel": 86,
+          "fade": true
+        }
+      ]
+    }
+  ]
+}

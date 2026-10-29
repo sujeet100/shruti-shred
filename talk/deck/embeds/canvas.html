@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{width:1216px;height:260px;image-rendering:pixelated;display:block}</style></head><body><canvas id="c" width="304" height="65"></canvas><script>
+const c=document.getElementById("c"),g=c.getContext("2d");
+const F={P:"110101110100100",A:"010101111101101",S:"011100010001110","1":"010110010010111","2":"111001111100111","3":"111001111001111","/":"001001010100100",I:"111010010010111",T:"111010010010010",R:"110101110101101",F:"111100110100100",L:"100100100100111",E:"111100110100111",D:"110101101101110",O:"111101101101111",N:"101111111111101",C:"011100100100011","-":"000000111000000",W:"101101101111101",K:"101101110101101",H:"101101111101101"};
+function txt(s,x,y,col,sc){sc=sc||2;g.fillStyle=col;let ox=x;for(const ch of s){const b=F[ch];if(b)for(let i=0;i<15;i++)if(b[i]==="1")g.fillRect(ox+(i%3)*sc,y+Math.floor(i/3)*sc,sc,sc);ox+=4*sc}}
+const SIT=[[0,3,6],[3,1,8],[4,2,5],[6,2,9],[8,4,7],[12,2,4],[14,2,6]],RIF=[[0,1],[1,1],[2,1],[4,1],[5,1],[6,1],[8,2],[10,1],[11,1],[12,1],[13,1],[14,2]];
+const X0=46,BW=15.5,STEP=520,t0=performance.now();
+function frame(now){const t=(now-t0)%(STEP*34),k=Math.floor(t/STEP);g.clearRect(0,0,304,65);
+g.fillStyle="#120f1d";g.fillRect(0,0,304,65);g.fillStyle="#2a2138";g.fillRect(0,0,304,1);g.fillRect(0,64,304,1);g.fillRect(0,26,304,1);g.fillRect(0,45,304,1);
+for(let b=0;b<=16;b++){g.fillStyle=b%4===0?"#4a3f6b":"#1f1830";g.fillRect(Math.round(X0+b*BW),2,1,43)}
+txt("SITAR",4,9,"#f2b53c");txt("RIFF",4,31,"#d9702a");
+const pass=k<8?1:k<16?2:k<24?3:3,sit=Math.min(SIT.length,k+1),rif=k<8?0:Math.min(RIF.length,k-7);
+for(let i=0;i<sit;i++){const [b,len,h]=SIT[i];let dy=0;if(k>=16&&k<24&&i===(k%SIT.length))dy=-1;g.fillStyle=k>=16&&k<24&&i===(k%SIT.length)?"#ffd97a":"#f2b53c";g.fillRect(Math.round(X0+b*BW+1),Math.round(23-h*2+dy),Math.round(len*BW-2),3)}
+for(let i=0;i<rif;i++){const [b,len]=RIF[i];g.fillStyle=k>=16&&k<24&&i===(k%RIF.length)?"#ffd97a":"#d9702a";g.fillRect(Math.round(X0+b*BW+1),33,Math.round(len*BW-2),6)}
+const lbl=k<8?"PASS 1/3 LEAD PROPOSES":k<16?"PASS 2/3 RIFF ANSWERS":k<24?"PASS 3/3 REFINE":"CODE STOPS IT - DONE";
+txt(lbl,4,51,k<24?"#38e0cf":"#ff2e88");
+requestAnimationFrame(frame)}requestAnimationFrame(frame);
+</script></body></html>

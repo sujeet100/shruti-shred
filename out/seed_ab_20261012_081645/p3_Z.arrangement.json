@@ -1,0 +1,355 @@
+{
+  "raga": "bageshree",
+  "subgenre": "progressive",
+  "tala": "jhaptaal",
+  "sa": 62,
+  "bpm": 140,
+  "anchor": "gat_first",
+  "ending": "ring_out",
+  "form": "gat",
+  "playable_rhythm": false,
+  "beats_per_bar": 10.0,
+  "sections": [
+    {
+      "kind": "riff",
+      "bars": 1,
+      "layers": [
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "rhythm",
+      "intent": "the main riff alone",
+      "transition": "",
+      "riff_slot": "main",
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 3,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "the hook over the main riff",
+      "transition": "",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "climax_style": "driven"
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dhi"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Na"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "tali",
+      "bol": "Dhi"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dhi"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "beat",
+      "bol": "Na"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "khali",
+      "bol": "Ti"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Na"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "tali",
+      "bol": "Dhi"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "beat",
+      "bol": "Dhi"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Na"
+    }
+  ],
+  "motif": [
+    "m",
+    "D",
+    "n",
+    "D",
+    "m",
+    "g",
+    "R",
+    "S"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -2,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "a progressive metal gat in Bageshree at 140 bpm",
+  "seed_riff": {
+    "reasoning": "Built directly on the Jhaptaal 2+3+2+3 vibhag structure: palm-muted low Sa roots punch the sam, bursting into vadi m on beat 2; the second vibhag climbs g-m-D before breathing on beat 5; the khali accents n sliding to D; and the final vibhag traces the strict Bageshree descent D-P-m-g-R-S.",
+    "notes": [
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "hammer_on",
+        "rest": false
+      },
+      {
+        "swara": "D",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "n",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "D",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "slide",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "D",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      }
+    ]
+  },
+  "seed_hook": {
+    "phrase_plan": {
+      "seed": [
+        "m",
+        "D",
+        "n",
+        "D",
+        "m"
+      ],
+      "contour": "arch",
+      "transformations": [
+        "repeat",
+        "sequence_up",
+        "resolve"
+      ],
+      "climax_and_sam": "Peaks on komal n and smoothly descends through m-g-R to settle firmly on samvadi S"
+    },
+    "notes": [
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "D",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "D",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "D",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.5,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      }
+    ]
+  },
+  "energy_arc": ""
+}

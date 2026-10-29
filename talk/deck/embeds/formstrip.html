@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{width:1664px;height:144px;image-rendering:pixelated;display:block}</style></head><body><canvas id="c" width="416" height="36"></canvas><script>
+const c=document.getElementById("c"),g=c.getContext("2d");
+const F={A:"010101111101101",L:"100100100100111",P:"110101110100100",G:"011100101101011",T:"111010010010010",S:"011100010001110",W:"101101101111101",J:"001001001101010",B:"110101110101110",N:"101111111111101",I:"111010010010111",H:"101101111101101","-":"000000111000000"};
+function txt(s,x,y,col){const sc=2;g.fillStyle=col;let ox=x;for(const ch of s){const b=F[ch];if(b)for(let i=0;i<15;i++)if(b[i]==="1")g.fillRect(ox+(i%3)*sc,y+Math.floor(i/3)*sc,sc,sc);ox+=4*sc}}
+const SEG=[["ALAP",1,"#38e0cf"],["GAT",2,"#f2b53c"],["SAWAL-JAWAB",2,"#d9702a"],["TAAN",2,"#ff2e88"],["TIHAI",1,"#ffd97a"]],U=416/8,CYC=1100,t0=performance.now();
+function frame(now){const pos=8;g.clearRect(0,0,416,36);let x=0;
+SEG.forEach(([n,len,col])=>{const w=len*U,on=true;g.fillStyle=on?col:"#191426";g.fillRect(x+1,8,w-2,18);
+g.fillStyle=col;g.fillRect(x+1,8,w-2,1);g.fillRect(x+1,25,w-2,1);txt(n,x+Math.round((w-n.length*8)/2),12,on?"#08070d":col);x+=w});
+if(pos>=7){const k=Math.min(2,Math.floor((pos-7)*3));for(let i=0;i<=k;i++){g.fillStyle="#ffd97a";g.fillRect(7*U+6+i*14,29,10,3)}}
+if(pos>=8){g.fillStyle="#ece5d3";g.fillRect(414,4,2,28)}
+const px=Math.min(415,Math.round(pos*U));g.fillStyle="#ece5d3";g.fillRect(px,2,1,32);g.fillRect(px-1,2,3,2);
+}frame(0);
+</script></body></html>

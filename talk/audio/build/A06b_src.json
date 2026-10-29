@@ -1,0 +1,155 @@
+{
+  "raga": "bhairav",
+  "sa": 64,
+  "bpm": 128,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 15.0,
+          "vel": 55
+        },
+        {
+          "swara": "P",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 15.0,
+          "vel": 45
+        }
+      ]
+    },
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 0.0,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "N",
+          "oct": -1,
+          "start": 0.75,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 1.5,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "r",
+          "oct": 1,
+          "start": 2.25,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 3.0,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 3.75,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 4.5,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 5.25,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 6.0,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 6.75,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "G",
+          "oct": 1,
+          "start": 7.5,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 8.25,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "d",
+          "oct": -1,
+          "start": 9.0,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "m",
+          "oct": 1,
+          "start": 9.75,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 10.5,
+          "dur": 0.75,
+          "vel": 90
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 11.25,
+          "dur": 0.75,
+          "vel": 90
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{width:480px;height:240px;image-rendering:pixelated;display:block}</style></head><body><canvas id="c" width="120" height="60"></canvas><script>
+const c=document.getElementById("c"),g=c.getContext("2d");
+const F={"0":"111101101101111","1":"010110010010111","2":"111001111100111","3":"111001111001111","4":"101101111001001","5":"111100111001111","6":"111100111101111","7":"111001001001001","8":"111101111101111","9":"111101111001111",G:"011100101101011",R:"110101110101101",I:"111010010010111",N:"101111111111101",D:"110101101101110",S:"011100010001110"};
+function txt(s,x,y,sc,col){g.fillStyle=col;let ox=x;for(const ch of s){const b=F[ch];if(b)for(let i=0;i<15;i++)if(b[i]==="1")g.fillRect(ox+(i%3)*sc,y+Math.floor(i/3)*sc,sc,sc);ox+=4*sc}}
+const t0=performance.now(),DUR=2600;
+function frame(now){const p=Math.min(1,(now-t0)/DUR),n=Math.round(107*(1-(1-Math.pow(1-p,2)))),col=n===0?"#38e0cf":"#ff2e88";g.clearRect(0,0,120,60);
+txt(String(n),2,4,6,col);txt("GRINDS",2,40,2,"#8c8399");
+for(let i=0;i<54;i++){g.fillStyle=i<Math.round(n/2)?"#ff2e88":"#2a2138";g.fillRect(2+i*2,54,1,4)}
+if(p<1)requestAnimationFrame(frame)}requestAnimationFrame(frame);
+</script></body></html>

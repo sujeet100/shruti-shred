@@ -1,0 +1,208 @@
+{
+  "raga": "bhairav",
+  "sa": 64,
+  "bpm": 128,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 18.0,
+          "vel": 40
+        },
+        {
+          "swara": "P",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 18.0,
+          "vel": 32
+        }
+      ]
+    },
+    {
+      "role": "tabla",
+      "channel": 9,
+      "hits": [
+        {
+          "drum": "tabla_lo",
+          "start": 0.0,
+          "dur": 0.2,
+          "vel": 112
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 0.0,
+          "dur": 0.2,
+          "vel": 112
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 1.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 1.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 2.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 2.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 3.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 3.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 4.0,
+          "dur": 0.2,
+          "vel": 82
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 4.0,
+          "dur": 0.2,
+          "vel": 82
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 5.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 5.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 6.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 6.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 7.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 7.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 8.0,
+          "dur": 0.2,
+          "vel": 58
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 8.0,
+          "dur": 0.2,
+          "vel": 58
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 9.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 10.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 11.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 12.0,
+          "dur": 0.2,
+          "vel": 82
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 13.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 13.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 14.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 14.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_lo",
+          "start": 15.0,
+          "dur": 0.2,
+          "vel": 66
+        },
+        {
+          "drum": "tabla_hi",
+          "start": 15.0,
+          "dur": 0.2,
+          "vel": 66
+        }
+      ]
+    }
+  ]
+}

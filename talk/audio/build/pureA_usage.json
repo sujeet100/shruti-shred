@@ -1,0 +1,12 @@
+{
+ "candidates_token_count": 26116,
+ "prompt_token_count": 296,
+ "prompt_tokens_details": [
+  {
+   "modality": "TEXT",
+   "token_count": 296
+  }
+ ],
+ "thoughts_token_count": 8858,
+ "total_token_count": 35270
+}

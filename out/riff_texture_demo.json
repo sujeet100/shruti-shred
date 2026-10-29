@@ -1,0 +1,1229 @@
+{
+  "raga": "darbari",
+  "sa": 62,
+  "bpm": 120,
+  "tala": {
+    "name": "keherwa",
+    "beats_per_bar": 8.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 32.0,
+          "vel": 55
+        },
+        {
+          "swara": "P",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 32.0,
+          "vel": 45
+        }
+      ]
+    },
+    {
+      "role": "rhythm",
+      "instrument": "overdrive_guitar",
+      "program": 29,
+      "channel": 0,
+      "pan": 20,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 1.0,
+          "vel": 120,
+          "chord": [
+            "S"
+          ],
+          "technique": "pick_scrape"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 1.0,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 1.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 2.0,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "g",
+          "oct": -2,
+          "start": 2.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "hammer_on"
+        },
+        {
+          "swara": "R",
+          "oct": -2,
+          "start": 3.0,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "pull_off"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 3.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 4.0,
+          "dur": 0.5,
+          "vel": 118,
+          "chord": [
+            "P"
+          ]
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 4.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 5.0,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "m",
+          "oct": -2,
+          "start": 5.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "slide"
+        },
+        {
+          "swara": "g",
+          "oct": -2,
+          "start": 7.0,
+          "dur": 1.0,
+          "vel": 116,
+          "chord": [
+            "g"
+          ],
+          "technique": "long_slide"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 8.0,
+          "dur": 1.0,
+          "vel": 120,
+          "chord": [
+            "S"
+          ],
+          "technique": "pick_scrape"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 9.0,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 9.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 10.0,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "g",
+          "oct": -2,
+          "start": 10.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "hammer_on"
+        },
+        {
+          "swara": "R",
+          "oct": -2,
+          "start": 11.0,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "pull_off"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 11.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 12.0,
+          "dur": 0.5,
+          "vel": 118,
+          "chord": [
+            "P"
+          ]
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 12.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 13.0,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "m",
+          "oct": -2,
+          "start": 13.5,
+          "dur": 0.5,
+          "vel": 112,
+          "technique": "slide"
+        },
+        {
+          "swara": "g",
+          "oct": -2,
+          "start": 15.0,
+          "dur": 1.0,
+          "vel": 116,
+          "chord": [
+            "g"
+          ],
+          "technique": "long_slide"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 16.0,
+          "dur": 3.0,
+          "vel": 110,
+          "chord": [
+            "S"
+          ]
+        },
+        {
+          "swara": "g",
+          "oct": -2,
+          "start": 20.0,
+          "dur": 2.0,
+          "vel": 108,
+          "chord": [
+            "g"
+          ],
+          "technique": "long_slide"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 22.0,
+          "dur": 2.0,
+          "vel": 110,
+          "chord": [
+            "P"
+          ]
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 24.0,
+          "dur": 0.5,
+          "vel": 120,
+          "chord": [
+            "S"
+          ],
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 25.5,
+          "dur": 0.5,
+          "vel": 120,
+          "chord": [
+            "S"
+          ],
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 27.0,
+          "dur": 0.5,
+          "vel": 120,
+          "chord": [
+            "S"
+          ],
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 28.75,
+          "dur": 0.5,
+          "vel": 120,
+          "chord": [
+            "S"
+          ],
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 30.0,
+          "dur": 0.5,
+          "vel": 120,
+          "chord": [
+            "S"
+          ],
+          "technique": "palm_mute"
+        },
+        {
+          "swara": "g",
+          "oct": -2,
+          "start": 31.0,
+          "dur": 1.0,
+          "vel": 118,
+          "chord": [
+            "g"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "bass",
+      "instrument": "electric_bass",
+      "program": 33,
+      "channel": 3,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 0.0,
+          "dur": 1.0,
+          "vel": 108
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 1.0,
+          "dur": 1.0,
+          "vel": 101
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 2.0,
+          "dur": 1.0,
+          "vel": 101
+        },
+        {
+          "swara": "R",
+          "oct": -3,
+          "start": 3.0,
+          "dur": 1.0,
+          "vel": 101
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 4.0,
+          "dur": 1.0,
+          "vel": 106
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 5.0,
+          "dur": 2.0,
+          "vel": 101
+        },
+        {
+          "swara": "g",
+          "oct": -3,
+          "start": 7.0,
+          "dur": 1.0,
+          "vel": 104
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 8.0,
+          "dur": 1.0,
+          "vel": 108
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 9.0,
+          "dur": 1.0,
+          "vel": 101
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 10.0,
+          "dur": 1.0,
+          "vel": 101
+        },
+        {
+          "swara": "R",
+          "oct": -3,
+          "start": 11.0,
+          "dur": 1.0,
+          "vel": 101
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 12.0,
+          "dur": 1.0,
+          "vel": 106
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 13.0,
+          "dur": 2.0,
+          "vel": 101
+        },
+        {
+          "swara": "g",
+          "oct": -3,
+          "start": 15.0,
+          "dur": 1.0,
+          "vel": 104
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 16.0,
+          "dur": 4.0,
+          "vel": 99
+        },
+        {
+          "swara": "g",
+          "oct": -3,
+          "start": 20.0,
+          "dur": 2.0,
+          "vel": 97
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 22.0,
+          "dur": 2.0,
+          "vel": 99
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 24.0,
+          "dur": 3.0,
+          "vel": 108
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 27.0,
+          "dur": 3.0,
+          "vel": 108
+        },
+        {
+          "swara": "S",
+          "oct": -3,
+          "start": 30.0,
+          "dur": 1.0,
+          "vel": 108
+        },
+        {
+          "swara": "g",
+          "oct": -3,
+          "start": 31.0,
+          "dur": 1.0,
+          "vel": 106
+        }
+      ]
+    },
+    {
+      "role": "drums",
+      "channel": 9,
+      "hits": [
+        {
+          "drum": "crash",
+          "start": 0.0,
+          "dur": 0.2,
+          "vel": 121
+        },
+        {
+          "drum": "kick",
+          "start": 0.0,
+          "dur": 0.2,
+          "vel": 112
+        },
+        {
+          "drum": "kick",
+          "start": 0.5,
+          "dur": 0.2,
+          "vel": 96
+        },
+        {
+          "drum": "kick",
+          "start": 0.75,
+          "dur": 0.2,
+          "vel": 88
+        },
+        {
+          "drum": "hhat",
+          "start": 1.0,
+          "dur": 0.2,
+          "vel": 101
+        },
+        {
+          "drum": "kick",
+          "start": 1.0,
+          "dur": 0.2,
+          "vel": 112
+        },
+        {
+          "drum": "snare",
+          "start": 1.0,
+          "dur": 0.2,
+          "vel": 115
+        },
+        {
+          "drum": "kick",
+          "start": 1.5,
+          "dur": 0.2,
+          "vel": 96
+        },
+        {
+          "drum": "kick",
+          "start": 1.75,
+          "dur": 0.2,
+          "vel": 88
+        },
+        {
+          "drum": "hhat",
+          "start": 2.0,
+          "dur": 0.2,
+          "vel": 101
+        },
+        {
+          "drum": "kick",
+          "start": 2.0,
+          "dur": 0.2,
+          "vel": 112
+        },
+        {
+          "drum": "kick",
+          "start": 2.5,
+          "dur": 0.2,
+          "vel": 96
+        },
+        {
+          "drum": "kick",
+          "start": 2.75,
+          "dur": 0.2,
+          "vel": 88
+        },
+        {
+          "drum": "hhat",
+          "start": 3.0,
+          "dur": 0.2,
+          "vel": 101
+        },
+        {
+          "drum": "kick",
+          "start": 3.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "snare",
+          "start": 3.0,
+          "dur": 0.2,
+          "vel": 115
+        },
+        {
+          "drum": "kick",
+          "start": 3.5,
+          "dur": 0.2,
+          "vel": 96
+        },
+        {
+          "drum": "kick",
+          "start": 3.75,
+          "dur": 0.2,
+          "vel": 88
+        },
+        {
+          "drum": "hhat",
+          "start": 4.0,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "kick",
+          "start": 4.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "kick",
+          "start": 4.5,
+          "dur": 0.2,
+          "vel": 86
+        },
+        {
+          "drum": "kick",
+          "start": 4.75,
+          "dur": 0.2,
+          "vel": 78
+        },
+        {
+          "drum": "hhat",
+          "start": 5.0,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "kick",
+          "start": 5.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "snare",
+          "start": 5.0,
+          "dur": 0.2,
+          "vel": 105
+        },
+        {
+          "drum": "kick",
+          "start": 5.5,
+          "dur": 0.2,
+          "vel": 86
+        },
+        {
+          "drum": "kick",
+          "start": 5.75,
+          "dur": 0.2,
+          "vel": 78
+        },
+        {
+          "drum": "hhat",
+          "start": 6.0,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "kick",
+          "start": 6.0,
+          "dur": 0.2,
+          "vel": 97
+        },
+        {
+          "drum": "kick",
+          "start": 6.5,
+          "dur": 0.2,
+          "vel": 86
+        },
+        {
+          "drum": "kick",
+          "start": 6.75,
+          "dur": 0.2,
+          "vel": 78
+        },
+        {
+          "drum": "hhat",
+          "start": 7.0,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "kick",
+          "start": 7.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "snare",
+          "start": 7.0,
+          "dur": 0.2,
+          "vel": 105
+        },
+        {
+          "drum": "kick",
+          "start": 7.5,
+          "dur": 0.2,
+          "vel": 86
+        },
+        {
+          "drum": "kick",
+          "start": 7.75,
+          "dur": 0.2,
+          "vel": 78
+        },
+        {
+          "drum": "hhat",
+          "start": 8.0,
+          "dur": 0.2,
+          "vel": 101
+        },
+        {
+          "drum": "kick",
+          "start": 8.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "kick",
+          "start": 8.5,
+          "dur": 0.2,
+          "vel": 96
+        },
+        {
+          "drum": "kick",
+          "start": 8.75,
+          "dur": 0.2,
+          "vel": 88
+        },
+        {
+          "drum": "hhat",
+          "start": 9.0,
+          "dur": 0.2,
+          "vel": 101
+        },
+        {
+          "drum": "kick",
+          "start": 9.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "snare",
+          "start": 9.0,
+          "dur": 0.2,
+          "vel": 115
+        },
+        {
+          "drum": "kick",
+          "start": 9.5,
+          "dur": 0.2,
+          "vel": 96
+        },
+        {
+          "drum": "kick",
+          "start": 9.75,
+          "dur": 0.2,
+          "vel": 88
+        },
+        {
+          "drum": "hhat",
+          "start": 10.0,
+          "dur": 0.2,
+          "vel": 101
+        },
+        {
+          "drum": "kick",
+          "start": 10.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "kick",
+          "start": 10.5,
+          "dur": 0.2,
+          "vel": 96
+        },
+        {
+          "drum": "kick",
+          "start": 10.75,
+          "dur": 0.2,
+          "vel": 88
+        },
+        {
+          "drum": "hhat",
+          "start": 11.0,
+          "dur": 0.2,
+          "vel": 101
+        },
+        {
+          "drum": "kick",
+          "start": 11.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "snare",
+          "start": 11.0,
+          "dur": 0.2,
+          "vel": 115
+        },
+        {
+          "drum": "kick",
+          "start": 11.5,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "kick",
+          "start": 11.75,
+          "dur": 0.2,
+          "vel": 88
+        },
+        {
+          "drum": "hhat",
+          "start": 12.0,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "kick",
+          "start": 12.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "kick",
+          "start": 12.5,
+          "dur": 0.2,
+          "vel": 81
+        },
+        {
+          "drum": "kick",
+          "start": 12.75,
+          "dur": 0.2,
+          "vel": 78
+        },
+        {
+          "drum": "hhat",
+          "start": 13.0,
+          "dur": 0.2,
+          "vel": 95
+        },
+        {
+          "drum": "kick",
+          "start": 13.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "snare",
+          "start": 13.0,
+          "dur": 0.2,
+          "vel": 105
+        },
+        {
+          "drum": "kick",
+          "start": 13.5,
+          "dur": 0.2,
+          "vel": 81
+        },
+        {
+          "drum": "ohat",
+          "start": 13.5,
+          "dur": 0.2,
+          "vel": 104
+        },
+        {
+          "drum": "kick",
+          "start": 13.75,
+          "dur": 0.2,
+          "vel": 78
+        },
+        {
+          "drum": "kick",
+          "start": 14.0,
+          "dur": 0.2,
+          "vel": 97
+        },
+        {
+          "drum": "snare",
+          "start": 14.0,
+          "dur": 0.2,
+          "vel": 87
+        },
+        {
+          "drum": "snare",
+          "start": 14.25,
+          "dur": 0.2,
+          "vel": 93
+        },
+        {
+          "drum": "kick",
+          "start": 14.5,
+          "dur": 0.2,
+          "vel": 81
+        },
+        {
+          "drum": "snare",
+          "start": 14.5,
+          "dur": 0.2,
+          "vel": 99
+        },
+        {
+          "drum": "kick",
+          "start": 14.75,
+          "dur": 0.2,
+          "vel": 78
+        },
+        {
+          "drum": "snare",
+          "start": 14.75,
+          "dur": 0.2,
+          "vel": 105
+        },
+        {
+          "drum": "kick",
+          "start": 15.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "tom_hi",
+          "start": 15.0,
+          "dur": 0.2,
+          "vel": 105
+        },
+        {
+          "drum": "tom_hi",
+          "start": 15.25,
+          "dur": 0.2,
+          "vel": 111
+        },
+        {
+          "drum": "kick",
+          "start": 15.5,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "tom_mid",
+          "start": 15.5,
+          "dur": 0.2,
+          "vel": 120
+        },
+        {
+          "drum": "kick",
+          "start": 15.75,
+          "dur": 0.2,
+          "vel": 92
+        },
+        {
+          "drum": "tom_lo",
+          "start": 15.75,
+          "dur": 0.2,
+          "vel": 122
+        },
+        {
+          "drum": "bell",
+          "start": 16.0,
+          "dur": 0.2,
+          "vel": 120
+        },
+        {
+          "drum": "kick",
+          "start": 16.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "ride",
+          "start": 17.0,
+          "dur": 0.2,
+          "vel": 103
+        },
+        {
+          "drum": "snare",
+          "start": 17.25,
+          "dur": 0.2,
+          "vel": 34
+        },
+        {
+          "drum": "ride",
+          "start": 18.0,
+          "dur": 0.2,
+          "vel": 103
+        },
+        {
+          "drum": "snare",
+          "start": 18.0,
+          "dur": 0.2,
+          "vel": 119
+        },
+        {
+          "drum": "kick",
+          "start": 18.5,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "ride",
+          "start": 19.0,
+          "dur": 0.2,
+          "vel": 103
+        },
+        {
+          "drum": "snare",
+          "start": 19.25,
+          "dur": 0.2,
+          "vel": 38
+        },
+        {
+          "drum": "kick",
+          "start": 20.0,
+          "dur": 0.2,
+          "vel": 107
+        },
+        {
+          "drum": "ride",
+          "start": 20.0,
+          "dur": 0.2,
+          "vel": 93
+        },
+        {
+          "drum": "ride",
+          "start": 21.0,
+          "dur": 0.2,
+          "vel": 93
+        },
+        {
+          "drum": "ohat",
+          "start": 21.5,
+          "dur": 0.2,
+          "vel": 104
+        },
+        {
+          "drum": "kick",
+          "start": 22.0,
+          "dur": 0.2,
+          "vel": 111
+        },
+        {
+          "drum": "snare",
+          "start": 22.0,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "snare",
+          "start": 22.25,
+          "dur": 0.2,
+          "vel": 97
+        },
+        {
+          "drum": "kick",
+          "start": 22.5,
+          "dur": 0.2,
+          "vel": 81
+        },
+        {
+          "drum": "snare",
+          "start": 22.5,
+          "dur": 0.2,
+          "vel": 99
+        },
+        {
+          "drum": "snare",
+          "start": 22.75,
+          "dur": 0.2,
+          "vel": 105
+        },
+        {
+          "drum": "tom_hi",
+          "start": 23.0,
+          "dur": 0.2,
+          "vel": 109
+        },
+        {
+          "drum": "tom_hi",
+          "start": 23.25,
+          "dur": 0.2,
+          "vel": 111
+        },
+        {
+          "drum": "tom_mid",
+          "start": 23.5,
+          "dur": 0.2,
+          "vel": 120
+        },
+        {
+          "drum": "tom_lo",
+          "start": 23.75,
+          "dur": 0.2,
+          "vel": 126
+        },
+        {
+          "drum": "crash",
+          "start": 24.0,
+          "dur": 0.2,
+          "vel": 116
+        },
+        {
+          "drum": "kick",
+          "start": 24.0,
+          "dur": 0.2,
+          "vel": 111
+        },
+        {
+          "drum": "crash",
+          "start": 25.0,
+          "dur": 0.2,
+          "vel": 102
+        },
+        {
+          "drum": "snare",
+          "start": 25.25,
+          "dur": 0.2,
+          "vel": 38
+        },
+        {
+          "drum": "crash",
+          "start": 26.0,
+          "dur": 0.2,
+          "vel": 102
+        },
+        {
+          "drum": "snare",
+          "start": 26.0,
+          "dur": 0.2,
+          "vel": 119
+        },
+        {
+          "drum": "kick",
+          "start": 26.5,
+          "dur": 0.2,
+          "vel": 91
+        },
+        {
+          "drum": "crash",
+          "start": 27.0,
+          "dur": 0.2,
+          "vel": 102
+        },
+        {
+          "drum": "kick",
+          "start": 27.0,
+          "dur": 0.2,
+          "vel": 111
+        },
+        {
+          "drum": "snare",
+          "start": 27.25,
+          "dur": 0.2,
+          "vel": 38
+        },
+        {
+          "drum": "crash",
+          "start": 28.0,
+          "dur": 0.2,
+          "vel": 92
+        },
+        {
+          "drum": "kick",
+          "start": 28.0,
+          "dur": 0.2,
+          "vel": 101
+        },
+        {
+          "drum": "crash",
+          "start": 29.0,
+          "dur": 0.2,
+          "vel": 92
+        },
+        {
+          "drum": "crash",
+          "start": 30.0,
+          "dur": 0.2,
+          "vel": 92
+        },
+        {
+          "drum": "kick",
+          "start": 30.0,
+          "dur": 0.2,
+          "vel": 111
+        },
+        {
+          "drum": "snare",
+          "start": 30.0,
+          "dur": 0.2,
+          "vel": 109
+        },
+        {
+          "drum": "kick",
+          "start": 30.5,
+          "dur": 0.2,
+          "vel": 85
+        },
+        {
+          "drum": "crash",
+          "start": 31.0,
+          "dur": 0.2,
+          "vel": 92
+        },
+        {
+          "drum": "kick",
+          "start": 31.0,
+          "dur": 0.2,
+          "vel": 111
+        }
+      ]
+    }
+  ]
+}

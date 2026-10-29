@@ -1,0 +1,192 @@
+{
+ "variant": "A",
+ "trace": "58f3ac9c73d6",
+ "phrase": {
+  "phrase_plan": {
+   "seed": [
+    "S",
+    "R",
+    "g",
+    "m",
+    "R"
+   ],
+   "contour": "wave",
+   "transformations": [
+    "repeat",
+    "sequence_up",
+    "answer",
+    "resolve"
+   ],
+   "climax_and_sam": "Peaks gracefully on komal ni before the characteristic Darbari d-n-P-m-g-R cascade resolves the approach seamlessly into sam Sa",
+   "stroke_line": [
+    "da",
+    "dir",
+    "da",
+    "ra",
+    "da",
+    "-",
+    "da",
+    "dir",
+    "da",
+    "-",
+    "da",
+    "dir",
+    "dara",
+    "da",
+    "ra",
+    "da"
+   ],
+   "head_shape": [
+    {
+     "stage": "figure",
+     "beats": 4.0,
+     "target": "m",
+     "ornament": "plain"
+    },
+    {
+     "stage": "breather",
+     "beats": 2.0,
+     "target": "R",
+     "ornament": "plain"
+    },
+    {
+     "stage": "response",
+     "beats": 4.0,
+     "target": "P",
+     "ornament": "plain"
+    },
+    {
+     "stage": "approach",
+     "beats": 6.0,
+     "target": "R",
+     "ornament": "plain"
+    }
+   ]
+  },
+  "notes": [
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "gamak_with": "R"
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "ornament": "murki",
+    "gamak_with": "m"
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 2.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "gamak_with": "g"
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 2.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "gamak_with": "d"
+   },
+   {
+    "swara": "d",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "ornament": "murki",
+    "gamak_with": "n"
+   },
+   {
+    "swara": "n",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dara",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false,
+    "ornament": "murki",
+    "gamak_with": "m"
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "gamak_with": "S"
+   }
+  ]
+ },
+ "listens": []
+}

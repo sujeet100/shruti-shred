@@ -1,0 +1,576 @@
+{
+  "raga": "darbari",
+  "subgenre": "progressive",
+  "tala": "teentaal",
+  "sa": 62,
+  "bpm": 120,
+  "anchor": "riff_first",
+  "ending": "hard_stop",
+  "form": "song",
+  "playable_rhythm": false,
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "alaap",
+      "bars": 3,
+      "layers": [
+        "lead",
+        "drone",
+        "clean"
+      ],
+      "foreground": "lead",
+      "intent": "Brood deeply in the mandra saptak, dwelling on vadi Re and oscillating komal ga",
+      "transition": "Sitar lands on low Sa as drums and rhythm guitar crash into Sam",
+      "riff_slot": "main",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "exposed"
+    },
+    {
+      "kind": "riff",
+      "bars": 2,
+      "layers": [
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "rhythm",
+      "intent": "Hammer down the progressive main riff locking tight to the Teentaal theka",
+      "transition": "Snare roll into sitar entrance on matra 1",
+      "riff_slot": "main",
+      "form_role": "breakdown",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "State the main Darbari hook over the driving rhythm section",
+      "transition": "Sitar holds sustained Re as guitars modulate to chordal roots",
+      "riff_slot": "main",
+      "form_role": "tihai",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "clean",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Expand the theme with clean guitar harmonies and vocal sitar meends",
+      "transition": "Sudden stop on matra 16 leading into the breakdown crush",
+      "riff_slot": "chorus",
+      "form_role": "tihai",
+      "harmony": {
+        "mode": "progression",
+        "roots": [
+          "n",
+          "P",
+          "m",
+          "S"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "breakdown",
+      "bars": 2,
+      "layers": [
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "rhythm",
+      "intent": "Sparse, brutal syncopated palm-mute crush grinding between d and P",
+      "transition": "Rapid 16th-note drum fill launching the climatic sitar taan",
+      "riff_slot": "breakdown",
+      "form_role": "breakdown",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "d",
+          "P"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "taan",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Virtuosic rapid taan scaling to taar Sa driven by blast beats and gallops",
+      "transition": "Descending tihai flourish locking the band together for the outro",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "outro",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "Reprise the primary motif with crushing unison accents driving to the final hit",
+      "transition": "Slam into absolute silence on Sam with zero ring out",
+      "riff_slot": "main",
+      "form_role": "outro",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "S"
+        ]
+      },
+      "climax_style": "driven"
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "S",
+    "R",
+    "g",
+    "m",
+    "R",
+    "S"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -2,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "a Darbari fusion at 120 bpm, key of D, 120 seconds",
+  "seed_riff": {
+    "reasoning": "The riff embodies Darbari's regal weight across 16 matras of Teentaal: opening with a low mandra Sa chug, striking vadi Re via hammer-on, stepping through g and m before resolving the first vibhag with space; the second half journeys through P, d, and n before pulling back through m and Re into Sam.",
+    "notes": [
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "technique": "hammer_on",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 1.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "technique": "slide",
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -1,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -1,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": true
+      }
+    ]
+  },
+  "seed_hook": {
+    "phrase_plan": {
+      "seed": [
+        "S",
+        "R",
+        "g",
+        "m",
+        "R",
+        "S"
+      ],
+      "contour": "wave",
+      "transformations": [
+        "repeat",
+        "answer",
+        "resolve"
+      ],
+      "climax_and_sam": "Rises through madhya Pa and d-n ornamentation before cascading down through g-m-R, coming to rest decisively on vadi Re at matra 14 with a trailing breath before Sam."
+    },
+    "notes": [
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "rest": true
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "n",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 2.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "rest": true
+      }
+    ]
+  },
+  "energy_arc": "Sec 1 (Intro Alaap, 3 bars): Dark, solemn, exposed sitar exploration in the mandra register over tanpura drone (low intensity, 25%).\nSec 2 (Riff, 2 bars): Massive progressive band entrance, tight palm-muted low-end groove locking to Teentaal sam (high intensity, 70%).\nSec 3 (Melody, 2 bars): Sitar hook enters singing over the main riff, intertwining raga nuances with metal drive (75%).\nSec 4 (Melody Chorus, 2 bars): Clean arpeggios expand the harmony as the sitar soars into the madhya register (80%).\nSec 5 (Breakdown, 2 bars): Crushing, syncopated rhythm crush dwelling on d-P tension with double-kick punches (88%).\nSec 6 (Taan Long, 2 bars): Climactic virtuosic sitar taan driven by full-throttle rhythm gallop and cymbal wash (peak intensity, 95%).\nSec 7 (Outro, 2 bars): Final thematic reprise driving with heavy stabs directly into an abrupt hard stop on Sam (90% to silence)."
+}

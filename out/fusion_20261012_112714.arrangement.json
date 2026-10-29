@@ -1,0 +1,467 @@
+{
+  "raga": "darbari",
+  "subgenre": "doom",
+  "tala": "keherwa",
+  "sa": 62,
+  "bpm": 64,
+  "anchor": "riff_first",
+  "ending": "ring_out",
+  "form": "gat",
+  "playable_rhythm": false,
+  "beats_per_bar": 8.0,
+  "sections": [
+    {
+      "kind": "alaap",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "Unfold the somber late-night mystery of Darbari around mandra and madhya Sa and Re.",
+      "transition": "Lead sustains on mandra Ni as heavy distorted bass rumblings and cymbal roll swell.",
+      "riff_slot": "main",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "State the heavy mukhada with the doom groove locked firmly to the keherwa pulse.",
+      "transition": "Sudden drum fill down the toms abruptly cutting off into the breakdown chug.",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "breakdown",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm"
+      ],
+      "foreground": "rhythm",
+      "intent": "Sub-octave doom crush focusing purely on the low d-P and g-R power chords with tight palm mutes.",
+      "transition": "Floor tom rolls and pick scrape propelling the band back into the returning theme.",
+      "riff_slot": "breakdown",
+      "form_role": "breakdown",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "d",
+          "g"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "Reprise the mukhada with maximum authority, sitar ornaments widening with deep meends.",
+      "transition": "Sitar slides upwards into the taar saptak as orchestral brass and strings enter.",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "R",
+          "P"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "taan",
+      "bars": 2,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead",
+        "orchestra"
+      ],
+      "foreground": "lead",
+      "intent": "Explosive climactic taan cascading from taar Sa down through oscillating Komal Dha and Ga.",
+      "transition": "Lead snaps into a triplet rhythmic cadence locking with kick and snare.",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 1,
+      "layers": [
+        "drone",
+        "drums",
+        "rhythm",
+        "lead"
+      ],
+      "foreground": "lead",
+      "intent": "Deliver a crushing 3-stroke tihai cadence landing unequivocally on sam.",
+      "transition": "Final crash and downbeat power chord ringing out as groove halts.",
+      "riff_slot": "main",
+      "form_role": "tihai",
+      "harmony": {
+        "mode": "progression",
+        "roots": [
+          "P",
+          "m",
+          "R",
+          "S"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "outro",
+      "bars": 1,
+      "layers": [
+        "drone",
+        "lead",
+        "rhythm"
+      ],
+      "foreground": "lead",
+      "intent": "Let the deep D power chord ring into silence alongside quiet tanpura and sitar harmonics.",
+      "transition": "Natural acoustic decay to silence.",
+      "riff_slot": "main",
+      "form_role": "outro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Ge"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Na"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Ti"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "khali",
+      "bol": "Na"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Ka"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Na"
+    }
+  ],
+  "motif": [
+    "g",
+    "m",
+    "R",
+    "S"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -3,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "a dark doom fusion in Darbari, key of D 90 secs",
+  "seed_riff": {
+    "reasoning": "8-matra keherwa doom riff centered on Sa power chords, grinding through komal dha and Pa, then oscillating komal ga and vadi Re with tight palm mutes and space to breathe.",
+    "notes": [
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -2,
+        "dur": 1.0,
+        "vel": 110,
+        "rest": false
+      },
+      {
+        "swara": "S",
+        "oct": -2,
+        "dur": 0.5,
+        "vel": 110,
+        "rest": true
+      },
+      {
+        "swara": "n",
+        "oct": -3,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": -2,
+        "dur": 0.25,
+        "vel": 110,
+        "technique": "palm_mute",
+        "rest": false
+      }
+    ]
+  },
+  "seed_hook": {
+    "phrase_plan": {
+      "seed": [
+        "S",
+        "m",
+        "P",
+        "g",
+        "m",
+        "R"
+      ],
+      "contour": "arch",
+      "transformations": [
+        "repeat",
+        "fragment",
+        "answer",
+        "resolve"
+      ],
+      "climax_and_sam": "Opens with heavy sam arrival on Sa (locking with riff root), climbs to Pa, pulls through oscillating komal ga, and cadences to Re at the seam so the looping sam re-enters cleanly on Sa.",
+      "stroke_line": [
+        "da",
+        "ra",
+        "dir",
+        "da",
+        "dir",
+        "dara",
+        "da",
+        "ra"
+      ]
+    },
+    "notes": [
+      {
+        "swara": "S",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false,
+        "ornament": "khatka"
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "d",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "P",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "dir",
+        "rest": false,
+        "ornament": "murki"
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "dara",
+        "rest": false
+      },
+      {
+        "swara": "g",
+        "oct": 0,
+        "dur": 0.5,
+        "vel": 90,
+        "bol": "dara",
+        "rest": false
+      },
+      {
+        "swara": "m",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "da",
+        "rest": false
+      },
+      {
+        "swara": "R",
+        "oct": 0,
+        "dur": 1.0,
+        "vel": 90,
+        "bol": "ra",
+        "rest": false
+      }
+    ]
+  },
+  "seed_head": {
+    "idea": "Heavy Darbari gat head descending from Pa through oscillating komal ga to settle on vadi Re at the sam.",
+    "sam_swara": "R",
+    "cell": [
+      "g",
+      "m",
+      "R",
+      "S"
+    ],
+    "stroke_line": [
+      "da",
+      "ra",
+      "dir",
+      "da",
+      "dir",
+      "dara",
+      "da",
+      "ra"
+    ]
+  },
+  "energy_arc": "Intro: Somber, atmospheric alaap establishing the dark midnight weight of Darbari over the D drone.\nMukhada: Heavy doom groove drops in with crushing palm-muted guitars anchoring the sitar theme.\nBreakdown: Utter rhythmic crush, stripping the lead for low-octave downtuned chugs and kick syncopation.\nMukhada: Resurgent melodic hook returning with full rhythm section power.\nTaan Long: Sitar peaks at maximum virtuosic intensity with orchestral brass and strings driving the climax.\nTihai: Threefold cadential figure locking drums and sitar into a hammerblow sam.\nOutro: Sustained low D power chord ringing out into cavernous reverb and silence."
+}

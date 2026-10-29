@@ -1,0 +1,71 @@
+{
+  "observations": [
+    {
+      "at": "0:31",
+      "aspect": "climax",
+      "rating": 3,
+      "note": "The band enters with moderate impact but lacks a massive dynamic shift."
+    },
+    {
+      "at": "1:20",
+      "aspect": "climax",
+      "rating": 4,
+      "note": "Drum intensity increases here, creating a noticeable but contained energy peak."
+    },
+    {
+      "at": "0:35",
+      "aspect": "lead_audibility",
+      "rating": 3,
+      "note": "The sitar cuts through but competes with the mid-range of the distorted guitars."
+    },
+    {
+      "at": "1:36",
+      "aspect": "lead_audibility",
+      "rating": 4,
+      "note": "With the band dropped out, the sitar becomes perfectly clear."
+    },
+    {
+      "at": "0:45",
+      "aspect": "riff_heaviness",
+      "rating": 3,
+      "note": "The rhythm guitars are adequately distorted but lack deep low-end resonance."
+    },
+    {
+      "at": "1:51",
+      "aspect": "riff_heaviness",
+      "rating": 3,
+      "note": "The returning riff sounds competent though slightly digital."
+    },
+    {
+      "at": "1:05",
+      "aspect": "groove",
+      "rating": 3,
+      "note": "The rhythm section holds a steady but somewhat mechanical pocket."
+    },
+    {
+      "at": "1:25",
+      "aspect": "groove",
+      "rating": 3,
+      "note": "Faster drum patterns drive the song forward adequately."
+    },
+    {
+      "at": "1:36",
+      "aspect": "artifacts",
+      "rating": 2,
+      "note": "The sudden dropout to the solo sitar sounds like a harsh splice."
+    },
+    {
+      "at": "2:21",
+      "aspect": "artifacts",
+      "rating": 2,
+      "note": "The track ends abruptly instead of naturally fading."
+    },
+    {
+      "at": "0:50",
+      "aspect": "mood",
+      "rating": 4,
+      "note": "Blending doom instrumentation with Darbari scales creates an appropriately dark atmosphere."
+    }
+  ],
+  "overall_note": "A reasonably dark fusion track with a steady pulse. The arrangement works conceptually, though the production sounds somewhat boxy and features abrupt editing transitions."
+}

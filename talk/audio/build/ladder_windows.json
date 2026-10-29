@@ -1,0 +1,20 @@
+{
+ "LA": {
+  "src": "LA_src.json",
+  "start": 25.0,
+  "len": 16.0,
+  "sam": false
+ },
+ "LB": {
+  "src": "LB_src.json",
+  "start": 25.0,
+  "len": 16.0,
+  "sam": false
+ },
+ "LC": {
+  "src": "LC_src.json",
+  "start": 16.0,
+  "len": 16.0,
+  "sam": true
+ }
+}

@@ -1,0 +1,95 @@
+
+===== A — listened 0 time(s), trace 043492920b13
+--- the FINAL answer, as the tool would describe it:
+WHAT THE SITAR WILL PLAY (128 bpm; beat, swara, beats, what happens):
+beat   0.00  R           1  plain
+beat   1.00  g           1  gamak with m: 2 strokes
+beat   2.00  m         0.5  plain
+beat   2.50  m         0.5  plain
+beat   3.00  P           4  plain
+beat   7.00  d           1  gamak with n: 2 strokes
+beat   8.00  n           1  plain
+beat   9.00  P         0.5  plain
+beat   9.50  P         0.5  plain
+beat  10.00  m       0.6667  plain
+beat  10.67  m       0.3333  plain
+beat  11.00  P           1  plain
+beat  12.00  g           1  kan from m, then plain: 0.47 s is too short to sway at this tempo (a sway needs at least 0.8 s)
+beat  13.00  m           1  plain
+beat  14.00  R         0.5  plain
+beat  14.50  R         0.5  plain
+beat  15.00  S           1  plain
+
+g and d (the swaras Darbari Kanada sways): 1 note(s) — 0 sway, 0 take a measured gesture, 1 plain
+no silence inside the phrase
+ornament check: every bend comes home in tune
+--- /Users/sujitk/projects/personal/raga-metal-agents/out/hear_ab_20261018_152351_fresh/mukhada_A.wav
+
+===== B — listened 2 time(s), trace 56c3138779a9
+--- what B heard on listen 1:
+WHAT THE SITAR WILL PLAY (128 bpm; beat, swara, beats, what happens):
+beat   0.00  S           2  plain
+beat   2.00  R           2  plain
+beat   4.00  g           2  gamak with m: 4 strokes
+beat   6.00  m           2  plain
+beat   8.00  P           2  plain
+beat  10.00  m           1  plain
+beat  11.00  P           1  plain
+beat  12.00  g         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)
+beat  12.50  g         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)
+beat  13.00  m           1  plain
+beat  14.00  R           2  plain
+
+your draft runs 18 beats but this statement's window ends at beat 16, so the last 2 beats are cut
+g and d (the swaras Darbari Kanada sways): 2 note(s) — 0 sway, 0 take a measured gesture, 2 plain
+no silence inside the phrase
+ornament check: every bend comes home in tune
+--- what B heard on listen 2:
+WHAT THE SITAR WILL PLAY (128 bpm; beat, swara, beats, what happens):
+beat   0.00  S           1  plain
+beat   1.00  R           1  plain
+beat   2.00  m           1  gamak with g: 2 strokes
+beat   3.00  g           3  dips to R and back, then holds
+beat   6.00  m           1  plain
+beat   7.00  P         0.5  plain
+beat   7.50  P         0.5  plain
+beat   8.00  d         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)
+beat   8.50  n         0.5  plain
+beat   9.00  P           1  plain
+beat  10.00  m           1  plain
+beat  11.00  g         0.5  dips to R and back, then holds
+beat  11.50  g         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)
+beat  12.00  S           1  plain
+beat  13.00  d(-1)     0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)
+beat  13.50  n(-1)     0.5  plain
+beat  14.00  P(-1)       1  plain
+beat  15.00  R           1  plain
+
+g and d (the swaras Darbari Kanada sways): 5 note(s) — 0 sway, 2 take a measured gesture, 3 plain
+no silence inside the phrase
+ornament check: every bend comes home in tune
+--- the FINAL answer, as the tool would describe it:
+WHAT THE SITAR WILL PLAY (128 bpm; beat, swara, beats, what happens):
+beat   0.00  S           1  plain
+beat   1.00  R           1  plain
+beat   2.00  m           1  gamak with g: 2 strokes
+beat   3.00  g           3  dips to R and back, then holds
+beat   6.00  m           1  plain
+beat   7.00  P         0.5  plain
+beat   7.50  P         0.5  plain
+beat   8.00  d         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)
+beat   8.50  n         0.5  plain
+beat   9.00  P           1  plain
+beat  10.00  m           1  plain
+beat  11.00  g         0.5  dips to R and back, then holds
+beat  11.50  g         0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)
+beat  12.00  S           1  plain
+beat  13.00  d(-1)     0.5  plain: held 0.5 beat, too short to sway (a sway needs at least 1 beat)
+beat  13.50  n(-1)     0.5  plain
+beat  14.00  P(-1)       1  plain
+beat  15.00  R           1  plain
+
+g and d (the swaras Darbari Kanada sways): 5 note(s) — 0 sway, 2 take a measured gesture, 3 plain
+no silence inside the phrase
+ornament check: every bend comes home in tune
+--- /Users/sujitk/projects/personal/raga-metal-agents/out/hear_ab_20261018_152351_fresh/mukhada_B.wav

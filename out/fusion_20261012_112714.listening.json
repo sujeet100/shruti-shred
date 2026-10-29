@@ -1,0 +1,53 @@
+{
+  "observations": [
+    {
+      "at": "01:00",
+      "aspect": "climax",
+      "rating": 4,
+      "note": "The track suddenly shifts into a fast, aggressive section that successfully delivers a clear peak in energy."
+    },
+    {
+      "at": "00:14",
+      "aspect": "lead_audibility",
+      "rating": 3,
+      "note": "The sitar remains audible when the full band enters, but it has to fight against the frequency masking of the fuzzy rhythm guitars."
+    },
+    {
+      "at": "01:00",
+      "aspect": "lead_audibility",
+      "rating": 2,
+      "note": "During the high-speed blast section, the sitar gets largely buried beneath the cymbal wash and dense guitar distortion."
+    },
+    {
+      "at": "00:14",
+      "aspect": "riff_heaviness",
+      "rating": 2,
+      "note": "The distorted rhythm guitar sounds fizzy and somewhat boxy, lacking the deep low-end punch expected in doom metal."
+    },
+    {
+      "at": "00:30",
+      "aspect": "groove",
+      "rating": 2,
+      "note": "The drum programming and rhythm playing feel rigid and mechanical, preventing the slow riff from developing a deep, pulling groove."
+    },
+    {
+      "at": "00:03",
+      "aspect": "artifacts",
+      "rating": 2,
+      "note": "The opening sitar performance sounds noticeably synthetic, with stiff note bends that betray its MIDI or sample-based origins."
+    },
+    {
+      "at": "01:31",
+      "aspect": "artifacts",
+      "rating": 2,
+      "note": "The recording ends very abruptly with an unnatural cut in the middle of a trailing note."
+    },
+    {
+      "at": "00:45",
+      "aspect": "mood",
+      "rating": 4,
+      "note": "The dark, melancholic notes of the raga scale blend quite well with the slow, plodding instrumentation to create a suitably heavy atmosphere."
+    }
+  ],
+  "overall_note": "The composition offers a conceptually strong blend of a dark Indian raga with doom metal, peaking nicely during an unexpected fast section. However, the execution is hampered by stiff MIDI programming, a thin guitar tone, and an abrupt ending."
+}

@@ -1,0 +1,8 @@
+{
+  "name": "shruti-shred-studio",
+  "private": true,
+  "type": "module",
+  "description": "The slide-10 studio scene: voxel personas in three.js, captured frame by frame to a video clip.",
+  "scripts": { "capture": "node capture.mjs" },
+  "dependencies": { "three": "0.170.0", "puppeteer-core": "23.10.0" }
+}

@@ -1,0 +1,65 @@
+{
+  "observations": [
+    {
+      "at": "01:52",
+      "aspect": "climax",
+      "rating": 4,
+      "note": "The fast drumming and intense riffing create a noticeable peak that transitions heavily into the breakdown."
+    },
+    {
+      "at": "00:32",
+      "aspect": "lead_audibility",
+      "rating": 3,
+      "note": "The sitar cuts through initially but gets slightly swallowed by the dense guitar fuzz."
+    },
+    {
+      "at": "01:21",
+      "aspect": "lead_audibility",
+      "rating": 2,
+      "note": "The sitar melody struggles against the busier drum and rhythm guitar frequencies here."
+    },
+    {
+      "at": "00:31",
+      "aspect": "riff_heaviness",
+      "rating": 4,
+      "note": "The main doom riff enters with decent weight despite a slightly muddy low-end."
+    },
+    {
+      "at": "02:08",
+      "aspect": "riff_heaviness",
+      "rating": 3,
+      "note": "The breakdown riff is suitably sludgy but lacks a bit of modern dynamic punch."
+    },
+    {
+      "at": "00:45",
+      "aspect": "groove",
+      "rating": 3,
+      "note": "The drum and bass lock into a steady, albeit slightly mechanical, plodding doom feel."
+    },
+    {
+      "at": "01:36",
+      "aspect": "groove",
+      "rating": 3,
+      "note": "The rhythm section drives the mid-tempo shift competently without feeling particularly organic."
+    },
+    {
+      "at": "00:05",
+      "aspect": "artifacts",
+      "rating": 2,
+      "note": "The solo sitar tone exhibits a noticeably synthetic, keyboard-like quality."
+    },
+    {
+      "at": "02:44",
+      "aspect": "artifacts",
+      "rating": 2,
+      "note": "The track abruptly ends instead of resolving or decaying naturally."
+    },
+    {
+      "at": "00:31",
+      "aspect": "mood",
+      "rating": 4,
+      "note": "The collision of the dark scale and heavy doom instrumentation captures the requested atmosphere well."
+    }
+  ],
+  "overall_note": "A decent attempt at doom-fusion with an appropriately dark atmosphere and heavy riffs, though the sitar tone sounds synthetic and gets buried in denser sections."
+}

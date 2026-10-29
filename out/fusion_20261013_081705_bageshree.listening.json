@@ -1,0 +1,59 @@
+{
+  "observations": [
+    {
+      "at": "01:28",
+      "aspect": "climax",
+      "rating": 3,
+      "note": "The track reaches its energetic peak here, though the impact is slightly softened by the mix."
+    },
+    {
+      "at": "00:45",
+      "aspect": "lead_audibility",
+      "rating": 3,
+      "note": "The sitar cuts through but shares too much midrange with the rhythm guitars."
+    },
+    {
+      "at": "01:30",
+      "aspect": "lead_audibility",
+      "rating": 2,
+      "note": "The dense metal instrumentation partially masks the sitar during the heaviest passage."
+    },
+    {
+      "at": "00:31",
+      "aspect": "riff_heaviness",
+      "rating": 3,
+      "note": "The distorted guitars enter with adequate presence but lack authentic low-end doom weight."
+    },
+    {
+      "at": "01:15",
+      "aspect": "riff_heaviness",
+      "rating": 3,
+      "note": "The rhythm tone remains competent but slightly thin for the genre."
+    },
+    {
+      "at": "00:35",
+      "aspect": "groove",
+      "rating": 2,
+      "note": "The drums establish a steady rhythm that feels a bit stiff and programmed."
+    },
+    {
+      "at": "01:35",
+      "aspect": "artifacts",
+      "rating": 3,
+      "note": "Some digital compression haze appears when the arrangement gets dense."
+    },
+    {
+      "at": "01:53",
+      "aspect": "artifacts",
+      "rating": 3,
+      "note": "The track ends with a somewhat abrupt fade-out."
+    },
+    {
+      "at": "00:40",
+      "aspect": "mood",
+      "rating": 4,
+      "note": "The dark scale and heavy instrumentation blend reasonably well to fit the requested doom fusion vibe."
+    }
+  ],
+  "overall_note": "The piece merges Indian classical elements with metal instrumentation reasonably well, though the mix and rigid groove hold it back. The energy builds to a decent peak, but the guitars lack the true low-end heaviness expected of doom."
+}

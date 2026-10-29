@@ -1,0 +1,34 @@
+{
+ "query": "a metal fusion in Bhairav, key of D 60 seconds long",
+ "recovered_from_trace": "520747d3e2e9",
+ "note": "run aborted at prompt 2 (Interpreter read timeout); key and diversity rebuilt from the trace by matching each audition hook to its seed",
+ "draft_diversity": {
+  "best_of drafts": {
+   "hook_swaras": 0.71,
+   "hook_rhythm": 0.69,
+   "hook_bols": 0.43,
+   "riff": 0.24,
+   "forms": 1,
+   "talas": 1,
+   "tempos": 1
+  },
+  "debate drafts": {
+   "hook_swaras": 0.44,
+   "hook_rhythm": 0.07,
+   "hook_bols": 0.59,
+   "riff": 0.63,
+   "forms": 1,
+   "talas": 1,
+   "tempos": 1
+  },
+  "debate after turns": {
+   "hook_swaras": 0.31,
+   "hook_rhythm": 0.41,
+   "hook_bols": 0.62,
+   "riff": 0.65,
+   "forms": 1,
+   "talas": 1,
+   "tempos": 1
+  }
+ }
+}

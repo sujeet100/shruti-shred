@@ -1,0 +1,14 @@
+{
+ "guided": {
+  "swaras": 0.82,
+  "rhythm": 0.89,
+  "bols": 0.95,
+  "note": "mean pairwise similarity, 1.0 = identical (swaras octave-free)"
+ },
+ "free": {
+  "swaras": 0.54,
+  "rhythm": 0.89,
+  "bols": 0.94,
+  "note": "mean pairwise similarity, 1.0 = identical (swaras octave-free)"
+ }
+}

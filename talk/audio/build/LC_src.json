@@ -1,0 +1,1145 @@
+{
+  "raga": "bhairav",
+  "sa": 64,
+  "bpm": 128,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 128.0,
+          "vel": 55
+        },
+        {
+          "swara": "P",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 128.0,
+          "vel": 45
+        }
+      ]
+    },
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 44,
+      "notes": [
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 0.0,
+          "dur": 1.0,
+          "vel": 70,
+          "grace": [],
+          "meend_swara": "m",
+          "meend_oct": 0
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 1.0,
+          "dur": 1.0,
+          "vel": 49,
+          "grace": [
+            "G"
+          ],
+          "meend_swara": "S",
+          "meend_oct": 0
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 2.0,
+          "dur": 14.0,
+          "vel": 74,
+          "grace": [],
+          "fade": true
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 16.0,
+          "dur": 1.0,
+          "vel": 100,
+          "grace": [],
+          "meend_swara": "m",
+          "meend_oct": 0
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 17.0,
+          "dur": 1.0,
+          "vel": 66,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 18.0,
+          "dur": 0.25,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 18.25,
+          "dur": 0.25,
+          "vel": 68
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 18.5,
+          "dur": 0.25,
+          "vel": 84,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 18.75,
+          "dur": 0.25,
+          "vel": 65
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 19.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 20.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 21.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 22.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 23.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 24.0,
+          "dur": 2.0,
+          "vel": 106,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 26.0,
+          "dur": 1.0,
+          "vel": 79
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 27.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 28.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 29.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 30.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": []
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 31.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 32.0,
+          "dur": 1.0,
+          "vel": 100,
+          "grace": [],
+          "meend_swara": "m",
+          "meend_oct": 0
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 33.0,
+          "dur": 1.0,
+          "vel": 66,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 34.0,
+          "dur": 0.25,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 34.25,
+          "dur": 0.25,
+          "vel": 68
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 34.5,
+          "dur": 0.25,
+          "vel": 84,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 34.75,
+          "dur": 0.25,
+          "vel": 65
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 35.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 36.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 37.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 38.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 39.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 40.0,
+          "dur": 2.0,
+          "vel": 106,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 42.0,
+          "dur": 1.0,
+          "vel": 79
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 43.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 44.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 45.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 46.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": []
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 47.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 64.0,
+          "dur": 1.0,
+          "vel": 100,
+          "grace": [],
+          "meend_swara": "m",
+          "meend_oct": 0
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 65.0,
+          "dur": 1.0,
+          "vel": 66,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 66.0,
+          "dur": 0.25,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 66.25,
+          "dur": 0.25,
+          "vel": 68
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 66.5,
+          "dur": 0.25,
+          "vel": 84,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 66.75,
+          "dur": 0.25,
+          "vel": 65
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 67.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 68.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 69.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 70.0,
+          "dur": 1.0,
+          "vel": 85,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 71.0,
+          "dur": 2.0,
+          "vel": 106,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 73.0,
+          "dur": 1.0,
+          "vel": 69
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 74.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 75.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 76.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 77.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": []
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 78.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 79.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 80.0,
+          "dur": 1.0,
+          "vel": 100,
+          "grace": [],
+          "meend_swara": "m",
+          "meend_oct": 0
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 81.0,
+          "dur": 1.0,
+          "vel": 66,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 82.0,
+          "dur": 0.25,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 82.25,
+          "dur": 0.25,
+          "vel": 68
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 82.5,
+          "dur": 0.25,
+          "vel": 84,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 82.75,
+          "dur": 0.25,
+          "vel": 65
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 83.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 84.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 85.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 86.0,
+          "dur": 1.0,
+          "vel": 85,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 87.0,
+          "dur": 2.0,
+          "vel": 106,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 89.0,
+          "dur": 1.0,
+          "vel": 69
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 90.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 91.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 92.0,
+          "dur": 1.0,
+          "vel": 90,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 93.0,
+          "dur": 1.0,
+          "vel": 63,
+          "grace": []
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 94.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 95.0,
+          "dur": 1.0,
+          "vel": 95,
+          "grace": [],
+          "andolan": true
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 96.0,
+          "dur": 0.5,
+          "vel": 121,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 96.5,
+          "dur": 0.5,
+          "vel": 89,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 97.0,
+          "dur": 0.125,
+          "vel": 125,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 97.125,
+          "dur": 0.125,
+          "vel": 95
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 97.25,
+          "dur": 0.125,
+          "vel": 125,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 97.375,
+          "dur": 0.125,
+          "vel": 95
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 97.5,
+          "dur": 0.5,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 98.0,
+          "dur": 0.25,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 98.25,
+          "dur": 0.25,
+          "vel": 93,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 98.5,
+          "dur": 0.125,
+          "vel": 125,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 98.625,
+          "dur": 0.125,
+          "vel": 95
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 98.75,
+          "dur": 0.125,
+          "vel": 125,
+          "grace": []
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 98.875,
+          "dur": 0.125,
+          "vel": 95
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 99.0,
+          "dur": 0.5,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 1,
+          "start": 99.5,
+          "dur": 0.5,
+          "vel": 106,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 100.0,
+          "dur": 0.5,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 1,
+          "start": 100.5,
+          "dur": 0.0833,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 1,
+          "start": 100.5833,
+          "dur": 0.0833,
+          "vel": 104
+        },
+        {
+          "swara": "r",
+          "oct": 1,
+          "start": 100.6666,
+          "dur": 0.0834,
+          "vel": 127
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 100.75,
+          "dur": 0.0833,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 100.8333,
+          "dur": 0.0833,
+          "vel": 99
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 100.9166,
+          "dur": 0.0834,
+          "vel": 127
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 101.0,
+          "dur": 0.0833,
+          "vel": 125,
+          "grace": []
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 101.0833,
+          "dur": 0.0833,
+          "vel": 95
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 101.1666,
+          "dur": 0.0834,
+          "vel": 125
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 101.25,
+          "dur": 0.125,
+          "vel": 125,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 101.375,
+          "dur": 0.125,
+          "vel": 95
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 101.5,
+          "dur": 0.125,
+          "vel": 119,
+          "grace": []
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 101.625,
+          "dur": 0.125,
+          "vel": 91
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 101.75,
+          "dur": 0.5,
+          "vel": 121,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 102.25,
+          "dur": 0.5,
+          "vel": 89,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 102.75,
+          "dur": 0.5,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 103.25,
+          "dur": 0.5,
+          "vel": 93,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 103.75,
+          "dur": 1.0,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 104.75,
+          "dur": 0.125,
+          "vel": 125,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 104.875,
+          "dur": 0.125,
+          "vel": 95
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 105.0,
+          "dur": 0.125,
+          "vel": 125,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 105.125,
+          "dur": 0.125,
+          "vel": 95
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 105.25,
+          "dur": 0.0833,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 105.3333,
+          "dur": 0.0833,
+          "vel": 99
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 105.4166,
+          "dur": 0.0834,
+          "vel": 127
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 105.5,
+          "dur": 0.0833,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 105.5833,
+          "dur": 0.0833,
+          "vel": 99
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 105.6666,
+          "dur": 0.0834,
+          "vel": 127
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 105.75,
+          "dur": 0.0833,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 105.8333,
+          "dur": 0.0833,
+          "vel": 104
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 105.9166,
+          "dur": 0.0834,
+          "vel": 127
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 106.0,
+          "dur": 0.125,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 106.125,
+          "dur": 0.125,
+          "vel": 104
+        },
+        {
+          "swara": "r",
+          "oct": 1,
+          "start": 106.25,
+          "dur": 0.125,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 1,
+          "start": 106.375,
+          "dur": 0.125,
+          "vel": 108
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 106.5,
+          "dur": 0.5,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 107.0,
+          "dur": 0.5,
+          "vel": 102,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 107.5,
+          "dur": 0.125,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 107.625,
+          "dur": 0.125,
+          "vel": 99
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 107.75,
+          "dur": 0.125,
+          "vel": 125,
+          "grace": []
+        },
+        {
+          "swara": "P",
+          "oct": 0,
+          "start": 107.875,
+          "dur": 0.125,
+          "vel": 95
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 108.0,
+          "dur": 0.5,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 108.5,
+          "dur": 0.5,
+          "vel": 93,
+          "grace": []
+        },
+        {
+          "swara": "m",
+          "oct": 0,
+          "start": 109.0,
+          "dur": 0.5,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 109.5,
+          "dur": 0.5,
+          "vel": 102,
+          "grace": []
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 110.0,
+          "dur": 0.5,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 0,
+          "start": 110.5,
+          "dur": 16.0,
+          "vel": 127,
+          "grace": []
+        },
+        {
+          "swara": "S",
+          "oct": 1,
+          "start": 128.0,
+          "dur": 1.0,
+          "vel": 124
+        }
+      ]
+    }
+  ]
+}

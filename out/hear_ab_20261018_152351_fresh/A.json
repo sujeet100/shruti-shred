@@ -1,0 +1,175 @@
+{
+ "variant": "A",
+ "fresh": true,
+ "trace": "043492920b13",
+ "phrase": {
+  "phrase_plan": {
+   "seed": [
+    "R",
+    "g",
+    "m",
+    "P"
+   ],
+   "contour": "wave",
+   "transformations": [
+    "answer",
+    "fragment",
+    "resolve"
+   ],
+   "climax_and_sam": "Peaks on komal dha and ni in the response before cascading via g-m-R-S to land on Sa, driving straight into vadi Re on the sam.",
+   "stroke_line": [
+    "da",
+    "ra",
+    "dir",
+    "da",
+    "-",
+    "-",
+    "-",
+    "da",
+    "ra",
+    "dir",
+    "dar",
+    "da",
+    "da",
+    "ra",
+    "dir",
+    "ra"
+   ],
+   "head_shape": [
+    {
+     "stage": "figure",
+     "beats": 3.0,
+     "target": "m",
+     "ornament": "gamak"
+    },
+    {
+     "stage": "breather",
+     "beats": 4.0,
+     "target": "P",
+     "ornament": "andolan"
+    },
+    {
+     "stage": "response",
+     "beats": 5.0,
+     "target": "P",
+     "ornament": "meend"
+    },
+    {
+     "stage": "approach",
+     "beats": 4.0,
+     "target": "S",
+     "ornament": "plain"
+    }
+   ]
+  },
+  "notes": [
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false,
+    "gamak_with": "m"
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 4.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "d",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false,
+    "gamak_with": "n"
+   },
+   {
+    "swara": "n",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dar",
+    "rest": false
+   },
+   {
+    "swara": "P",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "g",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "da",
+    "rest": false
+   },
+   {
+    "swara": "m",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   },
+   {
+    "swara": "R",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "dir",
+    "rest": false
+   },
+   {
+    "swara": "S",
+    "oct": 0,
+    "dur": 1.0,
+    "vel": 90,
+    "bol": "ra",
+    "rest": false
+   }
+  ]
+ },
+ "listens": []
+}

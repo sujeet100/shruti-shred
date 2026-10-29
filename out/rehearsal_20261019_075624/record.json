@@ -1,0 +1,356 @@
+[
+ {
+  "round": 1,
+  "song": "r0_song",
+  "result": "r1_result",
+  "note": "",
+  "kept": [
+   2
+  ],
+  "proposals": {
+   "sitarist": {
+    "heard": "The sitar establishes the solemn, swaying mood of Darbari beautifully in the intro, and holds its own against the band during the mukhada at 0:32. However, from 1:52 to 2:08 during my long taan, the continuous rhythmic chugging of the guitars clutters the mix and smothers my rapid phrasing.",
+    "change": {
+     "kind": "sparser",
+     "voice": "guitars",
+     "sections": [
+      7
+     ]
+    },
+    "why": "If the guitars play sparsely\u2014striking only the first beat of each vibhag and letting it ring\u2014it will create a massive, open space for the sitar's taan to be heard clearly and arrive cleanly on the sam."
+   },
+   "guitarist": {
+    "heard": "The doom riffs starting at 0:32 lay down a crushing foundation that really suits the dark, majestic vibe of Darbari. However, when we hit the long sitar taan at 1:52, having both the distorted guitars and the clean guitar playing at the same time creates a wall of mud instead of dynamic tension.",
+    "change": {
+     "kind": "sit_out",
+     "voice": "guitars",
+     "sections": [
+      7
+     ]
+    },
+    "why": "Dropping the heavy guitars here creates a massive Opeth-style dynamic dip, letting the clean guitar and sitar run breathe so the final heavy riff hits like a sledgehammer when it drops back in at 2:08."
+   },
+   "drummer": {
+    "heard": "The cycle feels massive once the full band drops at 0:32, and the heavy groove drives the mukhada and antara perfectly. However, at 1:52 during the fast taan, the relentless chugging from the rhythm guitars completely buries the sitar and clean guitar interplay. The energy gets too cluttered when it should feel expansive.",
+    "change": {
+     "kind": "sparser",
+     "voice": "guitars",
+     "sections": [
+      7
+     ]
+    },
+    "why": "Hitting a huge, sustained doom chord at the start of each vibhag will open up the mix, giving the fast melodic runs room to breathe while keeping the underlying weight heavy and locked."
+   }
+  },
+  "tried": [
+   {
+    "number": 1,
+    "member": "sitarist",
+    "change": {
+     "kind": "sparser",
+     "voice": "guitars",
+     "sections": [
+      7
+     ]
+    },
+    "version": "r1_p1_sitarist",
+    "before": {
+     "version": "r0_song",
+     "start": 108.0,
+     "end": 132.0
+    },
+    "after": {
+     "version": "r1_p1_sitarist",
+     "start": 108.0,
+     "end": 132.0
+    }
+   },
+   {
+    "number": 2,
+    "member": "guitarist",
+    "change": {
+     "kind": "sit_out",
+     "voice": "guitars",
+     "sections": [
+      7
+     ]
+    },
+    "version": "r1_p2_guitarist",
+    "before": {
+     "version": "r0_song",
+     "start": 108.0,
+     "end": 132.0
+    },
+    "after": {
+     "version": "r1_p2_guitarist",
+     "start": 108.0,
+     "end": 132.0
+    }
+   },
+   {
+    "number": 3,
+    "member": "drummer",
+    "change": {
+     "kind": "sparser",
+     "voice": "guitars",
+     "sections": [
+      7
+     ]
+    },
+    "version": "r1_p3_drummer",
+    "before": {
+     "version": "r0_song",
+     "start": 108.0,
+     "end": 132.0
+    },
+    "after": {
+     "version": "r1_p3_drummer",
+     "start": 108.0,
+     "end": 132.0
+    }
+   }
+  ],
+  "reactions": {
+   "sitarist": {
+    "reactions": [
+     {
+      "proposal": 2,
+      "support": true,
+      "argument": "I fully support this change because the dense heavy guitars were completely burying my rapid taans. Removing them entirely gives my intricate melodic runs the acoustic space they desperately need to be heard and breathe."
+     },
+     {
+      "proposal": 3,
+      "support": true,
+      "argument": "I support this as well; hitting a sustained chord only on the vibhags maintains the heavy foundation without suffocating the raga. It ensures every swara of my taan remains clean and articulate while locking perfectly with the rhythm."
+     }
+    ]
+   },
+   "guitarist": {
+    "reactions": [
+     {
+      "proposal": 1,
+      "support": true,
+      "argument": "I absolutely support this. Striking a massive, sustained chord and letting it ring out creates a crushing wall of doom that contrasts beautifully with the frantic sitar runs."
+     },
+     {
+      "proposal": 3,
+      "support": true,
+      "argument": "I am totally on board with this. Stripping back the rhythm to drop giant, heavy chords on the vibhags gives the section immense weight and makes the eventual return to the driving riff hit that much harder."
+     }
+    ]
+   },
+   "drummer": {
+    "reactions": [
+     {
+      "proposal": 1,
+      "support": true,
+      "argument": "Having the guitars strike only on the vibhag downbeats acts like a massive metal sam, anchoring the teentaal cycle while leaving immense space for my cymbal work and the sitar to interact. It gives the section a breathing, cavernous doom feel without sacrificing our underlying heaviness."
+     },
+     {
+      "proposal": 2,
+      "support": true,
+      "argument": "Stripping away the heavy distortion creates a pristine valley where my tight snare groove and ghost notes can lock intricately with the bass and clean guitar. This extreme dynamic drop is a classic extreme metal tactic that guarantees the final riff will hit like an absolute sledgehammer when we slam back in."
+     }
+    ]
+   }
+  },
+  "ruling": {
+   "reasoning": "During the rapid, intricate sitar taan in section 7, having heavy distorted guitars alongside a clean guitar creates a muddy mix that buries the sitar's articulation. Dropping the heavy guitars entirely creates a classic progressive doom dynamic valley, allowing the clean guitar and sitar to interweave with pristine clarity. This drastic reduction in density not only honors the acoustic space needed for the Hindustani taan but also guarantees that the return of the heavy mukhada riff at 2:08 hits with maximum impact. Proposals 1 and 3 attempt a compromise with sparse chords, but fully removing the heavy guitars as in Proposal 2 achieves a far superior dynamic contrast.",
+   "decisions": [
+    {
+     "proposal": 1,
+     "keep": false,
+     "reason": "Sparse heavy chords still compete with the clean guitar and sitar, offering less dynamic contrast than a full dropout."
+    },
+    {
+     "proposal": 2,
+     "keep": true,
+     "reason": "Dropping the heavy guitars completely allows the sitar taan and clean guitar to shine, creating a massive dynamic drop that makes the subsequent heavy riff hit much harder."
+    },
+    {
+     "proposal": 3,
+     "keep": false,
+     "reason": "This is identical to proposal 1 and suffers from the same lack of acoustic clarity compared to proposal 2."
+    }
+   ]
+  }
+ },
+ {
+  "round": 2,
+  "song": "r1_result",
+  "result": "r2_result",
+  "note": "",
+  "kept": [
+   1,
+   2,
+   3
+  ],
+  "proposals": {
+   "sitarist": {
+    "heard": "The open space in the taan section (1:52-2:08) is beautiful; the raga truly sings and my meends can breathe. However, during the antara (1:36-1:52), my high komal Dha and Ni are fighting against the relentless rhythmic chugging of the distorted guitars. Darbari demands patience and resonance, especially in the upper octave.",
+    "change": {
+     "kind": "sparser",
+     "voice": "guitars",
+     "sections": [
+      6
+     ]
+    },
+    "why": "Having the guitars strike once per vibhag and let the chords ring will give the sitar's upper register the space it needs to sing, while actually making the doom atmosphere feel heavier and more expansive."
+   },
+   "guitarist": {
+    "heard": "The heavy entrance at 0:32 hits perfectly, laying down a solid groove under the sitar. However, when we hit the manjha at 0:48, the continuous busy riffing starts to lose its impact. The takeover at 1:20 is massive, and that clean break at 1:52 brings exactly the light-and-dark contrast we need.",
+    "change": {
+     "kind": "sparser",
+     "voice": "guitars",
+     "sections": [
+      3
+     ]
+    },
+    "why": "Switching to hit-and-sustain chords during the manjha will break up the busy rhythm, giving us a slow, crushing doom feel that makes the return to the tight mukhada riff hit much harder."
+   },
+   "drummer": {
+    "heard": "The sitar and drone set a brooding Darbari mood from 0:00, but my drum groove starts right alongside them, diluting the suspense. When the distorted guitars and bass drop at 0:32 for the mukhada, the shift is heavy, but it lacks the explosive contrast that doom metal thrives on. Letting the sitar breathe before the massive crash on the sam would elevate the whole song's dynamic arc.",
+    "change": {
+     "kind": "sit_out",
+     "voice": "drums",
+     "sections": [
+      1
+     ]
+    },
+    "why": "Keeping the drums out of the intro will make the full band's entrance at the mukhada hit like a ton of bricks, giving that downbeat the crushing weight it needs."
+   }
+  },
+  "tried": [
+   {
+    "number": 1,
+    "member": "sitarist",
+    "change": {
+     "kind": "sparser",
+     "voice": "guitars",
+     "sections": [
+      6
+     ]
+    },
+    "version": "r2_p1_sitarist",
+    "before": {
+     "version": "r1_result",
+     "start": 92.0,
+     "end": 116.0
+    },
+    "after": {
+     "version": "r2_p1_sitarist",
+     "start": 92.0,
+     "end": 116.0
+    }
+   },
+   {
+    "number": 2,
+    "member": "guitarist",
+    "change": {
+     "kind": "sparser",
+     "voice": "guitars",
+     "sections": [
+      3
+     ]
+    },
+    "version": "r2_p2_guitarist",
+    "before": {
+     "version": "r1_result",
+     "start": 44.0,
+     "end": 68.0
+    },
+    "after": {
+     "version": "r2_p2_guitarist",
+     "start": 44.0,
+     "end": 68.0
+    }
+   },
+   {
+    "number": 3,
+    "member": "drummer",
+    "change": {
+     "kind": "sit_out",
+     "voice": "drums",
+     "sections": [
+      1
+     ]
+    },
+    "version": "r2_p3_drummer",
+    "before": {
+     "version": "r1_result",
+     "start": 0.0,
+     "end": 36.0
+    },
+    "after": {
+     "version": "r2_p3_drummer",
+     "start": 0.0,
+     "end": 36.0
+    }
+   }
+  ],
+  "reactions": {
+   "sitarist": {
+    "reactions": [
+     {
+      "proposal": 2,
+      "support": true,
+      "argument": "The sustained guitar chords provide a spacious backdrop that allows my intricate phrases and long meends in the manjha to be clearly heard. This breathing room lets the heavy, swaying gravity of Darbari truly resonate without being smothered by rhythmic clutter."
+     },
+     {
+      "proposal": 3,
+      "support": true,
+      "argument": "Beginning without the drums turns the intro into a proper alap, giving me the absolute freedom to introduce Darbari's majestic, slow-swaying komal swaras with patience. It sets a perfectly dark atmosphere and ensures the raga establishes itself fully before the weight of the band drops in."
+     }
+    ]
+   },
+   "guitarist": {
+    "reactions": [
+     {
+      "proposal": 1,
+      "support": true,
+      "argument": "Striking massive chords and letting them ring out brings that crushing, Bolt Thrower-style weight to the passage, making the doom atmosphere feel much darker and heavier. Plus, shifting to a sparse attack provides incredible contrast and leaves the perfect sonic space for the sitar to soar over our wall of sound."
+     },
+     {
+      "proposal": 3,
+      "support": true,
+      "argument": "I completely agree with this Opeth-style approach to songwriting; true heaviness is earned through contrast. Keeping the intro completely sparse builds immense tension, so when my guitars and the rhythm section finally drop in, the riff hits with maximum, face-melting impact."
+     }
+    ]
+   },
+   "drummer": {
+    "reactions": [
+     {
+      "proposal": 1,
+      "support": true,
+      "argument": "Dropping the guitars into those huge, ringing chords opens up a massive crater in the mix that lets my kicks and snare absolutely boom. It gives the whole groove that slow, crushing doom weight without stepping on the sitar's melody."
+     },
+     {
+      "proposal": 2,
+      "support": true,
+      "argument": "Stripping back the guitars here creates a heavy, sludgy contrast that lets the tala breathe and makes the return to the busy riff hit like an anvil. It gives the dynamic shift we need, making my fills and the downbeat of the mukhada slam in with way more power."
+     }
+    ]
+   }
+  },
+  "ruling": {
+   "reasoning": "The track's heavy, rhythmic foundation is vastly improved by stark dynamic contrasts, honoring both doom metal song structures and the Hindustani tradition. Removing the drums from the intro perfectly evokes a tension-building alap before the crushing weight of the full band drops in on the mukhada. Shifting the distorted guitars to sparse, ringing chords during both the manjha and the antara provides the necessary acoustic space for the sitar's intricate phrases and high-register komal swaras to resonate clearly. Together, these decisions create a massively dynamic arrangement where the dense, chugging mukhada riff hits with punishing force against the more expansive, atmospheric sections.",
+   "decisions": [
+    {
+     "proposal": 1,
+     "keep": true,
+     "reason": "Letting the guitars ring out once per vibhag creates an expansive doom atmosphere that gives the sitar's high-register meends room to soar."
+    },
+    {
+     "proposal": 2,
+     "keep": true,
+     "reason": "Switching to sustained chords during the manjha provides a crushing, sludgy contrast that prevents the rhythm from becoming monotonous."
+    },
+    {
+     "proposal": 3,
+     "keep": true,
+     "reason": "Stripping the drums from the intro creates a proper alap, building immense tension so the full band's entrance hits with maximum weight."
+    }
+   ]
+  }
+ }
+]

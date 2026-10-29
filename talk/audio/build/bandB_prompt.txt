@@ -1,0 +1,15 @@
+Compose a heavy metal song in raga Bhairav at 128 BPM, in the key of E (Sa = E4), for four parts: sitar (the lead melody), distorted rhythm guitar, bass guitar and a drum kit. Make it about 30 seconds long (about 64 beats), with every part playing for the whole length. Return ONLY a JSON object with four keys, each a list of events in time order whose beats add up to the length of the song:
+  "sitar":  [{"note": "<scientific pitch like E4, or rest>", "beats": <duration>, "vel": <1-127>}]
+  "guitar": [{"notes": ["<pitch>", ...] (one pitch, a chord, or [] for a rest), "beats": <duration>, "vel": <1-127>}]
+  "bass":   [{"note": "<pitch or rest>", "beats": <duration>, "vel": <1-127>}]
+  "drums":  [{"hits": ["kick" | "snare" | "hihat" | "open_hihat" | "crash" | "ride" | "tom_hi" | "tom_mid" | "tom_lo", ...] ([] for a rest), "beats": <duration>, "vel": <1-127>}]
+
+Raga Bhairav's grammar (follow it):
+- Allowed notes, sargam(pitch): S(E) r(F) G(G#) m(A) P(B) d(C) N(D#). No other notes.
+- Aroha, the ascent: S r G m P d N S
+- Avaroha, the descent: S N d P m G r S
+- Vadi (most important note): d; samvadi (its partner): r
+- Pakad (signature phrases): G m d d P | G m r r S
+- Chalan (characteristic movements): S r r S | G m P d P | d d P G m r r S
+- Andolan (slow oscillation) on: r, d
+Sargam: S Sa, r komal Re, R Re, g komal Ga, G Ga, m Ma, M tivra Ma, P Pa, d komal Dha, D Dha, n komal Ni, N Ni.

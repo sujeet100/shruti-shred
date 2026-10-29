@@ -1,0 +1,256 @@
+{
+  "raga": "bhairav",
+  "subgenre": "heavy",
+  "tala": "teentaal",
+  "sa": 64,
+  "bpm": 128,
+  "anchor": "riff_first",
+  "ending": "hard_stop",
+  "form": "song",
+  "playable_rhythm": false,
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "alaap",
+      "bars": 1,
+      "layers": [
+        "lead",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "unhurried opening alap presenting komal Re and Dhaivat with deep andolan over tanpura",
+      "transition": "sitar resolves to Sa as heavy rhythm section kicks in on sam",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "riff",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "rhythm",
+      "intent": "grinding half-step power chord shuffle between Sa and komal Re in teentaal",
+      "transition": "sitar enters with the primary thematic hook on sam",
+      "riff_slot": "main",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "r",
+          "d"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 3,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "sitar sings Bhairav's pakad G-m-d-d-P over the heavy galloping shuffle",
+      "transition": "rhythm drops into a crushing half-time groove",
+      "riff_slot": "main",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "d",
+          "r"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "breakdown",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "rhythm",
+      "intent": "crushing half-time breakdown emphasizing oscillating komal Re and Dhaivat",
+      "transition": "drums accelerate back to driving tempo as sitar launches into high register",
+      "riff_slot": "breakdown",
+      "form_role": "breakdown",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "r"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "taan",
+      "bars": 3,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "virtuosic sitar taan ascending through Bhairav aroha/avaroha while band drives underneath, concluding with a tihai",
+      "transition": "band hits unanimous final stroke on sam into silence",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "outro",
+      "bars": 1,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "drone"
+      ],
+      "foreground": "lead",
+      "intent": "hard stop: sitar rings on taar Sa over unison low Sa power chord",
+      "transition": "instant cut to silence on the sam",
+      "riff_slot": "main",
+      "form_role": "outro",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": [
+          "S"
+        ]
+      },
+      "climax_style": "driven"
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "G",
+    "m",
+    "d",
+    "d",
+    "P"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -2,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": [],
+  "request": "A 90-second heavy metal fusion in Bhairav, Sa = E, teentaal at 128 bpm. Build it as a song around one main riff: a grinding half-step power-chord shuffle between Sa and komal Re that keeps coming back, heavier each time. Open with a short sitar alap over the drone, bring the band in on the riff, and give the sitar a memorable hook that returns with the riff. Drop into a breakdown, then build to a climax where the sitar plays a fast taan while the band keeps driving underneath. End with a hard stop: the sitar on upper Sa over one low Sa power chord.",
+  "energy_arc": ""
+}

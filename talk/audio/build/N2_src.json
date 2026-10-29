@@ -1,0 +1,99 @@
+{
+  "raga": "bhairav",
+  "sa": 60,
+  "bpm": 128,
+  "tala": {
+    "name": "teentaal",
+    "beats_per_bar": 16.0
+  },
+  "layers": [
+    {
+      "role": "drone",
+      "instrument": "strings",
+      "program": 48,
+      "channel": 1,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "S",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 14.0,
+          "vel": 40
+        },
+        {
+          "swara": "P",
+          "oct": -2,
+          "start": 0.0,
+          "dur": 14.0,
+          "vel": 32
+        }
+      ]
+    },
+    {
+      "role": "lead",
+      "instrument": "sitar",
+      "program": 104,
+      "channel": 2,
+      "pan": 64,
+      "notes": [
+        {
+          "swara": "R",
+          "oct": 0,
+          "start": 1.0,
+          "dur": 1.0,
+          "vel": 90
+        },
+        {
+          "swara": "r",
+          "oct": 0,
+          "start": 2.0,
+          "dur": 1.25,
+          "vel": 90
+        },
+        {
+          "swara": "G",
+          "oct": 0,
+          "start": 4.0,
+          "dur": 1.0,
+          "vel": 90
+        },
+        {
+          "swara": "g",
+          "oct": 0,
+          "start": 5.0,
+          "dur": 1.25,
+          "vel": 90
+        },
+        {
+          "swara": "D",
+          "oct": 0,
+          "start": 7.0,
+          "dur": 1.0,
+          "vel": 90
+        },
+        {
+          "swara": "d",
+          "oct": 0,
+          "start": 8.0,
+          "dur": 1.25,
+          "vel": 90
+        },
+        {
+          "swara": "N",
+          "oct": 0,
+          "start": 10.0,
+          "dur": 1.0,
+          "vel": 90
+        },
+        {
+          "swara": "n",
+          "oct": 0,
+          "start": 11.0,
+          "dur": 1.25,
+          "vel": 90
+        }
+      ]
+    }
+  ]
+}

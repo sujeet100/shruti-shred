@@ -1,0 +1,364 @@
+{
+ "sitar": {
+  "why": "The previous gat head ended on Sa, identical to its opening note, causing the final note and the sam to merge into an ambiguous drone across the loop boundary and wiping out the pulse of the sam. In this rewrite, the approach cadences onto a sustained, dignified vadi Rishabh (Re) across matras 15 and 16. Ending on Re sets up the essential Darbari Kanada resolution (Re to Sa) across the bar line, so when the cycle loops and Sa strikes on the sam, the arrival is razor-sharp and unmistakable. The structure preserves the slow Vilayatkhani gayaki phrasing: a swaying andolan on komal ga, breathing space on Re, the deep vakra descent into mandra dha and pa, and a clean, singing transition into sam.",
+  "part": "head",
+  "phrase": {
+   "phrase_plan": {
+    "seed": [
+     "S",
+     "R",
+     "g",
+     "m"
+    ],
+    "contour": "wave",
+    "transformations": [
+     "answer",
+     "sequence_down",
+     "resolve"
+    ],
+    "climax_and_sam": "Peaks at madhya ma, plunges through the mandra dha-ni-pa vakra cell, and cadences to a sustained vadi Rishabh so the sam arrives distinctly on Sa upon loop repeat.",
+    "stroke_line": [
+     "da",
+     "ra",
+     "da",
+     "-",
+     "da",
+     "ra",
+     "-",
+     "da",
+     "da",
+     "-",
+     "ra",
+     "da",
+     "da",
+     "ra",
+     "da",
+     "-"
+    ],
+    "head_shape": [
+     {
+      "stage": "figure",
+      "beats": 4.0,
+      "target": "g",
+      "ornament": "andolan"
+     },
+     {
+      "stage": "breather",
+      "beats": 4.0,
+      "target": "R",
+      "ornament": "plain"
+     },
+     {
+      "stage": "response",
+      "beats": 4.0,
+      "target": "P",
+      "ornament": "andolan"
+     },
+     {
+      "stage": "approach",
+      "beats": 4.0,
+      "target": "R",
+      "ornament": "plain"
+     }
+    ]
+   },
+   "notes": [
+    {
+     "swara": "S",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 88,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "g",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 94,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 92,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 88,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "S",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 85,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "d",
+     "oct": -1,
+     "dur": 2.0,
+     "vel": 92,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "n",
+     "oct": -1,
+     "dur": 1.0,
+     "vel": 86,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "P",
+     "oct": -1,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "g",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 88,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 92,
+     "bol": "da",
+     "rest": false
+    }
+   ]
+  }
+ },
+ "riff": {
+  "why": "Section 4’s guitar is a string of whole-note upper-register steps: it leaves Darbari’s weighty lower tetrachord behind, barely locks to the sitar’s turns, and the second avartan lands on R instead of the sam. The rewrite puts a low, down-picked pulse under the sitar, answers its m–P and g–m–R contours, touches the d–n–P cell briefly, and resolves both avartans to low S on the sam.",
+  "section": 4,
+  "cycles": [
+   "m(-1)[1]@120! m(-1)[.5]pm! R(-1)[.5]pm! g(-1)[1]pm! m(-1)[1]pm! P(-1)[1]pm! d(-1)[.5]pm! n(-1)[.5]pm! P(-1)[1]pm! m(-1)[1]pm! g(-1)[.5]pm! R(-1)[.5]pm! S(-1)[2]! R(-1)[1]pm! g(-1)[1]pm! m(-1)[1]! P(-1)[1]! S(-1)[1]!",
+   "P(-1)[1]@120! P(-1)[.5]pm! m(-1)[.5]pm! g(-1)[1]pm! m(-1)[1]pm! R(-1)[1]pm! S(-1)[1]! S(-1)[1]pm! R(-1)[1]pm! g(-1)[1]pm! m(-1)[2]! d(-1)[.5]pm! n(-1)[.5]pm! P(-1)[1]pm! m(-1)[1]pm! R(-1)[1]pm! S(-1)[1]!"
+  ]
+ },
+ "critique_of_sitar": {
+  "argument": "The low-register d–n–P turn and the held komal ga give the head a darker Darbari weight, and R resolving to Sa at the loop is a strong landing. But the existing head already ends on R, so that cadence is not new; extending R across the final matra puts it against the guitar’s sustained S just before the sam, creating a rub where the rewrite promises a clean approach. The riff’s S attack at the sam would make the resolution clear, but the preceding clash blurs that setup.",
+  "verdict": "oppose",
+  "suggestion": "Change the final sitar R:da[2] to R:da[1] -[1], leaving the final matra clear for the guitar’s S and the sam arrival."
+ },
+ "critique_of_riff": {
+  "argument": "Dropping the guitar into the mandra register gives Darbari its true weight, freeing my sitar to stretch into the taar saptak without competing for space in the high frequencies. The low d(-1)–n(-1)–P(-1) vakra turns follow the raga's chalan authentically rather than relying on detached doom chords. However, forcing the second cycle to terminate on Sa abruptly undercuts my sitar's two-beat nyas on vadi Rishabh.",
+  "verdict": "support",
+  "suggestion": "In the second cycle, change the final R(-1)[1]pm! S(-1)[1]! to R(-1)[2]! so the guitar locks onto vadi Re alongside the sitar's landing."
+ },
+ "sitar_revision": {
+  "response": "A gat head cannot fracture into a rest or a dead silence before the sam; in the Vilayatkhani gayaki ang, the mukhada flows as one unbroken breath into the arrival. Holding the vadi Rishabh across matras 15 and 16 without a new strike lets the swara resonate cleanly without percussive clutter, using the acoustic friction against your tonic drone to build essential Darbari tension before we land together on Sa at beat 1. I am keeping the line continuous by letting the Rishabh ring across matra 16 rather than cutting it short.",
+  "decision": "revise",
+  "phrase": {
+   "phrase_plan": {
+    "seed": [
+     "S",
+     "R",
+     "g",
+     "m",
+     "R"
+    ],
+    "contour": "wave",
+    "transformations": [
+     "answer",
+     "fragment",
+     "resolve"
+    ],
+    "climax_and_sam": "Peaks on komal ga in the breather, descends deep into the mandra saptak through d and P, and cadences onto a sustained vadi Rishabh held through matra 16 to resolve into the sam.",
+    "stroke_line": [
+     "da",
+     "ra",
+     "da",
+     "-",
+     "da",
+     "ra",
+     "-",
+     "da",
+     "da",
+     "-",
+     "ra",
+     "da",
+     "da",
+     "ra",
+     "da",
+     "-"
+    ],
+    "head_shape": [
+     {
+      "stage": "figure",
+      "beats": 2.0,
+      "target": "R",
+      "ornament": "plain"
+     },
+     {
+      "stage": "breather",
+      "beats": 2.0,
+      "target": "g",
+      "ornament": "andolan"
+     },
+     {
+      "stage": "response",
+      "beats": 8.0,
+      "target": "P",
+      "ornament": "plain"
+     },
+     {
+      "stage": "approach",
+      "beats": 4.0,
+      "target": "R",
+      "ornament": "plain"
+     }
+    ]
+   },
+   "notes": [
+    {
+     "swara": "S",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "g",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 90,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "S",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "d",
+     "oct": -1,
+     "dur": 2.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "n",
+     "oct": -1,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "P",
+     "oct": -1,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "g",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    },
+    {
+     "swara": "m",
+     "oct": 0,
+     "dur": 1.0,
+     "vel": 90,
+     "bol": "ra",
+     "rest": false
+    },
+    {
+     "swara": "R",
+     "oct": 0,
+     "dur": 2.0,
+     "vel": 90,
+     "bol": "da",
+     "rest": false
+    }
+   ]
+  }
+ },
+ "riff_revision": {
+  "response": "I take the point: my low-register rewrite should not overwrite the sitar’s final two-beat nyas on vadi R. I’m keeping the riff’s mandra weight, contour, and P landing at the second avartan’s sam, but changing its final S to R held for two beats so the closing phrase meets the sitar.",
+  "decision": "revise",
+  "cycles": [
+   "m(-1)[1]@120! m(-1)[.5]pm! R(-1)[.5]pm! g(-1)[1]pm! m(-1)[1]pm! P(-1)[1]pm! d(-1)[.5]pm! n(-1)[.5]pm! P(-1)[1]pm! m(-1)[1]pm! g(-1)[.5]pm! R(-1)[.5]pm! S(-1)[2]! R(-1)[1]pm! g(-1)[1]pm! m(-1)[1]! P(-1)[1]! S(-1)[1]!",
+   "P(-1)[1]@120! P(-1)[.5]pm! m(-1)[.5]pm! g(-1)[1]pm! m(-1)[1]pm! R(-1)[1]pm! S(-1)[1]! S(-1)[1]pm! R(-1)[1]pm! g(-1)[1]pm! m(-1)[2]! d(-1)[.5]pm! n(-1)[.5]pm! P(-1)[1]pm! m(-1)[1]pm! R(-1)[2]!"
+  ]
+ },
+ "versions": {
+  "original": "/Users/sujitk/projects/personal/raga-metal-agents/out/notes_debate_20261019_094935/original.wav",
+  "sitar_proposed": "/Users/sujitk/projects/personal/raga-metal-agents/out/notes_debate_20261019_094935/sitar_proposed.wav",
+  "riff_proposed": "/Users/sujitk/projects/personal/raga-metal-agents/out/notes_debate_20261019_094935/riff_proposed.wav",
+  "sitar_final": "/Users/sujitk/projects/personal/raga-metal-agents/out/notes_debate_20261019_094935/sitar_final.wav",
+  "riff_final": "/Users/sujitk/projects/personal/raga-metal-agents/out/notes_debate_20261019_094935/riff_final.wav",
+  "both_final": "/Users/sujitk/projects/personal/raga-metal-agents/out/notes_debate_20261019_094935/both_final.wav"
+ },
+ "notes": []
+}

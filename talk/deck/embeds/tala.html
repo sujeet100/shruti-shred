@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{width:600px;height:600px;image-rendering:pixelated;display:block}</style></head><body><canvas id="c" width="150" height="150"></canvas><script>
+const c=document.getElementById("c"),g=c.getContext("2d");
+const F={"0":"111101101101111","1":"010110010010111","2":"111001111100111","3":"111001111001111","4":"101101111001001","5":"111100111001111","6":"111100111101111","7":"111001001001001","8":"111101111101111","9":"111101111001111","S":"111100111001111","A":"010101111101101","M":"101111111101101"};
+function txt(s,x,y,sc,col){g.fillStyle=col;const w=s.length*4*sc-sc;let ox=Math.round(x-w/2);for(const ch of s){const b=F[ch];if(b)for(let i=0;i<15;i++)if(b[i]==="1")g.fillRect(ox+(i%3)*sc,y+Math.floor(i/3)*sc,sc,sc);ox+=4*sc}}
+const N=16,cx=75,cy=75,R=58,beat=60000/128,t0=performance.now();
+function frame(now){const t=now-t0,b=Math.floor(t/beat)%N,f=(t%beat)/beat;g.clearRect(0,0,150,150);
+for(let a=0;a<360;a+=1.2){const r=a*Math.PI/180;g.fillStyle="#2a2138";g.fillRect(Math.round(cx+R*Math.cos(r)),Math.round(cy+R*Math.sin(r)),1,1)}
+const ha=(-90+(b+f)*360/N)*Math.PI/180;for(let k=6;k<R-12;k++){g.fillStyle="#38e0cf";g.fillRect(Math.round(cx+k*Math.cos(ha)),Math.round(cy+k*Math.sin(ha)),1,1)}
+for(let i=0;i<N;i++){const a=(-90+i*360/N)*Math.PI/180,x=Math.round(cx+R*Math.cos(a)),y=Math.round(cy+R*Math.sin(a)),on=i===b,s=on?13:10;
+const sam=i===0,clap=i===4||i===12,khali=i===8;
+g.fillStyle=on?"#ece5d3":sam?"#f2b53c":clap?"#4a3f6b":khali?"#08070d":"#191426";g.fillRect(x-s/2|0,y-s/2|0,s,s);
+g.fillStyle=sam?"#ffd97a":khali?"#8c8399":"#4a3f6b";if(!on){g.fillRect(x-s/2|0,y-s/2|0,s,1);g.fillRect(x-s/2|0,(y-s/2|0)+s-1,s,1);g.fillRect(x-s/2|0,y-s/2|0,1,s);g.fillRect((x-s/2|0)+s-1,y-s/2|0,1,s)}
+txt(String(i+1),x+1,y-2,1,on||sam?"#08070d":"#ece5d3")}
+if(b===0){txt("SAM",cx+1,cy-10,4,"#f2b53c");const rr=R+4+f*10;for(let a=0;a<360;a+=1.5){const r=a*Math.PI/180;g.fillStyle=f<0.5?"#f2b53c":"#d9702a";g.fillRect(Math.round(cx+rr*Math.cos(r)),Math.round(cy+rr*Math.sin(r)),1,1)}}
+else txt(String(b+1),cx+1,cy-10,4,"#ece5d3");
+requestAnimationFrame(frame)}requestAnimationFrame(frame);
+</script></body></html>

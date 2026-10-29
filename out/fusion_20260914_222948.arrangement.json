@@ -1,0 +1,306 @@
+{
+  "raga": "bageshree",
+  "subgenre": "symphonic",
+  "tala": "teentaal",
+  "sa": 62,
+  "bpm": 130,
+  "anchor": "gat_first",
+  "beats_per_bar": 16.0,
+  "sections": [
+    {
+      "kind": "alaap",
+      "bars": 4,
+      "layers": [
+        "lead",
+        "clean",
+        "drone",
+        "orchestra"
+      ],
+      "foreground": "lead",
+      "intent": "Unfold Bageshree slowly in the mandra and madhya octaves; strings hold a soft drone pad.",
+      "transition": "Sitar finishes on Sa as the tabla enters with the theka.",
+      "riff_slot": "none",
+      "form_role": "intro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "exposed"
+    },
+    {
+      "kind": "melody",
+      "bars": 4,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "tabla",
+        "drone",
+        "orchestra"
+      ],
+      "foreground": "lead",
+      "intent": "State the main Bageshree gat; the symphonic rhythm section provides a grand, driving mid-tempo foundation.",
+      "transition": "A brief orchestral sweep leads directly into the lower-register bridge.",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "tabla",
+        "drone",
+        "orchestra"
+      ],
+      "foreground": "lead",
+      "intent": "Descend into the lower register, emphasizing the komal gandhar and rishabh in descent.",
+      "transition": "Sitar leaps back to the vadi Madhyam to re-establish the hook.",
+      "riff_slot": "main",
+      "form_role": "manjha",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 4,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "tabla",
+        "drone",
+        "orchestra"
+      ],
+      "foreground": "lead",
+      "intent": "Reiterate the mukhada with full symphonic weight, locking the double-kick to the tabla's bols.",
+      "transition": "Sitar climbs to the higher octave as the harmony shifts.",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "melody",
+      "bars": 4,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "tabla",
+        "drone",
+        "orchestra"
+      ],
+      "foreground": "lead",
+      "intent": "Soar into the higher octave (antara) with the orchestra swelling behind the melody.",
+      "transition": "A sudden drop in band intensity prepares for the virtuosic taan.",
+      "riff_slot": "chorus",
+      "form_role": "antara",
+      "harmony": {
+        "mode": "progression",
+        "roots": [
+          "m",
+          "D",
+          "n",
+          "S"
+        ]
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "taan",
+      "bars": 4,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "tabla",
+        "drone",
+        "orchestra"
+      ],
+      "foreground": "lead",
+      "intent": "A rapid, cascading melodic run; the final avartan drops the metal guitars to expose the sitar and tabla.",
+      "transition": "A three-stroke tihai lands perfectly on the sam of the returning hook.",
+      "riff_slot": "main",
+      "form_role": "taan_long",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "exposed"
+    },
+    {
+      "kind": "melody",
+      "bars": 4,
+      "layers": [
+        "lead",
+        "rhythm",
+        "drums",
+        "tabla",
+        "drone",
+        "orchestra"
+      ],
+      "foreground": "lead",
+      "intent": "Return to the mukhada with maximum symphonic grandeur to celebrate the resolution.",
+      "transition": "Guitars and orchestra hold a final, resonant chord.",
+      "riff_slot": "main",
+      "form_role": "mukhada",
+      "harmony": {
+        "mode": "modal_pedal",
+        "roots": []
+      },
+      "climax_style": "driven"
+    },
+    {
+      "kind": "outro",
+      "bars": 2,
+      "layers": [
+        "lead",
+        "clean",
+        "drone",
+        "orchestra"
+      ],
+      "foreground": "lead",
+      "intent": "Settle back onto a sustained Sa, with clean guitar arpeggios and strings fading out.",
+      "transition": "The tanpura drone fades into silence.",
+      "riff_slot": "none",
+      "form_role": "outro",
+      "harmony": {
+        "mode": "drone",
+        "roots": []
+      },
+      "climax_style": "exposed"
+    }
+  ],
+  "accent_grid": [
+    {
+      "matra": 1,
+      "beat": 0.0,
+      "kind": "sam",
+      "bol": "Dha"
+    },
+    {
+      "matra": 2,
+      "beat": 1.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 3,
+      "beat": 2.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 4,
+      "beat": 3.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 5,
+      "beat": 4.0,
+      "kind": "tali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 6,
+      "beat": 5.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 7,
+      "beat": 6.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 8,
+      "beat": 7.0,
+      "kind": "beat",
+      "bol": "Dha"
+    },
+    {
+      "matra": 9,
+      "beat": 8.0,
+      "kind": "khali",
+      "bol": "Dha"
+    },
+    {
+      "matra": 10,
+      "beat": 9.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 11,
+      "beat": 10.0,
+      "kind": "beat",
+      "bol": "Tin"
+    },
+    {
+      "matra": 12,
+      "beat": 11.0,
+      "kind": "beat",
+      "bol": "Ta"
+    },
+    {
+      "matra": 13,
+      "beat": 12.0,
+      "kind": "tali",
+      "bol": "Ta"
+    },
+    {
+      "matra": 14,
+      "beat": 13.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 15,
+      "beat": 14.0,
+      "kind": "beat",
+      "bol": "Dhin"
+    },
+    {
+      "matra": 16,
+      "beat": 15.0,
+      "kind": "beat",
+      "bol": "Dha"
+    }
+  ],
+  "motif": [
+    "S",
+    "g",
+    "m",
+    "D",
+    "n",
+    "D",
+    "m",
+    "g",
+    "R",
+    "S"
+  ],
+  "registers": {
+    "lead": 0,
+    "rhythm": -2,
+    "drone": -2,
+    "clean": -1,
+    "orchestra": 0
+  },
+  "notes": []
+}
